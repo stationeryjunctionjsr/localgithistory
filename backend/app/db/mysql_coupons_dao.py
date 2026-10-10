@@ -261,6 +261,11 @@ class MySQLCouponsDAO:
             vals.append(":s_user_behavior")
             params["s_user_behavior"] = data.user_behavior
 
+        if data.applicable_payment_methods is not None:
+            cols.append("applicable_payment_methods")
+            vals.append(":s_applicable_payment_methods")
+            params["s_applicable_payment_methods"] = json.dumps(data.applicable_payment_methods)
+
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         
@@ -277,6 +282,7 @@ class MySQLCouponsDAO:
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: 'CouponsInternalUpdate') -> 'CouponInternal':
+        data = update_data
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -340,6 +346,10 @@ class MySQLCouponsDAO:
         if data.applies_to_type is not None:
             updates.append("applies_to_type = :s_appliesToType")
             params["s_appliesToType"] = data.applies_to_type
+
+        if data.applicable_payment_methods is not None:
+            updates.append("applicable_payment_methods = :s_applicable_payment_methods")
+            params["s_applicable_payment_methods"] = json.dumps(data.applicable_payment_methods)
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -442,6 +452,11 @@ class MySQLCouponsDAO:
             applicable_categories=children.get("applicable_categories", []),
             applies_to_value_ids=children.get("applies_to_value_ids", []),
             excluded_product_ids=children.get("excluded_product_ids", []),
+            applicable_payment_methods=(
+                json.loads(r.applicable_payment_methods)
+                if isinstance(r.applicable_payment_methods, str)
+                else r.applicable_payment_methods
+            ) if r.applicable_payment_methods is not None else None,
         )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:

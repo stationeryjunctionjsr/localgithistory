@@ -308,6 +308,31 @@ async def test_get_delivery_charge_location_response_schema():
 
 
 @pytest.mark.asyncio
+async def test_get_delivery_charge_location_courier_fulfillment():
+    """D2b – /delivery-charges/location with fulfillment_type=courier returns courier charge."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get(
+            "/api/delivery-charges/location",
+            params={
+                "state": "Maharashtra",
+                "city": "Mumbai",
+                "district": "Mumbai",
+                "pincode": "400001",
+                "userRole": "customer",
+                "orderAmount": 100,
+                "fulfillment_type": "courier",
+            },
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["source"] == "courier"
+    assert data["charge"] > 0
+    assert data["totalCharge"] >= data["charge"]
+    assert "gstPercentage" in data
+    assert "gstAmount" in data
+
+
+@pytest.mark.asyncio
 async def test_check_serviceability_invalid_pincode_via_api():
     """D3 – check-serviceability via HTTP returns isServiceable=False for bad format."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

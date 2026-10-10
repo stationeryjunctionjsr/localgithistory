@@ -481,11 +481,13 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             coupon_mode=coupon_data.coupon_mode or "override",
             max_usage_per_user=int(coupon_data.max_usage_per_user) if coupon_data.max_usage_per_user else None,
             user_behavior=coupon_data.user_behavior,
+            applicable_payment_methods=getattr(coupon_data, "applicable_payment_methods", None),
+            shipping_pincodes=getattr(coupon_data, "shipping_pincodes", None),
         )
 
         # Handle Overlap
-        resolution = coupon_data.resolution
-        force = (coupon_data.force if coupon_data.force is not None else False)
+        resolution = getattr(coupon_data, "resolution", "overwrite")
+        force = bool(getattr(coupon_data, "force", False))
 
         if not force:
             overlap = await self.check_discount_overlap(coupon)
@@ -567,6 +569,10 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         if 'eligibleProducts' in update_data.model_fields_set: internal_update.eligibleProducts = update_data.eligibleProducts
         if 'eligibleSegments' in update_data.model_fields_set: internal_update.eligibleSegments = update_data.eligibleSegments
         if 'brands' in update_data.model_fields_set: internal_update.brands = update_data.brands
+        if 'applicable_payment_methods' in update_data.model_fields_set or 'applicablePaymentMethods' in update_data.model_fields_set:
+            internal_update.applicable_payment_methods = update_data.applicable_payment_methods
+        if 'shipping_pincodes' in update_data.model_fields_set or 'shippingPincodes' in update_data.model_fields_set:
+            internal_update.shipping_pincodes = update_data.shipping_pincodes
 
         res = await self.storage.update(id, internal_update)
         self.invalidate_cache()

@@ -494,6 +494,7 @@ CREATE TABLE `sj_coupons` (
   `user_behavior` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bxgy_customer_gets_quantity` int DEFAULT NULL,
   `bxgy_customer_gets_applies_to_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `applicable_payment_methods` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_coupons_external` (`external_id`),
   UNIQUE KEY `ix_sj_coupons_code` ((upper(`code`)))

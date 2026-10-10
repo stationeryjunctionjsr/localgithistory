@@ -29,6 +29,7 @@ class LocationChargeResponse(CamelBaseModel):
     is_applicable_to_role: bool = True
     applied_tier: Optional[DeliveryChargeTier] = None
     urgent_delivery_available: bool = False
+    urgent_delivery_charge: Optional[float] = None
     urgentdelivery_charge: Optional[float] = None
     gstPercentage: float = 0.0
     gstAmount: float = 0.0
@@ -107,10 +108,48 @@ async def get_delivery_charge_by_location(
     pincode: Optional[str] = Query(None),
     userRole: Optional[str] = Query("customer"),
     orderAmount: Optional[float] = Query(0),
+    fulfillment_type: Optional[str] = Query(None),
 ):
-    result = await delivery_charge_repository.getChargeForLocation(
-        state, city, district, pincode, userRole, orderAmount
-    )
+    effective_role = userRole or "customer"
+    effective_amount = float(orderAmount or 0.0)
+
+    if fulfillment_type in ("courier", "pan_india"):
+        courier_res = await delivery_charge_repository.getCourierCharge(effective_amount, effective_role)
+        result = LocationChargeResponse(
+            charge=courier_res.charge,
+            min_cart_value=courier_res.min_cart_value,
+            source=courier_res.source or "courier",
+            delivery_charge=courier_res.delivery_charge,
+            is_applicable_to_role=True,
+            urgent_delivery_available=False,
+            urgent_delivery_charge=None,
+        )
+    else:
+        zone_doc = None
+        if pincode:
+            try:
+                from app.repositories.zone_seller_cache import get_zone_for_pincode
+                zone_doc = await get_zone_for_pincode(pincode)
+            except Exception:
+                zone_doc = None
+
+        if zone_doc:
+            zone_fee = await delivery_charge_repository.getHyperlocalChargeForZone(
+                str(zone_doc.id), effective_amount, effective_role
+            )
+            result = LocationChargeResponse(
+                charge=zone_fee.charge,
+                min_cart_value=zone_fee.min_cart_value,
+                source=zone_fee.source or "zone",
+                delivery_charge=zone_fee.delivery_charge,
+                is_applicable_to_role=True,
+                urgent_delivery_available=zone_fee.urgent_delivery_available,
+                urgent_delivery_charge=zone_fee.urgent_delivery_charge,
+            )
+        else:
+            result = await delivery_charge_repository.getChargeForLocation(
+                state, city, district, pincode, effective_role, effective_amount
+            )
 
     # Calculate delivery GST and total charge
     charge = result.charge or 0.0
