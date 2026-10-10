@@ -112,6 +112,11 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [bundles, setBundles] = useState<any[]>([]);
+  // Image gallery state
+  const [selectedImgIdx, setSelectedImgIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
   // Pincode availability state
   const [requestAdded, setRequestAdded] = useState(false);
   const [notifyAdded, setNotifyAdded] = useState(false);
@@ -697,26 +702,199 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
           <div className={styles.productWrapper}>
             {/* Left: Image Gallery */}
             <div className={styles.imageGallery}>
-              {product.images && product.images.length > 0 ? (
-                product.images.map((img: string, idx: number) => (
-                  <div key={idx} className={styles.productImageItem}>
-                    <Image
-                      src={getImageUrlWithFallback(img)}
-                      alt={`${product.name} view ${idx + 1}`}
-                      width={600}
-                      height={800}
-                      priority={idx === 0}
-                      style={{ objectFit: 'cover', width: '100%', height: 'auto' }}
-                    />
+              {product.images && product.images.length > 0 ? (() => {
+                const imgs: string[] = product.images;
+                const mainImg = imgs[selectedImgIdx] ?? imgs[0];
+                return (
+                  <div className="flex flex-col-reverse lg:flex-row gap-3">
+                    {/* Thumbnail strip — bottom on mobile, left column on desktop */}
+                    {imgs.length > 1 && (
+                      <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden lg:max-h-[560px] pb-1 lg:pb-0 pr-1 flex-shrink-0">
+                        {imgs.map((img, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedImgIdx(idx)}
+                            className={`flex-shrink-0 w-14 h-14 lg:w-16 lg:h-16 rounded border-2 overflow-hidden bg-gray-50 transition-all focus:outline-none ${
+                              idx === selectedImgIdx
+                                ? 'border-gray-900 shadow-sm'
+                                : 'border-transparent hover:border-gray-300'
+                            }`}
+                            aria-label={`View image ${idx + 1}`}
+                          >
+                            <Image
+                              src={getImageUrlWithFallback(img)}
+                              alt={`${product.name} thumbnail ${idx + 1}`}
+                              width={64}
+                              height={64}
+                              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Main image — click to lightbox, hover to zoom */}
+                    <div className="flex-1 relative">
+                      <div
+                        className="relative overflow-hidden bg-gray-50 rounded-sm cursor-zoom-in select-none"
+                        style={{ aspectRatio: '3/4' }}
+                        onClick={() => { setLightboxIdx(selectedImgIdx); setLightboxOpen(true); }}
+                        onMouseMove={(e) => {
+                          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                          setZoomPos({
+                            x: ((e.clientX - rect.left) / rect.width) * 100,
+                            y: ((e.clientY - rect.top) / rect.height) * 100,
+                          });
+                        }}
+                        onMouseLeave={() => setZoomPos(null)}
+                      >
+                        <Image
+                          src={getImageUrlWithFallback(mainImg)}
+                          alt={product.name}
+                          fill
+                          priority
+                          sizes="(max-width:768px) 100vw, 55vw"
+                          style={{
+                            objectFit: 'cover',
+                            transformOrigin: zoomPos ? `${zoomPos.x}% ${zoomPos.y}%` : 'center',
+                            transform: zoomPos ? 'scale(2)' : 'scale(1)',
+                            transition: zoomPos ? 'none' : 'transform 0.3s ease',
+                          }}
+                        />
+                        {/* Zoom hint */}
+                        {!zoomPos && (
+                          <div className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm rounded px-2 py-1 text-[10px] font-medium text-gray-600 pointer-events-none flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                            Hover to zoom
+                          </div>
+                        )}
+                        {/* Image counter badge */}
+                        {imgs.length > 1 && (
+                          <div className="absolute top-2 right-2 bg-black/50 rounded-full px-2 py-0.5 text-[10px] font-bold text-white pointer-events-none">
+                            {selectedImgIdx + 1}/{imgs.length}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Prev/Next arrows for mobile swipe-like nav */}
+                      {imgs.length > 1 && (
+                        <div className="flex justify-between mt-2 lg:hidden">
+                          <button
+                            onClick={() => setSelectedImgIdx(i => Math.max(0, i - 1))}
+                            disabled={selectedImgIdx === 0}
+                            className="rounded-full bg-white border border-gray-200 shadow p-1.5 disabled:opacity-30"
+                            aria-label="Previous image"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                          </button>
+                          <div className="flex gap-1 items-center">
+                            {imgs.map((_, i) => (
+                              <button key={i} onClick={() => setSelectedImgIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === selectedImgIdx ? 'bg-gray-900' : 'bg-gray-300'}`} aria-label={`Image ${i+1}`} />
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => setSelectedImgIdx(i => Math.min(imgs.length - 1, i + 1))}
+                            disabled={selectedImgIdx === imgs.length - 1}
+                            className="rounded-full bg-white border border-gray-200 shadow p-1.5 disabled:opacity-30"
+                            aria-label="Next image"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))
-              ) : (
+                );
+              })() : (
                 <div className={styles.productImageItem}>
                   <div className="flex h-full w-full items-center justify-center text-gray-400">
                     No Image Available
                   </div>
                 </div>
               )}
+
+              {/* ── Lightbox overlay ── */}
+              {lightboxOpen && product.images?.length > 0 && (() => {
+                const imgs: string[] = product.images;
+                const prev = () => setLightboxIdx(i => Math.max(0, i - 1));
+                const next = () => setLightboxIdx(i => Math.min(imgs.length - 1, i + 1));
+                return (
+                  <div
+                    className="fixed inset-0 z-[999] flex items-center justify-center bg-black/90"
+                    onClick={() => setLightboxOpen(false)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setLightboxOpen(false); if (e.key === 'ArrowLeft') prev(); if (e.key === 'ArrowRight') next(); }}
+                    tabIndex={0}
+                    ref={(el) => el?.focus()}
+                  >
+                    {/* Close button */}
+                    <button
+                      onClick={() => setLightboxOpen(false)}
+                      className="absolute top-4 right-4 z-10 rounded-full bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
+                      aria-label="Close lightbox"
+                    >
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+
+                    {/* Prev arrow */}
+                    {lightboxIdx > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); prev(); }}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/10 hover:bg-white/20 p-3 text-white transition-colors"
+                        aria-label="Previous"
+                      >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                    )}
+
+                    {/* Main lightbox image */}
+                    <div
+                      className="relative max-w-[90vw] max-h-[90vh] w-full flex items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Image
+                        src={getImageUrlWithFallback(imgs[lightboxIdx])}
+                        alt={`${product.name} — image ${lightboxIdx + 1}`}
+                        width={900}
+                        height={1200}
+                        style={{ objectFit: 'contain', maxHeight: '88vh', width: 'auto', maxWidth: '88vw' }}
+                        priority
+                      />
+                    </div>
+
+                    {/* Next arrow */}
+                    {lightboxIdx < imgs.length - 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); next(); }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/10 hover:bg-white/20 p-3 text-white transition-colors"
+                        aria-label="Next"
+                      >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    )}
+
+                    {/* Thumbnail strip at bottom */}
+                    {imgs.length > 1 && (
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-3 py-2 bg-black/40 rounded-xl backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+                        {imgs.map((img, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setLightboxIdx(i)}
+                            className={`w-10 h-10 rounded overflow-hidden border-2 flex-shrink-0 transition-all ${i === lightboxIdx ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                            aria-label={`View image ${i + 1}`}
+                          >
+                            <Image src={getImageUrlWithFallback(img)} alt="" width={40} height={40} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Counter */}
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm font-medium">
+                      {lightboxIdx + 1} / {imgs.length}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Right: Sticky Details */}

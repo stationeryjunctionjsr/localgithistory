@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -19,19 +19,25 @@ class MySQLCoachMarksDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional[CoachMarkInternal]:
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
+    async def findById(self, id: Union[int, str]) -> Optional[CoachMarkInternal]:
+        if not id:
             return None
         async with self._factory()() as session:
-            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pk})
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
+            result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
             return self._map_to_schema(row)
 
     async def findByAnchorId(self, anchor_id: str) -> Optional[CoachMarkInternal]:
+        if not anchor_id:
+            return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE anchor_id = :anchor_id LIMIT 1")
             result = await session.execute(q, {"anchor_id": anchor_id})
@@ -40,99 +46,53 @@ class MySQLCoachMarksDAO:
                 return None
             return self._map_to_schema(row)
 
-    async def findOne(self, query: Optional[dict] = None, **kwargs) -> Optional[CoachMarkInternal]:
-        params_dict = {}
+    async def findOne(
+        self,
+        anchor_id: Optional[str] = None,
+        id: Optional[Union[int, str]] = None,
+        query: Optional[dict] = None,
+    ) -> Optional[CoachMarkInternal]:
         if query:
-            params_dict.update(query)
-        params_dict.update(kwargs)
-        if not params_dict:
-            return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params: Dict[str, Any] = {}
-            for k, v in params_dict.items():
-                if k in ("_id", "id"):
-                    conditions.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else v
-                elif k in ("externalId", "external_id"):
-                    conditions.append("external_id = :external_id")
-                    params["external_id"] = str(v)
-                elif k in ("anchorId", "anchor_id"):
-                    conditions.append("anchor_id = :anchor_id")
-                    params["anchor_id"] = str(v)
-                elif k in ("screenName", "screen_name"):
-                    conditions.append("screen_name = :screen_name")
-                    params["screen_name"] = str(v)
-                elif k in ("isActive", "is_active"):
-                    conditions.append("is_active = :is_active")
-                    params["is_active"] = 1 if v else 0
-                elif k in ("sequenceOrder", "sequence_order"):
-                    conditions.append("sequence_order = :sequence_order")
-                    params["sequence_order"] = int(v)
-                else:
-                    conditions.append(f"{k} = :{k}")
-                    params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
-            result = await session.execute(q, params)
-            row = result.fetchone()
-            if not row:
-                return None
-            return self._map_to_schema(row)
+            anchor_id = query.get("anchor_id") or query.get("anchorId") or anchor_id
+            id = query.get("id") or query.get("_id") or id
+        if anchor_id:
+            return await self.findByAnchorId(anchor_id)
+        if id:
+            return await self.findById(id)
+        all_marks = await self.findAll()
+        return all_marks[0] if all_marks else None
             
     async def findAll(
         self,
-        query: Optional[dict] = None,
         screen_name: Optional[str] = None,
         is_active: Optional[bool] = None,
+        query: Optional[dict] = None,
     ) -> List[CoachMarkInternal]:
-        if is_active is None and query:
-            val = query.get("isActive") if "isActive" in query else query.get("is_active")
-            if val is not None:
-                is_active = bool(val)
-        if screen_name is None and query:
-            screen_name = query.get("screenName") or query.get("screen_name")
+        if query:
+            if is_active is None:
+                val = query.get("isActive") if "isActive" in query else query.get("is_active")
+                if val is not None:
+                    is_active = bool(val)
+            if screen_name is None:
+                screen_name = query.get("screenName") or query.get("screen_name")
 
         async with self._factory()() as session:
-            conditions = []
-            params: Dict[str, Any] = {}
+            clauses = []
+            params = {}
 
             if is_active is not None:
-                conditions.append("is_active = :is_active")
-                params["is_active"] = 1 if is_active else 0
+                clauses.append("is_active = :act")
+                params["act"] = 1 if is_active else 0
             if screen_name is not None:
-                conditions.append("screen_name = :screen_name")
-                params["screen_name"] = screen_name
+                clauses.append("screen_name = :screen_name")
+                params["screen_name"] = str(screen_name)
 
-            if query:
-                for k, v in query.items():
-                    if k in ("isActive", "is_active", "screenName", "screen_name"):
-                        continue
-                    if k in ("_id", "id"):
-                        conditions.append("id = :id")
-                        params["id"] = int(v) if str(v).isdigit() else v
-                    elif k in ("externalId", "external_id"):
-                        conditions.append("external_id = :external_id")
-                        params["external_id"] = str(v)
-                    elif k in ("anchorId", "anchor_id"):
-                        conditions.append("anchor_id = :anchor_id")
-                        params["anchor_id"] = str(v)
-                    elif k in ("sequenceOrder", "sequence_order"):
-                        conditions.append("sequence_order = :sequence_order")
-                        params["sequence_order"] = int(v)
-                    else:
-                        conditions.append(f"{k} = :{k}")
-                        params[k] = v
-                        
             sql = f"SELECT * FROM {self.TABLE}"
-            if conditions:
-                sql += " WHERE " + " AND ".join(conditions)
+            if clauses:
+                sql += " WHERE " + " AND ".join(clauses)
             sql += " ORDER BY sequence_order ASC"
                     
-            q = text(sql)
-            result = await session.execute(q, params)
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
             return [self._map_to_schema(r) for r in rows]
 
@@ -143,7 +103,7 @@ class MySQLCoachMarksDAO:
         
         cols = ["external_id", "created_at", "updated_at"]
         val_placeholders = [":eid", ":c", ":u"]
-        params: Dict[str, Any] = {"eid": external_id, "c": now, "u": now}
+        params = {"eid": external_id, "c": now, "u": now}
 
         if data.anchor_id is not None:
             cols.append("anchor_id")
@@ -187,13 +147,12 @@ class MySQLCoachMarksDAO:
             ).scalar()
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(int(new_id))
 
-    async def update(self, id: str, update_data: CoachMarkInternalUpdate) -> CoachMarkInternal:
+    async def update(self, id: Union[int, str], update_data: CoachMarkInternalUpdate) -> Optional[CoachMarkInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        pk = int(id) if str(id).isdigit() else None
-        params: Dict[str, Any] = {"id": pk, "u": now_utc()}
+        params = {"u": now_utc()}
 
         if update_data.anchor_id is not None:
             updates.append("anchor_id = :anchor_id")
@@ -221,23 +180,40 @@ class MySQLCoachMarksDAO:
 
         upd_sql = ", ".join(updates)
         async with factory() as session:
-            if pk is not None:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await session.commit()
-                
-        return await self.findById(str(id))
+            if str(id).isdigit():
+                pk = int(id)
+                upd_where = "id = :pk"
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return None
+                upd_where = "id = :pk"
+            params["pk"] = pk
 
-    async def delete(self, id: str) -> bool:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
+            await session.commit()
+                
+        return await self.findById(pk)
+
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
-            return False
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
+        if not factory or not id:
             return False
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+                del_where = "id = :pk"
+                params = {"pk": pk}
+            else:
+                del_where = "external_id = :eid"
+                params = {"eid": str(id)}
+
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
+                text(f"DELETE FROM {self.TABLE} WHERE {del_where}"),
+                params,
             )
             await session.commit()
             return result.rowcount > 0
@@ -245,13 +221,13 @@ class MySQLCoachMarksDAO:
     def _map_to_schema(self, r) -> CoachMarkInternal:
         return CoachMarkInternal(
             id=str(r.id),
-            external_id=getattr(r, "external_id", None),
-            anchor_id=getattr(r, "anchor_id", None),
-            title=getattr(r, "title", None),
-            description=getattr(r, "description", None),
-            screen_name=getattr(r, "screen_name", None),
-            sequence_order=int(r.sequence_order) if getattr(r, "sequence_order", None) is not None else None,
-            is_active=bool(r.is_active) if getattr(r, "is_active", None) is not None else True,
-            created_at=getattr(r, "created_at", None),
-            updated_at=getattr(r, "updated_at", None),
+            external_id=r.external_id,
+            anchor_id=r.anchor_id,
+            title=r.title,
+            description=r.description,
+            screen_name=r.screen_name,
+            sequence_order=int(r.sequence_order) if r.sequence_order is not None else None,
+            is_active=bool(r.is_active) if r.is_active is not None else True,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
         )

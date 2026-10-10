@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -19,76 +19,34 @@ class MySQLReturnSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional[ReturnSettingsInternal]:
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
+    async def findById(self, id: Union[int, str]) -> Optional[ReturnSettingsInternal]:
+        if not id:
             return None
         async with self._factory()() as session:
-            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pk})
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
+            result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
             return self._map_to_schema(row)
 
-    async def findOne(self, query: Optional[dict] = None, **kwargs) -> Optional[ReturnSettingsInternal]:
-        params_dict = {}
+    async def findOne(self, id: Optional[Union[int, str]] = None, query: Optional[dict] = None) -> Optional[ReturnSettingsInternal]:
         if query:
-            params_dict.update(query)
-        params_dict.update(kwargs)
-        if not params_dict:
-            return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params: Dict[str, Any] = {}
-            for k, v in params_dict.items():
-                if k in ("_id", "id"):
-                    conditions.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else v
-                elif k in ("externalId", "external_id"):
-                    conditions.append("external_id = :external_id")
-                    params["external_id"] = str(v)
-                elif k in ("returnDays", "return_days"):
-                    conditions.append("return_days = :return_days")
-                    params["return_days"] = int(v)
-                else:
-                    conditions.append(f"{k} = :{k}")
-                    params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
-            result = await session.execute(q, params)
-            row = result.fetchone()
-            if not row:
-                return None
-            return self._map_to_schema(row)
+            id = query.get("id") or query.get("_id") or id
+        if id:
+            return await self.findById(id)
+        all_settings = await self.findAll()
+        return all_settings[0] if all_settings else None
             
     async def findAll(self, query: Optional[dict] = None) -> List[ReturnSettingsInternal]:
         async with self._factory()() as session:
-            conditions = []
-            params: Dict[str, Any] = {}
-            if query:
-                for k, v in query.items():
-                    if k in ("_id", "id"):
-                        conditions.append("id = :id")
-                        params["id"] = int(v) if str(v).isdigit() else v
-                    elif k in ("externalId", "external_id"):
-                        conditions.append("external_id = :external_id")
-                        params["external_id"] = str(v)
-                    elif k in ("returnDays", "return_days"):
-                        conditions.append("return_days = :return_days")
-                        params["return_days"] = int(v)
-                    else:
-                        conditions.append(f"{k} = :{k}")
-                        params[k] = v
-                        
-            sql = f"SELECT * FROM {self.TABLE}"
-            if conditions:
-                sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+            q = text(f"SELECT * FROM {self.TABLE} ORDER BY id ASC")
+            result = await session.execute(q)
             rows = result.fetchall()
             return [self._map_to_schema(r) for r in rows]
 
@@ -99,7 +57,7 @@ class MySQLReturnSettingsDAO:
         
         cols = ["external_id", "created_at", "updated_at"]
         val_placeholders = [":eid", ":c", ":u"]
-        params: Dict[str, Any] = {"eid": external_id, "c": now, "u": now}
+        params = {"eid": external_id, "c": now, "u": now}
 
         if data.return_days is not None:
             cols.append("return_days")
@@ -118,12 +76,12 @@ class MySQLReturnSettingsDAO:
             ).scalar()
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(int(new_id))
 
-    async def update(self, id: str, update_data: ReturnSettingsInternalUpdate) -> ReturnSettingsInternal:
+    async def update(self, id: Union[int, str], update_data: ReturnSettingsInternalUpdate) -> Optional[ReturnSettingsInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params: Dict[str, Any] = {"id": int(id) if str(id).isdigit() else id, "u": now_utc()}
+        params = {"u": now_utc()}
 
         if update_data.return_days is not None:
             updates.append("return_days = :return_days")
@@ -131,22 +89,39 @@ class MySQLReturnSettingsDAO:
 
         upd_sql = ", ".join(updates)
         async with factory() as session:
-            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            if str(id).isdigit():
+                pk = int(id)
+                upd_where = "id = :pk"
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return None
+                upd_where = "id = :pk"
+            params["pk"] = pk
+
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
             await session.commit()
                 
-        return await self.findById(str(id))
+        return await self.findById(pk)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
-            return False
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
+        if not factory or not id:
             return False
         async with factory() as session:
+            if str(id).isdigit():
+                del_where = "id = :pk"
+                params = {"pk": int(id)}
+            else:
+                del_where = "external_id = :eid"
+                params = {"eid": str(id)}
+
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
+                text(f"DELETE FROM {self.TABLE} WHERE {del_where}"),
+                params,
             )
             await session.commit()
             return result.rowcount > 0
@@ -154,8 +129,8 @@ class MySQLReturnSettingsDAO:
     def _map_to_schema(self, r) -> ReturnSettingsInternal:
         return ReturnSettingsInternal(
             id=str(r.id),
-            external_id=getattr(r, "external_id", None),
-            return_days=int(r.return_days) if getattr(r, "return_days", None) is not None else None,
-            created_at=getattr(r, "created_at", None),
-            updated_at=getattr(r, "updated_at", None),
+            external_id=r.external_id,
+            return_days=int(r.return_days) if r.return_days is not None else None,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
         )
