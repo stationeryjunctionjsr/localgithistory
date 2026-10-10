@@ -9,6 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel, Field, ConfigDict
 from app.utils.limiter import limiter
 
+from app.models.daos_flat import (
+    AvailabilityRequestsInternalCreate,
+    AvailabilityRequestsInternalUpdate,
+)
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_optional_user, require_super_admin
 from app.utils.logger import logger
@@ -25,16 +29,6 @@ class PushNotificationResult(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
-class TrackingNotifyEvent(BaseModel):
-    id: Optional[str] = Field(default=None, alias="_id")
-    type: Optional[str] = None
-    productId: Optional[str] = None
-    pincode: Optional[str] = None
-    notified: bool = False
-    userId: Optional[str] = None
-    email: Optional[str] = None
-
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 class AvailabilityRequestCreate(BaseModel):
@@ -51,28 +45,23 @@ class AvailabilityRequestCreate(BaseModel):
 async def create_availability_request(
     request: Request,
     data: AvailabilityRequestCreate,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """Create a product availability request for a specific pincode.
     Can be submitted by authenticated users or guests (providing name/email).
     """
-    user_id = current_user.id if current_user else None
-    user_name = (current_user.name if current_user else None) or data.user_name
-    user_email = (current_user.email if current_user else None) or data.user_email
+    user_name = (current_user.name if current_user else None) or data.userName
+    user_email = (current_user.email if current_user else None) or data.userEmail
 
-    record = {
-        "productId": data.product_id,
-        "productName": data.product_name,
-        "pincode": data.pincode.strip(),
-        "userId": user_id,
-        "userName": user_name,
-        "userEmail": user_email,
-        "status": "pending",
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "fulfilledAt": None,
-    }
+    create_data = AvailabilityRequestsInternalCreate(
+        product_id=data.productId,
+        productName=data.productName,
+        pincode=data.pincode.strip(),
+        userName=user_name,
+        userEmail=user_email,
+    )
 
-    result = await _storage.create(record)
+    result = await _storage.create(create_data)
     return result
 
 
@@ -87,7 +76,7 @@ async def list_availability_requests(
     current_user: User = Depends(require_super_admin),
 ):
     """List all availability requests. Admin only."""
-    all_requests = await _storage.findAll({})
+    all_requests = await _storage.findAll()
 
     # Apply filters
     if pincode:
@@ -98,13 +87,13 @@ async def list_availability_requests(
         all_requests = [r for r in all_requests if r.product_id == productId]
 
     # Sort newest first
-    all_requests.sort(key=lambda r: (r.created_at or ""), reverse=True)
+    all_requests.sort(key=lambda r: (str(r.created_at or "")), reverse=True)
 
     total = len(all_requests)
     start = (page - 1) * limit
     paginated = all_requests[start : start + limit]
 
-    return {"requests": paginated, "total": total, "page": page, "limit": limit}
+    return AvailabilityRequestListResponse(requests=paginated, total=total, page=page, limit=limit)
 
 
 @router.post("/{request_id}/fulfill", response_model=MessageResponse)
@@ -117,18 +106,8 @@ async def fulfill_availability_request(
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if req.status == "fulfilled":
-        raise HTTPException(status_code=400, detail="Request already fulfilled")
-
-    # Mark fulfilled
-    await _storage.update(
-        request_id,
-        {
-            "status": "fulfilled",
-            "fulfilledAt": datetime.now(timezone.utc).isoformat(),
-            "fulfilledBy": current_user.id,
-        },
-    )
+    # Mark fulfilled by deleting the processed request
+    await _storage.delete(request_id)
 
     product_id = req.product_id
     product_name = (req.product_name if req.product_name is not None else "Your requested product")
@@ -163,22 +142,15 @@ async def fulfill_availability_request(
             from app.db.storage_factory import get_storage as _gs
 
             tracking_storage = _gs("tracking")
-            all_events = await tracking_storage.findAll()
-            parsed_events: List[TrackingNotifyEvent] = [
-                e if isinstance(e, TrackingNotifyEvent) else TrackingNotifyEvent.model_validate(e, from_attributes=True)
-                for e in all_events
-            ]
-            notify_events = [
+            events = await tracking_storage.findAll(event_type="notify_pincode", product_id=str(product_id))
+            matching_events = [
                 e
-                for e in parsed_events
-                if e.type == "notify_pincode"
-                and str(e.product_id) == str(product_id)
-                and str(e.pincode) == str(pincode)
-                and not e.notified
+                for e in events
+                if e.search_term == str(pincode)
             ]
-            for event in notify_events:
-                ev_user_id = event.userId
-                ev_email = event.email
+            for event in matching_events:
+                ev_user_id = event.user_id
+                ev_email = event.filter_value
                 if ev_user_id and ev_user_id != user_id:
                     try:
                         from app.services.push_notification_service import push_notification_service
@@ -190,13 +162,12 @@ async def fulfill_availability_request(
                         logging.warning("availability_requests: push notification failed for user %r (product %r): %s", ev_user_id, product_id, e, exc_info=e)
                 if ev_email:
                     notify_email_list.append(ev_email)
-                # Mark as notified
                 try:
                     ev_id = str(event.id if event.id is not None else "")
                     if ev_id:
-                        await tracking_storage.update(ev_id, {"notified": True})
+                        await tracking_storage.delete(ev_id)
                 except Exception as e:
-                    logging.warning("availability_requests: failed to mark notify-me event %r as notified: %s", ev_id, e, exc_info=e)
+                    logging.warning("availability_requests: failed to remove notified event %r: %s", ev_id, e, exc_info=e)
         except Exception as e:
             logger.warning("Could not notify 'Notify Me' users for product %s at %s: %s", product_id, pincode, e)
 
@@ -217,9 +188,6 @@ async def fulfill_availability_request(
         except Exception as e:
             logger.warning("Could not send email to %s: %s", email, e)
 
-    return {
-        "success": True,
-        "message": (
-            f"Request fulfilled. Push: {push_delivered + notify_push} delivered, Email: {email_delivered} sent."
-        ),
-    }
+    return MessageResponse(
+        message=f"Request fulfilled. Push: {push_delivered + notify_push} delivered, Email: {email_delivered} sent."
+    )

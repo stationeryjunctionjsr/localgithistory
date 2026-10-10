@@ -1,22 +1,20 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from typing import Optional
+from app.models.base import CamelBaseModel
 
-class AvailabilityRequests(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    product_id: Optional[str] = Field(default=None, alias='productId')
-    product_name: Optional[str] = Field(default=None, alias='productName')
-    pincode: Optional[str] = Field(default=None, alias='pincode')
-    user_name: Optional[str] = Field(default=None, alias='userName')
-    user_email: Optional[str] = Field(default=None, alias='userEmail')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class AvailabilityRequests(CamelBaseModel):
+    id: Optional[str] = None
+    external_id: Optional[str] = None
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    pincode: Optional[str] = None
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    status: Optional[str] = "pending"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class AvailabilityRequestResponse(AvailabilityRequests):
     pass
+
 

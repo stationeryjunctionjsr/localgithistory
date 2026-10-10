@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -39,8 +39,8 @@ class MySQLDeviceSubscriptionsDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id)))
+            keys = await self._fetch_keys(session, int(row.id))
+            return self._map_to_schema(row, keys)
 
     async def findOne(
         self,
@@ -82,8 +82,23 @@ class MySQLDeviceSubscriptionsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id))) for r in rows]
+            parent_ids = [int(r.id) for r in rows]
+            id_list = ",".join(str(i) for i in parent_ids)
+            keys_res = await session.execute(
+                text(f"SELECT parent_id, key_name, key_value FROM sj_device_keys WHERE parent_id IN ({id_list}) ORDER BY id ASC")
+            )
+            all_key_rows = keys_res.fetchall()
+            return [
+                self._map_to_schema(
+                    r,
+                    keys=[
+                        DeviceKeyInternal(key=kr.key_name, value=kr.key_value)
+                        for kr in all_key_rows
+                        if kr.parent_id == r.id
+                    ],
+                )
+                for r in rows
+            ]
 
     async def create(self, data: DeviceSubscriptionInternalCreate) -> DeviceSubscriptionInternal:
         factory = self._factory()
@@ -198,25 +213,22 @@ class MySQLDeviceSubscriptionsDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[DeviceKeyInternal]]:
-        c_map: Dict[int, List[DeviceKeyInternal]] = {rid: [] for rid in ids}
-        if not ids:
-            return c_map
-            
-        id_list = ",".join(str(int(i)) for i in ids)
+    async def _fetch_keys(self, session, parent_id: int) -> List[DeviceKeyInternal]:
         res = await session.execute(
-            text(f"SELECT parent_id, key_name, key_value FROM sj_device_keys WHERE parent_id IN ({id_list})")
+            text("SELECT key_name, key_value FROM sj_device_keys WHERE parent_id = :pid ORDER BY id ASC"),
+            {"pid": parent_id},
         )
-        for r in res.fetchall():
-            c_map[r.parent_id].append(DeviceKeyInternal(key=r.key_name, value=r.key_value))
-
-        return c_map
+        return [
+            DeviceKeyInternal(key=r.key_name, value=r.key_value)
+            for r in res.fetchall()
+        ]
 
     async def _replace_children(self, session, row_id: int, data: Union[DeviceSubscriptionInternalCreate, DeviceSubscriptionInternalUpdate]):
         if data.keys is not None:
             await session.execute(text("DELETE FROM sj_device_keys WHERE parent_id = :id"), {"id": row_id})
-            for item in data.keys:
+            if data.keys:
+                params = [{"id": row_id, "v0": item.key, "v1": item.value} for item in data.keys]
                 await session.execute(
                     text("INSERT INTO sj_device_keys (parent_id, key_name, key_value) VALUES (:id, :v0, :v1)"),
-                    {"id": row_id, "v0": item.key, "v1": item.value},
+                    params,
                 )
