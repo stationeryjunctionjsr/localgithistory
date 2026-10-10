@@ -1,7 +1,6 @@
 from app.models.user import User
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate, UserCreate
-from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_password_hash, verify_password
@@ -24,6 +23,9 @@ class UserRepository:
     async def findById(self, id: str) -> Optional[User]:
         data = await self.storage.findById(id)
         return data
+
+    async def findByIds(self, ids: List[str]) -> List[User]:
+        return await self.storage.findByIds(ids)
 
     async def findOne(self, query: dict) -> Optional[User]:
         data = await self.storage.findOne(query)
