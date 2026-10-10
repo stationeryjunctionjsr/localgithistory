@@ -90,7 +90,6 @@ function PopularProductsFallback() {
         </button>
       ))}
       </div>
-    </ErrorBoundary>
   );
 }
 

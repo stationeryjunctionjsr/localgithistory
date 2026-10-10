@@ -1814,7 +1814,6 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
           }
         }}
       />
-        </div>
       </ErrorBoundary>
     </>
   );

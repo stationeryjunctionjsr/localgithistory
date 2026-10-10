@@ -4,23 +4,29 @@ zone_seller_cache.py
 Shared, in-process cache that resolves:
     pincode  ->  delivery zone  ->  set[seller_id]
 
-All availability-filtering paths (autocomplete, check-serviceability) must
-use this module so there is a single source of truth.
+All availability-filtering paths (recommendations, product listing, search,
+autocomplete) must use this module so there is a single source of truth.
 
-Data model (seller-declared zones):
-    Sellers declare which zones they service via sj_seller_zones.zone_id.
-    To find sellers for a pincode:
-      1. Resolve pincode -> zone (via zone.pincodes[])
-      2. Read zone.external_id
-      3. Query sj_seller_zones WHERE zone_id = <externalId>
+Seller visibility rules
+-----------------------
+  Hyperlocal retail  (pincode in a delivery zone):
+      seller_id_set = sellers declared for that zone
+  Pan-India retail   (pincode provided but NOT in any zone):
+      seller_id_set = {super_admin_id}   (3PL courier, SA products only)
+  Wholesale:
+      seller_id_set = {super_admin_id}   (always SA only)
+  No pincode / unauthenticated guest:
+      seller_id_set = None               (no filter — show all)
 
 Cache behaviour
 ---------------
-- Zone-to-seller mapping keyed by zone externalId; TTL = 5 minutes.
-- Returns:
-    None      -> pincode not in any zone  (no filter: show all products)
-    set()     -> zone found but no sellers declared
-    set(ids)  -> zone found with sellers
+- Zone-to-seller mapping keyed by zone id; TTL = 5 minutes.
+- get_zone_id_and_seller_ids_for_pincode() returns:
+    (None, None)        -> pincode not in any zone
+    (zone_id, set())    -> zone found but no sellers declared
+    (zone_id, set(ids)) -> zone found with sellers
+- get_retail_seller_set() is the recommended high-level entry point; it
+  applies the hyperlocal / pan-india decision automatically.
 """
 
 import time
@@ -219,4 +225,58 @@ def invalidate_zone_cache(zone_id: Optional[str] = None) -> None:
         _zone_seller_cache.pop(str(zone_id), None)
     else:
         _zone_seller_cache.clear()
+
+
+async def get_retail_seller_set(
+    pincode: Optional[str],
+    subtract_unavailable: bool = False,
+) -> Tuple[Optional[Set[str]], str]:
+    """
+    Single authoritative entry point for resolving which sellers a RETAIL
+    customer can see, given their pincode.
+
+    Decision tree
+    -------------
+    pincode is None / empty
+        -> (None, "all")          no filter — show all products (guest, no pincode)
+    pincode resolves to a hyperlocal zone
+        -> (zone_sellers, zone_id)  hyperlocal — only sellers in that zone
+    pincode provided but NOT in any zone
+        -> ({super_admin_id}, "pan_india")  pan-india — SA products only (3PL)
+
+    Parameters
+    ----------
+    pincode             : The customer's delivery pincode (may be None).
+    subtract_unavailable: When True, removes sellers currently in a time-off
+                          window from the returned set (use for recommendations
+                          where greyed-out products should be hidden entirely;
+                          for product listings use False so they show greyed-out).
+
+    Returns
+    -------
+    (seller_id_set, location_key)
+        seller_id_set : None means no filter; set() means nothing available.
+        location_key  : stable string suitable for use in cache keys.
+    """
+    if not pincode:
+        return None, "all"
+
+    zone_id, seller_id_set = await get_zone_id_and_seller_ids_for_pincode(pincode)
+
+    if zone_id is not None:
+        # ── Hyperlocal zone found ──────────────────────────────────────────
+        if subtract_unavailable and seller_id_set:
+            try:
+                from app.routers.seller_availability import get_all_unavailable_seller_ids
+                unavailable = await get_all_unavailable_seller_ids()
+                if unavailable:
+                    seller_id_set = seller_id_set - unavailable
+            except Exception as exc:
+                logger.warning("get_retail_seller_set: could not subtract unavailable sellers: %s", exc)
+        return seller_id_set, zone_id
+
+    # ── Pincode not in any hyperlocal zone → Pan-India (SA only) ──────────
+    sa_id = await get_super_admin_seller_id()
+    pan_india_set: Set[str] = {sa_id} if sa_id else set()
+    return pan_india_set, "pan_india"
 

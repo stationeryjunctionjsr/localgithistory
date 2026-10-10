@@ -499,7 +499,7 @@ export default function Cart() {
         discountValue: res.data.coupon.discountValue,
         discount: res.data.discount,
       });
-      toast.success(`Coupon "${code}" applied! You save ₹${res.data.discount.toFixed(2)}`);
+      toast.success(`Coupon "${code}" applied! You save ?${res.data.discount.toFixed(2)}`);
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.response?.data?.message || 'Invalid or expired coupon';
       setCouponError(msg);
@@ -559,6 +559,7 @@ export default function Cart() {
               pincode: checkoutData.shippingAddress.zipCode,
               userRole,
               orderAmount,
+              fulfillment_type: activeMode === 'pan_india' ? 'courier' : 'hyperlocal',
             }
           });
           setDeliveryChargeInfo(res.data);
@@ -570,7 +571,7 @@ export default function Cart() {
       };
       fetchDeliveryInfo();
     }
-  }, [checkoutStep, checkoutData.shippingAddress, user, subtotalValue, referralDiscountAmount]);
+  }, [checkoutStep, checkoutData.shippingAddress, user, subtotalValue, referralDiscountAmount, activeMode]);
 
   const checkPincodeServiceability = async (pincode: string) => {
     if (!pincode || pincode.length !== 6) {
@@ -667,7 +668,7 @@ export default function Cart() {
     return true;
   };
 
-  // ─── Cart fetching (backend or guest local storage) ───────────────
+  // --- Cart fetching (backend or guest local storage) ---------------
   const fetchCart = async () => {
     try {
       setCartError((prev) => prev ? false : prev);
@@ -1008,9 +1009,9 @@ export default function Cart() {
     }
   };
 
-  // ═══════════════════════════════════════════════════════════════════
+  // -------------------------------------------------------------------
   //  AUTH-IN-CHECKOUT HANDLERS
-  // ═══════════════════════════════════════════════════════════════════
+  // -------------------------------------------------------------------
   const handleCheckPhone = async () => {
     const identifier = authPhone.trim();
     const isEmail = identifier.includes('@');
@@ -1189,13 +1190,13 @@ export default function Cart() {
     setAuthBusy(false);
   };
 
-  // ═══════════════════════════════════════════════════════════════════
+  // -------------------------------------------------------------------
   //  PLACE ORDER (requires login)
-  // ═══════════════════════════════════════════════════════════════════
+  // -------------------------------------------------------------------
   const handleStartCheckout = () => {
     const inStock = cart?.items?.filter((item: any) => !item.outOfStock) || [];
     if (inStock.length === 0) {
-      // For guests, cart?.items may not be populated yet — open checkout modal anyway
+      // For guests, cart?.items may not be populated yet � open checkout modal anyway
       // so they can sign in and see their cart
       if (!user) {
         setShowCheckout(true);
@@ -1359,7 +1360,7 @@ export default function Cart() {
     }
   };
 
-  // ─── Role label ───────────────────────────────────────────────────
+  // --- Role label ---------------------------------------------------
   // eslint-disable-next-line unused-imports/no-unused-vars
   const roleLabel = (user as any)?.role === 'wholesaler' ? 'Business Customer' : 'Retail Customer';
   const segmentPrefix = (user as any)?.role === 'wholesaler' ? 'wholesale' : 'retail';
@@ -1372,7 +1373,7 @@ export default function Cart() {
     <div
       className={`w-full max-w-full overflow-x-hidden ${isMobile ? 'min-h-screen bg-neutral-50 pb-32' : 'pb-20'}`}
     >
-      {/* Desktop Header – hidden on mobile via CSS (avoids SSR-hydration flash) */}
+      {/* Desktop Header � hidden on mobile via CSS (avoids SSR-hydration flash) */}
       <div className="hidden md:block">
         <Header />
       </div>
@@ -1388,7 +1389,7 @@ export default function Cart() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-[#1a4d33]" />
           </div>
         ) : cartError ? (
-          /* ── Error state: network/server failure ───────────────── */
+          /* -- Error state: network/server failure ----------------- */
           <div
             className={`flex flex-col items-center justify-center px-8 py-12 ${isMobile ? 'bg-neutral-50' : ''}`}
           >
@@ -1435,7 +1436,7 @@ export default function Cart() {
             )}
           </div>
         ) : !cart || !cart.items || cart.items.length === 0 ? (
-          /* ── Empty cart state ──────────────────────────────────── */
+          /* -- Empty cart state ------------------------------------ */
           <div
             className={`flex flex-col items-center justify-center px-8 py-12 ${isMobile ? 'bg-neutral-50' : ''}`}
           >
@@ -1574,7 +1575,7 @@ export default function Cart() {
                                     )}
                                     {item.bundleName && (
                                       <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700 shrink-0">
-                                        🎁 {item.bundleName}
+                                        ?? {item.bundleName}
                                       </span>
                                     )}
                                   </div>
@@ -1600,12 +1601,12 @@ export default function Cart() {
                                 </div>
                                 <div className="pl-4 text-right">
                                   <p className="text-xl font-bold text-gray-900">
-                                    ₹{price.toLocaleString()}
+                                    ?{price.toLocaleString()}
                                   </p>
                                   {discountPercent > 0 && (
                                     <div className="mt-1 flex items-center justify-end gap-1.5">
                                       <span className="text-xs font-medium text-gray-400 line-through">
-                                        ₹{originalPrice.toLocaleString()}
+                                        ?{originalPrice.toLocaleString()}
                                       </span>
                                       <span className="text-xs font-bold text-emerald-600">
                                         {discountPercent}% OFF
@@ -1628,7 +1629,7 @@ export default function Cart() {
                                       }
                                       className="flex h-full flex-1 items-center justify-center font-bold text-gray-600 transition-colors hover:bg-white hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      −
+                                      -
                                     </button>
                                     <div className="flex h-full w-10 items-center justify-center border-x border-gray-200 bg-white text-sm font-bold">
                                       {qty}
@@ -1755,7 +1756,7 @@ export default function Cart() {
                       <div className="flex justify-between text-gray-600">
                         <span>Price ({cart.items.length} items)</span>
                         <span>
-                          ₹
+                          ?
                           {cart.items
                             .reduce(
                               (s: number, i: any) =>
@@ -1769,7 +1770,7 @@ export default function Cart() {
                       <div className="flex justify-between text-emerald-600">
                         <span>Discount</span>
                         <span>
-                          -₹
+                          -?
                           {cart.items
                             .reduce(
                               (s: number, i: any) =>
@@ -1791,7 +1792,7 @@ export default function Cart() {
                     <div className="mb-8 flex h-10 items-center justify-between border-t border-gray-100 pt-4">
                       <span className="text-lg font-bold text-gray-900">Total Amount</span>
                       <span className="text-2xl font-black text-gray-900">
-                        ₹
+                        ?
                         {cart.subtotal?.toLocaleString() ||
                           cart.items
                             .reduce((s: number, i: any) => s + i.price * i.quantity, 0)
@@ -1808,7 +1809,7 @@ export default function Cart() {
                           boxShadow: '0 4px 12px rgba(214, 48, 49, 0.3)',
                         }}
                       >
-                        🔴 Clear Dues to Order
+                        ?? Clear Dues to Order
                       </button>
                     ) : (
                       <button
@@ -1931,7 +1932,7 @@ export default function Cart() {
                               </span>
                             )}
                           </div>
-                          <p className="mt-1 text-base font-semibold text-neutral-900">₹{price}</p>
+                          <p className="mt-1 text-base font-semibold text-neutral-900">?{price}</p>
                            {/* Quantity row */}
                            <div className="mt-3 flex items-center gap-2">
                              <button
@@ -2027,7 +2028,7 @@ export default function Cart() {
                   <div className="rounded-2xl border border-pink-100 bg-gradient-to-r from-pink-50 to-red-50 p-8 shadow-sm">
                     <div className="mb-6 flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-500 text-xl text-white">
-                        🎁
+                        ??
                       </div>
                       <h3 className="text-2xl font-bold text-gray-800">Make it a Gift</h3>
                     </div>
@@ -2060,7 +2061,7 @@ export default function Cart() {
                             >
                               {item.name}
                             </button>
-                            <p className="mt-1 font-bold text-pink-600">₹{item.mrp}</p>
+                            <p className="mt-1 font-bold text-pink-600">?{item.mrp}</p>
                             <button
                               onClick={() =>
                                 handleAddToCartFromRecommendation(item._id, item, 'gift_wrap')
@@ -2083,7 +2084,7 @@ export default function Cart() {
                       <div className="mb-6 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white">
-                            ❤️
+                            ??
                           </div>
                           <h3 className="text-xl font-bold text-gray-800">From Your Wishlist</h3>
                         </div>
@@ -2135,7 +2136,7 @@ export default function Cart() {
                               >
                                 {item.product?.name}
                               </button>
-                              <p className="font-bold text-gray-900">₹{item.product?.price}</p>
+                              <p className="font-bold text-gray-900">?{item.product?.price}</p>
                             </div>
                             <button
                               onClick={() =>
@@ -2178,7 +2179,7 @@ export default function Cart() {
                     >
                       <div className="mb-6 flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                          ✨
+                          ?
                         </div>
                         <h3 className="text-xl font-bold text-gray-800">Quick Picks</h3>
                       </div>
@@ -2215,7 +2216,7 @@ export default function Cart() {
                               >
                                 {item.name}
                               </button>
-                              <p className="font-bold text-indigo-600">₹{item.mrp}</p>
+                              <p className="font-bold text-indigo-600">?{item.mrp}</p>
                             </div>
                             <button
                               onClick={() =>
@@ -2270,7 +2271,7 @@ export default function Cart() {
                             </p>
                           </button>
                           <div className="mt-2 flex items-center justify-between">
-                            <span className="font-bold text-neutral-900">₹{item.mrp}</span>
+                            <span className="font-bold text-neutral-900">?{item.mrp}</span>
                             <button
                               type="button"
                               onClick={() =>
@@ -2327,7 +2328,7 @@ export default function Cart() {
                           </button>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="font-bold text-neutral-900">
-                              ₹{item.product?.price}
+                              ?{item.product?.price}
                             </span>
                             <button
                               type="button"
@@ -2381,7 +2382,7 @@ export default function Cart() {
                             </p>
                           </button>
                           <div className="mt-2 flex items-center justify-between">
-                            <span className="font-bold text-neutral-900">₹{item.mrp}</span>
+                            <span className="font-bold text-neutral-900">?{item.mrp}</span>
                             <button
                               type="button"
                               onClick={() =>
@@ -2402,7 +2403,7 @@ export default function Cart() {
           </div>
         )}
 
-        {/* ─── Checkout Modal (Mobile) ──────────────────────────────────────────── */}
+        {/* --- Checkout Modal (Mobile) -------------------------------------------- */}
         {showCheckout && isMobile && (
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50"
@@ -2501,7 +2502,7 @@ export default function Cart() {
                           </div>
                         ) : (
                           <span className="rounded bg-green-500 px-4 py-2 text-sm font-semibold text-white">
-                            ✓
+                            ?
                           </span>
                         )}
                       </div>
@@ -2693,7 +2694,7 @@ export default function Cart() {
                       )}
                       {pincodeServiceable === false && !checkingServiceability && (
                         <div className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-800">
-                          <strong>⚠️ Not serviceable.</strong>
+                          <strong>?? Not serviceable.</strong>
                         </div>
                       )}
                                             {mixedCartWarning && (
@@ -2708,7 +2709,12 @@ export default function Cart() {
                             <button
                               onClick={async () => {
                                 const localItems = cart?.items?.filter((item: any) => { const s = item.product?.seller || item.seller; return s && s !== 'super_admin'; }) || [];
-                                for (const item of localItems) { try { await api.delete(/cart/); } catch { } }
+                                for (const item of localItems) {
+                                  const itemId = item._id || item.id || item.product?._id || item.product?.id || item.productId;
+                                  if (itemId) {
+                                    try { await api.delete(`/cart/${itemId}`); } catch (err) { console.error('Failed to remove local item:', err); }
+                                  }
+                                }
                                 setMixedCartWarning(false);
                                 await fetchCart();
                               }}
@@ -2718,7 +2724,7 @@ export default function Cart() {
                           </div>
                         </div>
                       )}{pincodeServiceable === true && !checkingServiceability && (
-                        <small className="mt-1 block text-xs text-green-600">✓ Serviceable</small>
+                        <small className="mt-1 block text-xs text-green-600">? Serviceable</small>
                       )}
                     </div>
                     <div>
@@ -2740,10 +2746,15 @@ export default function Cart() {
                       />
                     </div>
 
-                    {/* ── Delivery Option Selector ─────────────────────────── */}
-                    {pincodeServiceable === true && deliveryOptions && (
+                    {/* -- Delivery Option Selector --------------------------- */}
+                    {pincodeServiceable === true && activeMode === 'pan_india' ? (
+                      <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                        <p className="text-sm font-semibold text-blue-900">?? Pan-India Courier Delivery</p>
+                        <p className="mt-1 text-xs text-blue-700">Standard 3PL Courier Delivery across India - Estimated 3-5 business days.</p>
+                      </div>
+                    ) : pincodeServiceable === true && deliveryOptions && (
                       <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="mb-3 text-sm font-semibold text-slate-800">🚚 Delivery Option</p>
+                        <p className="mb-3 text-sm font-semibold text-slate-800">?? Delivery Option</p>
 
                         {/* Standard */}
                         <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 mb-2 transition-all ${selectedDeliveryType === 'standard' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
@@ -2764,7 +2775,7 @@ export default function Cart() {
                             className="mt-0.5 accent-indigo-600"
                           />
                           <div className="flex-1">
-                            <span className="text-sm font-medium text-slate-700">📅 Standard Delivery</span>
+                            <span className="text-sm font-medium text-slate-700">?? Standard Delivery</span>
                             
                             {selectedDeliveryType === 'standard' && deliveryOptions.slotBookingAvailable && (
                               <div className="mt-3 space-y-3">
@@ -2779,7 +2790,7 @@ export default function Cart() {
                                     }}
                                     className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none bg-white"
                                   >
-                                    <option value="">Choose a date…</option>
+                                    <option value="">Choose a date�</option>
                                     {deliveryOptions.availableDates.map((d) => (
                                       <option key={d} value={d}>{d}</option>
                                     ))}
@@ -2791,7 +2802,7 @@ export default function Cart() {
                                   <div>
                                     <label className="mb-2 block text-xs font-medium text-slate-600">Select Time Slot</label>
                                     {loadingSlots ? (
-                                      <p className="text-xs text-slate-400">Loading slots…</p>
+                                      <p className="text-xs text-slate-400">Loading slots�</p>
                                     ) : availableSlots.filter(s => !s.isUrgent).length === 0 ? (
                                       <p className="text-xs text-slate-400">No standard slots available for this date.</p>
                                     ) : (
@@ -2819,7 +2830,7 @@ export default function Cart() {
                                             }`}
                                           >
                                             <span className="font-medium">
-                                              {slot.isFullDay ? 'Full Day' : `${slot.startTime} – ${slot.endTime}`}
+                                              {slot.isFullDay ? 'Full Day' : `${slot.startTime} � ${slot.endTime}`}
                                             </span>
                                           </button>
                                         ))}
@@ -2848,7 +2859,7 @@ export default function Cart() {
                               className="mt-0.5 accent-amber-600"
                             />
                             <div className="flex-1">
-                              <span className="text-sm font-medium text-slate-700">⚡ Urgent Delivery</span>
+                              <span className="text-sm font-medium text-slate-700">? Urgent Delivery</span>
                               {selectedDeliveryType === 'urgent' && (
                                 <p className="mt-2 rounded-lg border border-amber-200 bg-amber-100 px-3 py-2 text-xs text-amber-800">
                                   Delivered as soon as possible. An <strong>urgent surcharge</strong> will apply.
@@ -2893,7 +2904,7 @@ export default function Cart() {
                                   Discount:{' '}
                                   {referralDiscountInfo.discountType === 'percentage'
                                     ? `${referralDiscountInfo.discountValue}%`
-                                    : `₹${referralDiscountInfo.discountValue}`}
+                                    : `?${referralDiscountInfo.discountValue}`}
                                   {referralDiscountInfo.referrerName && ` (Referrer: ${referralDiscountInfo.referrerName})`}
                                 </span>
                               )}
@@ -2917,9 +2928,9 @@ export default function Cart() {
                     <div className="rounded-lg border border-slate-100 bg-slate-50 mt-2">
                       <label className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-neutral-700">
                         <span className="flex items-center gap-1.5">
-                          🏷️
+                          ???
                           {appliedCoupon
-                            ? <span className="text-emerald-600">&quot;{appliedCoupon.code}&quot; applied — save ₹{appliedCoupon.discount.toFixed(2)}</span>
+                            ? <span className="text-emerald-600">&quot;{appliedCoupon.code}&quot; applied � save ?{appliedCoupon.discount.toFixed(2)}</span>
                             : 'Have a promo code?'}
                         </span>
                       </label>
@@ -2951,7 +2962,7 @@ export default function Cart() {
                           <div className="text-sm text-emerald-800">
                             <span className="font-bold">{appliedCoupon.code}</span> applied!
                             <span className="block text-xs font-normal text-emerald-700 mt-0.5">
-                              Saving ₹{appliedCoupon.discount.toFixed(2)} on this order
+                              Saving ?{appliedCoupon.discount.toFixed(2)} on this order
                             </span>
                           </div>
                           <button
@@ -3027,7 +3038,7 @@ export default function Cart() {
                     checkoutData.shippingAddress.zipCode &&
                     checkoutData.shippingAddress.zipCode.length === 6 && (
                       <div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                        <strong>⚠️ Not serviceable.</strong> Contact support.
+                        <strong>?? Not serviceable.</strong> Contact support.
                       </div>
                     )}
                   
@@ -3035,23 +3046,23 @@ export default function Cart() {
                     <div className="mt-4 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
                       <div className="flex justify-between py-1">
                         <span>Subtotal</span>
-                        <span>₹{subtotalValue.toFixed(2)}</span>
+                        <span>?{subtotalValue.toFixed(2)}</span>
                       </div>
                       {appliedReferralCode && referralDiscountInfo && (
                         <div className="flex justify-between py-1 text-green-600 font-medium">
                           <span>Referral Discount ({appliedReferralCode})</span>
-                          <span>-₹{referralDiscountAmount.toFixed(2)}</span>
+                          <span>-?{referralDiscountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       {appliedCoupon && (
                         <div className="flex justify-between py-1 text-emerald-600 font-medium">
                           <span>Coupon ({appliedCoupon.code})</span>
-                          <span>-₹{appliedCoupon.discount.toFixed(2)}</span>
+                          <span>-?{appliedCoupon.discount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between py-1 text-neutral-900 font-bold border-t border-neutral-100 mt-1 pt-1">
                         <span>Total</span>
-                        <span>₹{finalTotalAmount.toFixed(2)}</span>
+                        <span>?{finalTotalAmount.toFixed(2)}</span>
                       </div>
                     </div>
                   )}
@@ -3085,7 +3096,7 @@ export default function Cart() {
           </div>
         )}
 
-        {/* ═══ DESKTOP PREMIUM MULTI-STEP CHECKOUT ═══ */}
+        {/* --- DESKTOP PREMIUM MULTI-STEP CHECKOUT --- */}
         {showCheckout && !isMobile && (
           <div className={ck.overlay} onClick={() => setShowCheckout(false)}>
             <div className={ck.panel} onClick={(e) => e.stopPropagation()}>
@@ -3106,7 +3117,7 @@ export default function Cart() {
                         <div
                           className={`${ck.step} ${isActive ? ck.active : ''} ${isCompleted ? ck.completed : ''}`}
                         >
-                          <div className={ck.stepCircle}>{isCompleted ? '✓' : stepNum}</div>
+                          <div className={ck.stepCircle}>{isCompleted ? '?' : stepNum}</div>
                           <span className={ck.stepLabel}>{label}</span>
                         </div>
                       </React.Fragment>
@@ -3119,7 +3130,7 @@ export default function Cart() {
                 {/* Auth section for guests */}
                 {!user && (
                   <div className={ck.authBox}>
-                    <div className={ck.authTitle}>🔐 Sign in to place your order</div>
+                    <div className={ck.authTitle}>?? Sign in to place your order</div>
                     <input
                       type="text"
                       placeholder="10-digit mobile number or email"
@@ -3235,7 +3246,7 @@ export default function Cart() {
                                 fontWeight: 700,
                               }}
                             >
-                              ✓
+                              ?
                             </span>
                           )}
                         </div>
@@ -3270,10 +3281,10 @@ export default function Cart() {
                   </div>
                 )}
 
-                {/* ── STEP 1: Address ── */}
+                {/* -- STEP 1: Address -- */}
                 {user && checkoutStep === 1 && (
                   <>
-                    <h3 className={ck.sectionTitle}>📍 Delivery Address</h3>
+                    <h3 className={ck.sectionTitle}>?? Delivery Address</h3>
                     {/* Saved addresses grid */}
                     <div className={ck.addressGrid}>
                       {((user as any).savedAddresses || []).map((addr: any, idx: number) => {
@@ -3320,7 +3331,7 @@ export default function Cart() {
                               {addr.city}
                               {addr.district ? `, ${addr.district}` : ''}
                               <br />
-                              {addr.state} — {addr.zipCode || addr.pincode}
+                              {addr.state} � {addr.zipCode || addr.pincode}
                               <br />
                               {addr.country || 'India'}
                             </div>
@@ -3348,7 +3359,7 @@ export default function Cart() {
                             marginBottom: 8,
                           }}
                         >
-                          📦 Delivering to:
+                          ?? Delivering to:
                         </div>
                         <div style={{ fontSize: 14, color: '#334155', lineHeight: 1.6 }}>
                           {checkoutData.shippingAddress.name && (
@@ -3365,22 +3376,22 @@ export default function Cart() {
                             : ''}
                           , {checkoutData.shippingAddress.city}
                           <br />
-                          {checkoutData.shippingAddress.state} —{' '}
+                          {checkoutData.shippingAddress.state} �{' '}
                           {checkoutData.shippingAddress.zipCode}
                         </div>
                         {checkingServiceability && (
                           <div className={ck.serviceableOk} style={{ color: '#64748b' }}>
-                            ⏳ Checking serviceability...
+                            ? Checking serviceability...
                           </div>
                         )}
                         {pincodeServiceable === true && !checkingServiceability && (
                           <div className={ck.serviceableOk}>
-                            ✓ Delivery available to this pincode
+                            ? Delivery available to this pincode
                           </div>
                         )}
                         {pincodeServiceable === false && !checkingServiceability && (
                           <div className={ck.serviceableBad}>
-                            ⚠️ This pincode is not serviceable
+                            ?? This pincode is not serviceable
                           </div>
                         )}
                       </div>
@@ -3402,16 +3413,16 @@ export default function Cart() {
                         }
                         onClick={() => setCheckoutStep(2)}
                       >
-                        Continue to Payment →
+                        Continue to Payment ?
                       </button>
                     </div>
                   </>
                 )}
 
-                {/* ── STEP 2: Payment ── */}
+                {/* -- STEP 2: Payment -- */}
                 {user && checkoutStep === 2 && (
                   <>
-                    <h3 className={ck.sectionTitle}>💳 Payment Method</h3>
+                    <h3 className={ck.sectionTitle}>?? Payment Method</h3>
                     <div className={ck.paymentGrid}>
                       {isCodEnabled && (
                         <div
@@ -3428,7 +3439,7 @@ export default function Cart() {
                             className={ck.paymentIcon}
                             style={{ background: 'linear-gradient(135deg,#fef3c7,#fde68a)' }}
                           >
-                            💵
+                            ??
                           </div>
                           <div className={ck.paymentLabel}>Cash on Delivery</div>
                           <div className={ck.paymentDesc}>Pay when you receive</div>
@@ -3446,7 +3457,7 @@ export default function Cart() {
                             className={ck.paymentIcon}
                             style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}
                           >
-                            📱
+                            ??
                           </div>
                           <div className={ck.paymentLabel}>UPI Payment</div>
                           <div className={ck.paymentDesc}>GPay, PhonePe, Paytm</div>
@@ -3467,7 +3478,7 @@ export default function Cart() {
                             className={ck.paymentIcon}
                             style={{ background: 'linear-gradient(135deg,#dbeafe,#bfdbfe)' }}
                           >
-                            🏦
+                            ??
                           </div>
                           <div className={ck.paymentLabel}>Credit (B2B)</div>
                           <div className={ck.paymentDesc}>Pay on credit terms</div>
@@ -3501,7 +3512,7 @@ export default function Cart() {
                         />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, color: '#16a34a', fontSize: 14 }}>
-                            ✓ Payment screenshot uploaded
+                            ? Payment screenshot uploaded
                           </div>
                         </div>
                         <button
@@ -3534,7 +3545,7 @@ export default function Cart() {
                             marginBottom: 8,
                           }}
                         >
-                          🎁 Have a referral code?
+                          ?? Have a referral code?
                         </div>
                         {!appliedReferralCode ? (
                           <div style={{ display: 'flex', gap: 10 }}>
@@ -3588,7 +3599,7 @@ export default function Cart() {
                                   Discount:{' '}
                                   {referralDiscountInfo.discountType === 'percentage'
                                     ? `${referralDiscountInfo.discountValue}%`
-                                    : `₹${referralDiscountInfo.discountValue}`}
+                                    : `?${referralDiscountInfo.discountValue}`}
                                   {referralDiscountInfo.referrerName && ` (Referrer: ${referralDiscountInfo.referrerName})`}
                                 </div>
                               )}
@@ -3617,7 +3628,7 @@ export default function Cart() {
                       </div>
                     )}
 
-                    {/* Coupon / promo code — desktop checkout */}
+                    {/* Coupon / promo code � desktop checkout */}
                     <div
                       style={{
                         border: '1px solid #e2e8f0',
@@ -3635,9 +3646,9 @@ export default function Cart() {
                           background: appliedCoupon ? '#f0fdf4' : '#f8fafc',
                         }}
                       >
-                        🏷️{' '}
+                        ???{' '}
                         {appliedCoupon
-                          ? `"${appliedCoupon.code}" applied — you save ₹${appliedCoupon.discount.toFixed(2)}`
+                          ? `"${appliedCoupon.code}" applied � you save ?${appliedCoupon.discount.toFixed(2)}`
                           : 'Have a promo code?'}
                       </div>
                       {!appliedCoupon ? (
@@ -3686,7 +3697,7 @@ export default function Cart() {
                           }}
                         >
                           <div style={{ fontSize: 13, color: '#15803d' }}>
-                            Saving ₹{appliedCoupon.discount.toFixed(2)} on this order
+                            Saving ?{appliedCoupon.discount.toFixed(2)} on this order
                           </div>
                           <button
                             type="button"
@@ -3757,7 +3768,7 @@ export default function Cart() {
 
                     <div className={ck.footer}>
                       <button className={ck.btnSecondary} onClick={() => setCheckoutStep(1)}>
-                        ← Back
+                        ? Back
                       </button>
                       <button
                         className={ck.btnPrimary}
@@ -3766,16 +3777,16 @@ export default function Cart() {
                         }
                         onClick={() => setCheckoutStep(3)}
                       >
-                        Review Order →
+                        Review Order ?
                       </button>
                     </div>
                   </>
                 )}
 
-                {/* ── STEP 3: Review ── */}
+                {/* -- STEP 3: Review -- */}
                 {user && checkoutStep === 3 && (
                   <>
-                    <h3 className={ck.sectionTitle}>📋 Review Your Order</h3>
+                    <h3 className={ck.sectionTitle}>?? Review Your Order</h3>
                     <div
                       style={{
                         display: 'grid',
@@ -3793,7 +3804,7 @@ export default function Cart() {
                             marginBottom: 10,
                           }}
                         >
-                          📍 Delivery Address
+                          ?? Delivery Address
                         </div>
                         <div style={{ fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
                           {checkoutData.shippingAddress.street}
@@ -3825,7 +3836,7 @@ export default function Cart() {
                             marginBottom: 10,
                           }}
                         >
-                          💳 Payment
+                          ?? Payment
                         </div>
                         <div style={{ fontSize: 14, color: '#334155' }}>
                           {checkoutData.paymentMethod === 'cod'
@@ -3836,7 +3847,7 @@ export default function Cart() {
                         </div>
                         {checkoutData.printedBill && (
                           <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                            📄 Printed bill requested
+                            ?? Printed bill requested
                           </div>
                         )}
                         <button
@@ -3857,15 +3868,15 @@ export default function Cart() {
                           marginBottom: 12,
                         }}
                       >
-                        🛒 Items ({cart.items?.length || 0})
+                        ?? Items ({cart.items?.length || 0})
                       </div>
                       {cart.items?.slice(0, 5).map((item: any) => (
                         <div key={item._id} className={ck.summaryRow}>
                           <span style={{ flex: 1, color: '#334155' }}>
-                            {item.product?.name} × {item.quantity}
+                            {item.product?.name} � {item.quantity}
                           </span>
                           <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                            ₹{((item.price || 0) * (item.quantity || 0)).toFixed(2)}
+                            ?{((item.price || 0) * (item.quantity || 0)).toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -3877,29 +3888,29 @@ export default function Cart() {
                       {appliedReferralCode && referralDiscountInfo && (
                         <div className={ck.summaryRow} style={{ color: '#16a34a', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
                           <span>Referral Discount ({appliedReferralCode})</span>
-                          <span>-₹{referralDiscountAmount.toFixed(2)}</span>
+                          <span>-?{referralDiscountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       {appliedCoupon && (
                         <div className={ck.summaryRow} style={{ color: '#059669', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
                           <span>Coupon ({appliedCoupon.code})</span>
-                          <span>-₹{appliedCoupon.discount.toFixed(2)}</span>
+                          <span>-?{appliedCoupon.discount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className={ck.summaryRow} style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 8 }}>
                         <span>Subtotal</span>
-                        <span>₹{Math.max(0, subtotalValue - referralDiscountAmount - couponDiscountAmount).toFixed(2)}</span>
+                        <span>?{Math.max(0, subtotalValue - referralDiscountAmount - couponDiscountAmount).toFixed(2)}</span>
                       </div>
                       {deliveryChargeInfo && (
                         <>
                           <div className={ck.summaryRow}>
                             <span>Delivery Charge</span>
-                            <span>₹{(deliveryChargeInfo.charge || 0).toFixed(2)}</span>
+                            <span>?{(deliveryChargeInfo.charge || 0).toFixed(2)}</span>
                           </div>
                           {deliveryChargeInfo.gstAmount > 0 && (
                             <div className={ck.summaryRow}>
                               <span>Delivery GST ({deliveryChargeInfo.gstPercentage}%)</span>
-                              <span>₹{deliveryChargeInfo.gstAmount.toFixed(2)}</span>
+                              <span>?{deliveryChargeInfo.gstAmount.toFixed(2)}</span>
                             </div>
                           )}
                         </>
@@ -3911,7 +3922,7 @@ export default function Cart() {
                       )}
                       <div className={ck.summaryTotal}>
                         <span>Total</span>
-                        <span>₹{finalTotalAmount.toFixed(2)}</span>
+                        <span>?{finalTotalAmount.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -3930,7 +3941,7 @@ export default function Cart() {
 
                     <div className={ck.footer}>
                       <button className={ck.btnSecondary} onClick={() => setCheckoutStep(2)}>
-                        ← Back
+                        ? Back
                       </button>
                       {!isValet && (
                         <button
@@ -3938,7 +3949,7 @@ export default function Cart() {
                           onClick={handleCheckout}
                           style={{ fontSize: 16, padding: '14px 36px' }}
                         >
-                          🛍️ Place Order
+                          ??? Place Order
                         </button>
                       )}
                     </div>
@@ -3949,31 +3960,31 @@ export default function Cart() {
           </div>
         )}
 
-        {/* ─── Dues Modal ─── */}
+        {/* --- Dues Modal --- */}
         {showDuesModal && duesInfo && (
           <div className={ck.addrModalOverlay} onClick={() => setShowDuesModal(false)}>
             <div className={ck.addrModal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px' }}>
               <div className={ck.addrModalHeader}>
                 <span className={ck.addrModalTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c' }}>
-                  ⚠️ Outstanding Credit Dues
+                  ?? Outstanding Credit Dues
                 </span>
                 <button className={ck.addrModalClose} onClick={() => setShowDuesModal(false)}>
-                  ✕
+                  ?
                 </button>
               </div>
               <div className={ck.addrModalBody} style={{ padding: '20px' }}>
                 <div style={{ marginBottom: '16px', padding: '16px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                   {duesInfo.hasOverdueBills ? (
                     <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#334155' }}>
-                      <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
-                      <div>• <strong>Minimum overdue (date has crossed):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
-                      <div style={{ fontWeight: '600', color: '#dc2626' }}>• Pay the minimum amount to continue placing orders.</div>
+                      <div>� <strong>Current overdue:</strong> ?{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
+                      <div>� <strong>Minimum overdue (date has crossed):</strong> ?{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
+                      <div style={{ fontWeight: '600', color: '#dc2626' }}>� Pay the minimum amount to continue placing orders.</div>
                     </div>
                   ) : (
                     <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#334155' }}>
-                      <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
-                      <div>• <strong>Minimum overdue (cutoff date is nearest):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
-                      <div>• <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
+                      <div>� <strong>Current overdue:</strong> ?{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
+                      <div>� <strong>Minimum overdue (cutoff date is nearest):</strong> ?{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
+                      <div>� <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
                     </div>
                   )}
                 </div>
@@ -4019,7 +4030,7 @@ export default function Cart() {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                            ₹{bill.amountRemaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            ?{bill.amountRemaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </div>
                           <button
                             onClick={() => {
@@ -4071,7 +4082,7 @@ export default function Cart() {
 
                     <form onSubmit={handleSettleDueBill}>
                       <div className={ck.formGroup}>
-                        <label className={ck.formLabel}>Amount to Settle (₹) *</label>
+                        <label className={ck.formLabel}>Amount to Settle (?) *</label>
                         <input
                           type="number"
                           className={ck.formInput}
@@ -4126,14 +4137,14 @@ export default function Cart() {
           </div>
         )}
 
-        {/* ─── Add Address Modal ─── */}
+        {/* --- Add Address Modal --- */}
         {showAddressModal && (
           <div className={ck.addrModalOverlay} onClick={() => setShowAddressModal(false)}>
             <div className={ck.addrModal} onClick={(e) => e.stopPropagation()}>
               <div className={ck.addrModalHeader}>
                 <span className={ck.addrModalTitle}>Add New Address</span>
                 <button className={ck.addrModalClose} onClick={() => setShowAddressModal(false)}>
-                  ✕
+                  ?
                 </button>
               </div>
               <div className={ck.addrModalBody}>
@@ -4282,7 +4293,7 @@ export default function Cart() {
           <div className={ck.addrModalOverlay} onClick={() => setShowUpiPayment(false)}>
             <div className={ck.upiModal} onClick={(e) => e.stopPropagation()}>
               <div className={ck.upiHeader}>
-                <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>📱 UPI Payment</h3>
+                <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>?? UPI Payment</h3>
                 <p style={{ margin: '6px 0 0', opacity: 0.85, fontSize: 14 }}>
                   Scan or use UPI ID to pay
                 </p>
@@ -4302,7 +4313,7 @@ export default function Cart() {
                       </button>
                     </>
                   ) : (
-                    <p style={{ color: '#6b7280' }}>Loading UPI details…</p>
+                    <p style={{ color: '#6b7280' }}>Loading UPI details�</p>
                   )}
                 </div>
               )}
@@ -4393,7 +4404,7 @@ export default function Cart() {
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-neutral-500">Subtotal ({cart.items?.length || 0} items)</span>
                 <span className="text-lg font-semibold text-neutral-900">
-                  ₹{cart.subtotal?.toFixed(2) || '0.00'}
+                  ?{cart.subtotal?.toFixed(2) || '0.00'}
                 </span>
               </div>
               {isValet ? (
@@ -4406,7 +4417,7 @@ export default function Cart() {
                   className="w-full rounded-xl py-4 font-semibold text-white"
                   style={{ backgroundColor: '#dc2626' }}
                 >
-                  🔴 Clear Dues
+                  ?? Clear Dues
                 </button>
               ) : (
                 <button
@@ -4422,7 +4433,7 @@ export default function Cart() {
         
       </div>
 
-      {/* ── Inline remove confirmation bar ─────────────────────────── */}
+      {/* -- Inline remove confirmation bar --------------------------- */}
       {pendingRemoveItem && (
         <div
           role="alertdialog"
@@ -4434,7 +4445,7 @@ export default function Cart() {
             <span className="font-semibold">
               {pendingRemoveItem.item?.product?.name || 'Item'}
             </span>
-            {' '}— what would you like to do?
+            {' '}� what would you like to do?
           </p>
           <div className="flex shrink-0 gap-3">
             <button
@@ -4454,7 +4465,7 @@ export default function Cart() {
               aria-label="Cancel"
               className="rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:text-gray-600"
             >
-              ✕
+              ?
             </button>
           </div>
         </div>

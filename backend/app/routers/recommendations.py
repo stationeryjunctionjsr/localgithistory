@@ -71,27 +71,28 @@ async def get_recommendations(
             if role not in ("wholesaler", "customer"):
                 role = "customer"
 
-        # Resolve sellers and zone for the pincode (Wholesalers only see Super Admin products)
-        from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode, get_super_admin_seller_id
+        # Resolve sellers for this request.
+        # Rules:
+        #   Wholesaler         → Super Admin products only
+        #   Retail hyperlocal  → sellers in the pincode's zone
+        #   Retail pan-india   → Super Admin products only  (pincode given but no zone)
+        #   Guest / no pincode → no filter (show all)
+        from app.repositories.zone_seller_cache import (
+            get_retail_seller_set,
+            get_super_admin_seller_id,
+        )
         zone_id, seller_id_set = None, None
-        
+
         if role == "wholesaler":
             sa_id = await get_super_admin_seller_id()
-            if sa_id:
-                seller_id_set = {sa_id}
-            else:
-                seller_id_set = set()
-        elif pincode:
-            zone_id, seller_id_set = await get_zone_id_and_seller_ids_for_pincode(pincode)
-            # Subtract sellers in a time-off window — recommendations should only show
-            # immediately purchasable products. (Product listings show them greyed-out instead.)
-            if seller_id_set:
-                from app.routers.seller_availability import get_all_unavailable_seller_ids
-                unavailable = await get_all_unavailable_seller_ids()
-                if unavailable:
-                    seller_id_set = seller_id_set - unavailable
-
-        location_key = zone_id if zone_id else (pincode or "all")
+            seller_id_set = {sa_id} if sa_id else set()
+            location_key = "wholesaler"
+        else:
+            # Retail customer or unauthenticated guest.
+            # get_retail_seller_set() handles hyperlocal / pan-india / no-pincode internally.
+            seller_id_set, location_key = await get_retail_seller_set(
+                pincode, subtract_unavailable=True
+            )
 
         # Normalise category_tag for consistent cache keying and lookup
         tag_key = (category_tag or "").strip().lower() or None
