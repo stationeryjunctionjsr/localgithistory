@@ -9,11 +9,18 @@ from app.models.daos_flat import (
     DeliveryChargeTierInternal,
     DeliveryZoneInternal,
 )
+from app.models.base import CamelBaseModel
 from app.models.schemas import DeliveryFeeCalculationResult
 from app.db.storage_factory import get_storage
 
 if TYPE_CHECKING:
     from app.models.daos import DeliveryChargeInternal
+
+
+class TieredChargeResult(CamelBaseModel):
+    charge: float = 0.0
+    min_cart_value: float = 0.0
+    tier: Optional[DeliveryChargeTierInternal] = None
 
 
 class DeliveryChargeRepository:
@@ -22,8 +29,8 @@ class DeliveryChargeRepository:
         self.default_storage = get_storage("deliveryChargeDefaults")
         self.zone_storage = get_storage("deliveryZones")
 
-    async def findAll(self, query: Optional[dict] = None) -> list[DeliveryChargeInternal]:
-        return await self.storage.findAll(query or {})
+    async def findAll(self, is_active: Optional[bool] = None, pincode: Optional[str] = None) -> List[DeliveryChargeInternal]:
+        return await self.storage.findAll(is_active=is_active, pincode=pincode)
 
     async def findById(self, id: str):
         return await self.storage.findById(id)
@@ -252,12 +259,12 @@ class DeliveryChargeRepository:
                         tier_charge = self.calculateTieredCharge(default_charge.tiers, order_amount)
                         from app.routers.delivery_charges import LocationChargeResponse
                         return LocationChargeResponse(
-                            charge=tier_charge["charge"],
-                            min_cart_value=tier_charge["min_cart_value"],
+                            charge=tier_charge.charge,
+                            min_cart_value=tier_charge.min_cart_value,
                             source="pincode-default-tiered",
                             delivery_charge=default_charge.charge if default_charge else None,
                             isApplicableToRole=True,
-                            appliedTier=tier_charge["tier"],
+                            appliedTier=tier_charge.tier,
                             urgentDeliveryAvailable=urgent_avail,
                             urgent_delivery_charge=urgent_charge,
                         )
@@ -280,12 +287,12 @@ class DeliveryChargeRepository:
                     tier_charge = self.calculateTieredCharge(pincode_charge.tiers, order_amount)
                     from app.routers.delivery_charges import LocationChargeResponse
                     return LocationChargeResponse(
-                        charge=tier_charge["charge"],
-                        min_cart_value=tier_charge["min_cart_value"],
+                        charge=tier_charge.charge,
+                        min_cart_value=tier_charge.min_cart_value,
                         source="pincode-tiered",
                         delivery_charge=pincode_charge.charge if pincode_charge else None,
                         isApplicableToRole=True,
-                        appliedTier=tier_charge["tier"],
+                        appliedTier=tier_charge.tier,
                         urgentDeliveryAvailable=urgent_avail,
                         urgent_delivery_charge=pincode_charge.urgent_delivery_charge,
                     )
@@ -346,12 +353,12 @@ class DeliveryChargeRepository:
                 tier_charge = self.calculateTieredCharge(default_charge.tiers, order_amount)
                 from app.routers.delivery_charges import LocationChargeResponse
                 return LocationChargeResponse(
-                    charge=tier_charge["charge"],
-                    min_cart_value=tier_charge["min_cart_value"],
+                    charge=tier_charge.charge,
+                    min_cart_value=tier_charge.min_cart_value,
                     source="default-tiered",
                     delivery_charge=default_charge.charge if default_charge else None,
                     isApplicableToRole=True,
-                    appliedTier=tier_charge["tier"],
+                    appliedTier=tier_charge.tier,
                     urgentDeliveryAvailable=urgent_avail,
                     urgent_delivery_charge=urgent_charge,
                 )
@@ -394,10 +401,10 @@ class DeliveryChargeRepository:
 
         return True
 
-    def calculateTieredCharge(self, tiers: list, order_amount: float) -> dict:
+    def calculateTieredCharge(self, tiers: List[DeliveryChargeTierInternal], order_amount: float) -> TieredChargeResult:
         """Calculate delivery charge based on tiered structure"""
         if not tiers or len(tiers) == 0:
-            return {"charge": 0, "min_cart_value": 0, "tier": None}
+            return TieredChargeResult(charge=0.0, min_cart_value=0.0, tier=None)
 
         # Sort tiers by maxAmount ascending
         def get_max_amount(tier):
@@ -413,19 +420,19 @@ class DeliveryChargeRepository:
             max_amount = get_max_amount(tier)
 
             if order_amount < max_amount:
-                return {
-                    "charge": float(tier.charge),
-                    "min_cart_value": max_amount if max_amount != float("inf") else 0,
-                    "tier": tier,
-                }
+                return TieredChargeResult(
+                    charge=float(tier.charge),
+                    min_cart_value=max_amount if max_amount != float("inf") else 0.0,
+                    tier=tier,
+                )
 
         # If no tier found, return the last tier (highest tier)
         last_tier = sorted_tiers[-1]
-        return {
-            "charge": float(last_tier.charge),
-            "min_cart_value": get_max_amount(last_tier) if get_max_amount(last_tier) != float("inf") else 0,
-            "tier": last_tier,
-        }
+        return TieredChargeResult(
+            charge=float(last_tier.charge),
+            min_cart_value=get_max_amount(last_tier) if get_max_amount(last_tier) != float("inf") else 0.0,
+            tier=last_tier,
+        )
 
     async def create(self, charge_data: DeliveryChargeInternalCreate) -> DeliveryChargeInternal:
         # Check if pincode already exists
