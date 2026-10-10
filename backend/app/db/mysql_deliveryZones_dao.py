@@ -14,57 +14,75 @@ class MySQLDeliveryZonesDAO:
     
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional[DeliveryZoneInternal]:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query: Optional[Dict] = None) -> Optional[DeliveryZoneInternal]:
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['DeliveryZoneInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {
-                'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity',
-                'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type',
-                'is_active': 'is_active', 'delivery_charge': 'delivery_charge', 'min_cart_value': 'min_cart_value',
-                'urgent_delivery_charge': 'urgent_delivery_charge', 'apply_default_charge': 'apply_default_charge',
-                'deliveryCharge': 'delivery_charge', 'minCartValue': 'min_cart_value',
-                'urgentDeliveryCharge': 'urgent_delivery_charge', 'applyDefaultCharge': 'apply_default_charge'
-            }
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
+    async def findById(self, id: Union[int, str]) -> Optional[DeliveryZoneInternal]:
+        factory = self._factory()
+        if not factory or not id:
+            return None
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
-            rows = result.fetchall()
+            row = result.fetchone()
+            if not row:
+                return None
+            children_map = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+
+    async def findByPincode(self, pincode: str, is_active: bool = True) -> Optional[DeliveryZoneInternal]:
+        factory = self._factory()
+        if not factory or not pincode:
+            return None
+        async with factory() as session:
+            q = text(f"""
+                SELECT z.* FROM {self.TABLE} z
+                JOIN sj_delivery_zone_pincodes p ON z.id = p.parent_id
+                WHERE p.pincode = :pincode AND z.is_active = :act
+                LIMIT 1
+            """)
+            result = await session.execute(q, {"pincode": str(pincode), "act": 1 if is_active else 0})
+            row = result.fetchone()
+            if not row:
+                return None
+            children_map = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
+    async def findAll(self, filter_or_active: Optional[Union[dict, bool]] = None, is_active: Optional[bool] = None) -> List[DeliveryZoneInternal]:
+        active_filter = is_active
+        if active_filter is None and filter_or_active is not None:
+            if isinstance(filter_or_active, bool):
+                active_filter = filter_or_active
+            elif isinstance(filter_or_active, dict):
+                active_filter = filter_or_active.get("is_active")
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            if active_filter is not None:
+                sql = f"SELECT * FROM {self.TABLE} WHERE is_active = :act ORDER BY id ASC"
+                params = {"act": 1 if active_filter else 0}
+            else:
+                sql = f"SELECT * FROM {self.TABLE} ORDER BY id ASC"
+                params = {}
+
+            result = await session.execute(text(sql), params)
+            rows = result.fetchall()
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: 'DeliveryZoneInternalCreate') -> 'DeliveryZoneInternal':
+    async def create(self, data: DeliveryZoneInternalCreate) -> DeliveryZoneInternal:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -113,8 +131,7 @@ class MySQLDeliveryZonesDAO:
             params["s_apply_default_charge"] = 1 if data.apply_default_charge else 0
 
         col_sql = ", ".join(cols)
-        zone_keys = ['name', 'description', 'default_capacity', 'urgent_delivery_available', 'customer_type', 'is_active', 'delivery_charge', 'min_cart_value', 'urgent_delivery_charge', 'apply_default_charge']
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in zone_keys if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([f":{k}" for k in params.keys()])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -128,7 +145,7 @@ class MySQLDeliveryZonesDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'DeliveryZoneInternalUpdate') -> 'DeliveryZoneInternal':
+    async def update(self, id: Union[int, str], update_data: DeliveryZoneInternalUpdate) -> Optional[DeliveryZoneInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -174,47 +191,52 @@ class MySQLDeliveryZonesDAO:
             updates.append("apply_default_charge = :s_apply_default_charge")
             params["s_apply_default_charge"] = 1 if data.apply_default_charge else 0
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-                
-        return await self.findById(id)
-
-    async def delete(self, id: str) -> bool:
-        factory = self._factory()
-        if not factory:
-            return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            # Resolve numeric PK if external_id was passed
+            if str(id).isdigit():
+                pk = int(id)
+                upd_where = "id = :pk"
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return None
+                upd_where = "id = :pk"
+            params["pk"] = pk
 
-            await session.execute(text(f"DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": pk})
-            await session.execute(text(f"DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": pk})
+            if len(updates) > 1:
+                upd_sql = ", ".join(updates)
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
+            
+            await self._replace_children(session, pk, data)
+            await session.commit()
+                
+        return await self.findById(str(pk))
 
-            result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
-            )
+    async def delete(self, id: Union[int, str]) -> bool:
+        factory = self._factory()
+        if not factory or not id:
+            return False
+        async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
+
+            await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": pk})
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'DeliveryZoneInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    def _map_to_schema(self, r, children: Dict) -> 'DeliveryZoneInternal':
+    def _map_to_schema(self, r, children: Dict) -> DeliveryZoneInternal:
         obj = DeliveryZoneInternal.model_validate(r)
         for k, v in children.items():
             setattr(obj, k, v)
@@ -229,9 +251,7 @@ class MySQLDeliveryZonesDAO:
 
         q_pincodes = text(f"SELECT parent_id, pincode FROM sj_delivery_zone_pincodes WHERE parent_id IN ({id_list})")
         res_pincodes = await session.execute(q_pincodes)
-        rows_pincodes = res_pincodes.fetchall()
-
-        for r in rows_pincodes:
+        for r in res_pincodes.fetchall():
             if "pincodes" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["pincodes"] = []
             c_map[r.parent_id]["pincodes"].append(r[1])
@@ -253,7 +273,6 @@ class MySQLDeliveryZonesDAO:
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate]):
-
         if data.pincodes is not None:
             await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
             for item in data.pincodes:

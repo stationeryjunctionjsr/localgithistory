@@ -21,26 +21,11 @@ class DeliveryChargeRepository:
         return await self.storage.findById(id)
 
     async def findByLocation(self, state: str, city: str, district: str):
-        # Find city-specific charge (for backward compatibility)
-        all_charges = await self.storage.findAll()
-        for dc in all_charges:
-            if (
-                dc.is_active
-                and (dc.state or "").lower() == (state or "").lower()
-                and (dc.city or "").lower() == (city or "").lower()
-                and (dc.district or "").lower() == (district or "").lower()
-                and not dc.pincode
-            ):  # Old location-based charges don't have pincode
-                return dc
-        return None
+        return await self.storage.findByLocation(state=state, district=district, city=city)
 
     async def findByPincode(self, pincode: str):
         """Find pincode-specific charge"""
-        all_charges = await self.storage.findAll()
-        for dc in all_charges:
-            if dc.is_active and dc.pincode and str(dc.pincode) == str(pincode):
-                return dc
-        return None
+        return await self.storage.findByPincode(pincode)
 
     async def isPincodeServiceable(self, pincode: str, user_role: str) -> bool:
         """Check if a pincode is serviceable for a user role"""
@@ -58,6 +43,8 @@ class DeliveryChargeRepository:
         return charge.serviceable_for_customer is True
 
     async def getDefaultCharge(self) -> Optional[DeliveryChargeDefaultInternal]:
+        if hasattr(self.default_storage, "getDefault"):
+            return await self.default_storage.getDefault()
         defaults = await self.default_storage.findAll()
         return defaults[0] if defaults else None
 
