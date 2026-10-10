@@ -4,8 +4,7 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import DeliveryZoneInternal
-from app.models.daos_flat import DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate
+from app.models.daos_flat import DeliveryZoneInternal, DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate, DeliveryChargeTierInternal
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -177,19 +176,19 @@ class MySQLDeliveryZonesDAO:
             params["s_description"] = data.description
 
         if data.default_capacity is not None:
-            updates.append("default_capacity = :s_defaultCapacity")
+            updates.append("default_capacity = :s_default_capacity")
             params["s_default_capacity"] = data.default_capacity
 
         if data.urgent_delivery_available is not None:
-            updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
+            updates.append("urgent_delivery_available = :s_urgent_delivery_available")
             params["s_urgent_delivery_available"] = data.urgent_delivery_available
 
         if data.customer_type is not None:
-            updates.append("customer_type = :s_customerType")
+            updates.append("customer_type = :s_customer_type")
             params["s_customer_type"] = data.customer_type
 
         if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
+            updates.append("is_active = :s_is_active")
             params["s_is_active"] = data.is_active
 
         if data.delivery_charge is not None:
@@ -275,12 +274,14 @@ class MySQLDeliveryZonesDAO:
         for r in res_tiers.fetchall():
             if "tiers" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["tiers"] = []
-            max_val = "Infinity" if str(r.max_order_value).lower() in ("infinity", "inf") else (float(r.max_order_value) if str(r.max_order_value).replace('.','',1).isdigit() else r.max_order_value)
-            c_map[r.parent_id]["tiers"].append({
-                "min": float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.','',1).isdigit() else 0.0,
-                "max": max_val,
-                "charge": float(r.charge) if r.charge and str(r.charge).replace('.','',1).isdigit() else 0.0
-            })
+            max_val = float('inf') if str(r.max_order_value).lower() in ("infinity", "inf") else (float(r.max_order_value) if str(r.max_order_value).replace('.','',1).isdigit() else r.max_order_value)
+            c_map[r.parent_id]["tiers"].append(
+                DeliveryChargeTierInternal(
+                    min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.','',1).isdigit() else 0.0,
+                    max=max_val,
+                    charge=float(r.charge) if r.charge and str(r.charge).replace('.','',1).isdigit() else 0.0
+                )
+            )
 
         return c_map
 

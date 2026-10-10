@@ -4,8 +4,7 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import DeliveryChargeDefaultInternal
-from app.models.daos_flat import DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate
+from app.models.daos_flat import DeliveryChargeDefaultInternal, DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate, DeliveryChargeTierInternal
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -35,7 +34,16 @@ class MySQLDeliveryChargeDefaultsDAO:
             conditions = []
             params = {}
             
-            query_map = {'applicable_to_wholesaler': 'applicable_to_wholesaler', 'applicable_to_retailer': 'applicable_to_retailer', 'is_active': 'is_active'}
+            query_map = {
+                'applicable_to_wholesaler': 'applicable_to_wholesaler',
+                'applicable_to_retailer': 'applicable_to_retailer',
+                'is_active': 'is_active',
+                'courier_base_charge': 'courier_base_charge',
+                'courier_free_threshold': 'courier_free_threshold',
+                'hyperlocal_base_charge': 'hyperlocal_base_charge',
+                'hyperlocal_free_threshold': 'hyperlocal_free_threshold',
+                'hyperlocal_urgent_delivery_charge': 'hyperlocal_urgent_delivery_charge',
+            }
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +68,16 @@ class MySQLDeliveryChargeDefaultsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'applicable_to_wholesaler': 'applicable_to_wholesaler', 'applicable_to_retailer': 'applicable_to_retailer', 'is_active': 'is_active'}
+            query_map = {
+                'applicable_to_wholesaler': 'applicable_to_wholesaler',
+                'applicable_to_retailer': 'applicable_to_retailer',
+                'is_active': 'is_active',
+                'courier_base_charge': 'courier_base_charge',
+                'courier_free_threshold': 'courier_free_threshold',
+                'hyperlocal_base_charge': 'hyperlocal_base_charge',
+                'hyperlocal_free_threshold': 'hyperlocal_free_threshold',
+                'hyperlocal_urgent_delivery_charge': 'hyperlocal_urgent_delivery_charge',
+            }
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -92,20 +109,19 @@ class MySQLDeliveryChargeDefaultsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.applicable_to_wholesaler is not None:
-            cols.append("applicable_to_wholesaler")
-            params["s_applicable_to_wholesaler"] = data.applicable_to_wholesaler
-
-        if data.applicable_to_retailer is not None:
-            cols.append("applicable_to_retailer")
-            params["s_applicable_to_retailer"] = data.applicable_to_retailer
-
-        if data.is_active is not None:
-            cols.append("is_active")
-            params["s_is_active"] = data.is_active
+        field_list = [
+            'applicable_to_wholesaler', 'applicable_to_retailer', 'is_active',
+            'courier_base_charge', 'courier_free_threshold',
+            'hyperlocal_base_charge', 'hyperlocal_free_threshold', 'hyperlocal_urgent_delivery_charge'
+        ]
+        for f in field_list:
+            val = getattr(data, f, None)
+            if val is not None:
+                cols.append(f)
+                params[f"s_{f}"] = val
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['applicable_to_wholesaler', 'applicable_to_retailer', 'is_active'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in field_list if f"s_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -123,18 +139,18 @@ class MySQLDeliveryChargeDefaultsDAO:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
+        data = update_data
 
-        if data.applicable_to_wholesaler is not None:
-            updates.append("applicable_to_wholesaler = :s_applicableToWholesaler")
-            params["s_applicable_to_wholesaler"] = data.applicable_to_wholesaler
-
-        if data.applicable_to_retailer is not None:
-            updates.append("applicable_to_retailer = :s_applicableToRetailer")
-            params["s_applicable_to_retailer"] = data.applicable_to_retailer
-
-        if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
-            params["s_is_active"] = data.is_active
+        field_list = [
+            'applicable_to_wholesaler', 'applicable_to_retailer', 'is_active',
+            'courier_base_charge', 'courier_free_threshold',
+            'hyperlocal_base_charge', 'hyperlocal_free_threshold', 'hyperlocal_urgent_delivery_charge'
+        ]
+        for f in field_list:
+            val = getattr(data, f, None)
+            if val is not None:
+                updates.append(f"{f} = :s_{f}")
+                params[f"s_{f}"] = val
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -195,26 +211,26 @@ class MySQLDeliveryChargeDefaultsDAO:
         for r in rows_tiers:
             if "tiers" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["tiers"] = []
-            obj = {}
-
-            obj["min"] = r[1]
-            obj["max"] = r[2]
-            obj["charge"] = r[3]
-            c_map[r.parent_id]["tiers"].append(obj)
+            max_val = float('inf') if str(r[2]).lower() in ("infinity", "inf") else (float(r[2]) if str(r[2]).replace('.','',1).isdigit() else r[2])
+            c_map[r.parent_id]["tiers"].append(
+                DeliveryChargeTierInternal(
+                    min=float(r[1]) if r[1] and str(r[1]).replace('.','',1).isdigit() else 0.0,
+                    max=max_val,
+                    charge=float(r[3]) if r[3] and str(r[3]).replace('.','',1).isdigit() else 0.0
+                )
+            )
 
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
-        if data.tiers is not None:
+        if hasattr(data, 'tiers') and data.tiers is not None:
             await session.execute(text(f"DELETE FROM sj_delivery_charge_def_tiers WHERE parent_id = :id"), {"id": row_id})
             child_list = data.tiers or []
 
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-
-                    p["v0"] = item.min
-                    p["v1"] = item.max
-                    p["v2"] = item.charge
-                    await session.execute(text(f"INSERT INTO sj_delivery_charge_def_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)
+            for item in child_list:
+                p = {"id": row_id}
+                p["v0"] = str(getattr(item, 'min', None) if getattr(item, 'min', None) is not None else (item.get('min', '0') if isinstance(item, dict) else '0'))
+                p["v1"] = str(getattr(item, 'max', None) if getattr(item, 'max', None) is not None else (item.get('max', 'Infinity') if isinstance(item, dict) else 'Infinity'))
+                p["v2"] = str(getattr(item, 'charge', None) if getattr(item, 'charge', None) is not None else (item.get('charge', '0') if isinstance(item, dict) else '0'))
+                await session.execute(text(f"INSERT INTO sj_delivery_charge_def_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)

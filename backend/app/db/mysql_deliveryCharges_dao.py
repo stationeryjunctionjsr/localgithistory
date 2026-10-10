@@ -5,7 +5,7 @@ import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import DeliveryChargeInternal
-from app.models.daos_flat import DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate
+from app.models.daos_flat import DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate, DeliveryChargeTierInternal
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -189,7 +189,7 @@ class MySQLDeliveryChargesDAO:
             params["s_district"] = data.district
 
         if data.apply_default_charge is not None:
-            updates.append("apply_default_charge = :s_applyDefaultCharge")
+            updates.append("apply_default_charge = :s_apply_default_charge")
             params["s_apply_default_charge"] = data.apply_default_charge
 
         if data.charge is not None:
@@ -197,19 +197,19 @@ class MySQLDeliveryChargesDAO:
             params["s_charge"] = data.charge
 
         if data.min_cart_value is not None:
-            updates.append("min_cart_value = :s_minCartValue")
+            updates.append("min_cart_value = :s_min_cart_value")
             params["s_min_cart_value"] = data.min_cart_value
 
         if data.serviceable_for_customer is not None:
-            updates.append("serviceable_for_customer = :s_serviceableForCustomer")
+            updates.append("serviceable_for_customer = :s_serviceable_for_customer")
             params["s_serviceable_for_customer"] = data.serviceable_for_customer
 
         if data.serviceable_for_wholesaler is not None:
-            updates.append("serviceable_for_wholesaler = :s_serviceableForWholesaler")
+            updates.append("serviceable_for_wholesaler = :s_serviceable_for_wholesaler")
             params["s_serviceable_for_wholesaler"] = data.serviceable_for_wholesaler
 
         if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
+            updates.append("is_active = :s_is_active")
             params["s_is_active"] = data.is_active
 
         if data.description is not None:
@@ -217,11 +217,11 @@ class MySQLDeliveryChargesDAO:
             params["s_description"] = data.description
 
         if data.urgent_delivery_available is not None:
-            updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
+            updates.append("urgent_delivery_available = :s_urgent_delivery_available")
             params["s_urgent_delivery_available"] = data.urgent_delivery_available
 
         if data.urgent_delivery_charge is not None:
-            updates.append("urgent_delivery_charge = :s_urgentDeliveryCharge")
+            updates.append("urgent_delivery_charge = :s_urgent_delivery_charge")
             params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
 
         if len(updates) > 1:
@@ -283,26 +283,26 @@ class MySQLDeliveryChargesDAO:
         for r in rows_tiers:
             if "tiers" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["tiers"] = []
-            obj = {}
-
-            obj["min"] = r[1]
-            obj["max"] = r[2]
-            obj["charge"] = r[3]
-            c_map[r.parent_id]["tiers"].append(obj)
+            max_val = float('inf') if str(r[2]).lower() in ("infinity", "inf") else (float(r[2]) if str(r[2]).replace('.','',1).isdigit() else r[2])
+            c_map[r.parent_id]["tiers"].append(
+                DeliveryChargeTierInternal(
+                    min=float(r[1]) if r[1] and str(r[1]).replace('.','',1).isdigit() else 0.0,
+                    max=max_val,
+                    charge=float(r[3]) if r[3] and str(r[3]).replace('.','',1).isdigit() else 0.0
+                )
+            )
 
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
-        if data.tiers is not None:
+        if hasattr(data, 'tiers') and data.tiers is not None:
             await session.execute(text(f"DELETE FROM sj_delivery_charge_tiers WHERE parent_id = :id"), {"id": row_id})
             child_list = data.tiers or []
 
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-
-                    p["v0"] = item.min
-                    p["v1"] = item.max
-                    p["v2"] = item.charge
-                    await session.execute(text(f"INSERT INTO sj_delivery_charge_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)
+            for item in child_list:
+                p = {"id": row_id}
+                p["v0"] = str(getattr(item, 'min', None) if getattr(item, 'min', None) is not None else (item.get('min', '0') if isinstance(item, dict) else '0'))
+                p["v1"] = str(getattr(item, 'max', None) if getattr(item, 'max', None) is not None else (item.get('max', 'Infinity') if isinstance(item, dict) else 'Infinity'))
+                p["v2"] = str(getattr(item, 'charge', None) if getattr(item, 'charge', None) is not None else (item.get('charge', '0') if isinstance(item, dict) else '0'))
+                await session.execute(text(f"INSERT INTO sj_delivery_charge_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)
