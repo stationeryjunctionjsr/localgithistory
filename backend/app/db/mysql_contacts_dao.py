@@ -1,5 +1,4 @@
-from typing import Optional, List, Union, Tuple
-from collections import defaultdict
+from typing import Optional, List, Union, Tuple, Any
 from datetime import datetime, timezone
 import secrets
 import json
@@ -35,11 +34,11 @@ class MySQLContactsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            addresses_map, phones_map = await self._fetch_children(session, [int(row.id)])
+            address_rows, phone_rows = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(
                 row,
-                addresses=addresses_map[int(row.id)],
-                phone_numbers=phones_map[int(row.id)],
+                addresses=[str(a.address) for a in address_rows if int(a.parent_id) == int(row.id)],
+                phone_numbers=[str(p.phone) for p in phone_rows if int(p.parent_id) == int(row.id)],
             )
 
     async def findOne(
@@ -56,11 +55,11 @@ class MySQLContactsDAO:
                 row = result.fetchone()
                 if not row:
                     return None
-                addresses_map, phones_map = await self._fetch_children(session, [int(row.id)])
+                address_rows, phone_rows = await self._fetch_children(session, [int(row.id)])
                 return self._map_to_schema(
                     row,
-                    addresses=addresses_map[int(row.id)],
-                    phone_numbers=phones_map[int(row.id)],
+                    addresses=[str(a.address) for a in address_rows if int(a.parent_id) == int(row.id)],
+                    phone_numbers=[str(p.phone) for p in phone_rows if int(p.parent_id) == int(row.id)],
                 )
         all_contacts = await self.findAll()
         return all_contacts[0] if all_contacts else None
@@ -88,12 +87,12 @@ class MySQLContactsDAO:
                 return []
                 
             row_ids = [int(r.id) for r in rows]
-            addresses_map, phones_map = await self._fetch_children(session, row_ids)
+            address_rows, phone_rows = await self._fetch_children(session, row_ids)
             return [
                 self._map_to_schema(
                     r,
-                    addresses=addresses_map[int(r.id)],
-                    phone_numbers=phones_map[int(r.id)],
+                    addresses=[str(a.address) for a in address_rows if int(a.parent_id) == int(r.id)],
+                    phone_numbers=[str(p.phone) for p in phone_rows if int(p.parent_id) == int(r.id)],
                 )
                 for r in rows
             ]
@@ -255,25 +254,19 @@ class MySQLContactsDAO:
 
     async def _fetch_children(
         self, session, ids: List[int]
-    ) -> Tuple[defaultdict[int, List[str]], defaultdict[int, List[str]]]:
-        addresses_map: defaultdict[int, List[str]] = defaultdict(list)
-        phones_map: defaultdict[int, List[str]] = defaultdict(list)
+    ) -> Tuple[List[Any], List[Any]]:
         if not ids:
-            return addresses_map, phones_map
+            return [], []
             
         id_list = ",".join(map(str, ids))
 
         q_addresses = text(f"SELECT parent_id, address FROM sj_contact_addresses WHERE parent_id IN ({id_list})")
         res_addresses = await session.execute(q_addresses)
-        for r in res_addresses.fetchall():
-            addresses_map[int(r.parent_id)].append(str(r.address))
 
         q_phones = text(f"SELECT parent_id, phone FROM sj_contact_phones WHERE parent_id IN ({id_list})")
         res_phones = await session.execute(q_phones)
-        for r in res_phones.fetchall():
-            phones_map[int(r.parent_id)].append(str(r.phone))
 
-        return addresses_map, phones_map
+        return res_addresses.fetchall(), res_phones.fetchall()
 
     async def _replace_children(self, session, row_id: int, data: Union[ContactInternalCreate, ContactInternalUpdate]):
         if data.addresses is not None:
