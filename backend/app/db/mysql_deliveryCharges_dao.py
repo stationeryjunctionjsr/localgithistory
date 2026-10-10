@@ -19,6 +19,15 @@ class MySQLDeliveryChargesDAO:
 
     def _factory(self):
         return get_async_session_factory()
+
+    async def getMaxLocationId(self) -> int:
+        factory = self._factory()
+        if not factory:
+            return 0
+        async with factory() as session:
+            res = await session.execute(text(f"SELECT COALESCE(MAX(location_id), 0) FROM {self.TABLE}"))
+            val = res.scalar()
+            return int(val) if val is not None else 0
         
     async def findById(self, id: Union[int, str]) -> Optional[DeliveryChargeInternal]:
         factory = self._factory()

@@ -1,18 +1,26 @@
-from typing import TYPE_CHECKING
-from app.models.daos_flat import DeliveryChargeInternal, DeliveryChargeDefaultInternal, DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate, DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate, DeliveryChargeTierInternal
-from typing import Optional
-
+from typing import TYPE_CHECKING, Optional, List, Union
+from app.models.daos_flat import (
+    DeliveryChargeInternal,
+    DeliveryChargeDefaultInternal,
+    DeliveryChargeInternalCreate,
+    DeliveryChargeInternalUpdate,
+    DeliveryChargeDefaultInternalCreate,
+    DeliveryChargeDefaultInternalUpdate,
+    DeliveryChargeTierInternal,
+    DeliveryZoneInternal,
+)
+from app.models.schemas import DeliveryFeeCalculationResult
 from app.db.storage_factory import get_storage
 
 if TYPE_CHECKING:
     from app.models.daos import DeliveryChargeInternal
-    
 
 
 class DeliveryChargeRepository:
     def __init__(self):
         self.storage = get_storage("deliveryCharges")
         self.default_storage = get_storage("deliveryChargeDefaults")
+        self.zone_storage = get_storage("deliveryZones")
 
     async def findAll(self, query: Optional[dict] = None) -> list[DeliveryChargeInternal]:
         return await self.storage.findAll(query or {})
@@ -43,10 +51,7 @@ class DeliveryChargeRepository:
         return charge.serviceable_for_customer is True
 
     async def getDefaultCharge(self) -> Optional[DeliveryChargeDefaultInternal]:
-        if hasattr(self.default_storage, "getDefault"):
-            return await self.default_storage.getDefault()
-        defaults = await self.default_storage.findAll()
-        return defaults[0] if defaults else None
+        return await self.default_storage.getDefault()
 
     async def setdefault_charge(self, default_data: DeliveryChargeDefaultInternalCreate) -> DeliveryChargeDefaultInternal:
         existing = await self.getDefaultCharge()
@@ -86,6 +91,122 @@ class DeliveryChargeRepository:
         if not existing:
             return None
         return await self.default_storage.delete(existing.id)
+
+    async def getHyperlocalChargeForZone(
+        self,
+        zone_id: Union[int, str],
+        order_amount: float,
+        user_role: str = "customer",
+    ) -> DeliveryFeeCalculationResult:
+        """Calculate delivery fee for a zone in Hyperlocal mode.
+        - Wholesalers: Checked against zone customer_type and applicable_to_wholesaler.
+        - If zone.apply_default_charge == True: Falls back to global hyperlocal defaults.
+        - If zone.apply_default_charge == False: Uses zone custom tiers or zone flat charge.
+        """
+        zone = await self.zone_storage.findById(zone_id)
+        if not zone or not zone.is_active:
+            return DeliveryFeeCalculationResult(charge=0.0, min_cart_value=0.0, is_free_delivery=True, source="none")
+
+        is_wholesaler = (user_role == "wholesaler")
+        if is_wholesaler and zone.customer_type not in ("business", "both"):
+            return DeliveryFeeCalculationResult(charge=0.0, min_cart_value=0.0, is_free_delivery=True, source="exempt")
+
+        default_charge = await self.getDefaultCharge()
+        if is_wholesaler and default_charge and default_charge.applicable_to_wholesaler is False:
+            return DeliveryFeeCalculationResult(charge=0.0, min_cart_value=0.0, is_free_delivery=True, source="exempt")
+
+        # 1. Global hyperlocal fallback
+        if zone.apply_default_charge:
+            base_charge = float(default_charge.hyperlocal_base_charge) if default_charge and default_charge.hyperlocal_base_charge is not None else 40.0
+            free_threshold = float(default_charge.hyperlocal_free_threshold) if default_charge and default_charge.hyperlocal_free_threshold is not None else 300.0
+            urgent_charge = float(default_charge.hyperlocal_urgent_delivery_charge) if default_charge and default_charge.hyperlocal_urgent_delivery_charge is not None else 50.0
+            urgent_avail = bool(zone.urgent_delivery_available) if zone.urgent_delivery_available is not None else False
+
+            is_free = (order_amount >= free_threshold) if free_threshold > 0 else False
+            fee = 0.0 if is_free else base_charge
+            return DeliveryFeeCalculationResult(
+                charge=fee,
+                min_cart_value=free_threshold,
+                is_free_delivery=is_free,
+                source="hyperlocal_default",
+                delivery_charge=base_charge,
+                urgent_delivery_available=urgent_avail,
+                urgent_delivery_charge=urgent_charge,
+            )
+
+        # 2. Zone custom tiers
+        if zone.tiers and len(zone.tiers) > 0:
+            sorted_tiers = sorted(zone.tiers, key=lambda t: float(t.min if t.min is not None else 0.0))
+            applicable_tier = None
+            for tier in sorted_tiers:
+                tier_min = float(tier.min if tier.min is not None else 0.0)
+                tier_max = float(tier.max if tier.max is not None and tier.max != float("inf") else float("inf"))
+                if tier_min <= order_amount < tier_max:
+                    applicable_tier = tier
+                    break
+            if not applicable_tier:
+                applicable_tier = sorted_tiers[-1]
+
+            tier_charge = float(applicable_tier.charge if applicable_tier.charge is not None else 0.0)
+            tier_max_val = float(applicable_tier.max if applicable_tier.max is not None and applicable_tier.max != float("inf") else 0.0)
+            return DeliveryFeeCalculationResult(
+                charge=tier_charge,
+                min_cart_value=tier_max_val,
+                is_free_delivery=(tier_charge == 0.0),
+                source="zone_tier",
+                delivery_charge=tier_charge,
+                applied_tier_min=float(applicable_tier.min or 0.0),
+                applied_tier_max=float(applicable_tier.max) if applicable_tier.max is not None and applicable_tier.max != float("inf") else None,
+                applied_tier_charge=tier_charge,
+                urgent_delivery_available=bool(zone.urgent_delivery_available) if zone.urgent_delivery_available is not None else False,
+                urgent_delivery_charge=float(zone.urgent_delivery_charge) if zone.urgent_delivery_charge is not None else None,
+            )
+
+        # 3. Flat zone custom charge
+        base_charge = float(zone.delivery_charge) if zone.delivery_charge is not None else 0.0
+        free_threshold = float(zone.min_cart_value) if zone.min_cart_value is not None else 0.0
+        urgent_charge = float(zone.urgent_delivery_charge) if zone.urgent_delivery_charge is not None else None
+        urgent_avail = bool(zone.urgent_delivery_available) if zone.urgent_delivery_available is not None else False
+        is_free = (order_amount >= free_threshold) if free_threshold > 0 else False
+        fee = 0.0 if is_free else base_charge
+
+        return DeliveryFeeCalculationResult(
+            charge=fee,
+            min_cart_value=free_threshold,
+            is_free_delivery=is_free,
+            source="zone_custom",
+            delivery_charge=base_charge,
+            urgent_delivery_available=urgent_avail,
+            urgent_delivery_charge=urgent_charge,
+        )
+
+    async def getCourierCharge(
+        self,
+        order_amount: float,
+        user_role: str = "customer",
+    ) -> DeliveryFeeCalculationResult:
+        """Calculate courier shipping fee for Pan-India mode.
+        Uses courier_base_charge and courier_free_threshold from global defaults.
+        """
+        default_charge = await self.getDefaultCharge()
+        is_wholesaler = (user_role == "wholesaler")
+        if is_wholesaler and default_charge and default_charge.applicable_to_wholesaler is False:
+            return DeliveryFeeCalculationResult(charge=0.0, min_cart_value=0.0, is_free_delivery=True, source="exempt")
+
+        courier_base = float(default_charge.courier_base_charge) if default_charge and default_charge.courier_base_charge is not None else 70.0
+        courier_threshold = float(default_charge.courier_free_threshold) if default_charge and default_charge.courier_free_threshold is not None else 1500.0
+        is_free = (order_amount >= courier_threshold) if courier_threshold > 0 else False
+        fee = 0.0 if is_free else courier_base
+
+        return DeliveryFeeCalculationResult(
+            charge=fee,
+            min_cart_value=courier_threshold,
+            is_free_delivery=is_free,
+            source="courier",
+            delivery_charge=courier_base,
+            urgent_delivery_available=False,
+            urgent_delivery_charge=None,
+        )
 
     async def getChargeForLocation(
         self,
@@ -313,23 +434,18 @@ class DeliveryChargeRepository:
             if existing:
                 raise ValueError("Pincode already exists")
 
-        # Generate unique ID for state-district-city combination (for backward compatibility)
-        all_charges = await self.storage.findAll()
-        max_id = 0
-        for charge in all_charges:
-            if charge.location_id and True:
-                max_id = max(max_id, charge.location_id)
-        location_id = max_id + 1
+        # Generate unique ID for state-district-city combination via direct SQL MAX
+        location_id = await self.storage.getMaxLocationId() + 1
 
         apply_default = charge_data.apply_default_charge
 
         charge_internal = DeliveryChargeInternalCreate(
-            locationId=location_id,
+            location_id=location_id,
             pincode=charge_data.pincode or None,
             state=charge_data.state,
             city=charge_data.city,
             district=charge_data.district,
-            applydefault_charge=apply_default,
+            apply_default_charge=apply_default,
             charge=None if apply_default else (float(charge_data.charge) if charge_data.charge is not None else None),
             min_cart_value=None if apply_default else (float(charge_data.min_cart_value) if charge_data.min_cart_value is not None else None),
             tiers=None if apply_default else charge_data.tiers,
@@ -337,7 +453,7 @@ class DeliveryChargeRepository:
             serviceable_for_wholesaler=charge_data.serviceable_for_wholesaler is True,
             is_active=charge_data.is_active,
             description=charge_data.description,
-            urgentDeliveryAvailable=False,
+            urgent_delivery_available=False,
             urgent_delivery_charge=float(charge_data.urgent_delivery_charge) if charge_data.urgent_delivery_charge is not None else None,
         )
 

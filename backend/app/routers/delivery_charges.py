@@ -34,21 +34,31 @@ class LocationChargeResponse(CamelBaseModel):
     gstAmount: float = 0.0
     totalCharge: float = 0.0
 
-class ServiceableSeller(BaseModel):
+class ServiceableSeller(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: str
     name: str
-    companyName: str
+    company_name: str
     city: Optional[str] = None
 
-class ServiceabilityResponse(BaseModel):
-    isServiceable: bool
+class ServiceabilityResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    is_serviceable: bool
     pincode: str
-    userRole: Optional[str] = None
-    sellerCount: int = 0
-    serviceableSellers: List[ServiceableSeller] = []
-    slotBookingAvailable: bool = False
-    availableDates: List[str] = []
+    user_role: Optional[str] = None
+    seller_count: int = 0
+    serviceable_sellers: List[ServiceableSeller] = Field(default_factory=list)
+    show_seller_count: bool = True
+    slot_booking_available: bool = False
+    available_dates: List[str] = Field(default_factory=list)
     urgent_delivery_available: bool = False
+    zone_customer_type: str = "retail"
+    zone_id: Optional[str] = None
+    zone_name: Optional[str] = None
+    has_zone: bool = False
+    has_pan_india: bool = False
+    allowed_modes: List[str] = Field(default_factory=list)
+    default_mode: str = "pan_india"
 
 class UploadCsvResponse(BaseModel):
     message: str
@@ -143,16 +153,24 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     """Check if a pincode is serviceable for a user role. Also returns slot booking availability
     and the list of sellers that service this pincode (resolved via delivery zone)."""
     if not pincode or len(pincode) != 6 or not pincode.isdigit():
-        return {
-            "isServiceable": False,
-            "pincode": pincode,
-            "userRole": userRole,
-            "sellerCount": 0,
-            "serviceableSellers": [],
-            "slotBookingAvailable": False,
-            "availableDates": [],
-            "urgentDeliveryAvailable": False,
-        }
+        return ServiceabilityResponse(
+            is_serviceable=False,
+            pincode=pincode or "",
+            user_role=userRole,
+            seller_count=0,
+            serviceable_sellers=[],
+            show_seller_count=True,
+            slot_booking_available=False,
+            available_dates=[],
+            urgent_delivery_available=False,
+            zone_customer_type="retail",
+            zone_id=None,
+            zone_name=None,
+            has_zone=False,
+            has_pan_india=False,
+            allowed_modes=[],
+            default_mode="pan_india",
+        )
 
     from app.db.storage_factory import get_storage
     from app.repositories.zone_seller_cache import get_seller_ids_for_pincode, get_zone_for_pincode
@@ -171,7 +189,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     # For wholesale customers the only seller is always the Super Admin — the
     # marketplace model does not apply.  We skip the per-zone seller lookup and
     # return the super admin as the only serviceable seller.
-    serviceable_sellers: list = []
+    serviceable_sellers: List[ServiceableSeller] = []
     if is_wholesaler:
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
@@ -179,12 +197,14 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
             try:
                 seller_doc = await user_repository.findById(sa_id)
                 if seller_doc:
-                    serviceable_sellers.append({
-                        "id": str((seller_doc.id if seller_doc.id is not None else sa_id)),
-                        "name": (seller_doc.name or ""),
-                        "companyName": (seller_doc.company_name if seller_doc.company_name is not None else (seller_doc.name or "")),
-                        "city": seller_doc.city or (seller_doc.address.city if seller_doc.address else None),
-                    })
+                    serviceable_sellers.append(
+                        ServiceableSeller(
+                            id=str(seller_doc.id or sa_id),
+                            name=seller_doc.name or "",
+                            company_name=seller_doc.company_name or seller_doc.name or "",
+                            city=seller_doc.city or (seller_doc.address.city if seller_doc.address else None),
+                        )
+                    )
             except Exception as exc:
                 from app.utils.logger import logger
                 logger.warning("check_serviceability: could not fetch super admin %s: %s", sa_id, exc)
@@ -196,12 +216,14 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                     seller_doc = await user_repository.findById(sid)
                     if not seller_doc:
                         continue
-                    serviceable_sellers.append({
-                        "id": str((seller_doc.id if seller_doc.id is not None else sid)),
-                        "name": (seller_doc.name or ""),
-                        "companyName": (seller_doc.company_name if seller_doc.company_name is not None else (seller_doc.name or "")),
-                        "city": seller_doc.city or (seller_doc.address.city if seller_doc.address else None),
-                    })
+                    serviceable_sellers.append(
+                        ServiceableSeller(
+                            id=str(seller_doc.id or sid),
+                            name=seller_doc.name or "",
+                            company_name=seller_doc.company_name or seller_doc.name or "",
+                            city=seller_doc.city or (seller_doc.address.city if seller_doc.address else None),
+                        )
+                    )
                 except Exception as exc:
                     from app.utils.logger import logger
                     logger.warning("check_serviceability: could not fetch seller %s: %s", sid, exc)
@@ -253,18 +275,36 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                         available_dates.append(check_date)
                         break
 
-    return {
-        "isServiceable": is_serviceable,
-        "pincode": pincode,
-        "userRole": userRole,
-        "sellerCount": len(serviceable_sellers),
-        "serviceableSellers": serviceable_sellers,
-        "showSellerCount": not is_wholesaler,
-        "slotBookingAvailable": len(available_dates) > 0,
-        "availableDates": available_dates,
-        "urgentDeliveryAvailable": platform_urgent,
-        "zoneCustomerType": zone_customer_type,
-    }
+    has_zone = zone is not None and bool(zone.is_active)
+    # Pan-India 1P courier delivery is supported for valid Indian 6-digit pincodes
+    has_pan_india = True
+
+    allowed_modes = []
+    if has_zone:
+        allowed_modes.append("hyperlocal")
+    if has_pan_india:
+        allowed_modes.append("pan_india")
+
+    default_mode = "hyperlocal" if has_zone else "pan_india"
+
+    return ServiceabilityResponse(
+        is_serviceable=is_serviceable,
+        pincode=pincode,
+        user_role=userRole,
+        seller_count=len(serviceable_sellers),
+        serviceable_sellers=serviceable_sellers,
+        show_seller_count=not is_wholesaler,
+        slot_booking_available=len(available_dates) > 0,
+        available_dates=available_dates,
+        urgent_delivery_available=platform_urgent,
+        zone_customer_type=zone_customer_type,
+        zone_id=zone_id,
+        zone_name=zone.name if zone else None,
+        has_zone=has_zone,
+        has_pan_india=has_pan_india,
+        allowed_modes=allowed_modes,
+        default_mode=default_mode,
+    )
 
 
 

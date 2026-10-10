@@ -2293,6 +2293,19 @@ class MarkPaidRequest(CamelBaseModel):
     payment_reference: Optional[str] = None
     notes: Optional[str] = None
 
+class DeliveryFeeCalculationResult(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    charge: float = 0.0
+    min_cart_value: float = 0.0
+    is_free_delivery: bool = False
+    source: str = ""  # "zone_custom", "zone_tier", "hyperlocal_default", "courier", "exempt", "none"
+    delivery_charge: Optional[float] = None
+    applied_tier_min: Optional[float] = None
+    applied_tier_max: Optional[float] = None
+    applied_tier_charge: Optional[float] = None
+    urgent_delivery_available: bool = False
+    urgent_delivery_charge: Optional[float] = None
+
 UserResponse.model_rebuild()
 
 from app.models.payment import PaymentEntry
