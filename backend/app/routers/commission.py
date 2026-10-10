@@ -183,15 +183,21 @@ async def is_return_period_over(sub_order: SubOrder) -> bool:
 # ---------------------------------------------------------------------------
 
 
-async def stamp_commission_on_delivery(sub_order: SubOrder) -> dict:
+class CommissionStamp(CamelBaseModel):
+    commission_status: Optional[str] = None
+    commission_pct: Optional[float] = None
+    commission_amount: Optional[float] = None
+
+
+async def stamp_commission_on_delivery(sub_order: SubOrder) -> CommissionStamp:
     """
     Called when a sub-order transitions to 'delivered'.
-    Returns a dict of fields to merge into the sub-order update payload.
+    Returns structured commission fields to merge into the sub-order update payload.
     Only stamps if there is a seller (platform-only orders have no commission).
     """
     seller_id = sub_order.seller_id
     if not seller_id:
-        return {"commissionStatus": None, "commissionPct": None, "commissionAmount": None}
+        return CommissionStamp()
 
     if sub_order.subtotal is None and sub_order.total is None:
         raise ValueError(f"Data Integrity Error: Sub order {sub_order.id} is missing both subtotal and total for commission calculation")
@@ -199,11 +205,11 @@ async def stamp_commission_on_delivery(sub_order: SubOrder) -> dict:
     pct = await resolve_commission_pct(order_total, seller_id)
     amount = round(order_total * pct / 100, 2)
 
-    return {
-        "commissionStatus": "unrealized",
-        "commissionPct": pct,
-        "commissionAmount": amount,
-    }
+    return CommissionStamp(
+        commission_status="unrealized",
+        commission_pct=pct,
+        commission_amount=amount,
+    )
 
 
 # ---------------------------------------------------------------------------

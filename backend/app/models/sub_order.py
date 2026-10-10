@@ -162,5 +162,16 @@ class SubOrderInternalUpdate(CamelBaseModel):
     tracking_id: Optional[str] = None
     awb_code: Optional[str] = None
 
+class SubOrderFilter(CamelBaseModel):
+    id: Optional[str] = None
+    seller_id: Optional[str] = None
+    parent_order_id: Optional[str] = None
+    status: Optional[str] = None
+    commission_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 
 

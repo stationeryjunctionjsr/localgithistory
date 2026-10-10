@@ -7,9 +7,8 @@ Table: sj_sub_orders and sj_sub_order_items
 """
 
 import secrets
-from datetime import datetime, timezone
-from typing import Dict
-from app.models.sub_order import SubOrder, List, Optional
+from typing import List, Optional
+from app.models.sub_order import SubOrder, SubOrderFilter, SubOrderItem
 
 from sqlalchemy import text
 
@@ -79,61 +78,62 @@ class MySQLSubOrderDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, row, items_rows=None) -> 'SubOrder':
-        from app.models.sub_order import SubOrder
+        from app.models.sub_order import SubOrder, SubOrderItem
         sub = SubOrder.model_validate(row)
-        items = []
         if items_rows:
-            for it in items_rows:
-                if getattr(it, "sub_order_id", None) == row.id:
-                    items.append({
-                        "product_id": it.product_id, 
-                        "name": it.name, 
-                        "qty": it.qty, 
-                        "price": float(it.price)
-                    })
-        sub.items = items
+            sub.items = [
+                SubOrderItem(
+                    product_id=it.product_id,
+                    name=it.name,
+                    qty=it.qty,
+                    price=float(it.price) if it.price is not None else 0.0,
+                )
+                for it in items_rows
+                if it.sub_order_id == row.id
+            ]
+        else:
+            sub.items = []
         return sub
 
-    def _build_where(self, query: Dict):
+    def _build_where(self, filter_data: Optional[SubOrderFilter] = None) -> tuple[List[str], dict]:
+        if not filter_data:
+            return [], {}
         where_clauses = []
         params = {}
-        for k, v in query.items():
-            if k in ("_id", "id"):
-                where_clauses.append("id = :q_id")
-                params["q_id"] = int(v) if str(v).isdigit() else v
-                continue
-            col = self._COLUMN_MAP[k] if k in self._COLUMN_MAP else None
-            p_name = f"qp_{k.replace('.', '_')}"
-            if col:
-                if isinstance(v, dict):
-                    for op, op_val in v.items():
-                        if op == "$in":
-                            placeholders = [f":{p_name}_{i}" for i, _ in enumerate(op_val)]
-                            for i, item in enumerate(op_val):
-                                params[f"{p_name}_{i}"] = str(item)
-                            if placeholders:
-                                where_clauses.append(f"{col} IN ({', '.join(placeholders)})")
-                            else:
-                                where_clauses.append("1=0")
-                        elif op == "$ne":
-                            where_clauses.append(f"{col} != :{p_name}_ne")
-                            params[f"{p_name}_ne"] = str(op_val)
-                else:
-                    where_clauses.append(f"{col} = :{p_name}")
-                    params[p_name] = str(v) if not isinstance(v, bool) else ("true" if v else "false")
-            else:
-                pass  # Ignoring unmapped query fields
+        if filter_data.id:
+            where_clauses.append("id = :q_id" if str(filter_data.id).isdigit() else "external_id = :q_id")
+            params["q_id"] = int(filter_data.id) if str(filter_data.id).isdigit() else filter_data.id
+        if filter_data.seller_id:
+            where_clauses.append("seller_id = :seller_id")
+            params["seller_id"] = filter_data.seller_id
+        if filter_data.parent_order_id:
+            where_clauses.append("parent_order_id = :parent_order_id")
+            params["parent_order_id"] = filter_data.parent_order_id
+        if filter_data.status:
+            where_clauses.append("status = :status")
+            params["status"] = filter_data.status
+        if filter_data.commission_status:
+            where_clauses.append("commission_status = :commission_status")
+            params["commission_status"] = filter_data.commission_status
+        if filter_data.payment_status:
+            where_clauses.append("payment_status = :payment_status")
+            params["payment_status"] = filter_data.payment_status
+        if filter_data.start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = filter_data.start_date
+        if filter_data.end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = filter_data.end_date
         return where_clauses, params
 
-    async def findAll(self, query: Optional[Dict] = None, skip: int = 0, limit: int = 0) -> List['SubOrder']:
+    async def findAll(self, filter_params: Optional[SubOrderFilter] = None, skip: int = 0, limit: int = 0) -> List[SubOrder]:
         factory = self._get_session_factory()
         if not factory:
             return []
-        where_clauses, params = self._build_where(query or {})
+        where_clauses, params = self._build_where(filter_params)
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         limit_sql = f" LIMIT {limit} OFFSET {skip}" if limit else (f" OFFSET {skip}" if skip else "")
         async with factory() as session:
-            # 1. Fetch sub-orders
             query_sql = f"SELECT * FROM {self.table_name}{where_sql} ORDER BY created_at DESC{limit_sql}"
             result = await session.execute(text(query_sql), params)
             rows = result.fetchall()
@@ -141,35 +141,71 @@ class MySQLSubOrderDAO:
             if not rows:
                 return []
 
-            # 2. Fetch all items for these sub-orders
             sub_order_ids = [r.id for r in rows]
             in_clause = ", ".join(str(id) for id in sub_order_ids)
             items_sql = f"SELECT * FROM {self.items_table_name} WHERE sub_order_id IN ({in_clause})"
             items_result = await session.execute(text(items_sql))
             items_rows = items_result.fetchall()
 
-            return [SubOrder.model_validate(self._map_to_schema(r, items_rows) ) for r in rows]
+            return [self._map_to_schema(r, items_rows) for r in rows]
 
-    async def findOne(self, query: dict) -> Optional['SubOrder']:
-        docs = await self.findAll(query, limit=1)
+    async def findOne(self, filter_params: Optional[SubOrderFilter] = None) -> Optional[SubOrder]:
+        docs = await self.findAll(filter_params, limit=1)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional['SubOrder']:
-        return await self.findOne({"_id": id})
+        factory = self._get_session_factory()
+        if not factory or not id:
+            return None
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.table_name} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.table_name} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
+            result = await session.execute(q, params)
+            row = result.fetchone()
+            if not row:
+                return None
+            items_res = await session.execute(
+                text(f"SELECT * FROM {self.items_table_name} WHERE sub_order_id = :so_id"),
+                {"so_id": row.id},
+            )
+            items_rows = items_res.fetchall()
+            return SubOrder.model_validate(self._map_to_schema(row, items_rows))
 
     async def findByParentOrder(self, parent_order_id: str) -> List['SubOrder']:
-        return await self.findAll({"parentOrderId": parent_order_id})
+        factory = self._get_session_factory()
+        if not factory or not parent_order_id:
+            return []
+        async with factory() as session:
+            if str(parent_order_id).isdigit():
+                q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_id = :pid ORDER BY id ASC")
+                params = {"pid": int(parent_order_id)}
+            else:
+                q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_number = :pid ORDER BY id ASC")
+                params = {"pid": str(parent_order_id)}
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            if not rows:
+                return []
+            sub_order_ids = [r.id for r in rows]
+            in_clause = ", ".join(str(i) for i in sub_order_ids)
+            items_res = await session.execute(text(f"SELECT * FROM {self.items_table_name} WHERE sub_order_id IN ({in_clause})"))
+            items_rows = items_res.fetchall()
+            return [self._map_to_schema(r, items_rows) for r in rows]
 
-    async def findBySeller(self, seller_id: str, query: Dict = None, skip: int = 0, limit: int = 0) -> List['SubOrder']:
-        q = {**(query or {})}
-        q["sellerId"] = seller_id
-        return await self.findAll(q, skip=skip, limit=limit)
+    async def findBySeller(self, seller_id: str, filter_params: Optional[SubOrderFilter] = None, skip: int = 0, limit: int = 0) -> List[SubOrder]:
+        f = filter_params.model_copy() if filter_params else SubOrderFilter()
+        f.seller_id = seller_id
+        return await self.findAll(f, skip=skip, limit=limit)
 
-    async def count(self, query: Optional[Dict] = None) -> int:
+    async def count(self, filter_params: Optional[SubOrderFilter] = None) -> int:
         factory = self._get_session_factory()
         if not factory:
             return 0
-        where_clauses, params = self._build_where(query or {})
+        where_clauses, params = self._build_where(filter_params)
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         async with factory() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.table_name}{where_sql}"), params)

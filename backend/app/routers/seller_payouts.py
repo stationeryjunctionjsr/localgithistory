@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from app.models.user import User
 from app.models.schemas import CamelBaseModel, MessageResponse, SellerPayoutDetailResponse, MarkPaidRequest
 from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate
-from app.models.sub_order import SubOrderInternalUpdate
+from app.models.sub_order import SubOrderInternalUpdate, SubOrderFilter
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, is_seller_admin, require_super_admin, require_super_admin_or_seller
 from app.utils.logger import logger
@@ -124,7 +124,7 @@ async def settle_all_seller_payouts(
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
-    sub_orders = await sub_order_repository.findAll({"sellerId": seller_id, "commissionStatus": "realized"})
+    sub_orders = await sub_order_repository.findAll(SubOrderFilter(seller_id=seller_id, commission_status="realized"))
     if not sub_orders:
         raise HTTPException(status_code=400, detail="No realized sub-orders found to settle")
 
@@ -251,7 +251,7 @@ async def get_all_seller_payout_summaries(
 
 
 async def _get_seller_summary(seller_id: str) -> SellerPayoutSummaryResponse:
-    sub_orders = await sub_order_repository.findAll({"sellerId": seller_id})
+    sub_orders = await sub_order_repository.findAll(SubOrderFilter(seller_id=seller_id))
 
     comm_realized = sum(float(so.commission_amount) for so in sub_orders if so.commission_status in ("realized", "paid"))
     comm_paid = sum(float(so.commission_amount) for so in sub_orders if so.commission_status == "paid")

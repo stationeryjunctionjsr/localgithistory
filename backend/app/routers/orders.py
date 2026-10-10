@@ -16,6 +16,7 @@ from app.utils.auth import (
 from app.services.email_service import email_service
 from app.repositories.user_repository import user_repository
 from app.repositories.sub_order_repository import sub_order_repository
+from app.models.sub_order import SubOrderFilter
 from app.repositories.product_repository import product_repository
 from app.repositories.payment_repository import payment_repository
 from app.repositories.order_repository import order_repository
@@ -1546,13 +1547,10 @@ async def get_seller_orders(
 ):
     """List sub-orders for the calling seller admin (Seller Admin only)."""
     seller_id = str(current_user.id)
-    query: dict = {}
-    if status:
-        # was query.status = status (dict has no .status attribute)
-        query["status"] = status
+    filter_params = SubOrderFilter(seller_id=seller_id, status=status)
     skip = (page - 1) * limit
-    sub_orders = await sub_order_repository.findBySeller(seller_id, query, skip=skip, limit=limit)
-    total = await sub_order_repository.count({"seller_id": seller_id, **query})
+    sub_orders = await sub_order_repository.findBySeller(seller_id, filter_params, skip=skip, limit=limit)
+    total = await sub_order_repository.count(filter_params)
     return {
         "subOrders": sub_orders,
         "totalCount": total,
@@ -1649,24 +1647,17 @@ async def get_all_sub_orders(
     current_user: User = Depends(require_super_admin),
 ):
     """List all sub-orders from seller admins (Super Admin only)."""
-    query: dict = {}
-    if sellerId:
-        if sellerId == "platform":
-            query["sellerId"] = None
-        else:
-            query["sellerId"] = sellerId
-    if status:
-        # was query.status = status (dict has no .status attribute)
-        query["status"] = status
-    if commissionStatus:
-        query["commissionStatus"] = commissionStatus
-    if startDate:
-        query["startDate"] = startDate
-    if endDate:
-        query["endDate"] = endDate
+    seller_filter = None if sellerId == "platform" else sellerId
+    filter_params = SubOrderFilter(
+        seller_id=seller_filter,
+        status=status,
+        commission_status=commissionStatus,
+        start_date=startDate,
+        end_date=endDate,
+    )
     skip = (page - 1) * limit
-    sub_orders = await sub_order_repository.findAll(query, skip=skip, limit=limit)
-    total = await sub_order_repository.count(query)
+    sub_orders = await sub_order_repository.findAll(filter_params, skip=skip, limit=limit)
+    total = await sub_order_repository.count(filter_params)
 
     # Promote unrealized → realized commissions whose return window has elapsed
     try:
