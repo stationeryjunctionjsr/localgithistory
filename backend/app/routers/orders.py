@@ -22,7 +22,7 @@ from app.repositories.order_repository import order_repository
 from app.repositories.notification_repository import notification_repository
 from app.repositories.category_repository import category_repository
 from app.repositories.cart_repository import cart_repository
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Header, status
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -102,6 +102,7 @@ class OrderCreateRequest(CamelBaseModel):
     # Per-seller delivery options for split-cart orders
     # [{sellerId, isUrgentDelivery, deliverySlotId, deliverySlotConfigId, deliverySlotDate}]
     seller_delivery_options: Optional[List[SellerDeliveryOption]] = None
+    fulfillment_type: Optional[str] = "hyperlocal"  # 'hyperlocal' or 'courier'
 
 
 
@@ -197,9 +198,84 @@ async def create_order(
 
 
 
-class TrackingUpdateRequest(BaseModel):
-    trackingId: str
-    courierPartner: Optional[str] = None
+class TrackingUpdateRequest(CamelBaseModel):
+    tracking_id: str = Field(validation_alias=AliasChoices("trackingId", "tracking_id"))
+    courier_partner: Optional[str] = Field(None, validation_alias=AliasChoices("courierPartner", "courier_partner"))
+    awb_code: Optional[str] = Field(None, validation_alias=AliasChoices("awbCode", "awb_code"))
+    shipping_label_url: Optional[str] = Field(None, validation_alias=AliasChoices("shippingLabelUrl", "shipping_label_url"))
+    estimated_delivery_date: Optional[str] = Field(None, validation_alias=AliasChoices("estimatedDeliveryDate", "estimated_delivery_date"))
+
+
+class CourierDispatchPayload(CamelBaseModel):
+    courier_partner: str = Field(validation_alias=AliasChoices("courierPartner", "courier_partner"))
+    awb_code: Optional[str] = Field(None, validation_alias=AliasChoices("awbCode", "awb_code"))
+    tracking_id: Optional[str] = Field(None, validation_alias=AliasChoices("trackingId", "tracking_id"))
+    shipping_label_url: Optional[str] = Field(None, validation_alias=AliasChoices("shippingLabelUrl", "shipping_label_url"))
+    estimated_delivery_date: Optional[str] = Field(None, validation_alias=AliasChoices("estimatedDeliveryDate", "estimated_delivery_date"))
+    notes: Optional[str] = None
+
+
+@router.put("/{order_id}/dispatch-courier", response_model=PopulatedOrderResponse)
+async def dispatch_courier_order(
+    order_id: str,
+    dispatch_data: CourierDispatchPayload,
+    current_user: User = Depends(require_super_admin),
+):
+    """
+    Dispatch a Pan-India courier order: moves status from 'processing'/'pending' -> 'dispatched'.
+    Stores courier partner, AWB code, tracking ID, shipping label URL, and estimated delivery date.
+    Accessible by Super Admin.
+    """
+    order = await order_repository.findById(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status in ("cancelled", "delivered", "returned", "failed"):
+        raise HTTPException(status_code=400, detail=f"Cannot dispatch an order in '{order.status}' status")
+
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    update_payload = OrderInternalUpdate(
+        status="dispatched",
+        shipped_at=now_iso,
+        fulfillment_type="courier",
+        courier_partner=dispatch_data.courier_partner,
+        awb_code=dispatch_data.awb_code,
+        tracking_id=dispatch_data.tracking_id or dispatch_data.awb_code,
+        shipping_label_url=dispatch_data.shipping_label_url,
+        estimated_delivery_date=dispatch_data.estimated_delivery_date,
+        tracking_updated_at=now_iso,
+    )
+    updated_order = await order_repository.update(order_id, update_payload)
+
+    # Log to status timeline
+    try:
+        await log_order_status(
+            order_id=updated_order.id,
+            status="dispatched",
+            changed_by=str(current_user.id),
+            note=dispatch_data.notes or f"Dispatched via {dispatch_data.courier_partner} (AWB: {dispatch_data.awb_code or dispatch_data.tracking_id})",
+        )
+    except Exception as _tl_err:
+        logger.warning("order_timeline: dispatch log failed: %s", _tl_err)
+
+    # Notify customer
+    try:
+        from app.utils.notify import notify_user
+        order_num = updated_order.order_number or order_id
+        await notify_user(
+            user_id=str(updated_order.user),
+            notif_type="order_shipped",
+            title="Order Dispatched 📦",
+            message=f"Your order #{order_num} has been dispatched via {dispatch_data.courier_partner}. Tracking/AWB: {dispatch_data.awb_code or dispatch_data.tracking_id or 'Available'}",
+            link=f"/customer/orders/{order_id}",
+            metadata={"order_id": str(order_id), "status": "dispatched", "courier_partner": dispatch_data.courier_partner},
+        )
+    except Exception as _ne:
+        logger.warning("Dispatch notification failed for order %s: %s", order_id, _ne)
+
+    return await populate_order(updated_order)
 
 
 @router.put("/{order_id}/tracking")
@@ -228,8 +304,11 @@ async def update_order_tracking(
                 status_code=403, detail="You do not have a sub-order in this order")
 
     await order_repository.update(order_id, OrderInternalUpdate(
-        trackingId=data.trackingId,
-        courierPartner=data.courierPartner,
+        trackingId=data.tracking_id,
+        courierPartner=data.courier_partner,
+        awbCode=data.awb_code,
+        shippingLabelUrl=data.shipping_label_url,
+        estimatedDeliveryDate=data.estimated_delivery_date,
         trackingUpdatedAt=__import__("datetime").datetime.now(
             __import__("datetime").timezone.utc).isoformat() + "Z"
     ))
@@ -242,7 +321,7 @@ async def update_order_tracking(
             user_id    = str(order.user),
             notif_type = "order_shipped",
             title      = "Order Shipped 📦",
-            message    = f"Your order #{order_num} has been shipped. Tracking ID: {data.trackingId}",
+            message    = f"Your order #{order_num} has been shipped. Tracking ID: {data.tracking_id}",
             link       = f"/customer/orders/{order_id}",
             metadata   = {"order_id": str(order_id), "status": "shipped"},
         )
@@ -250,7 +329,12 @@ async def update_order_tracking(
         logger.warning(
             "Tracking notification failed for order %s: %s", order_id, _ne)
 
-    return {"message": "Tracking updated", "trackingId": data.trackingId, "courierPartner": data.courierPartner}
+    return {
+        "message": "Tracking updated",
+        "trackingId": data.tracking_id,
+        "courierPartner": data.courier_partner,
+        "awbCode": data.awb_code,
+    }
 
 
 class UpdateDeliveryChargeRequest(BaseModel):

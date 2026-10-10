@@ -377,6 +377,12 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
             order_notes=order_resp.notes,
             admin_notes=None,
             valet_notes=None,
+            fulfillment_type=order_resp.fulfillment_type or "hyperlocal",
+            courier_partner=order_resp.courier_partner,
+            tracking_id=order_resp.tracking_id,
+            awb_code=order_resp.awb_code,
+            shipping_label_url=order_resp.shipping_label_url,
+            estimated_delivery_date=order_resp.estimated_delivery_date,
         )
         populated.append(pop_order)
 
@@ -448,6 +454,13 @@ async def create_order_service(
 ) -> Optional[PopulatedOrderResponse]:
     """Full order-creation business logic extracted from the router layer."""
     order_zone_id = None
+    fulfillment_type = (order_data.fulfillment_type or "hyperlocal").strip().lower()
+    if fulfillment_type not in ("hyperlocal", "courier"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid fulfillment_type '{order_data.fulfillment_type}'. Must be 'hyperlocal' or 'courier'."
+        )
+
     # User must be logged in to place an order
     if not current_user:
         raise HTTPException(
@@ -584,6 +597,18 @@ async def create_order_service(
     )
     _cart_products_map = {str(p.id): p for p in _cart_products_list}
 
+    # For courier orders, verify all cart products belong to 1P Super Admin warehouse
+    if fulfillment_type == "courier":
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        for p in _cart_products_list:
+            p_seller = p.sellers[0].seller_id if p.sellers else None
+            if p_seller and sa_id and str(p_seller) != str(sa_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Product '{p.name}' is sold by a local marketplace seller and cannot be shipped via Pan-India courier. Only central warehouse products are eligible for courier delivery.",
+                )
+
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
@@ -607,27 +632,34 @@ async def create_order_service(
 
             from app.repositories.delivery_charge_repository import delivery_charge_repository
 
-            delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
-                state, city, district, zip_code, effective_role, temp_subtotal
-            )
-            delivery_charge_data = (
-                delivery_charge_data_raw
-            )
-            if delivery_charge_data:
-                charge_amount = float(
-                    delivery_charge_data.charge if delivery_charge_data.charge is not None else 0.0)
-                min_cart_value_for_free = float(
-                    delivery_charge_data.min_cart_value if delivery_charge_data.min_cart_value is not None else 0.0)
-                is_applicable = (
-                    delivery_charge_data.is_applicable_to_role
-                    if delivery_charge_data.is_applicable_to_role is not None
-                    else True
-                )
-                if is_applicable:
-                    if min_cart_value_for_free > 0 and temp_subtotal < min_cart_value_for_free:
-                        base_shipping = float(charge_amount)
-                    elif min_cart_value_for_free == 0 or min_cart_value_for_free == float("inf"):
-                        base_shipping = float(charge_amount)
+            if fulfillment_type == "courier":
+                courier_fee = await delivery_charge_repository.getCourierCharge(temp_subtotal, effective_role)
+                base_shipping = float(courier_fee.charge)
+            else:
+                from app.repositories.zone_seller_cache import get_zone_for_pincode as _get_zone
+                _zone_initial = await _get_zone(zip_code) if zip_code else None
+                if _zone_initial:
+                    zone_fee = await delivery_charge_repository.getHyperlocalChargeForZone(str(_zone_initial.id), temp_subtotal, effective_role)
+                    base_shipping = float(zone_fee.charge)
+                else:
+                    delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
+                        state, city, district, zip_code, effective_role, temp_subtotal
+                    )
+                    if delivery_charge_data_raw:
+                        charge_amount = float(
+                            delivery_charge_data_raw.charge if delivery_charge_data_raw.charge is not None else 0.0)
+                        min_cart_value_for_free = float(
+                            delivery_charge_data_raw.min_cart_value if delivery_charge_data_raw.min_cart_value is not None else 0.0)
+                        is_applicable = (
+                            delivery_charge_data_raw.is_applicable_to_role
+                            if delivery_charge_data_raw.is_applicable_to_role is not None
+                            else True
+                        )
+                        if is_applicable:
+                            if min_cart_value_for_free > 0 and temp_subtotal < min_cart_value_for_free:
+                                base_shipping = float(charge_amount)
+                            elif min_cart_value_for_free == 0 or min_cart_value_for_free == float("inf"):
+                                base_shipping = float(charge_amount)
         except Exception as e:
             logger.warning(
                 "Error calculating base shipping before coupon: %s", str(e))
@@ -1006,7 +1038,16 @@ async def create_order_service(
     # ----------------------------------------------------------------
     selected_slot_info = None
     zone_urgent_available = False  # set from zone if urgent delivery is requested
-    if (order_data.delivery_slot_id and order_data.delivery_slot_date) or order_data.is_urgent_delivery:
+    if fulfillment_type == "courier":
+        if order_data.is_urgent_delivery:
+            raise HTTPException(
+                status_code=400,
+                detail="Urgent delivery is not available for Pan-India courier orders."
+            )
+        # Pan-India courier orders bypass local valet slots
+        selected_slot_info = None
+        zone_urgent_available = False
+    elif (order_data.delivery_slot_id and order_data.delivery_slot_date) or order_data.is_urgent_delivery:
         import datetime as _dt
 
         import pytz
@@ -1184,48 +1225,44 @@ async def create_order_service(
     if order_data.shipping_address and (order_data.shipping_address.effective_pincode or order_data.shipping_address.zip_code):
         shipping_zip = str(
             order_data.shipping_address.effective_pincode or order_data.shipping_address.zip_code).strip()
-        is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
 
-        if not is_serviceable:
-            raise HTTPException(
-                status_code=400, detail="Your pincode is not serviceable. Please contact support for assistance."
-            )
+        if fulfillment_type == "courier":
+            is_serviceable = await delivery_charge_repository.isPanIndiaServiceable(shipping_zip)
+            if not is_serviceable:
+                raise HTTPException(
+                    status_code=400, detail="Your pincode is not serviceable for Pan-India courier delivery."
+                )
+        else:
+            is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
+            if not is_serviceable:
+                raise HTTPException(
+                    status_code=400, detail="Your pincode is not serviceable. Please contact support for assistance."
+                )
 
-        # Zone-based seller serviceability check
-        # Resolve zone_id if not already set (e.g. non-slot standard orders)
-        if not order_zone_id and shipping_zip:
-            from app.repositories.zone_seller_cache import get_zone_for_pincode as _gz2
-            _z2 = await _gz2(shipping_zip)
-            if _z2:
-                order_zone_id = str(_z2.id or "")
+            # Zone-based seller serviceability check
+            # Resolve zone_id if not already set (e.g. non-slot standard orders)
+            if not order_zone_id and shipping_zip:
+                from app.repositories.zone_seller_cache import get_zone_for_pincode as _gz2
+                _z2 = await _gz2(shipping_zip)
+                if _z2:
+                    order_zone_id = str(_z2.id or "")
 
-        if order_zone_id:
-            seller_ids_in_order = {
-                item.seller_id for item in order_items if item.seller_id}
-            for sid in seller_ids_in_order:
-                sdoc = await user_repository.findById(sid)
-                if sdoc:
-                    seller_zone_ids = sdoc.service_area_zones or []
-                    # Empty list = seller hasn't configured zones yet; allow during migration
-                    if seller_zone_ids and order_zone_id not in seller_zone_ids:
-                        s_name = sdoc.company_name or sdoc.name or "Seller"
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Products from '{s_name}' are not available for delivery to your area.",
-                        )
+            if order_zone_id:
+                seller_ids_in_order = {
+                    item.seller_id for item in order_items if item.seller_id}
+                for sid in seller_ids_in_order:
+                    sdoc = await user_repository.findById(sid)
+                    if sdoc:
+                        seller_zone_ids = sdoc.service_area_zones or []
+                        # Empty list = seller hasn't configured zones yet; allow during migration
+                        if seller_zone_ids and order_zone_id not in seller_zone_ids:
+                            s_name = sdoc.company_name or sdoc.name or "Seller"
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"Products from '{s_name}' are not available for delivery to your area.",
+                            )
 
     # Calculate delivery charge based on location, user role, and order amount
-    # Enhanced logic to handle all scenarios:
-    # a) If no delivery charge added by super admin overall, then consider it as 0
-    # b) If delivery charge added for some locations and not for others, and no default delivery charge present:
-    #    i) For locations with delivery charge, calculate as per the value entered
-    #    ii) For locations without delivery charge, the delivery charge will be zero
-    # c) If delivery charge added for some locations and not for others, and a default delivery charge present:
-    #    i) For locations with delivery charge, calculate as per the value entered
-    #    ii) For locations without delivery charge, use the default delivery charge (with tiered support)
-    # d) The delivery charge should be added only if total (before delivery charge) is less than minimum for free delivery
-    # e) Role-based applicability: Check if delivery charge applies to wholesaler
-    # f) Tiered charges: For default charges, apply tier based on order amount
     shipping = 0.0
     min_cart_value_for_free = 0.0
 
@@ -1234,54 +1271,71 @@ async def create_order_service(
             state = order_data.shipping_address.state if order_data.shipping_address.state is not None else ""
             city = order_data.shipping_address.city if order_data.shipping_address.city is not None else ""
             district = order_data.shipping_address.district if order_data.shipping_address.district is not None else ""
-            zip_code = order_data.shipping_address.zip_code if order_data.shipping_address.zip_code is not None else ""
+            zip_code = order_data.shipping_address.effective_pincode or (
+                order_data.shipping_address.zip_code if order_data.shipping_address.zip_code is not None else ""
+            )
 
             # Calculate total before shipping for tiered charge calculation
             # Use subtotal (after coupon, includes GST)
             total_before_shipping = subtotal
 
-            # Get delivery charge with role and amount consideration (now includes pincode)
-            delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
-                state, city, district, zip_code, effective_role, total_before_shipping
-            )
-            delivery_charge_data = (
-                delivery_charge_data_raw
-            )
+            if fulfillment_type == "courier":
+                courier_fee = await delivery_charge_repository.getCourierCharge(total_before_shipping, effective_role)
+                shipping = float(courier_fee.charge)
+                min_cart_value_for_free = float(courier_fee.free_threshold or 0.0)
+            else:
+                from app.repositories.zone_seller_cache import get_zone_for_pincode as _gz3
+                _zone_doc = await _gz3(zip_code) if zip_code else None
+                if _zone_doc:
+                    zone_fee = await delivery_charge_repository.getHyperlocalChargeForZone(str(_zone_doc.id), total_before_shipping, effective_role)
+                    shipping = float(zone_fee.charge)
+                    min_cart_value_for_free = float(zone_fee.free_threshold or 0.0)
 
-            if delivery_charge_data:
-                charge_amount = delivery_charge_data.charge if delivery_charge_data.charge is not None else 0
-                min_cart_value_for_free = delivery_charge_data.min_cart_value if delivery_charge_data.min_cart_value is not None else 0
-
-                # Apply delivery charge only if:
-                # 1. It's applicable to the user's role
-                # 2. Total before shipping is less than minimum for free delivery
-                if delivery_charge_data.is_applicable_to_role if delivery_charge_data.is_applicable_to_role is not None else True:
                     if order_data.is_urgent_delivery and effective_role in ("customer", "wholesaler"):
                         if zone_urgent_available:
-                            # Urgent delivery is determined by the zone's urgent_delivery_available flag.
-                            # The cart is treated as a single unit — all items are either
-                            # urgent or standard. No per-seller validation needed here.
-                            urgent_charge = delivery_charge_data.urgent_delivery_charge
-                            shipping = float(
-                                urgent_charge) if urgent_charge is not None else 0.0
+                            urgent_charge = _zone_doc.urgent_delivery_charge
+                            if urgent_charge is None:
+                                defaults = await delivery_charge_repository.getDefaultCharge()
+                                urgent_charge = defaults.hyperlocal_urgent_delivery_charge if defaults else 50.0
+                            shipping = float(urgent_charge if urgent_charge is not None else 0.0)
                         else:
                             raise HTTPException(
                                 status_code=400, detail="Urgent delivery is not available for this location"
                             )
-                    else:
-                        if min_cart_value_for_free > 0 and total_before_shipping < min_cart_value_for_free:
-                            shipping = float(charge_amount)
-                        elif min_cart_value_for_free == 0 or min_cart_value_for_free == float("inf"):
-                            # If no minimum for free delivery, always apply charge
-                            shipping = float(charge_amount)
-                        # else shipping remains 0 (free delivery)
-                elif order_data.is_urgent_delivery:
-                    raise HTTPException(
-                        status_code=400, detail="Urgent delivery is not available for your customer type"
+                else:
+                    # Fallback to location delivery charge DAO if no zone mapped
+                    delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
+                        state, city, district, zip_code, effective_role, total_before_shipping
                     )
-            elif order_data.is_urgent_delivery:
-                raise HTTPException(
-                    status_code=400, detail="Urgent delivery is not available for this location")
+                    delivery_charge_data = delivery_charge_data_raw
+                    if delivery_charge_data:
+                        charge_amount = delivery_charge_data.charge if delivery_charge_data.charge is not None else 0
+                        min_cart_value_for_free = delivery_charge_data.min_cart_value if delivery_charge_data.min_cart_value is not None else 0
+
+                        if delivery_charge_data.is_applicable_to_role if delivery_charge_data.is_applicable_to_role is not None else True:
+                            if order_data.is_urgent_delivery and effective_role in ("customer", "wholesaler"):
+                                if zone_urgent_available:
+                                    urgent_charge = delivery_charge_data.urgent_delivery_charge
+                                    shipping = float(
+                                        urgent_charge) if urgent_charge is not None else 0.0
+                                else:
+                                    raise HTTPException(
+                                        status_code=400, detail="Urgent delivery is not available for this location"
+                                    )
+                            else:
+                                if min_cart_value_for_free > 0 and total_before_shipping < min_cart_value_for_free:
+                                    shipping = float(charge_amount)
+                                elif min_cart_value_for_free == 0 or min_cart_value_for_free == float("inf"):
+                                    shipping = float(charge_amount)
+                        elif order_data.is_urgent_delivery:
+                            raise HTTPException(
+                                status_code=400, detail="Urgent delivery is not available for your customer type"
+                            )
+                    elif order_data.is_urgent_delivery:
+                        raise HTTPException(
+                            status_code=400, detail="Urgent delivery is not available for this location")
+        except HTTPException:
+            raise
         except (KeyError, ValueError, TypeError) as e:
             logger.warning("Data error fetching delivery charge: %s", str(e))
             shipping = 0.0
@@ -1447,6 +1501,7 @@ async def create_order_service(
             couponInfo=coupon_info,
             total=total,
             orderType=order_type,
+            fulfillment_type=fulfillment_type,
             isUrgentDelivery=order_data.is_urgent_delivery if effective_role in (
                 "customer", "wholesaler") else False,
             deliverySlot=selected_slot_info,
@@ -1811,8 +1866,9 @@ async def create_order_service(
             sid = oi.seller_id
             groups[sid].append(oi)
 
-        # Only split if multiple seller groups exist
-        if True:
+        # Only split into sub-orders for hyperlocal multi-seller marketplace orders
+        # Courier orders are fulfilled as a single shipment directly from central warehouse
+        if fulfillment_type != "courier":
             parent_order_number = (
                 order.order_number if order.order_number is not None else str(order.id))
             sub_order_ids = []

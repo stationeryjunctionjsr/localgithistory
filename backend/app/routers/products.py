@@ -8,7 +8,7 @@ import csv
 import io
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -869,6 +869,7 @@ async def _get_products_cached(
     skinny: bool,
     myProducts: bool,
     pincode: Optional[str],
+    fulfillment_mode: Optional[str] = None,
 ) -> dict:
     """Cached inner function — receives only primitive args so cache keys are stable.
 
@@ -918,7 +919,12 @@ async def _get_products_cached(
     if user_id:
         query["user_id"] = user_id
 
-    if effective_role == "wholesaler":
+    if fulfillment_mode in ("courier", "pan_india"):
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        if sa_id:
+            query["allowed_seller_ids"] = [sa_id]
+    elif effective_role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
@@ -1003,6 +1009,7 @@ async def get_products(
     skinny: bool = False,
     myProducts: bool = False,
     pincode: Optional[str] = None,
+    fulfillment_mode: Optional[str] = Query(None, alias="fulfillmentMode"),
     current_user: User = Depends(get_current_user),
 ):
     # BUG-2 fix: resolve User → primitives before delegating to the cached function.
@@ -1019,6 +1026,7 @@ async def get_products(
         category, categories, subCategory, search, brand, collection,
         popularity, minDiscount, minPrice, maxPrice, availability,
         categoryTag, sort, status, page, limit, includeFacets, skinny, myProducts, pincode,
+        fulfillment_mode,
     )
 
 

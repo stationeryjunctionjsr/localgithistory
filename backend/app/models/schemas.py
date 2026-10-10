@@ -258,9 +258,17 @@ class UserBase(CamelBaseModel):
     payment_terms: Optional[str] = "30"
     assigned_salesperson: Optional[str] = None
     is_seller_admin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
-    isOnDuty: Optional[bool] = False
+    is_on_duty: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isOnDuty", "is_on_duty"))
     commission_override_pct: Optional[float] = None
-    serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
+    service_area_zones: Optional[List[str]] = Field(default_factory=list, validation_alias=AliasChoices("serviceAreaZones", "service_area_zones"))
+
+    @property
+    def isOnDuty(self) -> Optional[bool]:
+        return self.is_on_duty
+
+    @property
+    def serviceAreaZones(self) -> Optional[List[str]]:
+        return self.service_area_zones
     password: Optional[str] = None
     sessionId: Optional[str] = None
     effectiveRole: Optional[str] = None
@@ -2213,6 +2221,14 @@ class PopulatedOrderResponse(CamelBaseModel):
 
     # Sub-orders
     sub_orders: Optional[List['SubOrder']] = None
+
+    # Fulfillment & Courier
+    fulfillment_type: Optional[str] = "hyperlocal"
+    courier_partner: Optional[str] = None
+    tracking_id: Optional[str] = None
+    awb_code: Optional[str] = None
+    shipping_label_url: Optional[str] = None
+    estimated_delivery_date: Optional[datetime] = None
 
     # Timestamps
     created_at: Optional[datetime] = None
