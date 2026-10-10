@@ -1,24 +1,30 @@
-from pydantic import BaseModel, Field
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
+from pydantic import Field
+from app.models.base import CamelBaseModel
 
-class EngagementWeights(BaseModel):
+
+class EngagementWeights(CamelBaseModel):
     product_view: float = 1.0
     add_to_cart: float = 3.0
 
-class StrategyLimits(BaseModel):
+
+class StrategyLimits(CamelBaseModel):
     trending: int = 10
     user_favorites: int = 5
     explore: int = 5
 
-class BanditConfig(BaseModel):
+
+class BanditConfig(CamelBaseModel):
     epsilon: float = 0.2
     personal_threshold: int = 10
 
-class FavouriteWeights(BaseModel):
+
+class FavouriteWeights(CamelBaseModel):
     frequency: float = 0.7
     quantity: float = 0.3
 
-class SegmentConfig(BaseModel):
+
+class SegmentConfig(CamelBaseModel):
     trending_now_days: int = 14
     customer_favourites_days: int = 60
     explore_days: Optional[int] = None
@@ -27,7 +33,8 @@ class SegmentConfig(BaseModel):
     business_favourites_days: Optional[int] = None
     explore_available: bool = False
 
-class RecommendationConfig(BaseModel):
+
+class RecommendationConfig(CamelBaseModel):
     engagement_days: int = 30
     engagement_weights: EngagementWeights = Field(default_factory=EngagementWeights)
     strategy_limits: StrategyLimits = Field(default_factory=StrategyLimits)
@@ -37,3 +44,14 @@ class RecommendationConfig(BaseModel):
     business_favourites_weights: FavouriteWeights = Field(default_factory=FavouriteWeights)
     segments: Dict[str, SegmentConfig] = Field(default_factory=dict)
     section_wise_weights: Dict[str, EngagementWeights] = Field(default_factory=dict)
+
+
+class FavouritesCacheResult(CamelBaseModel):
+    product_ids: List[str] = Field(default_factory=list)
+    updated_at: str
+
+
+class FavouritesRankedResult(CamelBaseModel):
+    ranked_ids: List[Tuple[str, float]] = Field(default_factory=list)
+    states: List[str] = Field(default_factory=list)
+    cities: List[str] = Field(default_factory=list)
