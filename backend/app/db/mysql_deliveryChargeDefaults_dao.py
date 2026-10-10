@@ -1,5 +1,4 @@
-from typing import Optional, Dict, List, Any, Union
-from collections import defaultdict
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -8,6 +7,18 @@ from app.models.daos_flat import DeliveryChargeDefaultInternal, DeliveryChargeDe
 
 def now_utc():
     return datetime.now(timezone.utc)
+
+def _parse_tier_row(r) -> DeliveryChargeTierInternal:
+    max_val = (
+        float('inf')
+        if str(r.max_order_value).lower() in ("infinity", "inf")
+        else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
+    )
+    return DeliveryChargeTierInternal(
+        min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
+        max=max_val,
+        charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
+    )
 
 class MySQLDeliveryChargeDefaultsDAO:
     def __init__(self):
@@ -30,8 +41,8 @@ class MySQLDeliveryChargeDefaultsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            tiers_by_default = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, tiers_by_default.get(int(row.id), []))
+            tiers = await self._fetch_tiers(session, int(row.id))
+            return self._map_to_schema(row, tiers)
         
     async def findById(self, id: Union[int, str]) -> Optional[DeliveryChargeDefaultInternal]:
         factory = self._factory()
@@ -48,24 +59,17 @@ class MySQLDeliveryChargeDefaultsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            tiers_by_default = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, tiers_by_default.get(int(row.id), []))
+            tiers = await self._fetch_tiers(session, int(row.id))
+            return self._map_to_schema(row, tiers)
             
-    async def findAll(self, filter_or_active: Optional[Union[dict, bool]] = None, is_active: Optional[bool] = None) -> List[DeliveryChargeDefaultInternal]:
-        active_filter = is_active
-        if active_filter is None and filter_or_active is not None:
-            if isinstance(filter_or_active, bool):
-                active_filter = filter_or_active
-            elif isinstance(filter_or_active, dict):
-                active_filter = filter_or_active.get("is_active")
-
+    async def findAll(self, is_active: Optional[bool] = None) -> List[DeliveryChargeDefaultInternal]:
         factory = self._factory()
         if not factory:
             return []
         async with factory() as session:
-            if active_filter is not None:
+            if is_active is not None:
                 sql = f"SELECT * FROM {self.TABLE} WHERE is_active = :act ORDER BY id ASC"
-                params = {"act": 1 if active_filter else 0}
+                params = {"act": 1 if is_active else 0}
             else:
                 sql = f"SELECT * FROM {self.TABLE} ORDER BY id ASC"
                 params = {}
@@ -75,8 +79,23 @@ class MySQLDeliveryChargeDefaultsDAO:
             if not rows:
                 return []
                 
-            tiers_by_default = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, tiers_by_default.get(int(r.id), [])) for r in rows]
+            parent_ids = [int(r.id) for r in rows]
+            id_list = ",".join(str(i) for i in parent_ids)
+            tiers_res = await session.execute(
+                text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_charge_def_tiers WHERE parent_id IN ({id_list}) ORDER BY id ASC")
+            )
+            all_tier_rows = tiers_res.fetchall()
+            return [
+                self._map_to_schema(
+                    r,
+                    tiers=[
+                        _parse_tier_row(tr)
+                        for tr in all_tier_rows
+                        if tr.parent_id == r.id
+                    ],
+                )
+                for r in rows
+            ]
 
     async def create(self, data: DeliveryChargeDefaultInternalCreate) -> DeliveryChargeDefaultInternal:
         factory = self._factory()
@@ -239,30 +258,10 @@ class MySQLDeliveryChargeDefaultsDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[DeliveryChargeTierInternal]]:
-        tiers_by_default: Dict[int, List[DeliveryChargeTierInternal]] = defaultdict(list)
-        if not ids:
-            return tiers_by_default
-            
-        id_list = ",".join(map(str, ids))
-
-        q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_charge_def_tiers WHERE parent_id IN ({id_list})")
-        res_tiers = await session.execute(q_tiers)
-        for r in res_tiers.fetchall():
-            max_val = (
-                float('inf')
-                if str(r.max_order_value).lower() in ("infinity", "inf")
-                else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
-            )
-            tiers_by_default[int(r.parent_id)].append(
-                DeliveryChargeTierInternal(
-                    min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
-                    max=max_val,
-                    charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
-                )
-            )
-
-        return tiers_by_default
+    async def _fetch_tiers(self, session, parent_id: int) -> List[DeliveryChargeTierInternal]:
+        q_tiers = text("SELECT min_order_value, max_order_value, charge FROM sj_delivery_charge_def_tiers WHERE parent_id = :pid ORDER BY id ASC")
+        res_tiers = await session.execute(q_tiers, {"pid": parent_id})
+        return [_parse_tier_row(r) for r in res_tiers.fetchall()]
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate]):
         if data.tiers is not None:
@@ -270,17 +269,20 @@ class MySQLDeliveryChargeDefaultsDAO:
                 text("DELETE FROM sj_delivery_charge_def_tiers WHERE parent_id = :id"),
                 {"id": row_id}
             )
-            for tier in data.tiers:
-                max_str = "Infinity" if tier.max is None or tier.max == float("inf") else str(tier.max)
+            if data.tiers:
+                params = [
+                    {
+                        "parent_id": row_id,
+                        "min_order_value": str(tier.min if tier.min is not None else 0.0),
+                        "max_order_value": "Infinity" if tier.max is None or tier.max == float("inf") else str(tier.max),
+                        "charge": str(tier.charge if tier.charge is not None else 0.0),
+                    }
+                    for tier in data.tiers
+                ]
                 await session.execute(
                     text(
                         "INSERT INTO sj_delivery_charge_def_tiers (parent_id, min_order_value, max_order_value, charge) "
                         "VALUES (:parent_id, :min_order_value, :max_order_value, :charge)"
                     ),
-                    {
-                        "parent_id": row_id,
-                        "min_order_value": str(tier.min if tier.min is not None else 0.0),
-                        "max_order_value": max_str,
-                        "charge": str(tier.charge if tier.charge is not None else 0.0),
-                    }
+                    params,
                 )
