@@ -1,4 +1,5 @@
-from typing import Optional, Dict, List, Any, Union
+from collections import defaultdict
+from typing import Optional, List, Any, Union
 from datetime import datetime, timezone
 import secrets
 import json
@@ -250,8 +251,8 @@ class MySQLSchemesDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[str]]:
-        c_map: Dict[int, List[str]] = {rid: [] for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[str]]:
+        c_map: defaultdict[int, List[str]] = defaultdict(list)
         if not ids:
             return c_map
             

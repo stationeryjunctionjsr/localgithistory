@@ -40,7 +40,7 @@ class SubOrderRepository:
         return await self.storage.findById(id)
 
     async def findByParentOrder(self, parent_order_id: str) -> List['SubOrder']:
-        return await self.storage.findAll({"parentOrderId": parent_order_id})
+        return await self.storage.findByParentOrder(parent_order_id)
 
     async def findBySeller(
         self, seller_id: str, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None

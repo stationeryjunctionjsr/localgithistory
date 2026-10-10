@@ -1,6 +1,6 @@
 """
 MySQL DAO for referral settings: one row per segment (retail / business), typed columns.
-Exposes single virtual doc: { _id, retail: { segment, discountType, discountValue, isActive }, business: {...} }.
+Maps settings schema: ReferralSettings(id, retail=ReferralSegment, business=ReferralSegment).
 """
 
 from typing import List, Optional
@@ -33,7 +33,7 @@ class MySQLReferralSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _doc(self, retail_row, business_row) -> ReferralSettings:
+    def _map_to_schema(self, retail_row, business_row) -> ReferralSettings:
         return ReferralSettings(
             id="1",
             retail=_row_to_segment(retail_row) if retail_row else ReferralSegment(segment="retail", discount_type="percentage", discount_value=0.0, is_active=False),
@@ -41,16 +41,16 @@ class MySQLReferralSettingsDAO:
         )
 
     async def findAll(self) -> List[ReferralSettings]:
-        doc = await self._get_settings_doc()
-        return [doc] if doc else []
+        settings_data = await self._get_settings()
+        return [settings_data] if settings_data else []
 
     async def findById(self, id: str) -> Optional[ReferralSettings]:
-        return await self._get_settings_doc()
+        return await self._get_settings()
 
     async def findOne(self) -> Optional[ReferralSettings]:
-        return await self._get_settings_doc()
+        return await self._get_settings()
 
-    async def _get_settings_doc(self) -> Optional[ReferralSettings]:
+    async def _get_settings(self) -> Optional[ReferralSettings]:
         factory = self._factory()
         if not factory:
             return None
@@ -68,7 +68,7 @@ class MySQLReferralSettingsDAO:
                 retail_row = r
             elif r.segment == "business":
                 business_row = r
-        return self._doc(retail_row, business_row)
+        return self._map_to_schema(retail_row, business_row)
 
     async def create(self, data: ReferralSettings) -> Optional[ReferralSettings]:
         factory = self._factory()
@@ -104,7 +104,7 @@ class MySQLReferralSettingsDAO:
                     },
                 )
             await session.commit()
-        return await self._get_settings_doc()
+        return await self._get_settings()
 
     async def update(self, id: str, update_data: ReferralSettings) -> Optional[ReferralSettings]:
         factory = self._factory()
@@ -153,7 +153,7 @@ class MySQLReferralSettingsDAO:
                         },
                     )
                 await session.commit()
-        return await self._get_settings_doc()
+        return await self._get_settings()
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
@@ -165,8 +165,8 @@ class MySQLReferralSettingsDAO:
             return result.rowcount > 0
 
     async def count(self) -> int:
-        doc = await self._get_settings_doc()
-        return 1 if doc else 0
+        settings_data = await self._get_settings()
+        return 1 if settings_data else 0
 
     find_all = findAll
     find_by_id = findById

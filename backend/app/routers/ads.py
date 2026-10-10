@@ -22,7 +22,7 @@ class AdEventPayload(BaseModel):
 
 @router.get("/summary", response_model=AdSummaryResponse)
 async def get_ads_summary(_: User = Depends(require_super_admin)):
-    ads = await storage.findAll({})
+    ads = await storage.findAll()
     
     total_views = sum([ad.stats.impressions if ad.stats and ad.stats.impressions else 0 for ad in ads])
     total_clicks = sum([ad.stats.clicks if ad.stats and ad.stats.clicks else 0 for ad in ads])
@@ -43,10 +43,7 @@ async def get_ads_summary(_: User = Depends(require_super_admin)):
 
 @router.get("/", response_model=List[Ad])
 async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query(False)):
-    query = {}
-    if active_only:
-        query["status"] = "active"
-    ads = await storage.findAll(query)
+    ads = await storage.findAll(status="active" if active_only else None)
     return ads
 
 

@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any
+from collections import defaultdict
+from typing import List, Optional, Any
+from app.models.tracking import Tracking
 
 from app.db.storage_factory import get_storage
 from app.models.schemas import AnalyticsEventCreate, AnalyticsSessionCreate
@@ -13,8 +15,23 @@ class TrackingRepository:
         self.session_dao = MySQLAnalyticsSessionDAO()
         self._ANALYTICS_LIMIT = 5000  # Default limit for safety
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
-        return await self.storage.findAll(query or {}, skip=skip, limit=limit)
+    async def findAll(
+        self,
+        event_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        product_id: Optional[str] = None,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
+    ):
+        return await self.storage.findAll(
+            event_type=event_type,
+            user_id=user_id,
+            session_id=session_id,
+            product_id=product_id,
+            skip=skip,
+            limit=limit,
+        )
 
     async def create(self, tracking_data: AnalyticsEventCreate):
         if tracking_data.timestamp is None:
@@ -351,15 +368,15 @@ class TrackingRepository:
         """
         from app.db.storage_factory import get_storage
 
-        query: dict = {"type": "product_view"}
-        if user_id:
-            query["userId"] = str(user_id)
-        elif session_id:
-            query["sessionId"] = session_id
-        else:
+        if not user_id and not session_id:
             return []
 
-        views = await self.findAll(query, limit=500)
+        views = await self.findAll(
+            event_type="product_view",
+            user_id=str(user_id) if user_id else None,
+            session_id=session_id if not user_id else None,
+            limit=500,
+        )
 
         # Sort newest-first, dedupe by product_id keeping first occurrence
         views_sorted = sorted(
@@ -413,7 +430,7 @@ class TrackingRepository:
     async def getTopProducts(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        views = await self.findAll({"type": "product_view"}, limit=self._ANALYTICS_LIMIT)
+        views = await self.findAll(event_type="product_view", limit=self._ANALYTICS_LIMIT)
         product_counts: dict = {}
 
         for v in views:
@@ -462,7 +479,7 @@ class TrackingRepository:
     async def getMostAbandonedProducts(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        abandonments = await self.findAll({"type": "cart_abandonment"}, limit=self._ANALYTICS_LIMIT)
+        abandonments = await self.findAll(event_type="cart_abandonment", limit=self._ANALYTICS_LIMIT)
 
         from app.db.storage_factory import get_storage
 
@@ -584,38 +601,35 @@ class TrackingRepository:
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid timestamp format: {raw}") from e
 
-    async def get_search_counts_by_product(self, days: int, segment: str) -> Dict[str, int]:
+    async def get_search_counts_by_product(self, days: int, segment: str) -> defaultdict[str, int]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        all_searches = await self.findAll({"type": "product_search", "segment": segment}, limit=self._ANALYTICS_LIMIT)
-        counts: Dict[str, int] = {}
+        all_searches = await self.findAll(event_type="product_search", limit=self._ANALYTICS_LIMIT)
+        counts: defaultdict[str, int] = defaultdict(int)
         for doc in all_searches:
+            if doc.segment != segment:
+                continue
             ts = self._parse_timestamp(doc.timestamp)
             if not ts or ts < cutoff:
                 continue
             for pid in doc.product_ids if doc.product_ids is not None else []:
                 if pid:
-                    counts[pid] = (counts[pid] if pid in counts else 0) + 1
+                    counts[pid] += 1
         return counts
 
-    async def get_searches_with_products(self, days: int, segment: str) -> List[Dict]:
+    async def get_searches_with_products(self, days: int, segment: str) -> List[Tracking]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        all_searches = await self.findAll({"type": "product_search", "segment": segment}, limit=self._ANALYTICS_LIMIT)
-        out: List[Dict] = []
+        all_searches = await self.findAll(event_type="product_search", limit=self._ANALYTICS_LIMIT)
+        out: List[Tracking] = []
         for doc in all_searches:
+            if doc.segment != segment:
+                continue
             ts = self._parse_timestamp(doc.timestamp)
             if not ts or ts < cutoff:
                 continue
             pids = doc.product_ids if doc.product_ids is not None else []
             if not pids:
                 continue
-            out.append(
-                {
-                    "userId": doc.userId,
-                    "sessionId": doc.session_id,
-                    "productIds": list(pids),
-                    "timestamp": ts,
-                }
-            )
+            out.append(doc)
         return out
 
     async def getMostSearched(
@@ -682,19 +696,19 @@ class TrackingRepository:
         return sorted(view_counts.values(), key=lambda x: x["count"], reverse=True)[:limit]
 
     async def getReturningUsers(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
-        sessions = await self.findAll({"type": "session"})
+        sessions = await self.findAll(event_type="session")
         returning_user_ids = set()
         user_last_seen = {}
 
         for session in sessions:
-            ts = self._parse_timestamp(session.get("timestamp"))
+            ts = self._parse_timestamp(session.timestamp)
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
                 continue
 
-            uid = session.get("userId")
-            if session.get("isReturning") and uid:
+            uid = session.user_id
+            if session.is_returning and uid:
                 returning_user_ids.add(uid)
                 if ts:
                     if uid not in user_last_seen or ts > user_last_seen[uid]:
@@ -708,10 +722,10 @@ class TrackingRepository:
 
         return [
             {
-                "userId": u.get("_id"),
-                "name": u.get("name", "Unknown"),
-                "email": u.get("email", "Unknown"),
-                "lastSeen": user_last_seen.get(u.get("_id")).isoformat() if user_last_seen.get(u.get("_id")) else None,
+                "userId": u.id,
+                "name": u.name or "Unknown",
+                "email": u.email or "Unknown",
+                "lastSeen": user_last_seen[u.id].isoformat() if u.id in user_last_seen else None,
             }
             for u in users
         ]

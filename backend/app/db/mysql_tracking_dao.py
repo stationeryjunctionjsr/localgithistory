@@ -1,4 +1,5 @@
-from typing import Any
+from collections import defaultdict
+from typing import Any, List, Optional, Union
 import logging
 """
 MySQL DAO for sj_tracking. Fully relational with child tables.
@@ -6,8 +7,8 @@ MySQL DAO for sj_tracking. Fully relational with child tables.
 
 import secrets
 from datetime import datetime
-from typing import Dict
-from app.models.tracking import Tracking, List, Optional
+from app.models.tracking import Tracking
+from app.models.schemas import ItemSnippet
 
 from sqlalchemy import text
 
@@ -53,7 +54,7 @@ class MySQLTrackingDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_tracking(self, r, cart_items: List) -> Tracking:
+    def _row_to_tracking(self, r, cart_items: List[ItemSnippet]) -> Tracking:
         from app.models.tracking import Tracking
         return Tracking(
             id=str(r.id),
@@ -82,8 +83,8 @@ class MySQLTrackingDAO:
             cartItems=cart_items
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List]:
-        c_map: Dict[int, List] = {rid: [] for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[ItemSnippet]]:
+        c_map: defaultdict[int, List[ItemSnippet]] = defaultdict(list)
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -97,7 +98,13 @@ class MySQLTrackingDAO:
                 chunk_params
             )
             for r in res.fetchall():
-                c_map[r.tracking_id].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
+                c_map[r.tracking_id].append(
+                    ItemSnippet(
+                        product_id=str(r.product_id),
+                        quantity=int(r.quantity or 1),
+                        price=float(r.price) if r.price is not None else None,
+                    )
+                )
 
         return c_map
 
@@ -119,21 +126,37 @@ class MySQLTrackingDAO:
                 }
             )
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List['AnalyticsEvent']:
+    async def findAll(
+        self,
+        event_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        product_id: Optional[str] = None,
+        id: Optional[Union[int, str]] = None,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List['Tracking']:
         factory = self._factory()
         if not factory:
             return []
 
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in _TRACKING_SCALAR:
-                    where_clauses.append(f"{_TRACKING_SCALAR[k]} = :{k}")
-                    params[k] = v
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else -1
+        if event_type is not None:
+            where_clauses.append("event_type = :event_type")
+            params["event_type"] = event_type
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        if session_id is not None:
+            where_clauses.append("session_id = :session_id")
+            params["session_id"] = session_id
+        if product_id is not None:
+            where_clauses.append("product_id = :product_id")
+            params["product_id"] = product_id
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         query_str = f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
@@ -160,7 +183,7 @@ class MySQLTrackingDAO:
         if not factory:
             return []
         where_clauses = []
-        params: Dict[str, Any] = {}
+        params = {}
         if event_type:
             where_clauses.append("event_type = :event_type")
             params["event_type"] = event_type
@@ -180,12 +203,18 @@ class MySQLTrackingDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
 
-    async def findOne(self, query: dict) -> Optional['AnalyticsEvent']:
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        event_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Optional['Tracking']:
+        docs = await self.findAll(id=id, event_type=event_type, user_id=user_id, session_id=session_id, limit=1)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional['AnalyticsEvent']:
-        return await self.findOne({"_id": id})
+    async def findById(self, id: str) -> Optional['Tracking']:
+        return await self.findOne(id=id)
 
     async def create(self, data: 'AnalyticsEventCreate') -> 'AnalyticsEvent':
         factory = self._factory()
@@ -275,19 +304,27 @@ class MySQLTrackingDAO:
             await session.commit()
             return res.rowcount > 0
 
-    async def deleteMany(self, query: dict) -> int:
+    async def deleteMany(
+        self,
+        event_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
         from sqlalchemy import text
 
         factory = self._factory()
         where_clauses = []
         params = {}
-        for k, v in query.items():
-            if k in _TRACKING_SCALAR:
-                where_clauses.append(f"{_TRACKING_SCALAR[k]} = :{k}")
-                params[k] = v
-            elif k in ("_id", "id"):
-                where_clauses.append("id = :id")
-                params["id"] = int(v) if str(v).isdigit() else None
+        if event_type is not None:
+            where_clauses.append("event_type = :event_type")
+            params["event_type"] = event_type
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        if session_id is not None:
+            where_clauses.append("session_id = :session_id")
+            params["session_id"] = session_id
+
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)

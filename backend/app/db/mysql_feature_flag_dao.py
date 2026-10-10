@@ -5,8 +5,8 @@ This table uses `flag_id` (business key) instead of `external_id`.
 We still expose `_id` as numeric PK string for consistency with other DAOs in this codebase.
 """
 
-from typing import Dict
-from app.models.feature_flag import FeatureFlag, List, Optional
+from typing import List, Optional, Union
+from app.models.feature_flag import FeatureFlag
 
 from sqlalchemy import text
 
@@ -23,73 +23,70 @@ class MySQLFeatureFlagDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r) -> 'FeatureFlag':
+    def _map_to_schema(self, r) -> FeatureFlag:
         return FeatureFlag.model_validate(r)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[FeatureFlag]:
+    async def findAll(
+        self,
+        flag_id: Optional[str] = None,
+        name: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        category: Optional[str] = None,
+        id: Optional[Union[int, str]] = None,
+    ) -> List[FeatureFlag]:
         factory = self._factory()
         if not factory:
             return []
             
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "flag_id":
-                    where_clauses.append("flag_id = :flag_id")
-                    params["flag_id"] = v
-                elif k == "name":
-                    where_clauses.append("name = :name")
-                    params["name"] = v
-                elif k == "enabled":
-                    where_clauses.append("enabled = :enabled")
-                    params["enabled"] = 1 if v else 0
-                elif k == "category":
-                    where_clauses.append("category = :category")
-                    params["category"] = v
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if flag_id is not None:
+            where_clauses.append("flag_id = :flag_id")
+            params["flag_id"] = flag_id
+        if name is not None:
+            where_clauses.append("name = :name")
+            params["name"] = name
+        if enabled is not None:
+            where_clauses.append("enabled = :enabled")
+            params["enabled"] = 1 if enabled else 0
+        if category is not None:
+            where_clauses.append("category = :category")
+            params["category"] = category
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, flag_id, name, description, enabled, category, created_at, updated_at FROM {self.TABLE} WHERE {where_sql}")
-                , params
+                text(f"SELECT id, flag_id, name, description, enabled, category, created_at, updated_at FROM {self.TABLE} WHERE {where_sql}"),
+                params
             )
             rows = result.fetchall()
             
-        return [self.__map_to_schema(r) for r in rows]
+        return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        flag_id: Optional[str] = None,
+        name: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        category: Optional[str] = None,
+    ) -> Optional[FeatureFlag]:
+        docs = await self.findAll(id=id, flag_id=flag_id, name=name, enabled=enabled, category=category)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
-        factory = self._factory()
-        if not factory:
-            return None
-        fid = int(id) if str(id).isdigit() else None
-        async with factory() as session:
-            result = await session.execute(
-                text(
-                    f"""
-                    SELECT id, flag_id, name, description, enabled, category, created_at, updated_at
-                    FROM {self.TABLE} WHERE id = :id
-                    """
-                ),
-                {"id": fid},
-            )
-            row = result.fetchone()
-        return FeatureFlag.model_validate(self.__map_to_schema(row)) if row else None
+    async def findById(self, id: str) -> Optional[FeatureFlag]:
+        return await self.findOne(id=id)
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: FeatureFlag) -> FeatureFlag:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        flag_id = data.id or data.flag_id or data.flag_id
+        flag_id = data.flag_id or data.id
         if not flag_id:
             raise ValueError("featureFlags requires `id` (flag_id)")
         async with factory() as session:
@@ -118,7 +115,7 @@ class MySQLFeatureFlagDAO:
             new_id = r.scalar()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: FeatureFlag) -> Optional[FeatureFlag]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -153,7 +150,7 @@ class MySQLFeatureFlagDAO:
                     "flag_id": flag_id,
                     "name": name,
                     "description": description,
-                    "enabled": 1 if (enabled if enabled is not None else True) else None,
+                    "enabled": 1 if (enabled if enabled is not None else True) else 0,
                     "category": category,
                     "updated_at": now,
                 },
@@ -174,16 +171,12 @@ class MySQLFeatureFlagDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    async def count(self, query: Optional[Dict] = None) -> int:
-        docs = await self.findAll(query)
+    async def count(
+        self,
+        enabled: Optional[bool] = None,
+        category: Optional[str] = None,
+    ) -> int:
+        docs = await self.findAll(enabled=enabled, category=category)
         return len(docs)
 
     find_all = findAll

@@ -11,6 +11,7 @@ from app.models.daos_flat import (
     CategoryTagInternalUpdate,
 )
 from app.models.schemas import MessageResponse
+from app.models.category import Category
 from app.models.user import User
 from app.repositories.category_tag_repository import category_tag_repository
 from app.utils.auth import require_super_admin
@@ -122,7 +123,7 @@ async def get_active_category_tags(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{tag_id}/categories", response_model=List[Dict[str, Any]])
+@router.get("/{tag_id}/categories", response_model=List[Category])
 async def get_categories_for_tag(tag_id: str):
     """Get all categories that belong to this category tag"""
     try:

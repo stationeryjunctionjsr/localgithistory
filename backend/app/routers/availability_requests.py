@@ -163,7 +163,7 @@ async def fulfill_availability_request(
             from app.db.storage_factory import get_storage as _gs
 
             tracking_storage = _gs("tracking")
-            all_events = await tracking_storage.findAll({})
+            all_events = await tracking_storage.findAll()
             parsed_events: List[TrackingNotifyEvent] = [
                 e if isinstance(e, TrackingNotifyEvent) else TrackingNotifyEvent.model_validate(e, from_attributes=True)
                 for e in all_events

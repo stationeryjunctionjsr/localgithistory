@@ -1,7 +1,7 @@
-from typing import Any
 import secrets
-from typing import Dict
-from app.models.ad import Ad, List, Optional
+from typing import List, Optional, Union
+from app.models.ad import Ad
+from app.models.schemas import AdCreate, AdUpdate
 
 from sqlalchemy import text
 
@@ -16,31 +16,35 @@ class MySQLAdDAO:
 
     def _map_to_schema(self, row) -> Ad:
         return Ad.model_validate(row)
-    async def findAll(self, query: Optional[Dict] = None) -> List['Ad']:
+
+    async def findAll(
+        self,
+        status: Optional[str] = None,
+        platform: Optional[str] = None,
+        name: Optional[str] = None,
+        id: Optional[Union[int, str]] = None,
+    ) -> List[Ad]:
         factory = self._factory()
         if not factory:
             return []
             
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "status":
-                    where_clauses.append("status = :status")
-                    params["status"] = v
-                elif k == "platform":
-                    where_clauses.append("platform = :platform")
-                    params["platform"] = v
-                elif k == "name":
-                    where_clauses.append("name = :name")
-                    params["name"] = v
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if status is not None:
+            where_clauses.append("status = :status")
+            params["status"] = status
+        if platform is not None:
+            where_clauses.append("platform = :platform")
+            params["platform"] = platform
+        if name is not None:
+            where_clauses.append("name = :name")
+            params["name"] = name
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        from app.models.ad import Ad
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -56,16 +60,19 @@ class MySQLAdDAO:
             
         return [Ad.model_validate(r) for r in rows]
 
-
-    async def findOne(self, query: Dict) -> Optional[Dict]:
-        if "_id" in query:
-            return await self.findById(query["_id"])
-        if "id" in query:
-            return await self.findById(query["id"])
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        name: Optional[str] = None,
+        status: Optional[str] = None,
+        platform: Optional[str] = None,
+    ) -> Optional[Ad]:
+        if id is not None:
+            return await self.findById(str(id))
+        docs = await self.findAll(status=status, platform=platform, name=name)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Ad]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -77,7 +84,7 @@ class MySQLAdDAO:
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Union[Ad, AdCreate]) -> Ad:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -152,11 +159,12 @@ class MySQLAdDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'AdInternalUpdate') -> Optional['Ad']:
+    async def update(self, id: str, update_data: Union[Ad, AdUpdate]) -> Optional[Ad]:
         existing = await self.findById(id)
         if not existing:
             return None
 
+        data = update_data
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         

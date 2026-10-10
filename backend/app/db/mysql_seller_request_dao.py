@@ -8,7 +8,8 @@ import secrets
 from datetime import datetime
 from collections import defaultdict
 from typing import List, Optional, Tuple, Union
-from app.models.seller_request import SellerRequest
+from app.models.seller_request import SellerRequest, SellerRequestResponseItem
+from app.models.schemas import TicketResponseItem
 
 from sqlalchemy import text
 
@@ -25,16 +26,16 @@ class MySQLSellerRequestDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_row(self, r, attachments: List[str], responses: List) -> SellerRequest:
+    def _map_row(self, r, attachments: List[str], responses: List[SellerRequestResponseItem]) -> SellerRequest:
         sr = SellerRequest.model_validate(r)
         sr.user = str(r.user_id) if r.user_id is not None else None
         sr.attachments = attachments
         sr.responses = responses
         return sr
 
-    async def _fetch_children(self, session, req_ids: List[int]) -> Tuple[defaultdict[int, List[str]], defaultdict[int, List]]:
+    async def _fetch_children(self, session, req_ids: List[int]) -> Tuple[defaultdict[int, List[str]], defaultdict[int, List[SellerRequestResponseItem]]]:
         att_map: defaultdict[int, List[str]] = defaultdict(list)
-        resp_map: defaultdict[int, List] = defaultdict(list)
+        resp_map: defaultdict[int, List[SellerRequestResponseItem]] = defaultdict(list)
         if not req_ids:
             return att_map, resp_map
         chunks = [req_ids[i : i + 999] for i in range(0, len(req_ids), 999)]
@@ -59,11 +60,11 @@ class MySQLSellerRequestDAO:
             )
             for r in resp_res.fetchall():
                 resp_map[r.request_id].append(
-                    {
-                        "adminId": r.admin_id,
-                        "response": r.response_text,
-                        "createdAt": r.created_at.isoformat() if r.created_at else None,
-                    }
+                    SellerRequestResponseItem(
+                        admin_id=r.admin_id,
+                        response=r.response_text,
+                        created_at=r.created_at,
+                    )
                 )
         return att_map, resp_map
 
@@ -80,22 +81,22 @@ class MySQLSellerRequestDAO:
             )
 
         for resp in (data.responses if data.responses is not None else []):
-            created_at = None
-            if (resp["createdAt"] if "createdAt" in resp else None):
-                try:
-                    created_at = datetime.fromisoformat(resp["createdAt"].replace("Z", "+00:00"))
-                except Exception as e:
-                    logging.warning("seller_request: could not parse response createdAt %r: %s", resp["createdAt"] if "createdAt" in resp else None, e, exc_info=e)
-            if not created_at:
-                created_at = now_utc()
+            if isinstance(resp, TicketResponseItem):
+                admin_id = resp.user
+                response_text = resp.message
+                created_at = resp.created_at or now_utc()
+            else:
+                admin_id = resp.admin_id
+                response_text = resp.response
+                created_at = resp.created_at or now_utc()
             await session.execute(
                 text(
                     "INSERT INTO sj_seller_request_responses (request_id, admin_id, response_text, created_at) VALUES (:rid, :admin, :text, :c)"
                 ),
                 {
                     "rid": req_id,
-                    "admin": (resp["adminId"] if "adminId" in resp else None),
-                    "text": (resp["response"] if "response" in resp else None) or (resp["text"] if "text" in resp else None),
+                    "admin": admin_id,
+                    "text": response_text,
                     "c": created_at,
                 },
             )

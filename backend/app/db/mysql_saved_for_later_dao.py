@@ -1,14 +1,13 @@
-from typing import Any
 import logging
 """
 MySQL DAO for saved-for-later: one row per (user_id, product_id).
-Exposes virtual doc per user: { _id: user_id, user: user_id, items: [ { productId, savedAt }, ... ] }.
+Maps to SavedForLater(id, user, items=[SavedForLaterItem]).
 """
 
 import secrets
 from datetime import datetime
-from typing import Dict
-from app.models.saved_for_later import SavedForLater, List, Optional
+from typing import List, Optional, Union
+from app.models.saved_for_later import SavedForLater, SavedForLaterItem
 
 from sqlalchemy import text
 
@@ -37,7 +36,7 @@ class MySQLSavedForLaterDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def _get_items_for_user(self, user_id: str) -> List[Dict]:
+    async def _get_items_for_user(self, user_id: str) -> List[SavedForLaterItem]:
         factory = self._factory()
         if not factory:
             return []
@@ -48,45 +47,45 @@ class MySQLSavedForLaterDAO:
             )
             rows = result.fetchall()
         return [
-            {
-                "product": r[0],
-                "created_at": r[1].isoformat() if r[1] and not isinstance(r[1], str) else None,
-            }
+            SavedForLaterItem(
+                product=str(r[0]),
+                product_id=str(r[0]),
+                created_at=r[1],
+                saved_at=r[1],
+            )
             for r in rows
         ]
 
-    def _doc(self, user_id: str, items: List[Dict]) -> 'SavedForLater':
-        return SavedForLater.model_validate({
-            "_id": user_id, "user": user_id, "items": items})
+    def _map_to_schema(self, user_id: str, items: List[SavedForLaterItem]) -> SavedForLater:
+        return SavedForLater(id=user_id, user=user_id, items=items)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, user: Optional[str] = None) -> List[SavedForLater]:
         factory = self._factory()
         if not factory:
             return []
 
-        user_id = (query["user"] if "user" in query else None) if query else None
-        if user_id:
-            items = await self._get_items_for_user(str(user_id))
-            return [self._doc(str(user_id), items)]
+        if user:
+            items = await self._get_items_for_user(str(user))
+            return [self._map_to_schema(str(user), items)]
 
         async with factory() as session:
             result = await session.execute(text(f"SELECT DISTINCT user_id FROM {self.TABLE}"))
             user_ids = [r[0] for r in result.fetchall()]
         docs = []
         for uid in user_ids:
-            items = await self._get_items_for_user(uid)
-            docs.append(self._doc(uid, items))
+            items = await self._get_items_for_user(str(uid))
+            docs.append(self._map_to_schema(str(uid), items))
         return docs
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
-        user_id = (query["user"] if "user" in query else None)
-        if not user_id:
+    async def findOne(self, user: Optional[str] = None, id: Optional[str] = None) -> Optional[SavedForLater]:
+        target_uid = user or id
+        if not target_uid:
             return None
-        items = await self._get_items_for_user(str(user_id))
-        return self._doc(str(user_id), items)
+        items = await self._get_items_for_user(str(target_uid))
+        return self._map_to_schema(str(target_uid), items)
 
-    async def findById(self, id: str) -> Optional[Dict]:
-        return await self.findOne({"user": id})
+    async def findById(self, id: str) -> Optional[SavedForLater]:
+        return await self.findOne(user=id)
 
     async def create(self, data: SavedForLater) -> SavedForLater:
         factory = self._factory()
@@ -119,7 +118,7 @@ class MySQLSavedForLaterDAO:
                     },
                 )
             await session.commit()
-        return await self.findOne({"user": user_id})
+        return await self.findOne(user=user_id)
 
     async def update(self, id: str, update_data: SavedForLater) -> Optional[SavedForLater]:
         factory = self._factory()
@@ -128,7 +127,7 @@ class MySQLSavedForLaterDAO:
         user_id = str(id)
         items = update_data.items
         if items is None:
-            return await self.findOne({"user": user_id})
+            return await self.findOne(user=user_id)
         now = now_utc()
         async with factory() as session:
             await session.execute(
@@ -137,10 +136,10 @@ class MySQLSavedForLaterDAO:
             )
             await session.commit()
             for item in items:
-                product_id = item.product
+                product_id = item.product or item.product_id
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.created_at) or now
+                saved_at = _to_ts(item.created_at or item.saved_at) or now
                 await session.execute(
                     text(
                         f"""
@@ -158,7 +157,7 @@ class MySQLSavedForLaterDAO:
                     },
                 )
             await session.commit()
-        return await self.findOne({"user": user_id})
+        return await self.findOne(user=user_id)
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
@@ -172,16 +171,8 @@ class MySQLSavedForLaterDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    async def count(self, query: Optional[Dict] = None) -> int:
-        return len(await self.findAll(query))
+    async def count(self, user: Optional[str] = None) -> int:
+        return len(await self.findAll(user=user))
 
     find_all = findAll
     find_by_id = findById

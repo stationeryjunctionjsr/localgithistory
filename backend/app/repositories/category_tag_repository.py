@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 from app.db.storage_factory import get_storage
+from app.models.category import Category
 from app.models.daos_flat import (
     CategoryTagInternal,
     CategoryTagInternalCreate,
@@ -43,10 +44,8 @@ class CategoryTagRepository:
     async def findByCategoryHead(self, category_head_id: int) -> List[CategoryTagInternal]:
         return await self.storage.findAll(division_id=category_head_id)
 
-    async def findCategoriesByTag(self, tag_id_or_name: Union[int, str]) -> List[Dict[str, Any]]:
-        if hasattr(self.storage, "findCategoriesByTag"):
-            return await self.storage.findCategoriesByTag(tag_id_or_name)
-        return []
+    async def findCategoriesByTag(self, tag_id_or_name: Union[int, str]) -> List[Category]:
+        return await self.storage.findCategoriesByTag(tag_id_or_name)
 
     async def create(self, tag_data: CategoryTagInternalCreate) -> CategoryTagInternal:
         if tag_data.is_active is None:

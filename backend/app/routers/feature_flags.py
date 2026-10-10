@@ -168,7 +168,7 @@ async def delete_feature_flag(flag_id: str, current_user: User = Depends(require
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        await feature_flag_repository.delete(flag["_id"])
+        await feature_flag_repository.delete(flag.id)
         return {"message": "Feature flag deleted successfully"}
     except HTTPException:
         raise

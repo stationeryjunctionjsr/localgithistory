@@ -13,21 +13,29 @@ class FeatureFlagRepository:
     def __init__(self):
         self.storage = get_storage("featureFlags")
 
-    async def find_all(self, query: Optional[dict] = None) -> List['FeatureFlag']:
-        """Get all feature flags, optionally filtered by query"""
-        return await self.storage.findAll(query or {})
+    async def find_all(
+        self,
+        enabled: Optional[bool] = None,
+        category: Optional[str] = None,
+    ) -> List['FeatureFlag']:
+        """Get all feature flags, optionally filtered"""
+        return await self.storage.findAll(enabled=enabled, category=category)
 
     async def find_by_id(self, flag_id: str) -> Optional['FeatureFlag']:
         """Find feature flag by _id"""
         return await self.storage.findById(flag_id)
 
-    async def find_one(self, query: dict) -> Optional['FeatureFlag']:
-        """Find one feature flag matching query"""
-        return await self.storage.findOne(query)
+    async def find_one(
+        self,
+        id: Optional[str] = None,
+        flag_id: Optional[str] = None,
+    ) -> Optional['FeatureFlag']:
+        """Find one feature flag matching filters"""
+        return await self.storage.findOne(id=id, flag_id=flag_id)
 
     async def find_by_flag_id(self, flag_id: str) -> Optional['FeatureFlag']:
-        """Find feature flag by id field (not _id)"""
-        return await self.storage.findOne({"id": flag_id})
+        """Find feature flag by flag_id"""
+        return await self.storage.findOne(flag_id=flag_id)
 
     async def create(self, flag_data: 'FeatureFlag') -> 'FeatureFlag':
         """Create a new feature flag"""
@@ -68,6 +76,6 @@ class FeatureFlagRepository:
 
     async def get_all_by_category(self, category: str) -> List['FeatureFlag']:
         """Get all feature flags in a category"""
-        return await self.find_all({"category": category})
+        return await self.find_all(category=category)
 
 feature_flag_repository = FeatureFlagRepository()

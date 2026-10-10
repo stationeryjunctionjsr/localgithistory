@@ -938,8 +938,8 @@ class RecommendationRepository:
 
         try:
             pv_docs, atc_docs = await asyncio.gather(
-                self.tracking_storage.findAll({"type": "recommendation_product_view"}),
-                self.tracking_storage.findAll({"type": "recommendation_add_to_cart"}),
+                self.tracking_storage.findAll(event_type="recommendation_product_view"),
+                self.tracking_storage.findAll(event_type="recommendation_add_to_cart"),
             )
         except Exception:
             logger.warning("Failed to fetch activity docs for engagement scoring; returning zero scores.", exc_info=True)

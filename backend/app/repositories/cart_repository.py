@@ -81,13 +81,13 @@ class CartRepository:
     async def saveForLater(self, user_id: str, product_id: str):
         """Save item for later"""
         saved_storage = get_storage("savedForLater")
-        existing = await saved_storage.findOne({"user": user_id})
-        saved_item = SavedForLaterItem(user=user_id, product_id=product_id, saved_at=datetime.now(timezone.utc).isoformat())
+        existing = await saved_storage.findOne(user=user_id)
+        saved_item = SavedForLaterItem(user=user_id, product_id=product_id, saved_at=datetime.now(timezone.utc))
 
         if existing:
             # Check if already saved
             items = (existing.items if existing.items is not None else [])
-            already_saved = any(item.product_id == product_id for item in items)
+            already_saved = any(item.product_id == product_id or item.product == product_id for item in items)
             if already_saved:
                 return existing
             items.append(saved_item)
@@ -98,7 +98,7 @@ class CartRepository:
     async def getSavedForLater(self, user_id: str):
         """Get saved for later items"""
         saved_storage = get_storage("savedForLater")
-        return await saved_storage.findOne({"user": user_id}) or SavedForLater(user=user_id, items=[])
+        return await saved_storage.findOne(user=user_id) or SavedForLater(user=user_id, items=[])
 
 
 from datetime import datetime, timezone

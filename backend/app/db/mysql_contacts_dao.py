@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Union, Tuple
+from typing import Optional, List, Union, Tuple
 from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
@@ -230,11 +230,12 @@ class MySQLContactsDAO:
         social = None
         if r.social_media:
             try:
-                raw_social = r.social_media
-                if isinstance(raw_social, str):
-                    raw_social = json.loads(raw_social)
-                if isinstance(raw_social, dict):
-                    social = SocialMedia.model_validate(raw_social)
+                if isinstance(r.social_media, str):
+                    social = SocialMedia.model_validate_json(r.social_media)
+                elif isinstance(r.social_media, SocialMedia):
+                    social = r.social_media
+                else:
+                    social = SocialMedia.model_validate(r.social_media)
             except Exception:
                 social = None
 
@@ -254,9 +255,9 @@ class MySQLContactsDAO:
 
     async def _fetch_children(
         self, session, ids: List[int]
-    ) -> Tuple[Dict[int, List[str]], Dict[int, List[str]]]:
-        addresses_map: Dict[int, List[str]] = defaultdict(list)
-        phones_map: Dict[int, List[str]] = defaultdict(list)
+    ) -> Tuple[defaultdict[int, List[str]], defaultdict[int, List[str]]]:
+        addresses_map: defaultdict[int, List[str]] = defaultdict(list)
+        phones_map: defaultdict[int, List[str]] = defaultdict(list)
         if not ids:
             return addresses_map, phones_map
             

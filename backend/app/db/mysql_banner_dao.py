@@ -4,11 +4,11 @@ Fully relational with child tables for user_segments and visibility_rules.
 """
 
 from app.models.schemas import BannerResponse
-from app.models.daos import BannerInternalCreate, BannerInternalUpdate
+from app.models.daos import BannerInternalCreate, BannerInternalUpdate, BannerChildrenData
 import secrets
-from typing import Dict
-import json
-from app.models.banner import Banner, List, Optional
+from typing import List, Optional, Union
+from pydantic import BaseModel
+from app.models.banner import Banner
 
 from sqlalchemy import text
 
@@ -24,48 +24,59 @@ class MySQLBannerDAO:
 
     def _factory(self):
         return get_async_session_factory()
-    async def findAll(self, query: Optional[Dict] = None) -> List[BannerResponse]:
+
+    async def findAll(
+        self,
+        id: Optional[Union[int, str]] = None,
+        is_active: Optional[bool] = None,
+        is_published: Optional[bool] = None,
+        title: Optional[str] = None,
+    ) -> List[BannerResponse]:
         factory = self._factory()
+        if not factory:
+            return []
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "is_active":
-                    where_clauses.append("is_active = :is_active")
-                    params["is_active"] = 1 if v else 0
-                elif k == "is_published":
-                    where_clauses.append("is_published = :is_published")
-                    params["is_published"] = 1 if v else 0
-                elif k == "title":
-                    where_clauses.append("title = :title")
-                    params["title"] = v
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if is_active is not None:
+            where_clauses.append("is_active = :is_active")
+            params["is_active"] = 1 if is_active else 0
+        if is_published is not None:
+            where_clauses.append("is_published = :is_published")
+            params["is_published"] = 1 if is_published else 0
+        if title is not None:
+            where_clauses.append("title = :title")
+            params["title"] = title
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id AS _id, external_id, title, description, image_url, link_url, display_order, start_date, end_date, is_active, is_published, target_audience, position, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
+                text(
+                    f"SELECT id AS _id, external_id, title, description, image_url, link_url, "
+                    f"display_order, start_date, end_date, is_active, is_published, "
+                    f"target_audience, position, created_at, updated_at "
+                    f"FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
+                ),
+                params,
             )
             rows = result.fetchall()
             
-        import json
-        out = []
-        for r in rows:
-            d = dict(r._mapping)
-            if d.get("zone_ids"):
-                d["zone_ids"] = json.loads(d["zone_ids"])
-            out.append(BannerResponse.model_validate(d))
-        return out
+        return [BannerResponse.model_validate(r) for r in rows]
 
-
-    async def findOne(self, query: Dict) -> Optional[BannerResponse]:
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        is_active: Optional[bool] = None,
+        is_published: Optional[bool] = None,
+        title: Optional[str] = None,
+    ) -> Optional[BannerResponse]:
+        docs = await self.findAll(id=id, is_active=is_active, is_published=is_published, title=title)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional[BannerResponse]:
-        return await self.findOne({"_id": id})
+        return await self.findOne(id=id)
 
     async def create(self, data: BannerInternalCreate) -> BannerResponse:
         factory = self._factory()
@@ -199,21 +210,20 @@ class MySQLBannerDAO:
 
 
 
-    async def _replace_children(self, session, bid: int, data):
-        from sqlalchemy import text
+    async def _replace_children(self, session, bid: int, data: Union[BannerInternalCreate, BannerInternalUpdate, BannerChildrenData]):
         await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
         await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
         
-        user_segments = getattr(data, 'user_segments', [])
-        for seg in (user_segments if user_segments is not None else []):
+        user_segments = data.user_segments if data.user_segments is not None else []
+        for seg in user_segments:
             await session.execute(
                 text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
                 {"bid": bid, "seg": seg}
             )
             
-        visibility_rules = getattr(data, 'visibility_rules', [])
-        for rule in (visibility_rules if visibility_rules is not None else []):
-            rule_val = rule.model_dump_json() if hasattr(rule, 'model_dump_json') else str(rule)
+        visibility_rules = data.visibility_rules if data.visibility_rules is not None else []
+        for rule in visibility_rules:
+            rule_val = rule.model_dump_json() if isinstance(rule, BaseModel) else str(rule)
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
                 {"bid": bid, "rule": rule_val}

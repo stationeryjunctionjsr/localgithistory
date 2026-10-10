@@ -6,12 +6,13 @@ Supports division_id / category_head_id relationships and category counts.
 from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
+from app.models.category import Category
 from app.models.daos_flat import (
     CategoryTagInternal,
     CategoryTagInternalCreate,
@@ -36,7 +37,7 @@ class MySQLCategoryTagsDAO:
         division_name: Optional[str] = None,
         category_count: int = 0,
     ) -> CategoryTagInternal:
-        div_id = getattr(r, "division_id", None) or getattr(r, "category_head_id", None)
+        div_id = r.division_id if r.division_id is not None else r.category_head_id
         return CategoryTagInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -54,17 +55,17 @@ class MySQLCategoryTagsDAO:
 
     async def _fetch_extra_info(
         self, session, rows: List[Any]
-    ) -> Tuple[Dict[int, str], Dict[str, int]]:
-        division_name_map: Dict[int, str] = {}
-        category_count_map: Dict[str, int] = defaultdict(int)
+    ) -> Tuple[defaultdict[int, str], defaultdict[str, int]]:
+        division_name_map: defaultdict[int, str] = defaultdict(str)
+        category_count_map: defaultdict[str, int] = defaultdict(int)
         if not rows:
             return division_name_map, category_count_map
 
         # 1. Fetch division / head names
         div_ids = list({
-            int(getattr(r, "division_id", None) or getattr(r, "category_head_id", None))
+            int(r.division_id or r.category_head_id)
             for r in rows
-            if (getattr(r, "division_id", None) is not None or getattr(r, "category_head_id", None) is not None)
+            if (r.division_id is not None or r.category_head_id is not None)
         })
         if div_ids:
             d_placeholders = ", ".join([f":d_{i}" for i in range(len(div_ids))])
@@ -136,7 +137,7 @@ class MySQLCategoryTagsDAO:
             if not row:
                 return None
             div_map, count_map = await self._fetch_extra_info(session, [row])
-            target_div_id = getattr(row, "division_id", None) or getattr(row, "category_head_id", None)
+            target_div_id = row.division_id if row.division_id is not None else row.category_head_id
             div_name = div_map[int(target_div_id)] if target_div_id and int(target_div_id) in div_map else None
             count = count_map[row.name] if row.name and row.name in count_map else 0
             return self._map_to_schema(row, division_name=div_name, category_count=count)
@@ -187,17 +188,13 @@ class MySQLCategoryTagsDAO:
             if not rows:
                 return []
             div_map, count_map = await self._fetch_extra_info(session, rows)
-            return [
-                self._map_to_schema(
-                    r,
-                    division_name=div_map[int(getattr(r, "division_id", None) or getattr(r, "category_head_id", None))]
-                    if (getattr(r, "division_id", None) or getattr(r, "category_head_id", None)) and
-                       int(getattr(r, "division_id", None) or getattr(r, "category_head_id", None)) in div_map
-                    else None,
-                    category_count=count_map[r.name] if r.name and r.name in count_map else 0,
-                )
-                for r in rows
-            ]
+            result_list = []
+            for r in rows:
+                did = r.division_id if r.division_id is not None else r.category_head_id
+                div_name = div_map[int(did)] if did is not None and int(did) in div_map else None
+                cat_count = count_map[r.name] if r.name and r.name in count_map else 0
+                result_list.append(self._map_to_schema(r, division_name=div_name, category_count=cat_count))
+            return result_list
 
     async def create(self, data: CategoryTagInternalCreate) -> CategoryTagInternal:
         factory = self._factory()
@@ -360,7 +357,7 @@ class MySQLCategoryTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def findCategoriesByTag(self, tag_id_or_name: Union[int, str]) -> List[Dict[str, Any]]:
+    async def findCategoriesByTag(self, tag_id_or_name: Union[int, str]) -> List[Category]:
         """Get all categories belonging to this category tag"""
         factory = self._factory()
         if not factory or not tag_id_or_name:
@@ -381,7 +378,7 @@ class MySQLCategoryTagsDAO:
                     tag_id = int(r.id)
 
             where_parts = []
-            params: Dict[str, Any] = {}
+            params = {}
             if tag_id is not None:
                 where_parts.append("c.category_tag_id = :tid")
                 params["tid"] = tag_id
@@ -401,15 +398,13 @@ class MySQLCategoryTagsDAO:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             return [
-                {
-                    "id": str(r.id),
-                    "_id": str(r.id),
-                    "externalId": r.external_id,
-                    "name": r.name,
-                    "description": r.description,
-                    "isActive": bool(r.is_active),
-                    "categoryTag": r.category_tag,
-                    "categoryTagId": r.category_tag_id,
-                }
+                Category(
+                    id=str(r.id),
+                    name=r.name,
+                    description=r.description,
+                    is_active=bool(r.is_active),
+                    category_tag=r.category_tag,
+                    category_tag_id=r.category_tag_id,
+                )
                 for r in rows
             ]
