@@ -596,14 +596,14 @@ export default function MyOrders() {
               {/* ── Order Status / Tracking ── */}
               <div className="mb-6 rounded-2xl border border-gray-100 bg-gray-50 px-5 py-5">
                 <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">
-                  {selectedOrderForDetails.fulfillment_type === 'courier' ? 'Courier Tracking' : 'Order Progress'}
+                  {(selectedOrderForDetails.fulfillment_type || (selectedOrderForDetails as any).fulfillmentType) === 'courier' ? 'Courier Tracking' : 'Order Progress'}
                 </h4>
-                {selectedOrderForDetails.fulfillment_type === 'courier' ? (
+                {(selectedOrderForDetails.fulfillment_type || (selectedOrderForDetails as any).fulfillmentType) === 'courier' ? (
                   <CourierTrackingCard
-                    partnerName={selectedOrderForDetails.courier_partner}
-                    awbCode={selectedOrderForDetails.awb_code}
-                    trackingId={selectedOrderForDetails.tracking_id}
-                    estimatedDelivery={selectedOrderForDetails.estimated_delivery_date}
+                    partnerName={selectedOrderForDetails.courier_partner || (selectedOrderForDetails as any).courierPartner}
+                    awbCode={selectedOrderForDetails.awb_code || (selectedOrderForDetails as any).awbCode}
+                    trackingId={selectedOrderForDetails.tracking_id || (selectedOrderForDetails as any).trackingId}
+                    estimatedDelivery={selectedOrderForDetails.estimated_delivery_date || (selectedOrderForDetails as any).estimatedDeliveryDate}
                   />
                 ) : (
                   <OrderTimeline

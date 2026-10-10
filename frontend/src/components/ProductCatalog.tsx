@@ -129,7 +129,7 @@ export default function ProductCatalog({
     };
   }, []);
 
-  const { isServiceable, pincode } = usePincode();
+  const { isServiceable, pincode, activeMode } = usePincode();
   const { sellerAvailability } = useSellerAvailability();
 
   const [products, setProducts] = useState<any[]>([]);
@@ -333,6 +333,7 @@ export default function ProductCatalog({
     selectedCategories,
     pincode,
     isServiceable,
+    activeMode,
   ]);
 
   // Fetch bundles in parallel with products when filters are active
@@ -406,6 +407,8 @@ export default function ProductCatalog({
       params.append('sort', selectedSort);
       // Pass pincode so the backend can filter products to the user's delivery zone
       if (pincode) params.append('pincode', pincode);
+      // Pass fulfillmentMode so Pan-India mode shows only 1P warehouse products
+      if (activeMode === 'pan_india') params.append('fulfillmentMode', 'pan_india');
 
       let url = endpoint;
       if (params.toString()) {

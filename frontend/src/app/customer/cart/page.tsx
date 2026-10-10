@@ -1,9 +1,10 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
+import { usePincode } from '@/context/PincodeContext';
 import { useTheme } from '@/context/ThemeContext';
 // import { useCart } from '@/context/CartContext';
 import { useCartStore } from '@/store/cartStore';
@@ -91,6 +92,7 @@ export default function Cart() {
   const [showUpiPayment, setShowUpiPayment] = useState(false);
   const [pincodeServiceable, setPincodeServiceable] = useState<boolean | null>(null);
   const [checkingServiceability, setCheckingServiceability] = useState(false);
+  const [mixedCartWarning, setMixedCartWarning] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [referralEligible, setReferralEligible] = useState(false);
   const [enabledFlags, setEnabledFlags] = useState<string[]>([]);
@@ -144,6 +146,7 @@ export default function Cart() {
   const { user, login, loginWithTokens } = useAuth();
   const isValet = (user as any)?.role === 'valet';
   const { theme } = useTheme();
+  const { activeMode } = usePincode();
   // const { duesInfo, fetchDuesInfo } = useCart();
   const duesInfo     = useCartStore((s) => s.duesInfo);
   const fetchDuesInfo = useCartStore((s) => s.fetchDuesInfo);
@@ -591,6 +594,17 @@ export default function Cart() {
       setSelectedSlot(null);
       setSelectedSlotDate('');
       setAvailableSlots([]);
+
+      // Mixed-cart guard (Gap 5): if new address has no zone but cart has local-seller items, warn.
+      if (!response.data.hasZone && cart?.items?.length > 0) {
+        const hasLocalItems = cart.items.some((item: any) => {
+          const seller = item.product?.seller || item.seller;
+          return seller && seller !== 'super_admin';
+        });
+        if (hasLocalItems) setMixedCartWarning(true);
+      } else {
+        setMixedCartWarning(false);
+      }
     } catch {
       setPincodeServiceable(null);
       setDeliveryOptions(null);
@@ -658,7 +672,7 @@ export default function Cart() {
     try {
       setCartError((prev) => prev ? false : prev);
       if (user) {
-        const response = await api.get('/cart');
+        const response = await api.get('/cart', { params: { fulfillment_type: activeMode } });
         setCart((prev: any) => {
           if (isSameCart(prev, response.data)) return prev;
           return response.data;
@@ -1269,18 +1283,19 @@ export default function Cart() {
         printedBill: checkoutData.printedBill || false,
         referralCode: appliedReferralCode || null,
         couponCode: appliedCoupon?.code || null,
+        fulfillment_type: activeMode === 'pan_india' ? 'courier' : 'hyperlocal',
         items: inStock.map((i: any) => ({
           productId: i.product?._id || i.product || i._id,
           quantity: i.quantity,
           sellAsCase: !!i.sellAsCase,
         })),
-        // Delivery option fields
-        isUrgentDelivery: selectedDeliveryType === 'urgent',
-        deliverySlotId: selectedDeliveryType === 'standard' ? (selectedSlot?.slotId ?? null) : null,
-        deliverySlotConfigId: selectedDeliveryType === 'standard' ? (selectedSlot?.configId ?? null) : null,
-        deliverySlotDate: selectedDeliveryType === 'urgent'
+        // Delivery option fields -- null for courier (3PL) orders, set for hyperlocal (valet) orders
+        isUrgentDelivery: activeMode === 'pan_india' ? false : selectedDeliveryType === 'urgent',
+        deliverySlotId: activeMode === 'pan_india' ? null : (selectedDeliveryType === 'standard' ? (selectedSlot?.slotId ?? null) : null),
+        deliverySlotConfigId: activeMode === 'pan_india' ? null : (selectedDeliveryType === 'standard' ? (selectedSlot?.configId ?? null) : null),
+        deliverySlotDate: activeMode === 'pan_india' ? null : (selectedDeliveryType === 'urgent'
           ? new Date().toISOString().split('T')[0]
-          : (selectedSlot ? selectedSlotDate : null),
+          : (selectedSlot ? selectedSlotDate : null)),
       };
       if (checkoutData.paymentMethod === 'upi') {
         orderData.upiPaymentScreenshot = checkoutData.upiPaymentScreenshot || null;
@@ -2681,7 +2696,28 @@ export default function Cart() {
                           <strong>⚠️ Not serviceable.</strong>
                         </div>
                       )}
-                      {pincodeServiceable === true && !checkingServiceability && (
+                                            {mixedCartWarning && (
+                        <div className="mt-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+                          <p className="font-semibold text-amber-800">
+                            &#9888;&#65039; Your cart has items from local sellers that can only be delivered within their zone.
+                          </p>
+                          <p className="mt-1 text-amber-700 text-xs">
+                            Remove local items to proceed with courier delivery, or keep your local address.
+                          </p>
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              onClick={async () => {
+                                const localItems = cart?.items?.filter((item: any) => { const s = item.product?.seller || item.seller; return s && s !== 'super_admin'; }) || [];
+                                for (const item of localItems) { try { await api.delete(/cart/); } catch { } }
+                                setMixedCartWarning(false);
+                                await fetchCart();
+                              }}
+                              className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                            >Remove Local Items &amp; Continue</button>
+                            <button onClick={() => setMixedCartWarning(false)} className="rounded border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">Keep Local Address</button>
+                          </div>
+                        </div>
+                      )}{pincodeServiceable === true && !checkingServiceability && (
                         <small className="mt-1 block text-xs text-green-600">✓ Serviceable</small>
                       )}
                     </div>

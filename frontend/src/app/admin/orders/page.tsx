@@ -231,9 +231,9 @@ export default function OrderManagement() {
       } else if (orderCategoryTab === 'urgent_slot') {
         matchesCategory = !!order.isUrgentDelivery || !!order.deliverySlot;
       } else if (orderCategoryTab === 'hyperlocal') {
-        matchesCategory = (order as any).fulfillment_type !== 'courier';
+        matchesCategory = ((order as any).fulfillment_type || (order as any).fulfillmentType) !== 'courier';
       } else if (orderCategoryTab === 'courier') {
-        matchesCategory = (order as any).fulfillment_type === 'courier';
+        matchesCategory = ((order as any).fulfillment_type || (order as any).fulfillmentType) === 'courier';
       }
 
       return matchesSearch && matchesStatus && matchesOrderType && matchesCategory;
@@ -374,7 +374,7 @@ export default function OrderManagement() {
   };
 
   const handleDispatch = async () => {
-    const isCourier = (selectedOrder as any)?.fulfillment_type === 'courier';
+    const isCourier = ((selectedOrder as any)?.fulfillment_type || (selectedOrder as any)?.fulfillmentType) === 'courier';
     if (isCourier) {
       if (!courierPartner) {
         toast.error('Please select a courier partner');
@@ -918,7 +918,7 @@ export default function OrderManagement() {
                         {order.createdAt ? formatDateIST(order.createdAt) : '-'}
                       </td>
                       <td className="border p-3">
-                        {(order as any).fulfillment_type === 'courier' ? (
+                        {((order as any).fulfillment_type || (order as any).fulfillmentType) === 'courier' ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
                             📦 Courier (3PL)
                           </span>
@@ -1367,7 +1367,7 @@ export default function OrderManagement() {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="mb-1 text-xl font-bold">
-                {(selectedOrder as any).fulfillment_type === 'courier'
+                {((selectedOrder as any).fulfillment_type || (selectedOrder as any).fulfillmentType) === 'courier'
                   ? '📦 Dispatch via Courier'
                   : '🟢 Dispatch to Valet'}
               </h3>
@@ -1378,7 +1378,7 @@ export default function OrderManagement() {
                 <strong>Customer:</strong> {selectedOrder.user?.name || selectedOrder.user?.email}
               </p>
 
-              {(selectedOrder as any).fulfillment_type === 'courier' ? (
+              {((selectedOrder as any).fulfillment_type || (selectedOrder as any).fulfillmentType) === 'courier' ? (
                 /* ── Courier dispatch fields ── */
                 <div className="space-y-4">
                   <div>
@@ -1487,7 +1487,7 @@ export default function OrderManagement() {
                   className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                   onClick={handleDispatch}
                   disabled={
-                    (selectedOrder as any).fulfillment_type === 'courier'
+                    ((selectedOrder as any).fulfillment_type || (selectedOrder as any).fulfillmentType) === 'courier'
                       ? !courierPartner || !courierAwb
                       : !selectedValetId || valets.length === 0
                   }

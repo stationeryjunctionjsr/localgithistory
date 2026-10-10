@@ -11,6 +11,7 @@ import { syncGuestDataToBackend } from '@/utils/syncCartWishlist';
 
 interface User {
   id: string;
+  _id?: string;           // MongoDB-style alias — some API responses include this
   name?: string | null;
   email?: string | null;
   phone?: string;
