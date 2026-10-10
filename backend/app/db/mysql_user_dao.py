@@ -222,6 +222,56 @@ class MySQLUserDAO:
                 raise e
         return _map_to_schema(row, children_map[int(row.id)])
 
+    async def findByIds(self, ids: List[str]) -> List[User]:
+        if not ids:
+            return []
+        factory = self._factory()
+        if not factory:
+            return []
+        id_ints = [int(i) for i in ids if str(i).isdigit()]
+        id_strs = [str(i) for i in ids if not str(i).isdigit()]
+        conds = []
+        params = {}
+        if id_ints:
+            placeholders = [f":id_int_{idx}" for idx in range(len(id_ints))]
+            conds.append(f"id IN ({', '.join(placeholders)})")
+            for idx, val in enumerate(id_ints):
+                params[f"id_int_{idx}"] = val
+        if id_strs:
+            placeholders = [f":id_str_{idx}" for idx in range(len(id_strs))]
+            conds.append(f"external_id IN ({', '.join(placeholders)})")
+            for idx, val in enumerate(id_strs):
+                params[f"id_str_{idx}"] = val
+        if not conds:
+            return []
+        where_sql = " OR ".join(conds)
+        async with factory() as session:
+            try:
+                rows = (
+                    await session.execute(
+                        text(
+                            f"""
+                        SELECT id, external_id, user_id_formatted, name, email, password_hash,
+                               role, phone, company_name, gst_number, is_active,
+                               approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
+                               assigned_salesperson, is_email_verified, referral_code,
+                               is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,
+                               bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,
+                               created_at, updated_at
+                        FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC
+                    """
+                        ),
+                        params,
+                    )
+                ).fetchall()
+                if not rows:
+                    return []
+                children_map = await self._fetch_children(session, [int(r.id) for r in rows])
+                return [_map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            except Exception:
+                await session.rollback()
+                raise
+
     async def findByEmail(self, email: str) -> Optional[User]:
         factory = self._factory()
         if not factory or not email:
