@@ -1,7 +1,7 @@
 import secrets
 from typing import List, Optional, Union
 from app.models.ad import Ad
-from app.models.schemas import AdCreate, AdUpdate
+from app.models.schemas import AdCreate, AdUpdate, AdSummaryResponse
 
 from sqlalchemy import text
 
@@ -16,6 +16,47 @@ class MySQLAdDAO:
 
     def _map_to_schema(self, row) -> Ad:
         return Ad.model_validate(row)
+
+    async def getSummary(self) -> AdSummaryResponse:
+        factory = self._factory()
+        if not factory:
+            return AdSummaryResponse()
+        async with factory() as session:
+            sql = f"""
+                SELECT
+                    COUNT(*) as total_ads,
+                    COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) as active_count,
+                    COALESCE(SUM(CASE WHEN status = 'paused' THEN 1 ELSE 0 END), 0) as paused_count,
+                    COALESCE(SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END), 0) as draft_count,
+                    COALESCE(SUM(stat_impressions), 0) as total_impressions,
+                    COALESCE(SUM(stat_clicks), 0) as total_clicks,
+                    COALESCE(SUM(stat_conversions), 0) as total_conversions,
+                    COALESCE(SUM(CASE WHEN status = 'active' THEN COALESCE(budget_daily, 0) ELSE 0 END), 0) as total_spend_estimate
+                FROM {self.TABLE}
+            """
+            res = await session.execute(text(sql))
+            row = res.fetchone()
+            if not row:
+                return AdSummaryResponse()
+
+            total_clicks = int(row.total_clicks)
+            total_impressions = int(row.total_impressions)
+            overall_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0.0
+
+            return AdSummaryResponse(
+                total_ads=int(row.total_ads),
+                active=int(row.active_count),
+                paused=int(row.paused_count),
+                draft=int(row.draft_count),
+                total_impressions=total_impressions,
+                total_clicks=total_clicks,
+                total_conversions=int(row.total_conversions),
+                total_spend_estimate=float(row.total_spend_estimate),
+                total_views=total_impressions,
+                active_campaigns=int(row.active_count),
+                overall_ctr=overall_ctr,
+                ctr=overall_ctr,
+            )
 
     async def findAll(
         self,

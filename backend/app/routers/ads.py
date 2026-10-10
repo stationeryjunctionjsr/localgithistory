@@ -1,60 +1,49 @@
-from app.models.user import User
 from typing import List, Optional
-from app.models.schemas import MessageResponse, AdCreate, AdUpdate, AdStatusUpdate, AdSummaryResponse, AdStats
-from app.models.ad import Ad
-import uuid
 from datetime import datetime
-from pydantic import BaseModel
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.models.user import User
+from app.models.schemas import (
+    MessageResponse,
+    AdCreate,
+    AdUpdate,
+    AdStatusUpdate,
+    AdSummaryResponse,
+    AnalyticsEventCreate,
+    AnalyticsEventPayload,
+)
+from app.models.ad import Ad
+from app.models.base import CamelBaseModel
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_optional_user, require_super_admin
-from app.utils.logger import logger
 
 router = APIRouter(prefix="/ads", tags=["Ads"])
 storage = get_storage("ads")
 events_storage = get_storage("tracking")
 
-class AdEventPayload(BaseModel):
+class AdEventPayload(CamelBaseModel):
     type: str
 
 
 @router.get("/summary", response_model=AdSummaryResponse)
-async def get_ads_summary(_: User = Depends(require_super_admin)):
-    ads = await storage.findAll()
-    
-    total_views = sum([ad.stats.impressions if ad.stats and ad.stats.impressions else 0 for ad in ads])
-    total_clicks = sum([ad.stats.clicks if ad.stats and ad.stats.clicks else 0 for ad in ads])
-    active_campaigns = len([ad for ad in ads if ad.status == "active"])
-
-    return {
-        "total_ads": len(ads),
-        "active": active_campaigns,
-        "paused": len([ad for ad in ads if ad.status == "paused"]),
-        "draft": len([ad for ad in ads if ad.status == "draft"]),
-        "total_impressions": total_views,
-        "total_clicks": total_clicks,
-        "total_conversions": sum([ad.stats.conversions if ad.stats and ad.stats.conversions else 0 for ad in ads]),
-        "total_spend_estimate": sum([(ad.budget_daily if ad.budget_daily is not None else 0) for ad in ads if ad.status == "active"]),
-        "overall_ctr": (total_clicks / total_views * 100) if total_views > 0 else 0,
-    }
+async def get_ads_summary(_: User = Depends(require_super_admin)) -> AdSummaryResponse:
+    return await storage.getSummary()
 
 
 @router.get("/", response_model=List[Ad])
-async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query(False)):
+async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query(False)) -> List[Ad]:
     ads = await storage.findAll(status="active" if active_only else None)
     return ads
 
 
 @router.post("/", response_model=Ad)
-async def create_ad(ad_data: AdCreate, _: User = Depends(require_super_admin)):
+async def create_ad(ad_data: AdCreate, _: User = Depends(require_super_admin)) -> Ad:
     new_ad = await storage.create(ad_data)
     return new_ad
 
 
 @router.put("/{ad_id}", response_model=Ad)
-async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_super_admin)):
+async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_super_admin)) -> Ad:
     updated = await storage.update(ad_id, ad_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Ad not found")
@@ -62,7 +51,7 @@ async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_sup
 
 
 @router.patch("/{ad_id}/status", response_model=MessageResponse)
-async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: User = Depends(require_super_admin)):
+async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: User = Depends(require_super_admin)) -> MessageResponse:
     status = payload.status
     if not status:
         raise HTTPException(status_code=400, detail="Status is required")
@@ -70,19 +59,23 @@ async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: User = Depend
     updated = await storage.update(ad_id, payload)
     if not updated:
         raise HTTPException(status_code=404, detail="Ad not found")
-    return {"message": f"Ad status updated to {status}"}
+    return MessageResponse(message=f"Ad status updated to {status}")
 
 
 @router.delete("/{ad_id}", response_model=MessageResponse)
-async def delete_ad(ad_id: str, _: User = Depends(require_super_admin)):
+async def delete_ad(ad_id: str, _: User = Depends(require_super_admin)) -> MessageResponse:
     success = await storage.delete(ad_id)
     if not success:
         raise HTTPException(status_code=404, detail="Ad not found")
-    return {"message": "Ad deleted"}
+    return MessageResponse(message="Ad deleted")
 
 
 @router.post("/{ad_id}/track", response_model=MessageResponse)
-async def track_ad_event(ad_id: str, event: AdEventPayload, current_user: Optional[User] = Depends(get_optional_user)):
+async def track_ad_event(
+    ad_id: str,
+    event: AdEventPayload,
+    current_user: Optional[User] = Depends(get_optional_user),
+) -> MessageResponse:
     event_type = event.type
     if event_type not in ["view", "click"]:
         raise HTTPException(status_code=400, detail="Invalid event type")
@@ -91,24 +84,24 @@ async def track_ad_event(ad_id: str, event: AdEventPayload, current_user: Option
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
 
-    stats = ad.stats if ad.stats else AdStats()
     if event_type == "view":
-        stats.impressions = (stats.impressions if stats.impressions else 0) + 1
+        new_impressions = (ad.stat_impressions or 0) + 1
+        new_ctr = ((ad.stat_clicks or 0) / new_impressions * 100) if new_impressions > 0 else 0.0
+        await storage.update(ad_id, AdUpdate(stat_impressions=new_impressions, stat_ctr=new_ctr))
     elif event_type == "click":
-        stats.clicks = (stats.clicks if stats.clicks else 0) + 1
-        impressions = stats.impressions if stats.impressions else 0
-        if impressions > 0:
-            stats.ctr = (stats.clicks / impressions) * 100
+        new_clicks = (ad.stat_clicks or 0) + 1
+        impressions = ad.stat_impressions or 0
+        new_ctr = (new_clicks / impressions * 100) if impressions > 0 else 0.0
+        await storage.update(ad_id, AdUpdate(stat_clicks=new_clicks, stat_ctr=new_ctr))
 
-    await storage.update(ad_id, AdUpdate(stats=stats))
+    event_payload = AnalyticsEventCreate(
+        source="ad",
+        type=event_type,
+        user_id=current_user.id if current_user else None,
+        filter_name="campaign",
+        filter_value=ad_id,
+        payload=AnalyticsEventPayload(source="ad"),
+    )
+    await events_storage.create(event_payload)
 
-    event_data = {
-        "source": "ad",
-        "campaign": ad_id,
-        "type": event_type,
-        "userId": current_user.id if current_user else None,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-    }
-    await events_storage.create(event_data)
-
-    return {"message": f"Ad {event_type} tracked"}
+    return MessageResponse(message=f"Ad {event_type} tracked")
