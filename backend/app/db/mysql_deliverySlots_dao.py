@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -12,6 +12,17 @@ from app.models.daos_flat import (
 
 def now_utc():
     return datetime.now(timezone.utc)
+
+def _parse_slot_row(r) -> DeliverySlotInternal:
+    return DeliverySlotInternal(
+        start_time=r.start_time,
+        end_time=r.end_time,
+        capacity=int(r.capacity) if r.capacity is not None else None,
+        booked_count=int(r.booked_count) if r.booked_count is not None else 0,
+        is_full_day=bool(r.is_full_day) if r.is_full_day is not None else False,
+        is_urgent=bool(r.is_urgent) if r.is_urgent is not None else False,
+        cutoff_hours=int(r.cutoff_hours) if r.cutoff_hours is not None else None,
+    )
 
 class MySQLDeliverySlotsDAO:
     def __init__(self):
@@ -41,8 +52,8 @@ class MySQLDeliverySlotsDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id)))
+            slots = await self._fetch_slots(session, int(row.id))
+            return self._map_to_schema(row, slots)
 
     async def findOne(
         self,
@@ -88,8 +99,23 @@ class MySQLDeliverySlotsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id))) for r in rows]
+            parent_ids = [int(r.id) for r in rows]
+            id_list = ",".join(str(i) for i in parent_ids)
+            slots_res = await session.execute(
+                text(f"SELECT parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours FROM {self.CHILD_TABLE} WHERE parent_id IN ({id_list}) ORDER BY id ASC")
+            )
+            all_slot_rows = slots_res.fetchall()
+            return [
+                self._map_to_schema(
+                    r,
+                    slots=[
+                        _parse_slot_row(sr)
+                        for sr in all_slot_rows
+                        if sr.parent_id == r.id
+                    ],
+                )
+                for r in rows
+            ]
 
     async def create(self, data: DeliverySlotConfigInternalCreate) -> DeliverySlotConfigInternal:
         factory = self._factory()
@@ -214,45 +240,29 @@ class MySQLDeliverySlotsDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[DeliverySlotInternal]]:
-        c_map: Dict[int, List[DeliverySlotInternal]] = {rid: [] for rid in ids}
-        if not ids:
-            return c_map
-            
-        id_list = ",".join(str(int(i)) for i in ids)
-        q_slots = text(f"SELECT parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours FROM sj_delivery_slot_times WHERE parent_id IN ({id_list})")
-        res_slots = await session.execute(q_slots)
-        rows_slots = res_slots.fetchall()
-
-        for r in rows_slots:
-            slot = DeliverySlotInternal(
-                start_time=r.start_time,
-                end_time=r.end_time,
-                capacity=int(r.capacity) if r.capacity is not None else None,
-                booked_count=int(r.booked_count) if r.booked_count is not None else 0,
-                is_full_day=bool(r.is_full_day) if r.is_full_day is not None else False,
-                is_urgent=bool(r.is_urgent) if r.is_urgent is not None else False,
-                cutoff_hours=int(r.cutoff_hours) if r.cutoff_hours is not None else None,
-            )
-            c_map[r.parent_id].append(slot)
-
-        return c_map
+    async def _fetch_slots(self, session, parent_id: int) -> List[DeliverySlotInternal]:
+        q_slots = text(f"SELECT start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours FROM {self.CHILD_TABLE} WHERE parent_id = :pid ORDER BY id ASC")
+        res_slots = await session.execute(q_slots, {"pid": parent_id})
+        return [_parse_slot_row(r) for r in res_slots.fetchall()]
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliverySlotConfigInternalCreate, DeliverySlotConfigInternalUpdate]):
         if data.slots is not None:
             await session.execute(text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"), {"id": row_id})
-            for item in data.slots:
-                p = {
-                    "id": row_id,
-                    "v0": item.start_time,
-                    "v1": item.end_time,
-                    "v2": item.capacity,
-                    "v3": item.booked_count or 0,
-                    "v4": 1 if item.is_full_day else 0,
-                    "v5": 1 if item.is_urgent else 0,
-                    "v6": item.cutoff_hours,
-                }
+            if data.slots:
+                params = [
+                    {
+                        "id": row_id,
+                        "v0": item.start_time,
+                        "v1": item.end_time,
+                        "v2": item.capacity,
+                        "v3": item.booked_count or 0,
+                        "v4": 1 if item.is_full_day else 0,
+                        "v5": 1 if item.is_urgent else 0,
+                        "v6": item.cutoff_hours,
+                    }
+                    for item in data.slots
+                ]
                 await session.execute(
                     text(f"INSERT INTO {self.CHILD_TABLE} (parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours) VALUES (:id, :v0, :v1, :v2, :v3, :v4, :v5, :v6)"),
-                    p,
+                    params,
                 )
