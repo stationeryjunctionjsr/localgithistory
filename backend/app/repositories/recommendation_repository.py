@@ -104,14 +104,6 @@ def _get_favourites_weights(kind: str) -> Tuple[float, float]:
 
 def _strategy_to_key(strategy: str) -> str:
     """Map bandit strategy (slot) name to response key."""
-    return {
-        "new_arrivals": "newArrivals",
-        "customer_favourites": "customerFavourites",
-        "trending_now": "trendingNow",
-        "explore": "explore",
-        "wholesaler_favourites": "wholesalerFavourites",
-        "business_favourites": "businessFavourites",
-    }
     mapping = {
         "new_arrivals": "newArrivals",
         "customer_favourites": "customerFavourites",
@@ -120,7 +112,7 @@ def _strategy_to_key(strategy: str) -> str:
         "wholesaler_favourites": "wholesalerFavourites",
         "business_favourites": "businessFavourites",
     }
-    return mapping[strategy] if strategy in mapping else "customerFavourites"  # Wait, dict on the fly is fine, or we can replace it.
+    return mapping[strategy] if strategy in mapping else "customerFavourites"
 
 
 def get_recommendation_config() -> RecommendationConfig:
@@ -330,7 +322,7 @@ class RecommendationRepository:
             cached = _read_trending_cache()
             seg_data = cached[segment] if segment in cached else {}
             ids = seg_data["product_ids"] if "product_ids" in seg_data else None
-            if ids is not None and isinstance(ids, list):
+            if ids is not None:
                 exclude = exclude_product_ids or set()
                 return [x for x in ids if x not in exclude]  # cache is already in descending rank order
         prefix = self._order_segment_prefix(segment)
@@ -502,7 +494,7 @@ class RecommendationRepository:
         """Set of product IDs that are Customer Favourites (top 1 per subcategory, retail, 60d). For tagging in catalog. Reads cache when present."""
         cached = _read_customer_favourites_cache()
         ids = cached["product_ids"] if "product_ids" in cached else None
-        if ids is not None and isinstance(ids, list):
+        if ids is not None:
             return set(ids)
         ids = await self.get_customer_favourites_by_subcategory(days=60)
         return set(ids)
@@ -582,7 +574,7 @@ class RecommendationRepository:
         """Set of product IDs that are Business Favourites (for tagging). Reads cache when present."""
         cached = _read_business_favourites_cache()
         ids = cached["product_ids"] if "product_ids" in cached else None
-        if ids is not None and isinstance(ids, list):
+        if ids is not None:
             return set(ids)
         ids = await self.get_business_favourites_by_subcategory(days=60)
         return set(ids)
@@ -1022,23 +1014,24 @@ class RecommendationRepository:
             for b in bundles:
                 try:
                     eb = await _enrich_bundle(b)
-                    if not (eb["isAvailable"] if "isAvailable" in eb else None):
+                    if not eb.is_available:
                         continue
                     # Format as a product card for the frontend
-                    eb["isBundle"] = True
+                    eb_dict = eb.model_dump(by_alias=True)
+                    eb_dict["id"] = eb.id
+                    eb_dict["isBundle"] = True
                     # Resolving subCategory for Explore
-                    sub_cat = eb["subCategory"] if "subCategory" in eb else None
-                    if not sub_cat:
+                    sub_cat = eb_dict["subCategory"] if "subCategory" in eb_dict else None
+                    if not sub_cat and product_map:
                         # Attempt to derive from component products
-                        for item in eb["items"] if "items" in eb else []:
+                        for item in eb.items:
                             pid = item.product_id
-                            p = product_map[str(pid)] if str(pid) in product_map else None if product_map else None
+                            p = product_map[str(pid)] if str(pid) in product_map else None
                             if p and p.sub_category:
-                                sc = p.sub_category
-                                sub_cat = sc
+                                sub_cat = p.sub_category
                                 break
-                    eb["subCategory"] = sub_cat
-                    enriched.append(eb)
+                    eb_dict["subCategory"] = sub_cat
+                    enriched.append(eb_dict)
                 except Exception as e:
                     logging.warning(f"Could not enrich bundle {b.id} for recommendations: {e}")
             return enriched
@@ -1051,6 +1044,8 @@ class RecommendationRepository:
         if seller_id_set is None:
             return True  # no zone filter
         sellers = product.sellers or []
+        if not sellers:
+            return True
         return any(
             str(s.seller_id) in seller_id_set
             and s.is_active
@@ -1113,44 +1108,69 @@ class RecommendationRepository:
         # ────────────────────────────────────────────────────────────────────
 
         try:
-            bundle_items = await (self._get_bundles_as_items if self._get_bundles_as_items is not None else lambda **kw: [])(product_map=product_map)
+            bundle_items = await self._get_bundles_as_items(product_map=product_map)
         except Exception as e:
             import logging
             logging.warning(f"Could not fetch bundles: {e}")
             bundle_items = []
 
+        from app.models.product import Product
         for _b in bundle_items:
-            if (_b["_id"] if "_id" in _b else None):
-                product_map[_b["_id"]] = _b
+            bid = _b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None)
+            if bid:
+                p_bundle = Product(
+                    id=bid,
+                    name=_b["name"] if "name" in _b else "",
+                    description=_b["description"] if "description" in _b else None,
+                    category=_b["category"] if "category" in _b else (_b["subCategory"] if "subCategory" in _b else None),
+                    sub_category=_b["subCategory"] if "subCategory" in _b else None,
+                    mrp=_b["totalMrp"] if "totalMrp" in _b else (_b["price"] if "price" in _b else 0.0),
+                    price=_b["price"] if "price" in _b else 0.0,
+                    images=[_b["displayImage"]] if (_b["displayImage"] if "displayImage" in _b else None) else [],
+                    display_image=_b["displayImage"] if "displayImage" in _b else None,
+                    is_active=True,
+                    sellers=[],
+                )
+                product_map[bid] = p_bundle
 
-        bundle_ids = {_b["_id"] for _b in bundle_items if (_b["_id"] if "_id" in _b else None)}
+        bundle_ids = {
+            (_b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None))
+            for _b in bundle_items
+            if (_b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None))
+        }
 
         def _bundle_new_arrival_ids(exclude_set):
             from datetime import datetime, timedelta, timezone
             cutoff_na = datetime.now(timezone.utc) - timedelta(days=30)
             qualifying = []
             for _b in bundle_items:
-                bid = (_b["_id"] if "_id" in _b else None)
+                bid = _b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None)
                 if not bid or bid in exclude_set:
                     continue
-                created = self._parse_created_at({"createdAt": (_b["createdAt"] if "createdAt" in _b else None)}) if (_b["createdAt"] if "createdAt" in _b else None) else None
+                created_raw = _b["createdAt"] if "createdAt" in _b else None
+                created = self._parse_created_at({"createdAt": created_raw}) if created_raw else None
                 if created and created >= cutoff_na:
                     qualifying.append((bid, created))
             qualifying.sort(key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in qualifying]
 
         def _bundle_trending_ids(exclude_set, product_tn_ids):
-            if not bundle_items: return []
+            if not bundle_items:
+                return []
             counts = [(_b["salesCount"] if "salesCount" in _b else 0) or 0 for _b in bundle_items]
             max_count = max(counts) if counts else 0
-            if max_count == 0: return []
+            if max_count == 0:
+                return []
             all_rates = []
             for _b in bundle_items:
-                bid = (_b["_id"] if "_id" in _b else None)
-                if not bid or bid in exclude_set: continue
+                bid = _b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None)
+                if not bid or bid in exclude_set:
+                    continue
                 rate = ((_b["salesCount"] if "salesCount" in _b else 0) or 0) / max_count
-                if rate > 0: all_rates.append((bid, rate))
-            if not all_rates: return []
+                if rate > 0:
+                    all_rates.append((bid, rate))
+            if not all_rates:
+                return []
             rate_values = sorted(r for _, r in all_rates)
             cutoff_idx = max(0, int(len(rate_values) * 0.70) - 1)
             score_cutoff = rate_values[cutoff_idx]
@@ -1158,12 +1178,25 @@ class RecommendationRepository:
             return [bid for bid, _ in eligible]
 
         def _bundle_favourites_ids(exclude_set):
-            scored = sorted([(_b["_id"], (_b["salesCount"] if "salesCount" in _b else 0) or 0) for _b in bundle_items if (_b["_id"] if "_id" in _b else None) and _b["_id"] not in exclude_set and ((_b["salesCount"] if "salesCount" in _b else 0) or 0) > 0], key=lambda x: x[1], reverse=True)
+            scored = []
+            for _b in bundle_items:
+                bid = _b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None)
+                sales_count = (_b["salesCount"] if "salesCount" in _b else 0) or 0
+                if bid and bid not in exclude_set and sales_count > 0:
+                    scored.append((bid, sales_count))
+            scored.sort(key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in scored]
 
         def _bundle_explore_ids(neglected_subcats, exclude_set):
             neglected_set = set(neglected_subcats)
-            scored = sorted([(_b["_id"], (_b["salesCount"] if "salesCount" in _b else 0) or 0) for _b in bundle_items if (_b["_id"] if "_id" in _b else None) and _b["_id"] not in exclude_set and ((_b["subCategory"] if "subCategory" in _b else None) or (_b["category"] if "category" in _b else None)) in neglected_set], key=lambda x: x[1], reverse=True)
+            scored = []
+            for _b in bundle_items:
+                bid = _b["id"] if "id" in _b else (_b["_id"] if "_id" in _b else None)
+                sales_count = (_b["salesCount"] if "salesCount" in _b else 0) or 0
+                category = (_b["subCategory"] if "subCategory" in _b else None) or (_b["category"] if "category" in _b else None)
+                if bid and bid not in exclude_set and category in neglected_set:
+                    scored.append((bid, sales_count))
+            scored.sort(key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in scored]
 
         def to_products(ids: list[str]) -> list['SkinnyProductResponse']:
@@ -1300,7 +1333,7 @@ class RecommendationRepository:
                     user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
                 )
                 
-            _neg = await (self._derive_neglected_subcats if self._derive_neglected_subcats is not None else lambda u, d: [])(user_id, exp_days) if explore_ids_prod else []
+            _neg = await self._derive_neglected_subcats(user_id, exp_days) if explore_ids_prod else []
             explore_bundle_ids = _bundle_explore_ids(_neg, explore_exclude | set(explore_ids_prod))
             explore_ids = list(explore_ids_prod) + explore_bundle_ids
 
@@ -1374,7 +1407,7 @@ class RecommendationRepository:
                 user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
             )
             
-        _neg = await (self._derive_neglected_subcats if self._derive_neglected_subcats is not None else lambda u, d: [])(user_id, exp_days) if explore_ids_prod else []
+        _neg = await self._derive_neglected_subcats(user_id, exp_days) if explore_ids_prod else []
         explore_bundle_ids = _bundle_explore_ids(_neg, explore_exclude | set(explore_ids_prod))
         explore_ids = list(explore_ids_prod) + explore_bundle_ids
 
