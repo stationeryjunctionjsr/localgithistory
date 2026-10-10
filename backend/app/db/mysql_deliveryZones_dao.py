@@ -1,7 +1,6 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import DeliveryZoneInternal, DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate, DeliveryChargeTierInternal
@@ -21,44 +20,12 @@ class MySQLDeliveryZonesDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['DeliveryZoneInternal']:
+    async def findById(self, id: str) -> Optional[DeliveryZoneInternal]:
         return await self.findOne({"_id": id})
 
-    async def findOne(self, query=None, **kwargs) -> Optional['DeliveryZoneInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
-            return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {
-                'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity',
-                'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type',
-                'is_active': 'is_active', 'delivery_charge': 'delivery_charge', 'min_cart_value': 'min_cart_value',
-                'urgent_delivery_charge': 'urgent_delivery_charge', 'apply_default_charge': 'apply_default_charge',
-                'deliveryCharge': 'delivery_charge', 'minCartValue': 'min_cart_value',
-                'urgentDeliveryCharge': 'urgent_delivery_charge', 'applyDefaultCharge': 'apply_default_charge'
-            }
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
-            result = await session.execute(q, params)
-            row = result.fetchone()
-            if not row:
-                return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+    async def findOne(self, query: Optional[Dict] = None) -> Optional[DeliveryZoneInternal]:
+        docs = await self.findAll(query)
+        return docs[0] if docs else None
             
     async def findAll(self, query: Optional[dict] = None) -> List['DeliveryZoneInternal']:
         query = query or {}
@@ -285,25 +252,29 @@ class MySQLDeliveryZonesDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, row_id: int, data: Union[DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate]):
 
         if data.pincodes is not None:
-            await session.execute(text(f"DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.pincodes or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_delivery_zone_pincodes (parent_id, pincode) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
-        if hasattr(data, 'tiers') and data.tiers is not None:
-            await session.execute(text(f"DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_tiers = data.tiers or []
-
-            for tier in child_tiers:
-                t_min = str(getattr(tier, 'min', None) if getattr(tier, 'min', None) is not None else (tier.get('min', '0') if isinstance(tier, dict) else '0'))
-                t_max = str(getattr(tier, 'max', None) if getattr(tier, 'max', None) is not None else (tier.get('max', 'Infinity') if isinstance(tier, dict) else 'Infinity'))
-                t_chg = str(getattr(tier, 'charge', None) if getattr(tier, 'charge', None) is not None else (tier.get('charge', '0') if isinstance(tier, dict) else '0'))
+            await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
+            for item in data.pincodes:
                 await session.execute(
-                    text("INSERT INTO sj_delivery_zone_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :min_val, :max_val, :charge)"),
-                    {"id": row_id, "min_val": t_min, "max_val": t_max, "charge": t_chg}
+                    text("INSERT INTO sj_delivery_zone_pincodes (parent_id, pincode) VALUES (:parent_id, :pincode)"),
+                    {"parent_id": row_id, "pincode": str(item)}
+                )
+
+        if data.tiers is not None:
+            await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": row_id})
+            for tier in data.tiers:
+                max_str = "Infinity" if tier.max is None or tier.max == float("inf") else str(tier.max)
+                await session.execute(
+                    text(
+                        "INSERT INTO sj_delivery_zone_tiers (parent_id, min_order_value, max_order_value, charge) "
+                        "VALUES (:parent_id, :min_order_value, :max_order_value, :charge)"
+                    ),
+                    {
+                        "parent_id": row_id,
+                        "min_order_value": str(tier.min if tier.min is not None else 0.0),
+                        "max_order_value": max_str,
+                        "charge": str(tier.charge if tier.charge is not None else 0.0),
+                    }
                 )
