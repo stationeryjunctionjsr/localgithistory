@@ -713,7 +713,7 @@ export default function ProductCatalog({
         );
       };
 
-      toast(<ToastForm />, { autoClose: false, closeOnClick: false });
+      toast(<ToastForm />, { duration: Infinity });
 
       const email = await emailPromise;
       if (!email || !email.includes('@')) {
