@@ -1,19 +1,19 @@
-from app.models.sub_order import SubOrderInternalCreate, SubOrderInternalUpdate
 import logging
-"""
-MySQL DAO for sub-orders.
-Fully normalized storage: no doc JSON.
-Table: sj_sub_orders and sj_sub_order_items
-"""
-
 import secrets
+from datetime import datetime, timezone
 from typing import List, Optional
-from app.models.sub_order import SubOrder, SubOrderFilter, SubOrderItem
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
+from app.models.sub_order import (
+    SubOrder,
+    SubOrderFilter,
+    SubOrderItem,
+    SubOrderInternalCreate,
+    SubOrderInternalUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _safe_float(v):
+def _safe_float(v) -> float:
     try:
         return float(v) if v is not None else 0.0
     except (ValueError, TypeError):
@@ -57,7 +57,6 @@ class MySQLSubOrderDAO:
         "isUrgentDelivery": "is_urgent_delivery",
         "notes": "notes",
         "couponCode": "coupon_code",
-        # Valet pickup tracking
         "pickupStatus": "pickup_status",
         "assignedValet": "assigned_valet",
         "fulfillmentType": "fulfillment_type",
@@ -77,8 +76,7 @@ class MySQLSubOrderDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, row, items_rows=None) -> 'SubOrder':
-        from app.models.sub_order import SubOrder, SubOrderItem
+    def _map_to_schema(self, row, items_rows=None) -> SubOrder:
         sub = SubOrder.model_validate(row)
         if items_rows:
             sub.items = [
@@ -95,74 +93,62 @@ class MySQLSubOrderDAO:
             sub.items = []
         return sub
 
-    def _build_where(self, filter_data: Optional[SubOrderFilter] = None) -> tuple[List[str], dict]:
-        if not filter_data:
-            return [], {}
-        where_clauses = []
-        params = {}
-        if filter_data.id:
-            where_clauses.append("id = :q_id" if str(filter_data.id).isdigit() else "external_id = :q_id")
-            params["q_id"] = int(filter_data.id) if str(filter_data.id).isdigit() else filter_data.id
-        if filter_data.seller_id:
-            where_clauses.append("seller_id = :seller_id")
-            params["seller_id"] = filter_data.seller_id
-        if filter_data.parent_order_id:
-            where_clauses.append("parent_order_id = :parent_order_id")
-            params["parent_order_id"] = filter_data.parent_order_id
-        if filter_data.status:
-            where_clauses.append("status = :status")
-            params["status"] = filter_data.status
-        if filter_data.commission_status:
-            where_clauses.append("commission_status = :commission_status")
-            params["commission_status"] = filter_data.commission_status
-        if filter_data.payment_status:
-            where_clauses.append("payment_status = :payment_status")
-            params["payment_status"] = filter_data.payment_status
-        if filter_data.start_date:
-            where_clauses.append("created_at >= :start_date")
-            params["start_date"] = filter_data.start_date
-        if filter_data.end_date:
-            where_clauses.append("created_at <= :end_date")
-            params["end_date"] = filter_data.end_date
-        return where_clauses, params
-
     async def findAll(self, filter_params: Optional[SubOrderFilter] = None, skip: int = 0, limit: int = 0) -> List[SubOrder]:
         factory = self._get_session_factory()
         if not factory:
             return []
-        where_clauses, params = self._build_where(filter_params)
+
+        where_clauses = []
+        params = {}
+        if filter_params:
+            if filter_params.id:
+                where_clauses.append("id = :q_id" if str(filter_params.id).isdigit() else "external_id = :q_id")
+                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else filter_params.id
+            if filter_params.seller_id:
+                where_clauses.append("seller_id = :seller_id")
+                params["seller_id"] = filter_params.seller_id
+            if filter_params.parent_order_id:
+                where_clauses.append("parent_order_id = :parent_order_id")
+                params["parent_order_id"] = filter_params.parent_order_id
+            if filter_params.status:
+                where_clauses.append("status = :status")
+                params["status"] = filter_params.status
+            if filter_params.commission_status:
+                where_clauses.append("commission_status = :commission_status")
+                params["commission_status"] = filter_params.commission_status
+            if filter_params.payment_status:
+                where_clauses.append("payment_status = :payment_status")
+                params["payment_status"] = filter_params.payment_status
+            if filter_params.start_date:
+                where_clauses.append("created_at >= :start_date")
+                params["start_date"] = filter_params.start_date
+            if filter_params.end_date:
+                where_clauses.append("created_at <= :end_date")
+                params["end_date"] = filter_params.end_date
+
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         limit_sql = f" LIMIT {limit} OFFSET {skip}" if limit else (f" OFFSET {skip}" if skip else "")
         async with factory() as session:
-            query_sql = f"SELECT * FROM {self.table_name}{where_sql} ORDER BY created_at DESC{limit_sql}"
-            result = await session.execute(text(query_sql), params)
+            result = await session.execute(text(f"SELECT * FROM {self.table_name}{where_sql} ORDER BY id DESC{limit_sql}"), params)
             rows = result.fetchall()
-
             if not rows:
                 return []
-
             sub_order_ids = [r.id for r in rows]
-            in_clause = ", ".join(str(id) for id in sub_order_ids)
-            items_sql = f"SELECT * FROM {self.items_table_name} WHERE sub_order_id IN ({in_clause})"
-            items_result = await session.execute(text(items_sql))
-            items_rows = items_result.fetchall()
-
+            in_clause = ", ".join(str(i) for i in sub_order_ids)
+            items_res = await session.execute(text(f"SELECT * FROM {self.items_table_name} WHERE sub_order_id IN ({in_clause})"))
+            items_rows = items_res.fetchall()
             return [self._map_to_schema(r, items_rows) for r in rows]
 
-    async def findOne(self, filter_params: Optional[SubOrderFilter] = None) -> Optional[SubOrder]:
-        docs = await self.findAll(filter_params, limit=1)
-        return docs[0] if docs else None
-
-    async def findById(self, id: str) -> Optional['SubOrder']:
+    async def findById(self, id: str) -> Optional[SubOrder]:
         factory = self._get_session_factory()
         if not factory or not id:
             return None
         async with factory() as session:
             if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.table_name} WHERE id = :id LIMIT 1")
+                q = text(f"SELECT * FROM {self.table_name} WHERE id = :id")
                 params = {"id": int(id)}
             else:
-                q = text(f"SELECT * FROM {self.table_name} WHERE external_id = :id LIMIT 1")
+                q = text(f"SELECT * FROM {self.table_name} WHERE external_id = :id")
                 params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
@@ -173,9 +159,9 @@ class MySQLSubOrderDAO:
                 {"so_id": row.id},
             )
             items_rows = items_res.fetchall()
-            return SubOrder.model_validate(self._map_to_schema(row, items_rows))
+            return self._map_to_schema(row, items_rows)
 
-    async def findByParentOrder(self, parent_order_id: str) -> List['SubOrder']:
+    async def findByParentOrder(self, parent_order_id: str) -> List[SubOrder]:
         factory = self._get_session_factory()
         if not factory or not parent_order_id:
             return []
@@ -205,20 +191,67 @@ class MySQLSubOrderDAO:
         factory = self._get_session_factory()
         if not factory:
             return 0
-        where_clauses, params = self._build_where(filter_params)
+        where_clauses = []
+        params = {}
+        if filter_params:
+            if filter_params.id:
+                where_clauses.append("id = :q_id" if str(filter_params.id).isdigit() else "external_id = :q_id")
+                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else filter_params.id
+            if filter_params.seller_id:
+                where_clauses.append("seller_id = :seller_id")
+                params["seller_id"] = filter_params.seller_id
+            if filter_params.parent_order_id:
+                where_clauses.append("parent_order_id = :parent_order_id")
+                params["parent_order_id"] = filter_params.parent_order_id
+            if filter_params.status:
+                where_clauses.append("status = :status")
+                params["status"] = filter_params.status
+            if filter_params.commission_status:
+                where_clauses.append("commission_status = :commission_status")
+                params["commission_status"] = filter_params.commission_status
+            if filter_params.payment_status:
+                where_clauses.append("payment_status = :payment_status")
+                params["payment_status"] = filter_params.payment_status
+            if filter_params.start_date:
+                where_clauses.append("created_at >= :start_date")
+                params["start_date"] = filter_params.start_date
+            if filter_params.end_date:
+                where_clauses.append("created_at <= :end_date")
+                params["end_date"] = filter_params.end_date
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         async with factory() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.table_name}{where_sql}"), params)
             return result.scalar() or 0
 
-    async def create(self, data: 'SubOrderInternalCreate') -> 'SubOrder':
+    async def create(self, data: SubOrderInternalCreate) -> SubOrder:
         factory = self._get_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
 
+        slot_id = data.delivery_slot.slot_id if data.delivery_slot else None
+        slot_date = data.delivery_slot.date if data.delivery_slot else None
+
+        ship_name = data.shipping_address.name if data.shipping_address else None
+        ship_phone = data.shipping_address.phone if data.shipping_address else None
+        ship_line1 = (data.shipping_address.address or data.shipping_address.street) if data.shipping_address else None
+        ship_city = data.shipping_address.city if data.shipping_address else None
+        ship_state = data.shipping_address.state if data.shipping_address else None
+        ship_pincode = (data.shipping_address.pincode or data.shipping_address.zip_code) if data.shipping_address else None
+
+        bill_name = data.billing_address.name if data.billing_address else None
+        bill_phone = data.billing_address.phone if data.billing_address else None
+        bill_line1 = (data.billing_address.address or data.billing_address.street) if data.billing_address else None
+        bill_city = data.billing_address.city if data.billing_address else None
+        bill_state = data.billing_address.state if data.billing_address else None
+        bill_pincode = (data.billing_address.pincode or data.billing_address.zip_code) if data.billing_address else None
+
+        coupon_code = data.coupon_code or (data.coupon_info.code if data.coupon_info else None)
+        coupon_type = data.coupon_info.discount_type if data.coupon_info else None
+        coupon_val = data.coupon_info.discount_value if data.coupon_info else None
+
         params = {
-            "external_id": getattr(data, "external_id", None),
+            "external_id": None,
             "sub_order_number": data.sub_order_number,
             "parent_order_id": int(data.parent_order_id) if str(data.parent_order_id).isdigit() else None,
             "parent_order_number": data.parent_order_number,
@@ -236,32 +269,32 @@ class MySQLSubOrderDAO:
             "payment_method": data.payment_method,
             "payment_status": data.payment_status,
             "is_urgent_delivery": data.is_urgent_delivery,
-            "delivery_slot_config_id": getattr(data, "delivery_slot_config_id", None),
-            "delivery_slot_id": getattr(data, "delivery_slot_id", None),
-            "delivery_slot_date": getattr(data, "delivery_slot_date", None),
-            "notes": getattr(data, "notes", None),
-            "coupon_code": getattr(data, "coupon_code", None),
-            "coupon_info_type": getattr(data, "coupon_info_type", None),
-            "coupon_info_value": getattr(data, "coupon_info_value", None),
+            "delivery_slot_config_id": None,
+            "delivery_slot_id": slot_id,
+            "delivery_slot_date": slot_date,
+            "notes": data.notes,
+            "coupon_code": coupon_code,
+            "coupon_info_type": coupon_type,
+            "coupon_info_value": coupon_val,
             "commission_status": data.commission_status if data.commission_status else "unrealized",
-            "shipping_name": getattr(data, "shipping_name", None),
-            "shipping_phone": getattr(data, "shipping_phone", None),
-            "shipping_line1": getattr(data, "shipping_line1", None),
-            "shipping_city": getattr(data, "shipping_city", None),
-            "shipping_state": getattr(data, "shipping_state", None),
-            "shipping_pincode": getattr(data, "shipping_pincode", None),
-            "billing_name": getattr(data, "billing_name", None),
-            "billing_phone": getattr(data, "billing_phone", None),
-            "billing_line1": getattr(data, "billing_line1", None),
-            "billing_city": getattr(data, "billing_city", None),
-            "billing_state": getattr(data, "billing_state", None),
-            "billing_pincode": getattr(data, "billing_pincode", None),
+            "shipping_name": ship_name,
+            "shipping_phone": ship_phone,
+            "shipping_line1": ship_line1,
+            "shipping_city": ship_city,
+            "shipping_state": ship_state,
+            "shipping_pincode": ship_pincode,
+            "billing_name": bill_name,
+            "billing_phone": bill_phone,
+            "billing_line1": bill_line1,
+            "billing_city": bill_city,
+            "billing_state": bill_state,
+            "billing_pincode": bill_pincode,
             "pickup_status": (data.pickup_status if data.pickup_status is not None else "pending_pickup"),
-            "assigned_valet": getattr(data, "assigned_valet", None),
-            "fulfillment_type": getattr(data, "fulfillment_type", "hyperlocal") or "hyperlocal",
-            "courier_partner": getattr(data, "courier_partner", None),
-            "tracking_id": getattr(data, "tracking_id", None),
-            "awb_code": getattr(data, "awb_code", None),
+            "assigned_valet": data.assigned_valet,
+            "fulfillment_type": data.fulfillment_type or "hyperlocal",
+            "courier_partner": data.courier_partner,
+            "tracking_id": data.tracking_id,
+            "awb_code": data.awb_code,
             "created_at": now,
             "updated_at": now,
         }
@@ -302,14 +335,14 @@ class MySQLSubOrderDAO:
             result = await session.execute(sql, params)
             new_id = result.lastrowid
 
-            items = (data.items if data.items is not None else [])
+            items = data.items if data.items is not None else []
             for item in items:
                 await session.execute(
                     item_sql,
                     {
                         "sub_order_id": new_id,
-                        "product_id": (item.product_id if item.product_id is not None else ""),
-                        "name": (item.name if item.name is not None else ""),
+                        "product_id": item.product_id if item.product_id is not None else "",
+                        "name": item.name if item.name is not None else "",
                         "qty": int(item.qty or 0),
                         "price": _safe_float(item.price),
                     },
@@ -320,21 +353,22 @@ class MySQLSubOrderDAO:
         return await self.findById(str(new_id))
 
     def _parse_dt(self, dt_val):
-        if not dt_val: return None
-        from datetime import datetime
-        if isinstance(dt_val, datetime): return dt_val
+        if not dt_val:
+            return None
+        if isinstance(dt_val, datetime):
+            return dt_val
         try:
             return datetime.fromisoformat(dt_val.replace('Z', '+00:00'))
-        except:
+        except (ValueError, TypeError):
             return None
 
-    async def update(self, id: str, update_data: 'SubOrderInternalUpdate') -> Optional['SubOrder']:
+    async def update(self, id: str, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
         factory = self._get_session_factory()
         if not factory:
             return None
         now = datetime.now(timezone.utc)
         set_clauses = ["updated_at = :updated_at"]
-        params: Dict = {"updated_at": now, "row_id": int(id) if str(id).isdigit() else id}
+        params = {"updated_at": now, "row_id": int(id) if str(id).isdigit() else id}
         data = update_data
 
         if data.status is not None:
@@ -396,9 +430,3 @@ class MySQLSubOrderDAO:
             result = await session.execute(text(f"DELETE FROM {self.table_name} WHERE id = :id"), {"id": int(id)})
             await session.commit()
             return result.rowcount > 0
-
-
-
-
-
-
