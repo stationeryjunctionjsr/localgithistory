@@ -10,7 +10,7 @@ class WishlistRepository:
         self.storage = get_storage("wishlists")
 
     async def findByUser(self, user_id: str):
-        return await self.storage.findOne({"user": user_id})
+        return await self.storage.findOne(user=user_id)
 
     async def createOrUpdate(self, user_id: str, items: 'List[WishlistItemInternal]'):
         existing = await self.findByUser(user_id)

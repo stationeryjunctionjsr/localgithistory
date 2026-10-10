@@ -1,17 +1,26 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Any
 
+from pydantic import BaseModel
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
-from app.models.daos import SessionInternalCreate, SessionInternalUpdate
+from app.models.daos import SessionInternalCreate, SessionInternalUpdate, DeviceSnippet
 from app.models.session import Session
 
 class SessionRepository:
     def __init__(self):
         self.storage = get_storage("sessions")
 
-    async def create_session(self, user_id: Optional[str], device: dict, refresh_token_id: str) -> Session:
+    async def create_session(self, user_id: Optional[str], device: Any, refresh_token_id: str) -> Session:
+        dev_snippet = None
+        if device is not None:
+            if isinstance(device, DeviceSnippet):
+                dev_snippet = device
+            elif isinstance(device, BaseModel):
+                dev_snippet = DeviceSnippet.model_validate(device.model_dump())
+            elif isinstance(device, dict):
+                dev_snippet = DeviceSnippet.model_validate(device)
         data = SessionInternalCreate(
             user_id=user_id,
             refresh_token_id=refresh_token_id,
@@ -19,14 +28,14 @@ class SessionRepository:
             last_active_at=datetime.now(timezone.utc).isoformat(),
             revoked_at=None,
             revoked_reason=None,
-            device=device,
+            device=dev_snippet,
             is_guest=user_id is None,
             comment=None,
         )
         return await self.storage.create(data)
 
     async def find_by_refresh_id(self, refresh_token_id: str) -> Optional[Session]:
-        return await self.storage.findOne({"refresh_token_id": refresh_token_id})
+        return await self.storage.findOne(refresh_token_id=refresh_token_id)
 
     async def find_by_id(self, session_id: str) -> Optional[Session]:
         return await self.storage.findById(session_id)
@@ -36,8 +45,7 @@ class SessionRepository:
         if not existing:
             return None
         
-        # update existing with set fields from updates
-        # since we can't use getattr, we use model_fields_set and explicitly assign
+        # Use model_fields_set and explicitly assign attributes
         for field in updates.model_fields_set:
             match field:
                 case "user_id": existing.user_id = updates.user_id
@@ -78,7 +86,7 @@ class SessionRepository:
     async def touch_last_active(self, session_id: str):
         await self.update_session(session_id, SessionInternalUpdate(last_active_at=datetime.now(timezone.utc).isoformat()))
 
-    async def touch(self, session_id: str, device: dict = None) -> None:
+    async def touch(self, session_id: str, device: Optional[DeviceSnippet] = None) -> None:
         """Lightweight session touch — delegates to DAO's single-UPDATE touch."""
         try:
             await self.storage.touch(session_id, device)
@@ -106,7 +114,7 @@ class SessionRepository:
             await self.storage.delete_by_user_id(str(user_id))
         except AttributeError:
             # Fallback for non-Oracle backends
-            all_sessions = await self.storage.findAll({"user_id": str(user_id)})
+            all_sessions = await self.storage.findAll(user_id=str(user_id))
             for s in all_sessions:
                 try:
                     await self.storage.delete(s.id)

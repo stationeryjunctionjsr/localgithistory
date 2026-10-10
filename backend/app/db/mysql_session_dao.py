@@ -1,4 +1,4 @@
-from app.models.daos import SessionInternalCreate, SessionInternalUpdate
+from app.models.daos import SessionInternalCreate, SessionInternalUpdate, DeviceSnippet
 import logging
 """
 MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
@@ -6,8 +6,8 @@ MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
 
 import secrets
 from datetime import datetime
-from typing import Dict
-from app.models.session import Session, List, Optional
+from typing import List, Optional, Union
+from app.models.session import Session
 
 from sqlalchemy import text
 
@@ -16,9 +16,11 @@ from app.config.settings import settings
 from app.db.db_utils import now_utc
 
 
-def _to_ts(value: Optional[str]) -> Optional[datetime]:
+def _to_ts(value: Optional[Union[str, datetime]]) -> Optional[datetime]:
     if not value:
         return None
+    if isinstance(value, datetime):
+        return value
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception as e:
@@ -34,44 +36,61 @@ class MySQLSessionDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r) -> 'Session':
+    def _map_to_schema(self, r) -> Session:
         return Session.model_validate(r)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List['Session']:
+    async def findAll(
+        self,
+        id: Optional[Union[int, str]] = None,
+        user_id: Optional[Union[int, str]] = None,
+        refresh_token_id: Optional[str] = None,
+        status: Optional[str] = None,
+        is_guest: Optional[bool] = None,
+    ) -> List[Session]:
         factory = self._factory()
         if not factory:
             return []
+        where_clauses = []
+        params = {}
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = int(user_id) if str(user_id).isdigit() else None
+        if refresh_token_id is not None:
+            where_clauses.append("refresh_token_id = :refresh_token_id")
+            params["refresh_token_id"] = str(refresh_token_id)
+        if status is not None:
+            where_clauses.append("status = :status")
+            params["status"] = str(status)
+        if is_guest is not None:
+            where_clauses.append("is_guest = :is_guest")
+            params["is_guest"] = 1 if is_guest else 0
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
             result = await session.execute(
                 text(
                     f"""
                     SELECT id, external_id, user_id, refresh_token_id, status, last_active_at,
                            revoked_at, revoked_reason, is_guest, comments, created_at, updated_at
-                    FROM {self.TABLE}
+                    FROM {self.TABLE} {where_sql}
                     """
-                )
+                ),
+                params,
             )
             rows = result.fetchall()
-        docs = [self._map_to_schema(r) for r in rows]
-        if not query:
-            return docs
-        filtered: list = []
-        for d in docs:
-            match = True
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    if str(d.id) != str(v):
-                        match = False
-                        break
-                elif (getattr(d, k, None) if hasattr(d, k) else None) != v:
-                    match = False
-                    break
-            if match:
-                filtered.append(d)
-        return filtered
+        return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional['Session']:
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        user_id: Optional[Union[int, str]] = None,
+        refresh_token_id: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> Optional[Session]:
+        docs = await self.findAll(id=id, user_id=user_id, refresh_token_id=refresh_token_id, status=status)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional['Session']:
@@ -93,7 +112,7 @@ class MySQLSessionDAO:
             row = result.fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: 'SessionInternalCreate') -> Dict:
+    async def create(self, data: 'SessionInternalCreate') -> Optional[Session]:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -201,7 +220,7 @@ class MySQLSessionDAO:
             await session.commit()
         return await self.findById(id)
 
-    async def touch(self, session_id: str, device: dict = None) -> None:
+    async def touch(self, session_id: str, device: Optional[DeviceSnippet] = None) -> None:
         """Lightweight session touch — single UPDATE with SQL-level 60s debounce. Fire-and-forget."""
         factory = self._factory()
         if not factory:
@@ -296,54 +315,47 @@ class MySQLSessionDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
+    async def deleteMany(self, user_id: Optional[Union[int, str]] = None) -> int:
         """Delete matching sessions in a single SQL statement instead of N+1 deletes."""
         factory = self._factory()
-        if not factory:
-            return {"deletedCount": 0}
-        # Only user_id-keyed deletes are issued by the codebase; build targeted DELETE.
-        if "user_id" in query:
-            uid = int(query["user_id"]) if str(query["user_id"]).isdigit() else None
-            if uid is None:
-                return {"deletedCount": 0}
-            async with factory() as session:
-                result = await session.execute(
-                    text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
-                    {"uid": uid},
-                )
-                await session.commit()
-            return {"deletedCount": result.rowcount}
-        # Fallback for any other query shape: load IDs then delete in one IN clause
-        docs = await self.findAll(query)
-        if not docs:
-            return {"deletedCount": 0}
-        ids = [int(d.id) for d in docs if str(d.id).isdigit()]
-        if not ids:
-            return {"deletedCount": 0}
-        id_params = {f"id_{i}": v for i, v in enumerate(ids)}
-        placeholders = ", ".join(f":{k}" for k in id_params)
+        if not factory or user_id is None:
+            return 0
+        uid = int(user_id) if str(user_id).isdigit() else None
+        if uid is None:
+            return 0
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id IN ({placeholders})"),
-                id_params,
+                text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
+                {"uid": uid},
             )
             await session.commit()
-        return {"deletedCount": result.rowcount}
+        return result.rowcount
 
     async def delete_by_user_id(self, user_id: str) -> int:
         """Delete all sessions for a user with a single targeted SQL DELETE.
         Used in test teardown to avoid FK constraint violations."""
-        result = await self.deleteMany({"user_id": user_id})
-        return result.get("deletedCount", 0)
+        return await self.deleteMany(user_id=user_id)
 
-    async def count(self, query: Optional[Dict] = None) -> int:
+    async def count(
+        self,
+        user_id: Optional[Union[int, str]] = None,
+        status: Optional[str] = None,
+    ) -> int:
         """Count sessions using SELECT COUNT(*) — never loads row data."""
         factory = self._factory()
         if not factory:
             return 0
-        # Simple full count (no complex filter needed for sessions)
+        where_clauses = []
+        params = {}
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = int(user_id) if str(user_id).isdigit() else None
+        if status is not None:
+            where_clauses.append("status = :status")
+            params["status"] = str(status)
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
-            result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE}"))
+            result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} {where_sql}"), params)
             return int(result.scalar() or 0)
 
     find_all = findAll

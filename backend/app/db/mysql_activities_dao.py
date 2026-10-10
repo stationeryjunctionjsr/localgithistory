@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Optional, Dict, List, Union
 from datetime import datetime, timezone
 import secrets
@@ -40,7 +41,7 @@ class MySQLActivitiesDAO:
                 return None
                 
             children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id)))
+            return self._map_to_schema(row, children_map[int(row.id)])
 
     async def findOne(
         self,
@@ -87,7 +88,7 @@ class MySQLActivitiesDAO:
             if not rows:
                 return []
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id))) for r in rows]
+            return [self._map_to_schema(r, children_map[int(r.id)]) for r in rows]
 
     async def create(self, data: ActivityInternalCreate) -> ActivityInternal:
         factory = self._factory()
@@ -237,8 +238,8 @@ class MySQLActivitiesDAO:
             meta=meta if meta else None,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[ActivityMetaInternal]]:
-        c_map: Dict[int, List[ActivityMetaInternal]] = {rid: [] for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[ActivityMetaInternal]]:
+        c_map: defaultdict[int, List[ActivityMetaInternal]] = defaultdict(list)
         if not ids:
             return c_map
             

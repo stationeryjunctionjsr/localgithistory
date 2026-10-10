@@ -17,3 +17,7 @@ class Wishlist(CamelBaseModel):
     user_id: Optional[str] = None
     eid: Optional[str] = None
     u: Optional[str] = None
+
+    @property
+    def _id(self) -> Optional[str]:
+        return self.id

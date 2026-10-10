@@ -10,7 +10,7 @@ from app.utils.logger import logger
 
 if TYPE_CHECKING:
     from app.models.daos import BundleInternalCreate, BundleInternalUpdate
-    from app.models.schemas import Bundle
+    from app.models.schemas import BundleResponse
 
 
 
@@ -71,23 +71,20 @@ class BundleRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self) -> List['BundleInternal']:
-        await self.ensure_table_exists()
+    async def findAll(self) -> List['BundleResponse']:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional['BundleInternal']:
-        await self.ensure_table_exists()
+    async def findById(self, id: str) -> Optional['BundleResponse']:
         return await self.storage.findById(id)
 
-    async def findOne(self, query: dict) -> Optional['BundleInternal']:
-        await self.ensure_table_exists()
-        return await self.storage.findOne(query)
+    async def findOne(self, id: Optional[str] = None) -> Optional['BundleResponse']:
+        return await self.storage.findOne(id=id)
 
-    async def create(self, data: 'BundleInternalCreate') -> 'Bundle':
+    async def create(self, data: 'BundleInternalCreate') -> 'BundleResponse':
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional['Bundle']:
+    async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional['BundleResponse']:
         await self.ensure_table_exists()
         update_data.updated_at = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
@@ -96,12 +93,12 @@ class BundleRepository:
         await self.ensure_table_exists()
         return await self.storage.delete(id)
 
-    async def get_active_bundles(self) -> List['BundleInternal']:
+    async def get_active_bundles(self) -> List['BundleResponse']:
         """Return only active (published) bundles."""
         all_bundles = await self.findAll()
         return [b for b in all_bundles if (b.is_active if b.is_active is not None else True)]
 
-    async def get_bundles_containing_product(self, product_id: str) -> List['BundleInternal']:
+    async def get_bundles_containing_product(self, product_id: str) -> List['BundleResponse']:
         """Return all active bundles that include a given product_id."""
         all_bundles = await self.get_active_bundles()
         result = []

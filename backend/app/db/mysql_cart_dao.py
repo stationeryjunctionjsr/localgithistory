@@ -3,7 +3,8 @@ MySQL DAO for sj_carts (+ sj_cart_items).
 """
 
 import secrets
-from typing import Dict, List, Optional, Any
+from collections import defaultdict
+from typing import List, Optional, Any, Union
 from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
@@ -27,25 +28,28 @@ class MySQLCartDAO:
         return get_async_session_factory()
 
 
-    async def findAll(self, query: Optional[Dict] = None) -> List['Cart']:
+    async def findAll(
+        self,
+        id: Optional[Union[int, str]] = None,
+        user: Optional[str] = None,
+        external_id: Optional[str] = None,
+    ) -> List[Cart]:
         factory = self._factory()
         if not factory:
             return []
 
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in ("user", "user_id"):
-                    where_clauses.append("user_id = COALESCE(:user_id_int, (SELECT id FROM sj_users WHERE external_id = :user_id_str))")
-                    params["user_id_int"] = int(v) if str(v).isdigit() else None
-                    params["user_id_str"] = str(v)
-                elif k == "external_id":
-                    where_clauses.append("external_id = :external_id")
-                    params["external_id"] = str(v)
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if user is not None:
+            where_clauses.append("user_id = COALESCE(:user_id_int, (SELECT id FROM sj_users WHERE external_id = :user_id_str))")
+            params["user_id_int"] = int(user) if str(user).isdigit() else None
+            params["user_id_str"] = str(user)
+        if external_id is not None:
+            where_clauses.append("external_id = :external_id")
+            params["external_id"] = str(external_id)
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
@@ -62,44 +66,7 @@ class MySQLCartDAO:
 
             # Bulk fetch items
             cart_ids = [str(r.external_id) for r in rows]
-            items_map = {cid: [] for cid in cart_ids}
-            chunks = [cart_ids[i : i + 999] for i in range(0, len(cart_ids), 999)]
-
-            for chunk in chunks:
-                chunk_params = {f"cid_{i}": cid for i, cid in enumerate(chunk)}
-                placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
-                items_result = await session.execute(
-                    text(
-                        f"""
-                        SELECT cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes
-                        FROM {self.ITEMS_TABLE}
-                        WHERE cart_id IN ({placeholders})
-                        ORDER BY id ASC
-                        """
-                    ),
-                    chunk_params,
-                )
-                for ir in items_result.fetchall():
-                    variant_attrs = None
-                    if ir.variant_attributes:
-                        try:
-                            import json
-                            parsed = json.loads(ir.variant_attributes)
-                            from app.models.schemas import VariantAttributes
-                            if parsed:
-                                variant_attrs = VariantAttributes(**parsed)
-                        except (json.JSONDecodeError, TypeError, ValueError):
-                            pass
-                    items_map[ir.cart_id].append(
-                        CartItemInternal(
-                            product=str(ir.product_id),
-                            quantity=int(ir.quantity),
-                            sell_as_case=bool(ir.sell_as_case),
-                            bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
-                            bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
-                            variant_attributes=variant_attrs
-                        )
-                    )
+            items_map = await self._fetch_children(session, cart_ids)
 
         out = []
         for r in rows:
@@ -108,12 +75,60 @@ class MySQLCartDAO:
             out.append(cart)
         return out
 
-    async def findOne(self, query: Dict) -> Optional['Cart']:
-        docs = await self.findAll(query)
+    async def _fetch_children(self, session, cart_ids: List[str]) -> defaultdict[str, List[CartItemInternal]]:
+        items_map: defaultdict[str, List[CartItemInternal]] = defaultdict(list)
+        if not cart_ids:
+            return items_map
+        chunks = [cart_ids[i : i + 999] for i in range(0, len(cart_ids), 999)]
+        for chunk in chunks:
+            chunk_params = {f"cid_{i}": cid for i, cid in enumerate(chunk)}
+            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+            items_result = await session.execute(
+                text(
+                    f"""
+                    SELECT id, cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes
+                    FROM {self.ITEMS_TABLE}
+                    WHERE cart_id IN ({placeholders})
+                    ORDER BY id ASC
+                    """
+                ),
+                chunk_params,
+            )
+            for ir in items_result.fetchall():
+                variant_attrs = None
+                if ir.variant_attributes:
+                    try:
+                        import json
+                        parsed = json.loads(ir.variant_attributes)
+                        from app.models.schemas import VariantAttributes
+                        if parsed:
+                            variant_attrs = VariantAttributes(**parsed)
+                    except (json.JSONDecodeError, TypeError, ValueError):
+                        pass
+                items_map[ir.cart_id].append(
+                    CartItemInternal(
+                        id_=str(ir.id),
+                        product=str(ir.product_id),
+                        quantity=int(ir.quantity),
+                        sell_as_case=bool(ir.sell_as_case),
+                        bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
+                        bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
+                        variant_attributes=variant_attrs,
+                    )
+                )
+        return items_map
+
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        user: Optional[str] = None,
+        external_id: Optional[str] = None,
+    ) -> Optional[Cart]:
+        docs = await self.findAll(id=id, user=user, external_id=external_id)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional['Cart']:
-        return await self.findOne({"_id": id})
+    async def findById(self, id: str) -> Optional[Cart]:
+        return await self.findOne(id=id)
 
     async def _replace_items(self, session, cart_external_id: str, items: List[CartItemInternal]) -> None:
         await session.execute(
@@ -158,7 +173,7 @@ class MySQLCartDAO:
                 },
             )
 
-    async def create(self, data: CartInternalCreate) -> Dict:
+    async def create(self, data: CartInternalCreate) -> Optional[Cart]:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -360,27 +375,25 @@ class MySQLCartDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
-        docs = await self.findAll(query)
+    async def deleteMany(self, user: Optional[str] = None) -> int:
+        docs = await self.findAll(user=user)
         deleted = 0
         for d in docs:
-            if await self.delete(d._id):
+            if d.id and await self.delete(d.id):
                 deleted += 1
-        return {"deletedCount": deleted}
+        return deleted
 
-    async def count(self, query: Optional[Dict] = None) -> int:
+    async def count(self, id: Optional[Union[int, str]] = None, user: Optional[str] = None) -> int:
         factory = self._factory()
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "user":
-                    where_clauses.append("user_id = COALESCE(:uid_int, (SELECT id FROM sj_users WHERE external_id = :uid_str))")
-                    params["uid_int"] = int(v) if str(v).isdigit() else None
-                    params["uid_str"] = str(v)
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if user is not None:
+            where_clauses.append("user_id = COALESCE(:uid_int, (SELECT id FROM sj_users WHERE external_id = :uid_str))")
+            params["uid_int"] = int(user) if str(user).isdigit() else None
+            params["uid_str"] = str(user)
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:

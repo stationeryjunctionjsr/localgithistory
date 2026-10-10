@@ -2,10 +2,11 @@
 MySQL DAO for sj_wishlists. Fully relational.
 """
 
-from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate
+from collections import defaultdict
 import secrets
-from typing import Dict
-from app.models.wishlist import Wishlist, List, Optional
+from typing import List, Optional, Union
+from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate, WishlistItemInternal
+from app.models.wishlist import Wishlist
 
 from sqlalchemy import text
 
@@ -22,16 +23,14 @@ class MySQLWishlistDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r, items: List[str]) -> "Wishlist":
-        
+    def _map_to_schema(self, r, items: List[WishlistItemInternal]) -> Wishlist:
         w = Wishlist.model_validate(r)
-        w.user = getattr(r, "user_id", None)
-        from app.models.daos import WishlistItemInternal
-        w.items = [WishlistItemInternal(product=p) for p in items]
+        w.user = str(r.user_id) if r.user_id is not None else None
+        w.items = items
         return w
 
-    async def _fetch_items(self, session, ids: List[int]) -> Dict[int, List[str]]:
-        c_map = {rid: [] for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[WishlistItemInternal]]:
+        c_map: defaultdict[int, List[WishlistItemInternal]] = defaultdict(list)
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -43,65 +42,63 @@ class MySQLWishlistDAO:
                 chunk_params,
             )
             for r in res.fetchall():
-                c_map[r.wishlist_id].append(r.product_id)
+                c_map[r.wishlist_id].append(WishlistItemInternal(product=str(r.product_id)))
         return c_map
 
-    async def _replace_items(self, session, wid: int, items: List):
+    async def _replace_items(self, session, wid: int, items: List[WishlistItemInternal]):
         await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
         for item in items:
-            pid = getattr(item, "product", None)
-            if not pid:
+            if not item.product:
                 continue
-            pid = str(pid)
-            if "product=" in pid or len(pid) > 64:
-                import re
-                m = re.search(r"product='([^']+)'", pid)
-                if m:
-                    pid = m.group(1)
-                else:
-                    continue
-            if pid:
-                await session.execute(
-                    text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),
-                    {"wid": wid, "pid": str(pid)},
-                )
+            await session.execute(
+                text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),
+                {"wid": wid, "pid": str(item.product)},
+            )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(
+        self,
+        id: Optional[Union[int, str]] = None,
+        user: Optional[Union[int, str]] = None,
+        external_id: Optional[str] = None,
+    ) -> List[Wishlist]:
         factory = self._factory()
         if not factory:
             return []
 
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in ("user", "user_id"):
-                    where_clauses.append("user_id = :user_id")
-                    params["user_id"] = int(v) if str(v).isdigit() else None
-                elif k == "external_id":
-                    where_clauses.append("external_id = :external_id")
-                    params["external_id"] = str(v)
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
+        if user is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = int(user) if str(user).isdigit() else None
+        if external_id is not None:
+            where_clauses.append("external_id = :external_id")
+            params["external_id"] = str(external_id)
 
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
+                text(f"SELECT * FROM {self.TABLE} {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
-            items_map = await self._fetch_items(session, [r.id for r in rows])
+            items_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._map_to_schema(r, items_map[r.id]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        user: Optional[Union[int, str]] = None,
+        external_id: Optional[str] = None,
+    ) -> Optional[Wishlist]:
+        docs = await self.findAll(id=id, user=user, external_id=external_id)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
-        return await self.findOne({"_id": id})
+    async def findById(self, id: str) -> Optional[Wishlist]:
+        return await self.findOne(id=id)
 
-    async def create(self, data: 'WishlistInternalCreate') -> Dict:
+    async def create(self, data: 'WishlistInternalCreate') -> Optional[Wishlist]:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -134,7 +131,7 @@ class MySQLWishlistDAO:
 
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'WishlistInternalUpdate') -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'WishlistInternalUpdate') -> Optional[Wishlist]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -162,12 +159,12 @@ class MySQLWishlistDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> int:
+    async def deleteMany(self, user: Optional[Union[int, str]] = None) -> int:
         factory = self._factory()
-        docs = await self.findAll(query)
+        docs = await self.findAll(user=user)
         if not docs:
             return 0
-        wids = [int(d._id) for d in docs if str((d._id if d._id is not None else "")).isdigit()]
+        wids = [int(d.id) for d in docs if str(d.id or "").isdigit()]
         if not wids:
             return 0
         async with factory() as session:

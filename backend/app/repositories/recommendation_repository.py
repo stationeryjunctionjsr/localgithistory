@@ -253,7 +253,7 @@ class RecommendationRepository:
 
     async def _get_user_cart_product_ids(self, user_id: str) -> set:
         """Products currently in the user's cart."""
-        cart = await self.cart_storage.findOne({"user": user_id})
+        cart = await self.cart_storage.findOne(user=user_id)
         if not cart:
             return set()
         out = set()

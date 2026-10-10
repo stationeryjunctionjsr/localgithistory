@@ -136,11 +136,17 @@ class MySQLBundleDAO:
             )
             await session.commit()
             
-        items = getattr(update_data, 'items', None) or getattr(update_data, 'products', None)
+        items = update_data.items
         if items is not None:
             await self._save_products(existing.external_id, items)
             
         return await self.findById(id)
+
+    async def findOne(self, id: Optional[str] = None) -> Optional[BundleResponse]:
+        if id:
+            return await self.findById(id)
+        all_bundles = await self.findAll()
+        return all_bundles[0] if all_bundles else None
 
     async def delete(self, id: str) -> bool:
         SessionLocal = get_async_session_factory()

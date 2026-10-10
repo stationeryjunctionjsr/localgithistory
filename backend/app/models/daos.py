@@ -20,6 +20,14 @@ class CartItemInternal(CamelBaseModel):
     id_: Optional[str] = Field(default=None, alias="_id")
 
     @property
+    def id(self) -> Optional[str]:
+        return self.id_
+
+    @property
+    def _id(self) -> Optional[str]:
+        return self.id_
+
+    @property
     def product_id(self) -> Optional[str]:
         return self.product
 

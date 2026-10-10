@@ -10,7 +10,7 @@ class CartRepository:
         self.storage = get_storage("carts")
 
     async def findByUser(self, user_id: str):
-        return await self.storage.findOne({"user": user_id})
+        return await self.storage.findOne(user=user_id)
 
     async def create(self, cart_data: 'CartInternalCreate'):
         return await self.storage.create(cart_data)
