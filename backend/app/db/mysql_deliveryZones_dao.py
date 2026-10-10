@@ -1,5 +1,4 @@
-from typing import Optional, Dict, List, Any, Union, Tuple
-from collections import defaultdict
+from typing import Optional, List, Union, Tuple
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -8,6 +7,18 @@ from app.models.daos_flat import DeliveryZoneInternal, DeliveryZoneInternalCreat
 
 def now_utc():
     return datetime.now(timezone.utc)
+
+def _parse_tier_row(r) -> DeliveryChargeTierInternal:
+    max_val = (
+        float('inf')
+        if str(r.max_order_value).lower() in ("infinity", "inf")
+        else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
+    )
+    return DeliveryChargeTierInternal(
+        min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
+        max=max_val,
+        charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
+    )
 
 class MySQLDeliveryZonesDAO:
     def __init__(self):
@@ -35,11 +46,11 @@ class MySQLDeliveryZonesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            pincodes_by_zone, tiers_by_zone = await self._fetch_children(session, [int(row.id)])
+            pincodes, tiers = await self._fetch_zone_children(session, int(row.id))
             return self._map_to_schema(
                 row,
-                pincodes=pincodes_by_zone.get(int(row.id), []),
-                tiers=tiers_by_zone.get(int(row.id), []),
+                pincodes=pincodes,
+                tiers=tiers,
             )
 
     async def findByPincode(self, pincode: str, is_active: bool = True) -> Optional[DeliveryZoneInternal]:
@@ -57,28 +68,21 @@ class MySQLDeliveryZonesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            pincodes_by_zone, tiers_by_zone = await self._fetch_children(session, [int(row.id)])
+            pincodes, tiers = await self._fetch_zone_children(session, int(row.id))
             return self._map_to_schema(
                 row,
-                pincodes=pincodes_by_zone.get(int(row.id), []),
-                tiers=tiers_by_zone.get(int(row.id), []),
+                pincodes=pincodes,
+                tiers=tiers,
             )
             
-    async def findAll(self, filter_or_active: Optional[Union[dict, bool]] = None, is_active: Optional[bool] = None) -> List[DeliveryZoneInternal]:
-        active_filter = is_active
-        if active_filter is None and filter_or_active is not None:
-            if isinstance(filter_or_active, bool):
-                active_filter = filter_or_active
-            elif isinstance(filter_or_active, dict):
-                active_filter = filter_or_active.get("is_active")
-
+    async def findAll(self, is_active: Optional[bool] = None) -> List[DeliveryZoneInternal]:
         factory = self._factory()
         if not factory:
             return []
         async with factory() as session:
-            if active_filter is not None:
+            if is_active is not None:
                 sql = f"SELECT * FROM {self.TABLE} WHERE is_active = :act ORDER BY id ASC"
-                params = {"act": 1 if active_filter else 0}
+                params = {"act": 1 if is_active else 0}
             else:
                 sql = f"SELECT * FROM {self.TABLE} ORDER BY id ASC"
                 params = {}
@@ -88,12 +92,31 @@ class MySQLDeliveryZonesDAO:
             if not rows:
                 return []
                 
-            pincodes_by_zone, tiers_by_zone = await self._fetch_children(session, [int(r.id) for r in rows])
+            parent_ids = [int(r.id) for r in rows]
+            id_list = ",".join(str(i) for i in parent_ids)
+            pins_res = await session.execute(
+                text(f"SELECT parent_id, pincode FROM sj_delivery_zone_pincodes WHERE parent_id IN ({id_list}) ORDER BY id ASC")
+            )
+            all_pin_rows = pins_res.fetchall()
+
+            tiers_res = await session.execute(
+                text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_zone_tiers WHERE parent_id IN ({id_list}) ORDER BY id ASC")
+            )
+            all_tier_rows = tiers_res.fetchall()
+
             return [
                 self._map_to_schema(
                     r,
-                    pincodes=pincodes_by_zone.get(int(r.id), []),
-                    tiers=tiers_by_zone.get(int(r.id), []),
+                    pincodes=[
+                        str(pr.pincode)
+                        for pr in all_pin_rows
+                        if pr.parent_id == r.id
+                    ],
+                    tiers=[
+                        _parse_tier_row(tr)
+                        for tr in all_tier_rows
+                        if tr.parent_id == r.id
+                    ],
                 )
                 for r in rows
             ]
@@ -277,61 +300,45 @@ class MySQLDeliveryZonesDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(
-        self, session, ids: List[int]
-    ) -> Tuple[Dict[int, List[str]], Dict[int, List[DeliveryChargeTierInternal]]]:
-        pincodes_by_zone: Dict[int, List[str]] = defaultdict(list)
-        tiers_by_zone: Dict[int, List[DeliveryChargeTierInternal]] = defaultdict(list)
-        if not ids:
-            return pincodes_by_zone, tiers_by_zone
-            
-        id_list = ",".join(map(str, ids))
+    async def _fetch_zone_children(
+        self, session, parent_id: int
+    ) -> Tuple[List[str], List[DeliveryChargeTierInternal]]:
+        q_pins = text("SELECT pincode FROM sj_delivery_zone_pincodes WHERE parent_id = :pid ORDER BY id ASC")
+        res_pins = await session.execute(q_pins, {"pid": parent_id})
+        pincodes = [str(r.pincode) for r in res_pins.fetchall()]
 
-        q_pincodes = text(f"SELECT parent_id, pincode FROM sj_delivery_zone_pincodes WHERE parent_id IN ({id_list})")
-        res_pincodes = await session.execute(q_pincodes)
-        for r in res_pincodes.fetchall():
-            pincodes_by_zone[int(r.parent_id)].append(str(r.pincode))
+        q_tiers = text("SELECT min_order_value, max_order_value, charge FROM sj_delivery_zone_tiers WHERE parent_id = :pid ORDER BY id ASC")
+        res_tiers = await session.execute(q_tiers, {"pid": parent_id})
+        tiers = [_parse_tier_row(r) for r in res_tiers.fetchall()]
 
-        q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_zone_tiers WHERE parent_id IN ({id_list})")
-        res_tiers = await session.execute(q_tiers)
-        for r in res_tiers.fetchall():
-            max_val = (
-                float('inf')
-                if str(r.max_order_value).lower() in ("infinity", "inf")
-                else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
-            )
-            tiers_by_zone[int(r.parent_id)].append(
-                DeliveryChargeTierInternal(
-                    min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
-                    max=max_val,
-                    charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
-                )
-            )
-
-        return pincodes_by_zone, tiers_by_zone
+        return pincodes, tiers
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate]):
         if data.pincodes is not None:
             await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
-            for item in data.pincodes:
+            if data.pincodes:
+                pin_params = [{"parent_id": row_id, "pincode": str(item)} for item in data.pincodes]
                 await session.execute(
                     text("INSERT INTO sj_delivery_zone_pincodes (parent_id, pincode) VALUES (:parent_id, :pincode)"),
-                    {"parent_id": row_id, "pincode": str(item)}
+                    pin_params,
                 )
 
         if data.tiers is not None:
             await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": row_id})
-            for tier in data.tiers:
-                max_str = "Infinity" if tier.max is None or tier.max == float("inf") else str(tier.max)
+            if data.tiers:
+                tier_params = [
+                    {
+                        "parent_id": row_id,
+                        "min_order_value": str(tier.min if tier.min is not None else 0.0),
+                        "max_order_value": "Infinity" if tier.max is None or tier.max == float("inf") else str(tier.max),
+                        "charge": str(tier.charge if tier.charge is not None else 0.0),
+                    }
+                    for tier in data.tiers
+                ]
                 await session.execute(
                     text(
                         "INSERT INTO sj_delivery_zone_tiers (parent_id, min_order_value, max_order_value, charge) "
                         "VALUES (:parent_id, :min_order_value, :max_order_value, :charge)"
                     ),
-                    {
-                        "parent_id": row_id,
-                        "min_order_value": str(tier.min if tier.min is not None else 0.0),
-                        "max_order_value": max_str,
-                        "charge": str(tier.charge if tier.charge is not None else 0.0),
-                    }
+                    tier_params,
                 )
