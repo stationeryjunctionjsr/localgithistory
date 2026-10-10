@@ -161,9 +161,9 @@ async def test_check_serviceability_short_pincode():
     from app.routers.delivery_charges import check_serviceability
 
     result = await check_serviceability("123", "customer")
-    assert result["isServiceable"] is False
-    assert result["sellerCount"] == 0
-    assert result["slotBookingAvailable"] is False
+    assert result.is_serviceable is False
+    assert result.seller_count == 0
+    assert result.slot_booking_available is False
 
 
 @pytest.mark.asyncio
@@ -172,25 +172,25 @@ async def test_check_serviceability_non_digit_pincode():
     from app.routers.delivery_charges import check_serviceability
 
     result = await check_serviceability("ABCDEF", "customer")
-    assert result["isServiceable"] is False
+    assert result.is_serviceable is False
 
 
 @pytest.mark.asyncio
 async def test_check_serviceability_unconfigured_pincode():
-    """B3 – Valid 6-digit format but pincode not in system → not serviceable."""
+    """B3 – Valid 6-digit format but pincode not in system and not courier serviceable."""
     from app.routers.delivery_charges import check_serviceability
 
     repo_path = "app.routers.delivery_charges.delivery_charge_repository"
-    # get_zone_for_pincode is imported inside the function body from zone_seller_cache,
-    # so we patch at the source module.
     zone_path = "app.repositories.zone_seller_cache.get_zone_for_pincode"
     storage_path = "app.db.storage_factory.get_storage"
 
     with patch(zone_path, new_callable=AsyncMock) as mock_zone_fn, \
          patch(f"{repo_path}.isPincodeServiceable", new_callable=AsyncMock) as mock_svc, \
+         patch(f"{repo_path}.isPanIndiaServiceable", new_callable=AsyncMock) as mock_pan_india, \
          patch(storage_path) as mock_get_storage:
         mock_zone_fn.return_value = None   # pincode not in any zone
-        mock_svc.return_value = False      # not serviceable
+        mock_svc.return_value = False      # not serviceable in zone
+        mock_pan_india.return_value = False  # not serviceable in courier
         # Prevent slot availability check from hitting DB
         mock_slot_storage = MagicMock()
         mock_slot_storage.findAll = AsyncMock(return_value=[])
@@ -198,9 +198,9 @@ async def test_check_serviceability_unconfigured_pincode():
 
         result = await check_serviceability("999999", "customer")
 
-    assert result["isServiceable"] is False
-    assert result["pincode"] == "999999"
-    assert result["sellerCount"] == 0
+    assert result.is_serviceable is False
+    assert result.pincode == "999999"
+    assert result.seller_count == 0
 
 
 @pytest.mark.asyncio
@@ -212,17 +212,17 @@ async def test_check_serviceability_urgent_flag_propagated():
     mock_zone = DeliveryZoneResponse(id="zone_test", urgentDeliveryAvailable=True, customerType="retail", name="Zone", is_active=True, pincodes=[],)
 
     repo_path = "app.routers.delivery_charges.delivery_charge_repository"
-    # get_zone_for_pincode and get_storage are imported inside the function body,
-    # so we patch at the source module.
     zone_path = "app.repositories.zone_seller_cache.get_zone_for_pincode"
     storage_path = "app.db.storage_factory.get_storage"
 
     with patch(zone_path, new_callable=AsyncMock) as mock_zone_fn, \
          patch(f"{repo_path}.isPincodeServiceable", new_callable=AsyncMock) as mock_svc, \
+         patch(f"{repo_path}.isPanIndiaServiceable", new_callable=AsyncMock) as mock_pan_india, \
          patch(storage_path) as mock_get_storage:
 
         mock_zone_fn.return_value = mock_zone
         mock_svc.return_value = True
+        mock_pan_india.return_value = True
 
         # Slot storage mock (returns no slots so available_dates stays [])
         mock_slot_storage = MagicMock()
@@ -231,7 +231,7 @@ async def test_check_serviceability_urgent_flag_propagated():
 
         result = await check_serviceability("560001", "customer")
 
-    assert result["urgentDeliveryAvailable"] is True
+    assert result.urgent_delivery_available is True
 
 
 # ═════════════════════════════════════════════════════════════════════════════

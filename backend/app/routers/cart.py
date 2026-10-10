@@ -4,7 +4,7 @@ from app.models.schemas import CartResponse, SavedForLaterResponse, MessageRespo
 from app.models.daos import WishlistItemInternal
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
 
@@ -22,6 +22,7 @@ class CartItemRequest(CamelBaseModel):
     sell_as_case: bool = False  # Business only: price by case (MRP per case)
     session_id: Optional[str] = None
     variant_attributes: Optional[Dict[str, str]] = None
+    fulfillment_type: Optional[str] = "hyperlocal"
 
 
 class SaveForLaterRequest(CamelBaseModel):
@@ -34,8 +35,11 @@ class CartItemUpdateRequest(CamelBaseModel):
 
 @router.get("", response_model=CartResponse)
 @router.get("/", response_model=CartResponse)
-async def get_cart(current_user: User = Depends(get_current_user)):
-    """Get user's cart"""
+async def get_cart(
+    fulfillment_type: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's cart (optionally filtered by fulfillment_type: 'hyperlocal' or 'pan_india')"""
     try:
         from app.repositories.coupon_repository import coupon_repository
 
@@ -101,6 +105,17 @@ async def get_cart(current_user: User = Depends(get_current_user)):
                 }
             )
 
+        if fulfillment_type == "pan_india":
+            from app.repositories.zone_seller_cache import get_super_admin_seller_id
+            sa_id = await get_super_admin_seller_id()
+            filtered_items = []
+            for c_item in cart_items:
+                p = products_map.get(str(c_item["productId"]))
+                p_seller = p.sellers[0].seller_id if p and p.sellers else None
+                if p_seller is None or (sa_id and str(p_seller) == str(sa_id)):
+                    filtered_items.append(c_item)
+            cart_items = filtered_items
+
         subtotal = sum(i["subtotal"] for i in cart_items)
 
         # Get earliest expiry for active reservations to display countdown timer in frontend
@@ -127,6 +142,16 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         product = await product_repository.findById(item.product_id)
         if not product or not product.is_active:
             raise HTTPException(status_code=404, detail="Product not found")
+
+        if item.fulfillment_type == "pan_india":
+            from app.repositories.zone_seller_cache import get_super_admin_seller_id
+            sa_id = await get_super_admin_seller_id()
+            p_seller = product.sellers[0].seller_id if product.sellers else None
+            if p_seller and sa_id and str(p_seller) != str(sa_id):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Product '{product.name}' is sold by a local marketplace seller and cannot be shipped via Pan-India courier. Only central warehouse products can be added in Pan-India mode.",
+                )
 
         role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
 

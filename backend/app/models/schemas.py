@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, List, Literal, Optional, Union, Dict
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel, computed_field
 from app.models.base import CamelBaseModel
 
 
@@ -2229,6 +2229,36 @@ class PopulatedOrderResponse(CamelBaseModel):
     awb_code: Optional[str] = None
     shipping_label_url: Optional[str] = None
     estimated_delivery_date: Optional[datetime] = None
+
+    @computed_field(alias="fulfillment_type")
+    @property
+    def snake_fulfillment_type(self) -> Optional[str]:
+        return self.fulfillment_type
+
+    @computed_field(alias="courier_partner")
+    @property
+    def snake_courier_partner(self) -> Optional[str]:
+        return self.courier_partner
+
+    @computed_field(alias="tracking_id")
+    @property
+    def snake_tracking_id(self) -> Optional[str]:
+        return self.tracking_id
+
+    @computed_field(alias="awb_code")
+    @property
+    def snake_awb_code(self) -> Optional[str]:
+        return self.awb_code
+
+    @computed_field(alias="shipping_label_url")
+    @property
+    def snake_shipping_label_url(self) -> Optional[str]:
+        return self.shipping_label_url
+
+    @computed_field(alias="estimated_delivery_date")
+    @property
+    def snake_estimated_delivery_date(self) -> Optional[datetime]:
+        return self.estimated_delivery_date
 
     # Timestamps
     created_at: Optional[datetime] = None

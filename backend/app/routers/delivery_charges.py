@@ -276,8 +276,8 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                         break
 
     has_zone = zone is not None and bool(zone.is_active)
-    # Pan-India 1P courier delivery is supported for valid Indian 6-digit pincodes
-    has_pan_india = True
+    # Pan-India 1P courier delivery check
+    has_pan_india = await delivery_charge_repository.isPanIndiaServiceable(pincode)
 
     allowed_modes = []
     if has_zone:

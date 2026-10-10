@@ -488,6 +488,24 @@ class DeliveryChargeRepository:
         # If no default charge, return None (will be treated as 0 in order creation)
         return None
 
+    async def isPanIndiaServiceable(self, pincode: str) -> bool:
+        """
+        Check if a pincode is serviceable via standard 3PL Pan-India courier.
+        A pincode is serviceable if:
+        1. It is a valid 6-digit Indian PIN code (digits only, starting with 1-9).
+        2. If explicitly configured in sj_delivery_charges, serviceable_for_customer is not False.
+        """
+        if not pincode or len(pincode) != 6 or not pincode.isdigit() or pincode[0] == "0":
+            return False
+
+        try:
+            charge = await self.findByPincode(pincode)
+            if charge and charge.serviceable_for_customer is False and not charge.is_active:
+                return False
+        except Exception:
+            pass
+        return True
+
 
 delivery_charge_repository = DeliveryChargeRepository()
 

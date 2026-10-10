@@ -1,8 +1,7 @@
 from app.models.schemas import AddressSnippet as Address, ItemSnippet as CartItem, ItemSnippet as OrderItem
 from datetime import datetime
 from typing import Optional, List, Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from pydantic import Field, BaseModel, computed_field
 from app.models.base import CamelBaseModel
 
 class CouponInfo(CamelBaseModel):
@@ -70,6 +69,27 @@ class SubOrder(CamelBaseModel):
     courier_partner: Optional[str] = Field(default=None)
     tracking_id: Optional[str] = Field(default=None)
     awb_code: Optional[str] = Field(default=None)
+
+    @computed_field(alias="fulfillment_type")
+    @property
+    def snake_fulfillment_type(self) -> Optional[str]:
+        return self.fulfillment_type
+
+    @computed_field(alias="courier_partner")
+    @property
+    def snake_courier_partner(self) -> Optional[str]:
+        return self.courier_partner
+
+    @computed_field(alias="tracking_id")
+    @property
+    def snake_tracking_id(self) -> Optional[str]:
+        return self.tracking_id
+
+    @computed_field(alias="awb_code")
+    @property
+    def snake_awb_code(self) -> Optional[str]:
+        return self.awb_code
+
     items: List[SubOrderItem] = []
     
     # Dates
