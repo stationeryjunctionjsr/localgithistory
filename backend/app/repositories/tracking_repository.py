@@ -401,7 +401,7 @@ class TrackingRepository:
         product_ids = [v.product_id for v in unique]
         product_storage = get_storage("products")
         try:
-            products = await product_storage.findAll({"_id": {"$in": product_ids}})
+            products = await product_storage.findAll({"allowed_ids": product_ids})
             product_map = {str(p.id): p for p in products}
         except Exception:
             product_map = {}
@@ -518,7 +518,7 @@ class TrackingRepository:
         product_map: dict = {}
         if product_ids_seen:
             product_storage = get_storage("products")
-            products = await product_storage.findAll({"_id": {"$in": product_ids_seen}})
+            products = await product_storage.findAll({"allowed_ids": product_ids_seen})
             product_map = {str(p.id): p for p in products}
 
         result = []
@@ -714,11 +714,14 @@ class TrackingRepository:
                     if uid not in user_last_seen or ts > user_last_seen[uid]:
                         user_last_seen[uid] = ts
 
+        if not returning_user_ids:
+            return []
+
         # Get user details
         from app.db.storage_factory import get_storage
 
         user_storage = get_storage("users")
-        users = await user_storage.findAll({"_id": {"$in": list(returning_user_ids)}})
+        users = await user_storage.findAll({"allowed_ids": list(returning_user_ids)})
 
         return [
             {
