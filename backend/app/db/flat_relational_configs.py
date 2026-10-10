@@ -281,6 +281,9 @@ FLAT_RELATIONAL_DAOS = {
             "isActive": "is_active",
             "courierBaseCharge": "courier_base_charge",
             "courierFreeThreshold": "courier_free_threshold",
+            "hyperlocalBaseCharge": "hyperlocal_base_charge",
+            "hyperlocalFreeThreshold": "hyperlocal_free_threshold",
+            "hyperlocalUrgentDeliveryCharge": "hyperlocal_urgent_delivery_charge",
         },
         bool_keys=frozenset({"applicableToWholesaler", "applicableToRetailer", "isActive"}),
         schema_cls=DeliveryChargeDefaultInternal
@@ -294,8 +297,12 @@ FLAT_RELATIONAL_DAOS = {
             "urgentDeliveryAvailable": "urgent_delivery_available",
             "customerType": "customer_type",
             "isActive": "is_active",
+            "deliveryCharge": "delivery_charge",
+            "minCartValue": "min_cart_value",
+            "urgentDeliveryCharge": "urgent_delivery_charge",
+            "applyDefaultCharge": "apply_default_charge",
         },
-        bool_keys=frozenset({"urgentDeliveryAvailable", "isActive"}),
+        bool_keys=frozenset({"urgentDeliveryAvailable", "isActive", "applyDefaultCharge"}),
         schema_cls=DeliveryZoneInternal
     ),
     "deliverySlots": _dao(

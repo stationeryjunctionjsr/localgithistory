@@ -408,6 +408,9 @@ class DeliveryChargeDefaultInternal(CamelBaseModel):
     urgent_delivery_charge: Optional[float] = None
     courier_base_charge: Optional[float] = None
     courier_free_threshold: Optional[float] = None
+    hyperlocal_base_charge: Optional[float] = None
+    hyperlocal_free_threshold: Optional[float] = None
+    hyperlocal_urgent_delivery_charge: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
     created_at: Optional[datetime] = None
@@ -423,6 +426,9 @@ class DeliveryChargeDefaultInternalCreate(CamelBaseModel):
     urgent_delivery_charge: Optional[float] = None
     courier_base_charge: Optional[float] = None
     courier_free_threshold: Optional[float] = None
+    hyperlocal_base_charge: Optional[float] = None
+    hyperlocal_free_threshold: Optional[float] = None
+    hyperlocal_urgent_delivery_charge: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
@@ -436,6 +442,9 @@ class DeliveryChargeDefaultInternalUpdate(CamelBaseModel):
     urgent_delivery_charge: Optional[float] = None
     courier_base_charge: Optional[float] = None
     courier_free_threshold: Optional[float] = None
+    hyperlocal_base_charge: Optional[float] = None
+    hyperlocal_free_threshold: Optional[float] = None
+    hyperlocal_urgent_delivery_charge: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
@@ -449,7 +458,12 @@ class DeliveryZoneInternal(CamelBaseModel):
     urgent_delivery_available: Optional[bool] = None
     customer_type: Optional[str] = None
     is_active: Optional[bool] = None
+    delivery_charge: Optional[float] = None
+    min_cart_value: Optional[float] = None
+    urgent_delivery_charge: Optional[float] = None
+    apply_default_charge: Optional[bool] = True
     pincodes: Optional[List[str]] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -462,7 +476,12 @@ class DeliveryZoneInternalCreate(CamelBaseModel):
     urgent_delivery_available: Optional[bool] = None
     customer_type: Optional[str] = None
     is_active: Optional[bool] = None
+    delivery_charge: Optional[float] = None
+    min_cart_value: Optional[float] = None
+    urgent_delivery_charge: Optional[float] = None
+    apply_default_charge: Optional[bool] = True
     pincodes: Optional[List[str]] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliveryZoneInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -473,7 +492,12 @@ class DeliveryZoneInternalUpdate(CamelBaseModel):
     urgent_delivery_available: Optional[bool] = None
     customer_type: Optional[str] = None
     is_active: Optional[bool] = None
+    delivery_charge: Optional[float] = None
+    min_cart_value: Optional[float] = None
+    urgent_delivery_charge: Optional[float] = None
+    apply_default_charge: Optional[bool] = None
     pincodes: Optional[List[str]] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliverySlotInternal(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)

@@ -35,7 +35,14 @@ class MySQLDeliveryZonesDAO:
             conditions = []
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity', 'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type', 'is_active': 'is_active'}
+            query_map = {
+                'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity',
+                'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type',
+                'is_active': 'is_active', 'delivery_charge': 'delivery_charge', 'min_cart_value': 'min_cart_value',
+                'urgent_delivery_charge': 'urgent_delivery_charge', 'apply_default_charge': 'apply_default_charge',
+                'deliveryCharge': 'delivery_charge', 'minCartValue': 'min_cart_value',
+                'urgentDeliveryCharge': 'urgent_delivery_charge', 'applyDefaultCharge': 'apply_default_charge'
+            }
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +67,14 @@ class MySQLDeliveryZonesDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity', 'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type', 'is_active': 'is_active'}
+            query_map = {
+                'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity',
+                'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type',
+                'is_active': 'is_active', 'delivery_charge': 'delivery_charge', 'min_cart_value': 'min_cart_value',
+                'urgent_delivery_charge': 'urgent_delivery_charge', 'apply_default_charge': 'apply_default_charge',
+                'deliveryCharge': 'delivery_charge', 'minCartValue': 'min_cart_value',
+                'urgentDeliveryCharge': 'urgent_delivery_charge', 'applyDefaultCharge': 'apply_default_charge'
+            }
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -116,8 +130,25 @@ class MySQLDeliveryZonesDAO:
             cols.append("is_active")
             params["s_is_active"] = data.is_active
 
+        if data.delivery_charge is not None:
+            cols.append("delivery_charge")
+            params["s_delivery_charge"] = data.delivery_charge
+
+        if data.min_cart_value is not None:
+            cols.append("min_cart_value")
+            params["s_min_cart_value"] = data.min_cart_value
+
+        if data.urgent_delivery_charge is not None:
+            cols.append("urgent_delivery_charge")
+            params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
+
+        if data.apply_default_charge is not None:
+            cols.append("apply_default_charge")
+            params["s_apply_default_charge"] = 1 if data.apply_default_charge else 0
+
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'default_capacity', 'urgent_delivery_available', 'customer_type', 'is_active'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        zone_keys = ['name', 'description', 'default_capacity', 'urgent_delivery_available', 'customer_type', 'is_active', 'delivery_charge', 'min_cart_value', 'urgent_delivery_charge', 'apply_default_charge']
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in zone_keys if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -135,6 +166,7 @@ class MySQLDeliveryZonesDAO:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
+        data = update_data
 
         if data.name is not None:
             updates.append("name = :s_name")
@@ -160,6 +192,22 @@ class MySQLDeliveryZonesDAO:
             updates.append("is_active = :s_isActive")
             params["s_is_active"] = data.is_active
 
+        if data.delivery_charge is not None:
+            updates.append("delivery_charge = :s_delivery_charge")
+            params["s_delivery_charge"] = data.delivery_charge
+
+        if data.min_cart_value is not None:
+            updates.append("min_cart_value = :s_min_cart_value")
+            params["s_min_cart_value"] = data.min_cart_value
+
+        if data.urgent_delivery_charge is not None:
+            updates.append("urgent_delivery_charge = :s_urgent_delivery_charge")
+            params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
+
+        if data.apply_default_charge is not None:
+            updates.append("apply_default_charge = :s_apply_default_charge")
+            params["s_apply_default_charge"] = 1 if data.apply_default_charge else 0
+
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
             async with factory() as session:
@@ -181,6 +229,7 @@ class MySQLDeliveryZonesDAO:
         async with factory() as session:
 
             await session.execute(text(f"DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text(f"DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -221,6 +270,18 @@ class MySQLDeliveryZonesDAO:
                 c_map[r.parent_id]["pincodes"] = []
             c_map[r.parent_id]["pincodes"].append(r[1])
 
+        q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_zone_tiers WHERE parent_id IN ({id_list})")
+        res_tiers = await session.execute(q_tiers)
+        for r in res_tiers.fetchall():
+            if "tiers" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["tiers"] = []
+            max_val = "Infinity" if str(r.max_order_value).lower() in ("infinity", "inf") else (float(r.max_order_value) if str(r.max_order_value).replace('.','',1).isdigit() else r.max_order_value)
+            c_map[r.parent_id]["tiers"].append({
+                "min": float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.','',1).isdigit() else 0.0,
+                "max": max_val,
+                "charge": float(r.charge) if r.charge and str(r.charge).replace('.','',1).isdigit() else 0.0
+            })
+
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
@@ -232,3 +293,16 @@ class MySQLDeliveryZonesDAO:
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_delivery_zone_pincodes (parent_id, pincode) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, 'tiers') and data.tiers is not None:
+            await session.execute(text(f"DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": row_id})
+            child_tiers = data.tiers or []
+
+            for tier in child_tiers:
+                t_min = str(getattr(tier, 'min', None) if getattr(tier, 'min', None) is not None else (tier.get('min', '0') if isinstance(tier, dict) else '0'))
+                t_max = str(getattr(tier, 'max', None) if getattr(tier, 'max', None) is not None else (tier.get('max', 'Infinity') if isinstance(tier, dict) else 'Infinity'))
+                t_chg = str(getattr(tier, 'charge', None) if getattr(tier, 'charge', None) is not None else (tier.get('charge', '0') if isinstance(tier, dict) else '0'))
+                await session.execute(
+                    text("INSERT INTO sj_delivery_zone_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :min_val, :max_val, :charge)"),
+                    {"id": row_id, "min_val": t_min, "max_val": t_max, "charge": t_chg}
+                )

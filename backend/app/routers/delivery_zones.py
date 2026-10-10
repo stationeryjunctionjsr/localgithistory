@@ -1,7 +1,7 @@
 from app.models.daos_flat import DeliveryZoneInternalUpdate
 from app.models.user import User
 
-from app.models.schemas import MessageResponse, DeliveryZoneResponse
+from app.models.schemas import MessageResponse, DeliveryZoneResponse, DeliveryTier
 from app.models.daos_flat import DeliveryZoneInternalCreate
 """
 Delivery Zones router.
@@ -43,6 +43,11 @@ class ZoneCreate(BaseModel):
     urgentDeliveryAvailable: bool = False
     isActive: bool = True
     customerType: str = "retail"  # "retail" | "business" | "both"
+    deliveryCharge: Optional[float] = None
+    minCartValue: Optional[float] = None
+    urgentDeliveryCharge: Optional[float] = None
+    applyDefaultCharge: Optional[bool] = True
+    tiers: Optional[List[DeliveryTier]] = None
 
 
 class ZoneUpdate(BaseModel):
@@ -53,6 +58,11 @@ class ZoneUpdate(BaseModel):
     urgentDeliveryAvailable: Optional[bool] = None
     isActive: Optional[bool] = None
     customerType: Optional[str] = None  # "retail" | "business" | "both"
+    deliveryCharge: Optional[float] = None
+    minCartValue: Optional[float] = None
+    urgentDeliveryCharge: Optional[float] = None
+    applyDefaultCharge: Optional[bool] = None
+    tiers: Optional[List[DeliveryTier]] = None
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

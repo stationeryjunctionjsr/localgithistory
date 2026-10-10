@@ -893,6 +893,9 @@ class DefaultDeliveryChargeBase(CamelBaseModel):
     urgent_delivery_charge: Optional[float] = None
     courier_base_charge: Optional[float] = 60.0
     courier_free_threshold: Optional[float] = 499.0
+    hyperlocal_base_charge: Optional[float] = 40.0
+    hyperlocal_free_threshold: Optional[float] = 300.0
+    hyperlocal_urgent_delivery_charge: Optional[float] = 50.0
 
 
 class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):
@@ -1962,6 +1965,11 @@ class DeliveryZoneResponse(CamelBaseModel):
     urgent_delivery_available: Optional[bool] = False
     is_active: Optional[bool] = True
     customer_type: Optional[str] = "retail"
+    delivery_charge: Optional[float] = None
+    min_cart_value: Optional[float] = None
+    urgent_delivery_charge: Optional[float] = None
+    apply_default_charge: Optional[bool] = True
+    tiers: Optional[List[DeliveryTier]] = None
 
 
 class EligibleFeedbackResponse(CamelBaseModel):
