@@ -76,8 +76,8 @@ class MySQLBrandDAO:
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> Optional[BrandResponse]:
-        docs = await self.findAll(id=id, slug=slug, is_active=is_active, name=name)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, slug=slug, is_active=is_active, name=name)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[BrandResponse]:
         return await self.findOne(id=id)
@@ -182,8 +182,8 @@ class MySQLBrandDAO:
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> int:
-        docs = await self.findAll(is_active=is_active, name=name)
-        return len(docs)
+        records = await self.findAll(is_active=is_active, name=name)
+        return len(records)
 
     find_all = findAll
     find_by_id = findById

@@ -110,8 +110,8 @@ class MySQLAdDAO:
     ) -> Optional[Ad]:
         if id is not None:
             return await self.findById(str(id))
-        docs = await self.findAll(status=status, platform=platform, name=name)
-        return docs[0] if docs else None
+        records = await self.findAll(status=status, platform=platform, name=name)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Ad]:
         factory = self._factory()

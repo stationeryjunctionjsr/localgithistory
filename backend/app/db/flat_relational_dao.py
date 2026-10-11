@@ -156,8 +156,8 @@ class FlatRelationalDAO:
         return [self._map_to_schema(r) for r in rows]
 
     async def findOne(self, id: Optional[Union[int, str]] = None) -> Optional[Any]:
-        docs = await self.findAll(id=id)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
@@ -207,7 +207,7 @@ class FlatRelationalDAO:
                 {"eid": bind_params["external_id"]},
             )
             row = result.fetchone()
-        new_id = row[0] if row else None
+        new_id = row.id if row else None
         if new_id is None:
             raise RuntimeError("Could not obtain new row id after insert")
         return await self.findById(str(new_id))

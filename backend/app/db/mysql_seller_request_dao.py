@@ -164,8 +164,8 @@ class MySQLSellerRequestDAO:
         status: Optional[str] = None,
         priority: Optional[str] = None,
     ) -> Optional[SellerRequest]:
-        docs = await self.findAll(id=id, user=user, status=status, priority=priority)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, user=user, status=status, priority=priority)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[SellerRequest]:
         if str(id).isdigit():

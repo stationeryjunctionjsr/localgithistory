@@ -126,8 +126,8 @@ class MySQLCartDAO:
         user: Optional[str] = None,
         external_id: Optional[str] = None,
     ) -> Optional[Cart]:
-        docs = await self.findAll(id=id, user=user, external_id=external_id)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, user=user, external_id=external_id)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Cart]:
         return await self.findOne(id=id)
@@ -347,10 +347,10 @@ class MySQLCartDAO:
             return result.rowcount > 0
 
     async def deleteMany(self, user: Optional[str] = None) -> int:
-        docs = await self.findAll(user=user)
+        records = await self.findAll(user=user)
         deleted = 0
-        for d in docs:
-            if d.id and await self.delete(d.id):
+        for r in records:
+            if r.id and await self.delete(r.id):
                 deleted += 1
         return deleted
 

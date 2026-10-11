@@ -36,7 +36,7 @@ class MySQLCategoryDAO:
             is_active=bool(r.is_active) if r.is_active is not None else True,
             show_in_mobile_homepage=bool(r.show_in_mobile_homepage) if r.show_in_mobile_homepage is not None else False,
             category_tag=r.category_tag,
-            category_tag_id=r.category_tag_id if hasattr(r, "category_tag_id") else None,
+            category_tag_id=r.category_tag_id,
             minimum_quantity=r.minimum_quantity,
             gst=float(r.gst) if r.gst is not None else None,
             is_returnable=bool(r.is_returnable) if r.is_returnable is not None else True,
@@ -124,7 +124,7 @@ class MySQLCategoryDAO:
         if not factory:
             return []
 
-        if isinstance(name, dict):
+        if type(name) is dict:
             query = name
             name = None
 
@@ -181,7 +181,7 @@ class MySQLCategoryDAO:
         is_active: Optional[bool] = None,
         query: Optional[Dict] = None,
     ) -> Optional[Category]:
-        if isinstance(id, dict):
+        if type(id) is dict:
             query = id
             id = None
         if id:
@@ -189,8 +189,8 @@ class MySQLCategoryDAO:
         if query and ("_id" in query or "id" in query):
             q_id = query["_id"] if "_id" in query else query["id"]
             return await self.findById(q_id)
-        docs = await self.findAll(name=name, category_tag=category_tag, is_active=is_active, query=query)
-        return docs[0] if docs else None
+        records = await self.findAll(name=name, category_tag=category_tag, is_active=is_active, query=query)
+        return records[0] if records else None
 
     async def findById(self, id: Union[int, str]) -> Optional[Category]:
         if not id:
@@ -279,7 +279,7 @@ class MySQLCategoryDAO:
                 )
                 new_tag_id = res_tid.scalar()
             elif new_tag_id is None:
-                new_tag_id = getattr(existing, "category_tag_id", None)
+                new_tag_id = existing.category_tag_id
 
             await session.execute(
                 text(

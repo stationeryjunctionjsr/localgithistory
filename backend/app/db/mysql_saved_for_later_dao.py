@@ -48,10 +48,10 @@ class MySQLSavedForLaterDAO:
             rows = result.fetchall()
         return [
             SavedForLaterItem(
-                product=str(r[0]),
-                product_id=str(r[0]),
-                created_at=r[1],
-                saved_at=r[1],
+                product=str(r.product_id),
+                product_id=str(r.product_id),
+                created_at=r.saved_at,
+                saved_at=r.saved_at,
             )
             for r in rows
         ]
@@ -76,15 +76,15 @@ class MySQLSavedForLaterDAO:
 
         user_items = {}
         for r in rows:
-            uid = str(r[0])
+            uid = str(r.user_id)
             if uid not in user_items:
                 user_items[uid] = []
             user_items[uid].append(
                 SavedForLaterItem(
-                    product=str(r[1]),
-                    product_id=str(r[1]),
-                    created_at=r[2],
-                    saved_at=r[2],
+                    product=str(r.product_id),
+                    product_id=str(r.product_id),
+                    created_at=r.saved_at,
+                    saved_at=r.saved_at,
                 )
             )
         return [self._map_to_schema(uid, items) for uid, items in user_items.items()]

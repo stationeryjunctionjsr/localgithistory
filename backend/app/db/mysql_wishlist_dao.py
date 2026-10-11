@@ -97,8 +97,8 @@ class MySQLWishlistDAO:
         user: Optional[Union[int, str]] = None,
         external_id: Optional[str] = None,
     ) -> Optional[Wishlist]:
-        docs = await self.findAll(id=id, user=user, external_id=external_id)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, user=user, external_id=external_id)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Wishlist]:
         return await self.findOne(id=id)
@@ -166,10 +166,10 @@ class MySQLWishlistDAO:
 
     async def deleteMany(self, user: Optional[Union[int, str]] = None) -> int:
         factory = self._factory()
-        docs = await self.findAll(user=user)
-        if not docs:
+        records = await self.findAll(user=user)
+        if not records:
             return 0
-        wids = [int(d.id) for d in docs if str(d.id or "").isdigit()]
+        wids = [int(r.id) for r in records if str(r.id or "").isdigit()]
         if not wids:
             return 0
         async with factory() as session:

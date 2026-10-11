@@ -281,9 +281,9 @@ class MySQLSupportTicketsDAO:
     def _map_to_schema(self, r, rows_attachments, rows_responses) -> 'SupportTicketInternal':
         row_id = int(r.id)
         user_val = str(r.user_id) if r.user_id is not None else None
-        attachments = [ra[1] for ra in rows_attachments if int(ra.parent_id) == row_id]
+        attachments = [ra.url for ra in rows_attachments if int(ra.parent_id) == row_id]
         responses = [
-            TicketResponseItemInternal(user=rr[1], message=rr[2])
+            TicketResponseItemInternal(user=rr.admin_id, message=rr.message)
             for rr in rows_responses
             if int(rr.parent_id) == row_id
         ]
@@ -326,7 +326,7 @@ class MySQLSupportTicketsDAO:
 
         return rows_attachments, rows_responses
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, row_id: int, data: Union[SupportTicketInternalCreate, SupportTicketInternalUpdate]):
 
         if data.attachments is not None:
             await session.execute(text(f"DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": row_id})

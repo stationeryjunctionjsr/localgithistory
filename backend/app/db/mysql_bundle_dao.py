@@ -15,7 +15,7 @@ class MySQLBundleDAO:
             result = await session.execute(
                 text("SELECT product_id, quantity FROM sj_bundle_products WHERE bundle_id = :b_id"), {"b_id": bundle_id}
             )
-            return [BundleItemResponse(productId=row[0], quantity=row[1]) for row in result.all()]
+            return [BundleItemResponse(productId=row.product_id, quantity=row.quantity) for row in result.all()]
 
     async def _save_products(self, bundle_id: str, products: List[BundleItemInternal]):
         async_session = get_async_session_factory()

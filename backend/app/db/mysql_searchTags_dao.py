@@ -194,12 +194,12 @@ class MySQLSearchTagsDAO:
     def _map_to_schema(self, r, child_rows=None) -> 'SearchTagInternal':
         if child_rows:
             rows_categories, rows_subcats, rows_brands, rows_collections, rows_products, rows_ex_products = child_rows
-            categories = [cr[1] for cr in rows_categories if cr.parent_id == r.id]
-            sub_categories = [cr[1] for cr in rows_subcats if cr.parent_id == r.id]
-            brands = [cr[1] for cr in rows_brands if cr.parent_id == r.id]
-            collections = [cr[1] for cr in rows_collections if cr.parent_id == r.id]
-            product_ids = [cr[1] for cr in rows_products if cr.parent_id == r.id]
-            excluded_product_ids = [cr[1] for cr in rows_ex_products if cr.parent_id == r.id]
+            categories = [cr.category for cr in rows_categories if cr.parent_id == r.id]
+            sub_categories = [cr.sub_category for cr in rows_subcats if cr.parent_id == r.id]
+            brands = [cr.brand for cr in rows_brands if cr.parent_id == r.id]
+            collections = [cr.collection for cr in rows_collections if cr.parent_id == r.id]
+            product_ids = [cr.product_id for cr in rows_products if cr.parent_id == r.id]
+            excluded_product_ids = [cr.product_id for cr in rows_ex_products if cr.parent_id == r.id]
         else:
             categories = []
             sub_categories = []
@@ -257,7 +257,7 @@ class MySQLSearchTagsDAO:
             rows_excludedProductIds,
         )
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, row_id: int, data: Union[SearchTagInternalCreate, SearchTagInternalUpdate]):
 
         if data.categories is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": row_id})

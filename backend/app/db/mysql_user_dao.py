@@ -125,7 +125,7 @@ class MySQLUserDAO:
         address = data.address
         saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
         if address:
-            addr_obj = AddressSnippet.model_validate(address) if isinstance(address, dict) else address
+            addr_obj = AddressSnippet.model_validate(address)
             params = {
                 'uid': uid,
                 'st': addr_obj.street,
@@ -150,7 +150,7 @@ class MySQLUserDAO:
                 raise e
         for a in saved_addresses:
             if a != address:
-                a_obj = AddressSnippet.model_validate(a) if isinstance(a, dict) else a
+                a_obj = AddressSnippet.model_validate(a)
                 a_params = {
                     'uid': uid,
                     'st': a_obj.street,
@@ -191,9 +191,9 @@ class MySQLUserDAO:
                 await session.rollback()
                 raise e
         from app.models.user import User
-        docs = [UserResponse.model_validate(_map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
+        records = [UserResponse.model_validate(_map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
         pass
-        return docs
+        return records
 
     async def findOne(self, query: Dict) -> Optional[User]:
         if set(query.keys()) in ({'_id'}, {'id'}):
@@ -204,8 +204,8 @@ class MySQLUserDAO:
             return await self.findByPhone(query['phone'])
         if set(query.keys()) == {'referral_code'} and (query['referral_code'] if 'referral_code' in query else None):
             return await self.findByReferralCode(query['referral_code'])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[User]:
         factory = self._factory()

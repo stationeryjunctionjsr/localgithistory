@@ -75,8 +75,8 @@ class MySQLFeatureFlagDAO:
         enabled: Optional[bool] = None,
         category: Optional[str] = None,
     ) -> Optional[FeatureFlag]:
-        docs = await self.findAll(id=id, flag_id=flag_id, name=name, enabled=enabled, category=category)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, flag_id=flag_id, name=name, enabled=enabled, category=category)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[FeatureFlag]:
         return await self.findOne(id=id)
@@ -176,8 +176,8 @@ class MySQLFeatureFlagDAO:
         enabled: Optional[bool] = None,
         category: Optional[str] = None,
     ) -> int:
-        docs = await self.findAll(enabled=enabled, category=category)
-        return len(docs)
+        records = await self.findAll(enabled=enabled, category=category)
+        return len(records)
 
     find_all = findAll
     find_by_id = findById

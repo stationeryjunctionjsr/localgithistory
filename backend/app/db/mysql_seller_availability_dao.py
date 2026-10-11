@@ -246,7 +246,7 @@ class MySQLSellerAvailabilityDAO:
         """)
         async with factory() as session:
             result = await session.execute(sql, {"check_time": check_time})
-            return {str(row[0]) for row in result.fetchall() if row[0]}
+            return {str(row.seller_id) for row in result.fetchall() if row.seller_id}
 
     async def get_latest_unavailable_until(
         self, seller_ids: set[str], as_of: Optional[datetime] = None
@@ -294,7 +294,7 @@ class MySQLSellerAvailabilityDAO:
         for i, sid in enumerate(sids):
             params[f"sid_{i}"] = str(sid)
         sql = text(f"""
-            SELECT seller_id, MAX(end_at) FROM {self.table_name}
+            SELECT seller_id, MAX(end_at) AS max_end_at FROM {self.table_name}
             WHERE seller_id IN ({', '.join(phs)})
               AND status IN ('scheduled', 'active')
               AND start_at <= :check_time
@@ -305,7 +305,7 @@ class MySQLSellerAvailabilityDAO:
             result = await session.execute(sql, params)
             output = {}
             for row in result.fetchall():
-                sid, val = str(row[0]), row[1]
+                sid, val = str(row.seller_id), row.max_end_at
                 dt = _to_dt(val)
                 if dt:
                     output[sid] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")

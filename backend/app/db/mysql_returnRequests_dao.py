@@ -252,12 +252,12 @@ class MySQLReturnRequestsDAO:
         if child_rows:
             rows_items, rows_declines = child_rows
             items = [
-                ReturnRequestItemInternal(product_id=ir[1], quantity=ir[2], reason=ir[3])
+                ReturnRequestItemInternal(product_id=ir.product_id, quantity=ir.quantity, reason=ir.reason)
                 for ir in rows_items
                 if ir.parent_id == r.id
             ]
             valet_decline_history = [
-                ReturnRequestValetDeclineInternal(valet_id=dr[1], reason=dr[2])
+                ReturnRequestValetDeclineInternal(valet_id=dr.valet_id, reason=dr.reason)
                 for dr in rows_declines
                 if dr.parent_id == r.id
             ]

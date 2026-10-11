@@ -44,11 +44,11 @@ class MySQLProductDAO:
             stock=int(r.stock) if r.stock is not None else 0,
             rating=float(r.rating) if r.rating is not None else 0.0,
             reviews=int(r.reviews) if r.reviews is not None else 0,
-            weight_grams=int(r.weight_grams) if hasattr(r, "weight_grams") and r.weight_grams is not None else 200,
-            length_cm=float(r.length_cm) if hasattr(r, "length_cm") and r.length_cm is not None else None,
-            width_cm=float(r.width_cm) if hasattr(r, "width_cm") and r.width_cm is not None else None,
-            height_cm=float(r.height_cm) if hasattr(r, "height_cm") and r.height_cm is not None else None,
-            hsn_code=str(r.hsn_code) if hasattr(r, "hsn_code") and r.hsn_code is not None else None,
+            weight_grams=int(r.weight_grams) if r.weight_grams is not None else 200,
+            length_cm=float(r.length_cm) if r.length_cm is not None else None,
+            width_cm=float(r.width_cm) if r.width_cm is not None else None,
+            height_cm=float(r.height_cm) if r.height_cm is not None else None,
+            hsn_code=str(r.hsn_code) if r.hsn_code is not None else None,
             images=children["images"] if "images" in children else [],
             videos=children["videos"] if "videos" in children else [],
             is_active=bool(r.is_active) if r.is_active is not None else True,
@@ -408,8 +408,8 @@ class MySQLProductDAO:
     async def findOne(self, query: dict) -> Optional[Product]:
         if set(query.keys()) in ({"_id"}, {"id"}):
             return await self.findById((query["_id"] if "_id" in query else None) or (query["id"] if "id" in query else None))
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Product]:
         factory = self._factory()
@@ -589,11 +589,11 @@ class MySQLProductDAO:
                     "is_active": 1 if data.is_active else 0,
                     "rating": data.rating if data.rating is not None else 0.0,
                     "reviews": data.reviews if data.reviews is not None else 0,
-                    "weight_grams": getattr(data, "weight_grams", 200) or 200,
-                    "length_cm": getattr(data, "length_cm", None),
-                    "width_cm": getattr(data, "width_cm", None),
-                    "height_cm": getattr(data, "height_cm", None),
-                    "hsn_code": getattr(data, "hsn_code", None),
+                    "weight_grams": data.weight_grams or 200,
+                    "length_cm": data.length_cm,
+                    "width_cm": data.width_cm,
+                    "height_cm": data.height_cm,
+                    "hsn_code": data.hsn_code,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -693,10 +693,10 @@ class MySQLProductDAO:
             return result.rowcount > 0
 
     async def deleteMany(self, query: dict) -> dict:
-        docs = await self.findAll(query)
+        records = await self.findAll(query)
         deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
+        for r in records:
+            if await self.delete(r._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

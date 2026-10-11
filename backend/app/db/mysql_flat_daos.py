@@ -56,8 +56,8 @@ class MySQLReturnSettingsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> 'ReturnSettingsInternal':
         factory = self._factory()
@@ -196,8 +196,8 @@ class MySQLOrderFeedbackDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[OrderFeedbackResponse]:
         factory = self._factory()
@@ -355,8 +355,8 @@ class MySQLPromoStripsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[PromoStripResponse]:
         factory = self._factory()
@@ -518,8 +518,8 @@ class MySQLPushNotificationsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> 'PushNotificationsInternal':
         factory = self._factory()
@@ -724,8 +724,8 @@ class MySQLCoachMarksDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> 'CoachMarksInternal':
         factory = self._factory()
@@ -883,8 +883,8 @@ class MySQLCategoryTagsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[CategoryTagResponse]:
         factory = self._factory()
@@ -1023,8 +1023,8 @@ class MySQLGoogle_reviewsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> 'Google_reviewsInternal':
         factory = self._factory()
@@ -1164,8 +1164,8 @@ class MySQLStockReservationsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[StockReservation]:
         factory = self._factory()
@@ -1347,8 +1347,8 @@ class MySQLProductNotificationsDAO:
         email: Optional[str] = None,
         status: Optional[str] = None,
     ) -> Optional[ProductNotificationsInternal]:
-        docs = await self.findAll(product_id=product_id, user_id=user_id, email=email, status=status)
-        return docs[0] if docs else None
+        records = await self.findAll(product_id=product_id, user_id=user_id, email=email, status=status)
+        return records[0] if records else None
 
     async def findById(self, id: Union[int, str]) -> Optional[ProductNotificationsInternal]:
         factory = self._factory()
@@ -1464,9 +1464,6 @@ class MySQLProductReviewsDAO:
             rating=row.rating,
             reviewText=row.review_text,
             status=row.status,
-            userName=getattr(row, "user_name", None),
-            classification=getattr(row, "classification", None),
-
             createdAt=row.created_at.isoformat() if row.created_at else None,
             updatedAt=row.updated_at.isoformat() if row.updated_at else None,
         )
@@ -1507,8 +1504,8 @@ class MySQLProductReviewsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[ProductReviewResponse]:
         factory = self._factory()
@@ -1654,8 +1651,8 @@ class MySQLClassificationTagsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[ClassificationTagResponse]:
         factory = self._factory()
@@ -1791,8 +1788,8 @@ class MySQLReviewClassificationsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[ClassificationTagResponse]:
         factory = self._factory()
@@ -1938,8 +1935,8 @@ class MySQLAboutUsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional['AboutUsInternal']:
         factory = self._factory()
@@ -2085,8 +2082,8 @@ class MySQLPrivacyPolicyDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional['PrivacyPolicyInternal']:
         factory = self._factory()
@@ -2278,8 +2275,8 @@ class MySQLAvailabilityRequestsDAO:
         return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, filters: Optional[AvailabilityRequestFilter] = None) -> Optional[AvailabilityRequestResponse]:
-        docs = await self.findAll(filters=filters, limit=1)
-        return docs[0] if docs else None
+        records = await self.findAll(filters=filters, limit=1)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[AvailabilityRequestResponse]:
         factory = self._factory()
@@ -2446,8 +2443,8 @@ class MySQLPincodeSearchesDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional['PincodeSearchesInternal']:
         factory = self._factory()
@@ -2599,8 +2596,8 @@ class MySQLSystemSettingsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[SystemSettingsResponse]:
         factory = self._factory()
@@ -2745,8 +2742,8 @@ class MySQLValetPayoutSettingsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> 'ValetPayoutSettingsInternal':
         factory = self._factory()

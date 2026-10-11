@@ -213,8 +213,8 @@ class MySQLOrderDAO:
             return [self.__map_to_schema(r, items_rows, declines_rows) for r in rows]
 
     async def findOne(self, filter: Optional[OrderFilter] = None) -> Optional[Order]:
-        docs = await self.findAll(filter)
-        return docs[0] if docs else None
+        records = await self.findAll(filter)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Order]:
         factory = self._factory()

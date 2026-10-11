@@ -133,8 +133,8 @@ class MySQLCustomerSegmentDAO:
         pk = int(id) if str(id).isdigit() else None
         if pk is None: return None
         
-        doc = await self.findById(id)
-        if not doc: return None
+        record = await self.findById(id)
+        if not record: return None
         
         updates = ["updated_at = :u"]
         params = {"id": pk, "u": now_utc()}
@@ -164,7 +164,7 @@ class MySQLCustomerSegmentDAO:
                 await session.commit()
                 
         if update_data.user_ids is not None:
-            await self._save_user_ids(doc.external_id, update_data.user_ids)
+            await self._save_user_ids(record.external_id, update_data.user_ids)
             
         return await self.findById(id)
 

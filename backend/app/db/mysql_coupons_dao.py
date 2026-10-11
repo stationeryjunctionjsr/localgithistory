@@ -436,7 +436,7 @@ class MySQLCouponsDAO:
             rows = res.fetchall()
             max_num = 0
             for r in rows:
-                code_str = r[0] or ""
+                code_str = r.code or ""
                 if code_str.startswith(prefix):
                     try:
                         num = int(code_str[len(prefix):])
