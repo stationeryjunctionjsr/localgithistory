@@ -17,6 +17,8 @@ from app.db.storage_factory import get_storage
 from app.utils.auth import get_optional_user, require_super_admin
 from app.utils.logger import logger
 
+from app.models.availability_requests import AvailabilityRequestFilter
+
 router = APIRouter()
 
 _storage = get_storage("availabilityRequests")
@@ -79,16 +81,15 @@ async def list_availability_requests(
     if status_filter and status_filter != "pending":
         return AvailabilityRequestListResponse(requests=[], total=0, page=page, limit=limit)
 
-    query = {}
-    if pincode:
-        query["pincode"] = pincode.strip()
-    if productId:
-        query["productId"] = productId.strip()
+    filters = AvailabilityRequestFilter(
+        pincode=pincode.strip() if pincode else None,
+        product_id=productId.strip() if productId else None,
+    )
 
     skip = (page - 1) * limit
-    total = await _storage.count(query)
+    total = await _storage.count(filters)
     paginated = await _storage.findAll(
-        query=query,
+        filters=filters,
         skip=skip,
         limit=limit,
         order_by="created_at DESC, id DESC",

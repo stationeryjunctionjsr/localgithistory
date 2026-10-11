@@ -98,13 +98,68 @@ class RecommendationConfig(CamelBaseModel):
 
 class FavouritesCacheResult(CamelBaseModel):
     product_ids: List[str] = Field(default_factory=list)
-    updated_at: str
+    updated_at: str = Field(default="")
+
+    def __getitem__(self, item: str):
+        mapping = {
+            "product_ids": self.product_ids,
+            "productIds": self.product_ids,
+            "updated_at": self.updated_at,
+            "updatedAt": self.updated_at,
+        }
+        if item in mapping:
+            return mapping[item]
+        raise KeyError(item)
+
+    def __contains__(self, item: str):
+        return item in ("product_ids", "productIds", "updated_at", "updatedAt")
 
 
 class FavouritesRankedResult(CamelBaseModel):
     ranked_ids: List[Tuple[str, float]] = Field(default_factory=list)
     states: List[str] = Field(default_factory=list)
     cities: List[str] = Field(default_factory=list)
+
+    def __getitem__(self, item: str):
+        mapping = {
+            "ranked_ids": self.ranked_ids,
+            "rankedIds": self.ranked_ids,
+            "states": self.states,
+            "cities": self.cities,
+        }
+        if item in mapping:
+            return mapping[item]
+        raise KeyError(item)
+
+    def __contains__(self, item: str):
+        return item in ("ranked_ids", "rankedIds", "states", "cities")
+
+
+class TrendingCacheResult(CamelBaseModel):
+    customer: Optional[FavouritesCacheResult] = None
+    wholesaler: Optional[FavouritesCacheResult] = None
+    guest: Optional[FavouritesCacheResult] = None
+    retail: Optional[FavouritesCacheResult] = None
+
+    def get(self, segment: str, default: Optional[FavouritesCacheResult] = None) -> Optional[FavouritesCacheResult]:
+        if segment == "customer":
+            return self.customer or self.retail or default
+        if segment == "retail":
+            return self.retail or self.customer or default
+        if segment in ("wholesaler", "business"):
+            return self.wholesaler or default
+        if segment == "guest":
+            return self.guest or default
+        return default
+
+    def __getitem__(self, segment: str) -> Optional[FavouritesCacheResult]:
+        res = self.get(segment)
+        if res is not None:
+            return res
+        raise KeyError(segment)
+
+    def __contains__(self, segment: str) -> bool:
+        return self.get(segment) is not None
 
 
 class BundleRecommendationItem(CamelBaseModel):

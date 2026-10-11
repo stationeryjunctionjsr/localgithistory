@@ -352,18 +352,8 @@ class TrackingRepository:
             )
         )
 
-    async def getSessionsCount(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
-        sessions = await self.findAll({"type": "session"}, limit=self._ANALYTICS_LIMIT)
-
-        count = 0
-        for s in sessions:
-            ts = self._parse_timestamp(s.timestamp)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-            count += 1
-        return count
+    async def getSessionsCount(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> int:
+        return await self.storage.get_sessions_count(start_date=start_date, end_date=end_date)
 
     async def getRecentlyViewedProducts(
         self,
@@ -381,178 +371,31 @@ class TrackingRepository:
         if not user_id and not session_id:
             return []
 
-        views = await self.findAll(
-            event_type="product_view",
+        return await self.storage.get_recently_viewed_products(
             user_id=str(user_id) if user_id else None,
             session_id=session_id if not user_id else None,
-            limit=500,
+            limit=limit,
         )
-
-        # Sort newest-first, dedupe by product_id keeping first occurrence
-        views_sorted = sorted(
-            views,
-            key=lambda v: v.timestamp if v.timestamp else "",
-            reverse=True,
-        )
-        seen: set = set()
-        unique: list = []
-        for v in views_sorted:
-            pid = v.product_id
-            if pid and pid not in seen:
-                seen.add(pid)
-                unique.append(v)
-            if len(unique) >= limit:
-                break
-
-        if not unique:
-            return []
-
-        # Enrich with product data (image + price)
-        product_ids = [v.product_id for v in unique]
-        product_storage = get_storage("products")
-        try:
-            products = await product_storage.findAll({"allowed_ids": product_ids})
-            product_map = {str(p.id): p for p in products}
-        except Exception:
-            product_map = {}
-
-        result = []
-        for v in unique:
-            pid = v.product_id
-            product = product_map[str(pid)] if str(pid) in product_map else None
-            display_image = None
-            price = None
-            if product:
-                imgs = product.images or []
-                if imgs:
-                    first_img = imgs[0]
-                    display_image = first_img if isinstance(first_img, str) else first_img.url
-                price = product.price
-            result.append(
-                RecentlyViewedProductItem(
-                    product_id=pid,
-                    product_name=v.product_name or (product.name if product else ""),
-                    display_image=display_image,
-                    price=float(price) if price is not None else None,
-                )
-            )
-
-        return result
 
     async def getTopProducts(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[TopProductItem]:
-        views = await self.findAll(event_type="product_view", limit=self._ANALYTICS_LIMIT)
-        product_counts: dict[str, TopProductItem] = {}
-
-        for v in views:
-            ts = self._parse_timestamp(v.timestamp)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-
-            pid = v.product_id
-            name = v.product_name if v.product_name is not None else "Unknown"
-            if pid:
-                if pid not in product_counts:
-                    product_counts[pid] = TopProductItem(
-                        product_id=pid, product_name=name, views=0
-                    )
-                product_counts[pid].views += 1
-
-        return sorted(product_counts.values(), key=lambda x: x.views, reverse=True)[:limit]
+        return await self.storage.get_top_products(limit=limit, start_date=start_date, end_date=end_date)
 
     async def getDropOffs(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[DropOffPointItem]:
-        drop_offs = await self.storage.find_by_date_range("drop_off", start_date, end_date)
-        drop_off_counts: dict[str, DropOffPointItem] = {}
-
-        for d in drop_offs:
-            page = d.page or "unknown"
-            if page not in drop_off_counts:
-                drop_off_counts[page] = DropOffPointItem(page=page, count=0, reasons={})
-            drop_off_counts[page].count += 1
-
-            reason = d.reason if d.reason is not None else None
-            if reason:
-                if reason not in drop_off_counts[page].reasons:
-                    drop_off_counts[page].reasons[reason] = 0
-                drop_off_counts[page].reasons[reason] += 1
-
-        return sorted(drop_off_counts.values(), key=lambda x: x.count, reverse=True)[:limit]
+        return await self.storage.get_drop_offs(limit=limit, start_date=start_date, end_date=end_date)
 
     async def getCartAbandonments(
         self, limit: int = 100, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
-        filtered = await self.storage.find_by_date_range("cart_abandonment", start_date, end_date)
-        return sorted(filtered, key=lambda x: x.timestamp or "", reverse=True)[:limit]
+    ) -> List[Tracking]:
+        return await self.storage.get_cart_abandonments(limit=limit, start_date=start_date, end_date=end_date)
 
     async def getMostAbandonedProducts(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[MostAbandonedProductItem]:
-        abandonments = await self.findAll(event_type="cart_abandonment", limit=self._ANALYTICS_LIMIT)
-
-        from app.db.storage_factory import get_storage
-
-        abandoned_products: dict = {}
-        for a in abandonments:
-            ts = self._parse_timestamp(a.timestamp)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-
-            items = a.cartItems if a.cartItems is not None else []
-            for item in items:
-                # Zero Data Stripping: Strict dot notation
-                pid = item.product if item.product else item.product_id
-
-                if not pid:
-                    continue
-
-                if pid not in abandoned_products:
-                    abandoned_products[pid] = {
-                        "productId": pid,
-                        "abandonCount": 0,
-                        "quantityAbandoned": 0,
-                        "valueLost": 0.0,
-                    }
-
-                q = item.quantity if item.quantity is not None else 1
-                p = item.price if item.price is not None else 0
-
-                abandoned_products[pid]["abandonCount"] += 1
-                abandoned_products[pid]["quantityAbandoned"] += q
-                abandoned_products[pid]["valueLost"] += q * p
-
-        product_ids_seen = list(abandoned_products.keys())
-        product_map: dict = {}
-        if product_ids_seen:
-            product_storage = get_storage("products")
-            products = await product_storage.findAll({"allowed_ids": product_ids_seen})
-            product_map = {str(p.id): p for p in products}
-
-        result: List[MostAbandonedProductItem] = []
-        for pid, stats in abandoned_products.items():
-            product = product_map[str(pid)] if str(
-                pid) in product_map else None
-            product_name = product.name if product else "Unknown"
-            product_category = product.category if product else "Uncategorized"
-
-            result.append(
-                MostAbandonedProductItem(
-                    product_id=str(pid),
-                    product_name=product_name,
-                    category=product_category,
-                    abandon_count=stats["abandonCount"],
-                    quantity_abandoned=stats["quantityAbandoned"],
-                    value_lost=round(stats["valueLost"], 2),
-                )
-            )
-
-        return sorted(result, key=lambda x: x.abandon_count, reverse=True)[:limit]
+        return await self.storage.get_most_abandoned_products(limit=limit, start_date=start_date, end_date=end_date)
 
     async def clearRecentSearches(self, user_id: Optional[str] = None, session_id: Optional[str] = None) -> None:
         if not user_id and not session_id:
@@ -567,44 +410,14 @@ class TrackingRepository:
 
     async def getRecentUserSearches(
         self, user_id: Optional[str] = None, session_id: Optional[str] = None, limit: int = 5
-    ):
-        query = {"type": "product_search"}
-        if user_id:
-            query["userId"] = user_id
-        elif session_id:
-            query["sessionId"] = session_id
-        else:
+    ) -> List[str]:
+        if not user_id and not session_id:
             return []
-
-        clear_query = {"type": "search_history_clear"}
-        if user_id:
-            clear_query["userId"] = user_id
-        elif session_id:
-            clear_query["sessionId"] = session_id
-
-        clear_events = await self.findAll(clear_query)
-        last_cleared = ""
-        if clear_events:
-            last_cleared = max((e.timestamp or "") for e in clear_events)
-
-        all_searches = await self.findAll(query)
-        if last_cleared:
-            all_searches = [s for s in all_searches if (
-                s.timestamp or "") > last_cleared]
-
-        all_searches.sort(key=lambda x: x.timestamp or "", reverse=True)
-
-        seen = set()
-        unique_searches = []
-        for s in all_searches:
-            term = (s.search_term if s.search_term is not None else "").strip().lower()
-            if term and term not in seen:
-                seen.add(term)
-                unique_searches.append(s.search_term)
-                if len(unique_searches) >= limit:
-                    break
-
-        return unique_searches
+        return await self.storage.get_recent_user_searches(
+            user_id=str(user_id) if user_id else None,
+            session_id=str(session_id) if session_id else None,
+            limit=limit,
+        )
 
     def _parse_timestamp(self, raw: Optional[str]) -> Optional[datetime]:
         if not raw:
@@ -616,14 +429,11 @@ class TrackingRepository:
 
     async def get_search_counts_by_product(self, days: int, segment: str) -> defaultdict[str, int]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        all_searches = await self.findAll(event_type="product_search", limit=self._ANALYTICS_LIMIT)
+        all_searches = await self.storage.find_by_date_range(
+            event_type="product_search", start_date=cutoff, segment=segment
+        )
         counts: defaultdict[str, int] = defaultdict(int)
         for doc in all_searches:
-            if doc.segment != segment:
-                continue
-            ts = self._parse_timestamp(doc.timestamp)
-            if not ts or ts < cutoff:
-                continue
             for pid in doc.product_ids if doc.product_ids is not None else []:
                 if pid:
                     counts[pid] += 1
@@ -631,118 +441,42 @@ class TrackingRepository:
 
     async def get_searches_with_products(self, days: int, segment: str) -> List[Tracking]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        all_searches = await self.findAll(event_type="product_search", limit=self._ANALYTICS_LIMIT)
-        out: List[Tracking] = []
-        for doc in all_searches:
-            if doc.segment != segment:
-                continue
-            ts = self._parse_timestamp(doc.timestamp)
-            if not ts or ts < cutoff:
-                continue
-            pids = doc.product_ids if doc.product_ids is not None else []
-            if not pids:
-                continue
-            out.append(doc)
-        return out
+        all_searches = await self.storage.find_by_date_range(
+            event_type="product_search", start_date=cutoff, segment=segment
+        )
+        return [doc for doc in all_searches if doc.product_ids]
 
     async def getMostSearched(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[MostSearchedItem]:
-        all_tracking = await self.storage.find_by_date_range("product_search", start_date, end_date)
-
-        search_stats = {}
-        for track in all_tracking:
-            term = (track.search_term or "").lower()
-            if term:
-                if term not in search_stats:
-                    search_stats[term] = {"count": 0, "total_results": 0}
-                search_stats[term]["count"] += 1
-                search_stats[term]["total_results"] += track.results_count or 0
-
-        sorted_searches = sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
-        return [
-            MostSearchedItem(
-                term=term,
-                count=stats["count"],
-                avg_products_found=round(stats["total_results"] / stats["count"], 1) if stats["count"] > 0 else 0.0,
-            )
-            for term, stats in sorted_searches
-        ]
-
+        return await self.storage.get_most_searched(limit=limit, start_date=start_date, end_date=end_date)
 
     async def getZeroResultSearches(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[ZeroResultSearchItem]:
-        all_tracking = await self.storage.find_by_date_range("product_search", start_date, end_date)
-
-        search_stats = {}
-        for track in all_tracking:
-            if (track.results_count or 0) == 0:
-                term = (track.search_term or "").lower()
-                if term:
-                    if term not in search_stats:
-                        search_stats[term] = {"count": 0}
-                    search_stats[term]["count"] += 1
-
-        return [
-            ZeroResultSearchItem(term=term, count=stats["count"])
-            for term, stats in sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
-        ]
+        return await self.storage.get_zero_result_searches(limit=limit, start_date=start_date, end_date=end_date)
 
     async def getMostViewed(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[MostViewedItem]:
-        all_tracking = await self.storage.find_by_date_range("product_view", start_date, end_date)
-
-        view_counts: dict[str, MostViewedItem] = {}
-        for track in all_tracking:
-            product_id = track.product_id
-            if product_id:
-                if product_id not in view_counts:
-                    view_counts[product_id] = MostViewedItem(
-                        product_id=product_id,
-                        product_name=(track.product_name or "Unknown"),
-                        count=0,
-                    )
-                view_counts[product_id].count += 1
-
-        return sorted(view_counts.values(), key=lambda x: x.count, reverse=True)[:limit]
+        return await self.storage.get_most_viewed(limit=limit, start_date=start_date, end_date=end_date)
 
     async def getReturningUsers(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[ReturningUserItem]:
-        sessions = await self.findAll(event_type="session")
-        returning_user_ids = set()
-        user_last_seen = {}
-
-        for session in sessions:
-            ts = self._parse_timestamp(session.timestamp)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-
-            uid = session.user_id
-            if session.is_returning and uid:
-                returning_user_ids.add(uid)
-                if ts:
-                    if uid not in user_last_seen or ts > user_last_seen[uid]:
-                        user_last_seen[uid] = ts
-
-        if not returning_user_ids:
+        user_ids, last_seen_map = await self.storage.get_returning_user_ids(
+            start_date=start_date, end_date=end_date
+        )
+        if not user_ids:
             return []
-
-        # Get user details
         from app.repositories.user_repository import user_repository
-
-        users = await user_repository.findByIds(list(returning_user_ids))
-
+        users = await user_repository.findByIds(user_ids)
         return [
             ReturningUserItem(
                 user_id=u.id,
                 name=u.name or "Unknown",
                 email=u.email or "Unknown",
-                last_seen=user_last_seen[u.id].isoformat() if u.id in user_last_seen else None,
+                last_seen=last_seen_map.get(u.id),
             )
             for u in users
         ]

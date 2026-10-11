@@ -1,5 +1,7 @@
 import logging
-from app.models.schemas import SkinnyProductResponse
+from collections import defaultdict
+from operator import itemgetter
+from app.models.schemas import SkinnyProductResponse, RecommendationResponse
 import asyncio
 import json
 import random
@@ -15,6 +17,9 @@ from app.models.recommendation_config import (
     FavouriteWeights,
     SegmentConfig,
     BundleRecommendationItem,
+    FavouritesCacheResult,
+    FavouritesRankedResult,
+    TrendingCacheResult,
 )
 
 from app.db.storage_factory import get_storage
@@ -34,11 +39,11 @@ _config_cache: Optional['RecommendationConfig'] = None
 _config_cache_ts: float = 0.0
 _CONFIG_CACHE_TTL = 60.0  # seconds – config rarely changes
 
-_trending_cache_store: Optional[dict] = None
+_trending_cache_store: Optional[TrendingCacheResult] = None
 _trending_cache_ts: float = 0.0
-_CF_CACHE_STORE: Optional[dict] = None
+_CF_CACHE_STORE: Optional[FavouritesCacheResult] = None
 _CF_CACHE_TS: float = 0.0
-_BF_CACHE_STORE: Optional[dict] = None
+_BF_CACHE_STORE: Optional[FavouritesCacheResult] = None
 _BF_CACHE_TS: float = 0.0
 _FILE_CACHE_TTL = 30.0  # seconds for JSON result caches
 
@@ -50,9 +55,6 @@ BANDIT_STRATEGIES = [
     "wholesaler_favourites",
     "business_favourites",
 ]
-
-
-from app.models.recommendation_config import RecommendationConfig, SegmentConfig
 def _load_config() -> RecommendationConfig:
     global _config_cache, _config_cache_ts
     now = time.monotonic()
@@ -148,7 +150,7 @@ def _parse_order_date(raw_date: str) -> Optional[datetime]:
         return None
 
 
-def _read_trending_cache() -> dict:
+def _read_trending_cache() -> TrendingCacheResult:
     """Read precomputed trending list (written by scheduled job) with short-lived in-memory TTL."""
     global _trending_cache_store, _trending_cache_ts
     now = time.monotonic()
@@ -157,24 +159,22 @@ def _read_trending_cache() -> dict:
     try:
         if _TRENDING_CACHE_PATH.exists():
             data = json.loads(_TRENDING_CACHE_PATH.read_text(encoding="utf-8"))
-            _trending_cache_store = data
+            _trending_cache_store = TrendingCacheResult.model_validate(data)
             _trending_cache_ts = now
-            return data
+            return _trending_cache_store
     except Exception:
         logger.exception("Error reading trending cache")
-    return {}
+    return TrendingCacheResult()
 
 
-def _write_trending_cache(data: 'dict') -> None:
-    """Write trending cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
+def _write_trending_cache(data: TrendingCacheResult) -> None:
+    """Write trending cache with in-memory TTL."""
     global _trending_cache_store, _trending_cache_ts
-    # _DATA_DIR.mkdir(parents=True, exist_ok=True)
-    # _TRENDING_CACHE_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
     _trending_cache_store = data
     _trending_cache_ts = time.monotonic()
 
 
-def _read_customer_favourites_cache() -> dict:
+def _read_customer_favourites_cache() -> Optional[FavouritesCacheResult]:
     """Read precomputed Customer Favourites list with short-lived in-memory TTL."""
     global _CF_CACHE_STORE, _CF_CACHE_TS
     now = time.monotonic()
@@ -183,24 +183,22 @@ def _read_customer_favourites_cache() -> dict:
     try:
         if _CUSTOMER_FAVOURITES_CACHE_PATH.exists():
             data = json.loads(_CUSTOMER_FAVOURITES_CACHE_PATH.read_text(encoding="utf-8"))
-            _CF_CACHE_STORE = data
+            _CF_CACHE_STORE = FavouritesCacheResult.model_validate(data)
             _CF_CACHE_TS = now
-            return data
+            return _CF_CACHE_STORE
     except Exception:
         logger.exception("Error reading customer favourites cache")
-    return {}
+    return None
 
 
-def _write_customer_favourites_cache(data: 'dict') -> None:
-    """Write Customer Favourites cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
+def _write_customer_favourites_cache(data: FavouritesCacheResult) -> None:
+    """Write Customer Favourites cache with in-memory TTL."""
     global _CF_CACHE_STORE, _CF_CACHE_TS
-    # _DATA_DIR.mkdir(parents=True, exist_ok=True)
-    # _CUSTOMER_FAVOURITES_CACHE_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
     _CF_CACHE_STORE = data
     _CF_CACHE_TS = time.monotonic()
 
 
-def _read_business_favourites_cache() -> dict:
+def _read_business_favourites_cache() -> Optional[FavouritesCacheResult]:
     global _BF_CACHE_STORE, _BF_CACHE_TS
     now = time.monotonic()
     if _BF_CACHE_STORE is not None and (now - _BF_CACHE_TS) < _FILE_CACHE_TTL:
@@ -208,19 +206,17 @@ def _read_business_favourites_cache() -> dict:
     try:
         if _BUSINESS_FAVOURITES_CACHE_PATH.exists():
             data = json.loads(_BUSINESS_FAVOURITES_CACHE_PATH.read_text(encoding="utf-8"))
-            _BF_CACHE_STORE = data
+            _BF_CACHE_STORE = FavouritesCacheResult.model_validate(data)
             _BF_CACHE_TS = now
-            return data
+            return _BF_CACHE_STORE
     except Exception:
         logger.exception("Error reading business favourites cache")
-    return {}
+    return None
 
 
-def _write_business_favourites_cache(data: 'dict') -> None:
-    """Write Business Favourites cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
+def _write_business_favourites_cache(data: FavouritesCacheResult) -> None:
+    """Write Business Favourites cache with in-memory TTL."""
     global _BF_CACHE_STORE, _BF_CACHE_TS
-    # _DATA_DIR.mkdir(parents=True, exist_ok=True)
-    # _BUSINESS_FAVOURITES_CACHE_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
     _BF_CACHE_STORE = data
     _BF_CACHE_TS = time.monotonic()
 
@@ -276,15 +272,15 @@ class RecommendationRepository:
             "orderNumber_prefix": "ORDER-RT-",
             "startDate": cutoff.isoformat(),
         })
-        product_counts: dict[str, int] = {}
+        product_counts: defaultdict[str, int] = defaultdict(int)
         for order in orders:
             if order.user not in retail_ids:
                 continue
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.product_id
                 if pid and pid not in exclude:
-                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
-        sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+                    product_counts[pid] += (item.quantity if item.quantity is not None else 1)
+        sorted_products = sorted(product_counts.items(), key=itemgetter(1), reverse=True)[:limit]
         return [pid for pid, _ in sorted_products]
 
     def _order_segment_prefix(self, segment: str) -> Optional[str]:
@@ -328,11 +324,10 @@ class RecommendationRepository:
         """
         if use_cache:
             cached = _read_trending_cache()
-            seg_data = cached[segment] if segment in cached else {}
-            ids = seg_data["product_ids"] if "product_ids" in seg_data else None
-            if ids is not None:
+            seg_data = cached.get(segment)
+            if seg_data and seg_data.product_ids:
                 exclude = exclude_product_ids or set()
-                return [x for x in ids if x not in exclude]  # cache is already in descending rank order
+                return [x for x in seg_data.product_ids if x not in exclude]  # cache is already in descending rank order
         prefix = self._order_segment_prefix(segment)
         if not prefix:
             return []
@@ -413,7 +408,7 @@ class RecommendationRepository:
             for pid, rate in all_scored
             if rate >= score_cutoff and pid not in exclude
         ]
-        eligible.sort(key=lambda x: x[1], reverse=True)
+        eligible.sort(key=itemgetter(1), reverse=True)
 
         # ── Step 7: return eligible pool ─────────────────────────────────────────
         # The full sorted pool is returned so the frontend's row-based display logic
@@ -495,25 +490,24 @@ class RecommendationRepository:
 
             top = max(candidates, key=_score)
             top_per_subcat.append((top[0], _score(top)))
-        top_per_subcat.sort(key=lambda x: x[1], reverse=True)
+        top_per_subcat.sort(key=itemgetter(1), reverse=True)
         return [pid for pid, _ in top_per_subcat]
 
     async def get_customer_favourites_product_ids(self) -> Set[str]:
         """Set of product IDs that are Customer Favourites (top 1 per subcategory, retail, 60d). For tagging in catalog. Reads cache when present."""
         cached = _read_customer_favourites_cache()
-        ids = cached["product_ids"] if "product_ids" in cached else None
-        if ids is not None:
-            return set(ids)
+        if cached and cached.product_ids:
+            return set(cached.product_ids)
         ids = await self.get_customer_favourites_by_subcategory(days=60)
         return set(ids)
 
-    async def compute_customer_favourites_for_cache(self, days: int = 60) -> dict:
+    async def compute_customer_favourites_for_cache(self, days: int = 60) -> FavouritesCacheResult:
         """Compute Customer Favourites (top 1 per subcategory by quantity+frequency, retail, 60d) for the job."""
         ids = await self.get_customer_favourites_by_subcategory(days=days)
-        return {
-            "product_ids": ids,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
+        return FavouritesCacheResult(
+            product_ids=ids,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+        )
 
     async def get_business_favourites_by_subcategory(self, days: int = 60, city: Optional[str] = None) -> List[str]:
         """
@@ -575,25 +569,24 @@ class RecommendationRepository:
 
             top = max(candidates, key=_score)
             top_per_subcat.append((top[0], _score(top)))
-        top_per_subcat.sort(key=lambda x: x[1], reverse=True)
+        top_per_subcat.sort(key=itemgetter(1), reverse=True)
         return [pid for pid, _ in top_per_subcat]
 
     async def get_business_favourites_product_ids(self) -> Set[str]:
         """Set of product IDs that are Business Favourites (for tagging). Reads cache when present."""
         cached = _read_business_favourites_cache()
-        ids = cached["product_ids"] if "product_ids" in cached else None
-        if ids is not None:
-            return set(ids)
+        if cached and cached.product_ids:
+            return set(cached.product_ids)
         ids = await self.get_business_favourites_by_subcategory(days=60)
         return set(ids)
 
-    async def compute_business_favourites_for_cache(self, days: int = 60) -> dict:
+    async def compute_business_favourites_for_cache(self, days: int = 60) -> FavouritesCacheResult:
         """Compute Business Favourites (top 1 per subcategory by quantity+frequency, wholesaler orders, 60d) for the job."""
         ids = await self.get_business_favourites_by_subcategory(days=days)
-        return {
-            "product_ids": ids,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
+        return FavouritesCacheResult(
+            product_ids=ids,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+        )
 
     async def get_favourites_ranked(
         self,
@@ -601,7 +594,7 @@ class RecommendationRepository:
         days: int = 60,
         state: Optional[str] = None,
         city: Optional[str] = None,
-    ) -> dict:
+    ) -> FavouritesRankedResult:
         """
         Return ALL products ranked by weighted sales score (highest → lowest).
         Unlike get_customer/business_favourites_by_subcategory, this does NOT limit to
@@ -611,11 +604,11 @@ class RecommendationRepository:
         state/city: optional case-insensitive filters on shippingAddress.state / .city
 
         Returns:
-          {
-            "ranked_ids": [(product_id, score), ...],   # sorted descending
-            "states": ["Maharashtra", ...],              # distinct states from matching orders
-            "cities": ["Mumbai", ...],                   # distinct cities from matching orders
-          }
+          FavouritesRankedResult(
+            ranked_ids=[(product_id, score), ...],   # sorted descending
+            states=["Maharashtra", ...],              # distinct states from matching orders
+            cities=["Mumbai", ...],                   # distinct cities from matching orders
+          )
         """
         if kind == "customer":
             w_freq, w_qty = _get_favourites_weights("customer_favourites")
@@ -673,15 +666,15 @@ class RecommendationRepository:
         # Score and rank
         ranked = sorted(
             [(pid, w_freq * order_count[pid] + w_qty * (quantity_map[pid] if pid in quantity_map else 0)) for pid in order_count],
-            key=lambda x: x[1],
+            key=itemgetter(1),
             reverse=True,
         )
 
-        return {
-            "ranked_ids": ranked,
-            "states": sorted(states_seen),
-            "cities": sorted(cities_seen),
-        }
+        return FavouritesRankedResult(
+            ranked_ids=ranked,
+            states=sorted(states_seen),
+            cities=sorted(cities_seen),
+        )
 
     async def get_new_arrivals(self, user_id: Optional[str], role: Optional[str], limit: int = 10) -> List[str]:
         """New Arrivals: products created in last 30 days. For retail, exclude products user already bought (any time)."""
@@ -705,7 +698,11 @@ class RecommendationRepository:
             created = _parse_order_date(p.created_at) if p.created_at else None
             if created and created >= cutoff:
                 candidates.append((pid, created))
-        candidates.sort(key=lambda x: x[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
+        def _candidate_date_key(item: Tuple[str, Optional[datetime]]) -> datetime:
+            return item[1] or datetime.min.replace(tzinfo=timezone.utc)
+
+        candidates.sort(key=_candidate_date_key, reverse=True)
         return [pid for pid, _ in candidates[:limit]]
 
     def _load_rewards(self) -> dict:
@@ -800,7 +797,10 @@ class RecommendationRepository:
             order = list(strategies)
             random.shuffle(order)
             return order
-        return sorted(strategies, key=lambda s: (avg[s] if s in avg else 0.0), reverse=True)
+        def _avg_reward_key(s: str) -> float:
+            return avg.get(s, 0.0)
+
+        return sorted(strategies, key=_avg_reward_key, reverse=True)
 
     async def get_most_bought_by_wholesalers(self, user_id: str, limit: int = 10, days: int = 5) -> List[str]:
         """Products most frequently bought by other wholesalers. Used only when caller is wholesaler."""
@@ -813,28 +813,28 @@ class RecommendationRepository:
             "orderNumber_prefix": "ORDER-WH-",
             "startDate": cutoff.isoformat(),
         })
-        product_counts: dict[str, int] = {}
+        product_counts: defaultdict[str, int] = defaultdict(int)
         for order in orders:
             if order.user not in wholesaler_ids:
                 continue
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.product_id
                 if pid:
-                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
-        sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+                    product_counts[pid] += (item.quantity if item.quantity is not None else 1)
+        sorted_products = sorted(product_counts.items(), key=itemgetter(1), reverse=True)[:limit]
         return [pid for pid, _ in sorted_products]
 
     async def get_most_bought_by_user(self, user_id: str, limit: int = 5, days: int = 60) -> List[str]:
         """Top products bought by same user in last `days` days (for wholesaler 'your favourites')."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
-        product_counts: dict[str, int] = {}
+        product_counts: defaultdict[str, int] = defaultdict(int)
         for order in orders:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.product_id
                 if pid:
-                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
-        sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+                    product_counts[pid] += (item.quantity if item.quantity is not None else 1)
+        sorted_products = sorted(product_counts.items(), key=itemgetter(1), reverse=True)[:limit]
         return [pid for pid, _ in sorted_products]
 
     async def get_best_selling_from_least_bought_categories(
@@ -848,7 +848,7 @@ class RecommendationRepository:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         
         # 1. Fetch user orders in the last 60 days + active products
-        user_orders, products = await __import__('asyncio').gather(
+        user_orders, products = await asyncio.gather(
             self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()}),
             self.product_storage.findAll({"isActive": True}),
         )
@@ -856,7 +856,7 @@ class RecommendationRepository:
         product_by_id = {p.id: p for p in products if p.id}
 
         # 2. Count units purchased per subcategory (fallback to category) for this user
-        subcat_counts = {}
+        subcat_counts = defaultdict(int)
         for o in user_orders:
             for item in (o.items if o.items is not None else []):
                 pid = item.product or item.product_id
@@ -865,7 +865,7 @@ class RecommendationRepository:
                 if p:
                     subcat = p.sub_category or p.category
                     if subcat:
-                        subcat_counts[subcat] = (subcat_counts[subcat] if subcat in subcat_counts else 0) + (item.quantity if item.quantity is not None else 1)
+                        subcat_counts[subcat] += (item.quantity if item.quantity is not None else 1)
 
         n = len(subcat_counts)
         if n == 0:
@@ -879,14 +879,17 @@ class RecommendationRepository:
         products_per_subcat = max(1, round(limit / neglected_count))
 
         # Sort subcats ascending by purchase quantity
-        sorted_subcats = sorted(subcat_counts.items(), key=lambda x: x[1])
+        sorted_subcats = sorted(subcat_counts.items(), key=itemgetter(1))
         neglected_set = {subcat for subcat, _ in sorted_subcats[:neglected_count]}
 
         # 5. Fetch recent orders (last 90 days) to compute best-selling products in neglected subcats
         bestseller_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
         all_orders = await self.order_storage.findAll({"startDate": bestseller_cutoff.isoformat()})
         
-        subcat_product_sales = {}
+        def _default_int_dict() -> defaultdict[str, int]:
+            return defaultdict(int)
+
+        subcat_product_sales = defaultdict(_default_int_dict)
         for order in all_orders:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.product_id
@@ -897,9 +900,7 @@ class RecommendationRepository:
                 subcat = p.sub_category or p.category
                 if subcat in neglected_set:
                     quantity = (item.quantity if item.quantity is not None else 1)
-                    if subcat not in subcat_product_sales:
-                        subcat_product_sales[subcat] = {}
-                    subcat_product_sales[subcat][pid] = (subcat_product_sales[subcat][pid] if pid in subcat_product_sales[subcat] else 0) + quantity
+                    subcat_product_sales[subcat][pid] += quantity
 
         # 6. For each neglected subcategory, pick the top products_per_subcat best-selling products
         # that are NOT in the exclude set.
@@ -907,7 +908,7 @@ class RecommendationRepository:
         for subcat in neglected_set:
             sales = subcat_product_sales[subcat] if subcat in subcat_product_sales else {}
             # Sort by sales descending
-            top_products = sorted(sales.items(), key=lambda x: x[1], reverse=True)
+            top_products = sorted(sales.items(), key=itemgetter(1), reverse=True)
             
             added = 0
             for pid, _ in top_products:
@@ -1008,7 +1009,7 @@ class RecommendationRepository:
         if n == 0:
             return []
         neglected_count = max(1, round(n / 3))
-        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
+        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=itemgetter(1))]
         return sorted_subcats[:neglected_count]
 
     async def _get_bundles_as_items(self, product_map=None) -> List[BundleRecommendationItem]:
@@ -1075,7 +1076,7 @@ class RecommendationRepository:
     async def get_recommendation_components(
         self, user_id: str = None, role: str = None, city: str = None, seller_id_set: set = None,
         category_tag: Optional[str] = None
-    ) -> dict:
+    ) -> RecommendationResponse:
         """
         Return recommendation components by segment (guest, retail, business/wholesaler).
         - Guest: Customer Favourites + Trending Now (retail orders, no exclusions). No Explore. sectionOrder from bandit.
@@ -1145,7 +1146,7 @@ class RecommendationRepository:
                 for b in bundle_items
                 if b.id not in exclude_set and b.created_at and b.created_at >= cutoff_na
             ]
-            qualifying.sort(key=lambda x: x[1], reverse=True)
+            qualifying.sort(key=itemgetter(1), reverse=True)
             return [bid for bid, _ in qualifying]
 
         def _bundle_trending_ids(exclude_set, product_tn_ids):
@@ -1165,7 +1166,7 @@ class RecommendationRepository:
             rate_values = sorted(r for _, r in all_rates)
             cutoff_idx = max(0, int(len(rate_values) * 0.70) - 1)
             score_cutoff = rate_values[cutoff_idx]
-            eligible = sorted([(bid, r) for bid, r in all_rates if r >= score_cutoff], key=lambda x: x[1], reverse=True)
+            eligible = sorted([(bid, r) for bid, r in all_rates if r >= score_cutoff], key=itemgetter(1), reverse=True)
             return [bid for bid, _ in eligible]
 
         def _bundle_favourites_ids(exclude_set):
@@ -1174,7 +1175,7 @@ class RecommendationRepository:
                 for b in bundle_items
                 if b.id not in exclude_set and b.sales_count > 0
             ]
-            scored.sort(key=lambda x: x[1], reverse=True)
+            scored.sort(key=itemgetter(1), reverse=True)
             return [bid for bid, _ in scored]
 
         def _bundle_explore_ids(neglected_subcats, exclude_set):
@@ -1184,7 +1185,7 @@ class RecommendationRepository:
                 for b in bundle_items
                 if b.id not in exclude_set and ((b.sub_category or b.category) in neglected_set)
             ]
-            scored.sort(key=lambda x: x[1], reverse=True)
+            scored.sort(key=itemgetter(1), reverse=True)
             return [bid for bid, _ in scored]
 
         def to_products(ids: list[str]) -> list['SkinnyProductResponse']:
@@ -1232,7 +1233,7 @@ class RecommendationRepository:
 
         # Customer Favourites: from cache (job at 12 AM IST) or compute on the fly
         cf_cache = _read_customer_favourites_cache()
-        cf_ids_cached = cf_cache["product_ids"] if "product_ids" in cf_cache else None
+        cf_ids_cached = cf_cache.product_ids if cf_cache and cf_cache.product_ids else None
 
         # Guest: no user_id
         if not user_id:
@@ -1242,7 +1243,6 @@ class RecommendationRepository:
                     return cf_ids_cached
                 return await self.get_customer_favourites_by_subcategory(days=cf_days_config)
 
-            import asyncio
             cf_ids_raw, tn_ids_raw, new_ids_raw = await asyncio.gather(
                 _cf_or_cached(),
                 self.get_trending_by_conversion(
@@ -1257,23 +1257,21 @@ class RecommendationRepository:
             new_ids = list(new_ids_raw) + _bundle_new_arrival_ids(set(new_ids_raw))
             cf_ids = list(cf_ids_raw) + _bundle_favourites_ids(set(cf_ids_raw))
             tn_ids = list(tn_ids_raw) + _bundle_trending_ids(set(tn_ids_raw), tn_ids_raw)
-            out = {
-                "newArrivals": to_products(new_ids),
-                "customerFavourites": to_products(cf_ids),
-                "trendingNow": to_products(tn_ids),
-                "explore": [],
-                "wholesalerFavourites": [],
-                "businessFavourites": [],
-            }
-            out["sectionOrder"] = ["new_arrivals", "customer_favourites", "trending_now"]
-            return out
+            return RecommendationResponse(
+                new_arrivals=to_products(new_ids),
+                customer_favourites=to_products(cf_ids),
+                trending_now=to_products(tn_ids),
+                explore=[],
+                wholesaler_favourites=[],
+                business_favourites=[],
+                section_order=["new_arrivals", "customer_favourites", "trending_now"],
+            )
 
         # Retail (logged-in customer or any non-wholesaler)
         if role != "wholesaler":
             seg = _segment_config("retail")
             exclude_days = seg.exclude_user_purchases_days or 60
             
-            import asyncio
             # Parallel fetch: user purchased IDs + cart IDs
             purchased_task = self._get_user_purchased_product_ids(user_id, exclude_days)
             cart_task = self._get_user_cart_product_ids(user_id)
@@ -1325,22 +1323,20 @@ class RecommendationRepository:
             explore_bundle_ids = _bundle_explore_ids(_neg, explore_exclude | set(explore_ids_prod))
             explore_ids = list(explore_ids_prod) + explore_bundle_ids
 
-            out = {
-                "newArrivals": to_products(new_ids),
-                "customerFavourites": to_products(cf_ids),
-                "trendingNow": to_products(tn_ids),
-                "explore": to_products(explore_ids),
-                "wholesalerFavourites": [],
-                "businessFavourites": [],
-            }
-            out["sectionOrder"] = ["new_arrivals", "customer_favourites", "trending_now", "explore"]
-            return out
+            return RecommendationResponse(
+                new_arrivals=to_products(new_ids),
+                customer_favourites=to_products(cf_ids),
+                trending_now=to_products(tn_ids),
+                explore=to_products(explore_ids),
+                wholesaler_favourites=[],
+                business_favourites=[],
+                section_order=["new_arrivals", "customer_favourites", "trending_now", "explore"],
+            )
 
         # Business (wholesaler)
         seg = _segment_config("wholesaler")
         bf_days = seg.business_favourites_days or seg.wholesaler_favourites_days or 60
         
-        import asyncio
         purchased_ids = await self._get_user_purchased_product_ids(user_id, bf_days)
         cart_ids = await self._get_user_cart_product_ids(user_id)
         exclude = purchased_ids | cart_ids
@@ -1363,7 +1359,7 @@ class RecommendationRepository:
             bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days, city=city_normalised)
         else:
             bf_cache = _read_business_favourites_cache()
-            bf_ids_cached = bf_cache["product_ids"] if "product_ids" in bf_cache else None
+            bf_ids_cached = bf_cache.product_ids if bf_cache and bf_cache.product_ids else None
             bf_ids_raw = bf_ids_cached if bf_ids_cached is not None else await self.get_business_favourites_by_subcategory(days=bf_days)
 
         bf_ids_after_exclude = [x for x in (bf_ids_raw or []) if x not in exclude]
@@ -1401,19 +1397,18 @@ class RecommendationRepository:
 
         bf_ids_section = [x for x in bf_ids_after_exclude if x not in set(cf_ids)]
 
-        out = {
-            "newArrivals": to_products(new_ids),
+        return RecommendationResponse(
+            new_arrivals=to_products(new_ids),
             # Customer Favourites and Business Favourites are city-scoped, NOT zone-filtered.
             # A wholesaler sees what is trending in their city regardless of their delivery zone.
-            "customerFavourites": to_products_city_only(cf_ids),
-            "trendingNow": to_products(tn_ids),
-            "explore": to_products(explore_ids),
-            "wholesalerFavourites": [],
-            "businessFavourites": to_products_city_only(bf_ids_section),
+            customer_favourites=to_products_city_only(cf_ids),
+            trending_now=to_products(tn_ids),
+            explore=to_products(explore_ids),
+            wholesaler_favourites=[],
+            business_favourites=to_products_city_only(bf_ids_section),
             # Pass the city name through so the frontend can show "Popular in {City}"
-            "cityName": city_normalised or "",
-        }
-        out["sectionOrder"] = ["new_arrivals", "customer_favourites", "trending_now", "explore", "business_favourites"]
-        return out
+            city_name=city_normalised or "",
+            section_order=["new_arrivals", "customer_favourites", "trending_now", "explore", "business_favourites"],
+        )
 recommendation_repository = RecommendationRepository()
 

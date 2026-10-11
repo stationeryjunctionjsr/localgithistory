@@ -7,7 +7,7 @@ Strict SQLAlchemy DAOs replacing MySQLTypedDocDAO and DocStore patterns.
 import secrets
 from typing import Dict, List, Optional, Union
 from app.models.schemas import PromoStripResponse, OrderFeedbackResponse, ProductReviewResponse, ClassificationTagResponse
-from app.models.availability_requests import AvailabilityRequestResponse
+from app.models.availability_requests import AvailabilityRequestResponse, AvailabilityRequestFilter
 
 
 from sqlalchemy import text
@@ -2202,38 +2202,31 @@ class MySQLAvailabilityRequestsDAO:
             updatedAt=row.updated_at.isoformat() if row.updated_at else None,
         )
 
-    def _build_where(self, query: Dict) -> tuple[list[str], dict]:
+    async def count(self, filters: Optional[AvailabilityRequestFilter] = None) -> int:
         where_clauses = []
         params = {}
-        if "productId" in query and query["productId"]:
-            where_clauses.append("product_id = :productId")
-            params["productId"] = str(query["productId"]).strip()
-        if "product_id" in query and query["product_id"]:
-            where_clauses.append("product_id = :productId")
-            params["productId"] = str(query["product_id"]).strip()
-        if "productName" in query and query["productName"]:
-            where_clauses.append("product_name = :productName")
-            params["productName"] = str(query["productName"]).strip()
-        if "pincode" in query and query["pincode"]:
-            where_clauses.append("pincode = :pincode")
-            params["pincode"] = str(query["pincode"]).strip()
-        if "userName" in query and query["userName"]:
-            where_clauses.append("user_name = :userName")
-            params["userName"] = str(query["userName"]).strip()
-        if "userEmail" in query and query["userEmail"]:
-            where_clauses.append("user_email = :userEmail")
-            params["userEmail"] = str(query["userEmail"]).strip()
-        return where_clauses, params
-
-    async def count(self, query: Optional[Dict] = None) -> int:
-        query = query or {}
-        where_clauses, params = self._build_where(query)
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        if filters:
+            if filters.product_id:
+                where_clauses.append("product_id = :product_id")
+                params["product_id"] = filters.product_id.strip()
+            if filters.product_name:
+                where_clauses.append("product_name = :product_name")
+                params["product_name"] = filters.product_name.strip()
+            if filters.pincode:
+                where_clauses.append("pincode = :pincode")
+                params["pincode"] = filters.pincode.strip()
+            if filters.user_name:
+                where_clauses.append("user_name = :user_name")
+                params["user_name"] = filters.user_name.strip()
+            if filters.user_email:
+                where_clauses.append("user_email = :user_email")
+                params["user_email"] = filters.user_email.strip()
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         factory = self._factory()
         async with factory() as session:
             count = (
                 await session.execute(
-                    text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"),
+                    text(f"SELECT COUNT(*) FROM {self.TABLE}{where_sql}"),
                     params,
                 )
             ).scalar()
@@ -2241,14 +2234,30 @@ class MySQLAvailabilityRequestsDAO:
 
     async def findAll(
         self,
-        query: Optional[Dict] = None,
+        filters: Optional[AvailabilityRequestFilter] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
         order_by: str = "created_at DESC, id DESC",
     ) -> List[AvailabilityRequestResponse]:
-        query = query or {}
-        where_clauses, params = self._build_where(query)
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        where_clauses = []
+        params = {}
+        if filters:
+            if filters.product_id:
+                where_clauses.append("product_id = :product_id")
+                params["product_id"] = filters.product_id.strip()
+            if filters.product_name:
+                where_clauses.append("product_name = :product_name")
+                params["product_name"] = filters.product_name.strip()
+            if filters.pincode:
+                where_clauses.append("pincode = :pincode")
+                params["pincode"] = filters.pincode.strip()
+            if filters.user_name:
+                where_clauses.append("user_name = :user_name")
+                params["user_name"] = filters.user_name.strip()
+            if filters.user_email:
+                where_clauses.append("user_email = :user_email")
+                params["user_email"] = filters.user_email.strip()
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
         pagination_sql = ""
         if limit is not None:
@@ -2262,18 +2271,14 @@ class MySQLAvailabilityRequestsDAO:
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY {order_by}{pagination_sql}"),
+                    text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY {order_by}{pagination_sql}"),
                     params,
                 )
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[AvailabilityRequestResponse]:
-        if "_id" in query:
-            return await self.findById(query["_id"])
-        if "id" in query:
-            return await self.findById(query["id"])
-        docs = await self.findAll(query, limit=1)
+    async def findOne(self, filters: Optional[AvailabilityRequestFilter] = None) -> Optional[AvailabilityRequestResponse]:
+        docs = await self.findAll(filters=filters, limit=1)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional[AvailabilityRequestResponse]:

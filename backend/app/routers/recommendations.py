@@ -202,9 +202,9 @@ async def get_favourites_page(
         logger.error("get_favourites_ranked failed: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
-    ranked_ids: list = ranked_data["ranked_ids"]  # [(pid, score), ...]
-    all_states: list = ranked_data["states"]
-    all_cities: list = ranked_data["cities"]
+    ranked_ids = ranked_data.ranked_ids  # [(pid, score), ...]
+    all_states = ranked_data.states
+    all_cities = ranked_data.cities
 
     # Fetch all active products once and build a lookup map
     from app.db.storage_factory import get_storage as _get_storage

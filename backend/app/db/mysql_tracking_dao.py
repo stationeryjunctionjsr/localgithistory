@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 import logging
 """
 MySQL DAO for sj_tracking. Fully relational with child tables.
@@ -7,7 +7,16 @@ MySQL DAO for sj_tracking. Fully relational with child tables.
 
 import secrets
 from datetime import datetime
-from app.models.tracking import Tracking
+from app.models.tracking import (
+    Tracking,
+    RecentlyViewedProductItem,
+    TopProductItem,
+    DropOffPointItem,
+    MostSearchedItem,
+    ZeroResultSearchItem,
+    MostViewedItem,
+    MostAbandonedProductItem,
+)
 from app.models.schemas import ItemSnippet
 
 from sqlalchemy import text
@@ -176,6 +185,7 @@ class MySQLTrackingDAO:
         event_type: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        segment: Optional[str] = None,
     ) -> List['Tracking']:
         """Return tracking rows filtered by event_type and/or date range at SQL level.
         Far more efficient than findAll() + Python filtering for analytics queries."""
@@ -187,6 +197,9 @@ class MySQLTrackingDAO:
         if event_type:
             where_clauses.append("event_type = :event_type")
             params["event_type"] = event_type
+        if segment:
+            where_clauses.append("segment = :segment")
+            params["segment"] = str(segment)
         if start_date:
             where_clauses.append("event_timestamp >= :start_date")
             params["start_date"] = start_date
@@ -202,6 +215,440 @@ class MySQLTrackingDAO:
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
+
+    async def get_recently_viewed_products(
+        self,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[RecentlyViewedProductItem]:
+        factory = self._factory()
+        if not factory or (not user_id and not session_id):
+            return []
+        where_clauses = ["t.event_type = 'product_view'", "t.product_id IS NOT NULL", "t.product_id != ''"]
+        params = {"limit": int(limit)}
+        if user_id:
+            where_clauses.append("t.user_id = :user_id")
+            params["user_id"] = str(user_id)
+        elif session_id:
+            where_clauses.append("t.session_id = :session_id")
+            params["session_id"] = str(session_id)
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT t.product_id, MAX(t.event_timestamp) as latest_ts, "
+                        f"COALESCE(MAX(p.name), MAX(t.product_name), '') as product_name, "
+                        f"MAX(p.display_image) as display_image, MAX(p.price) as price "
+                        f"FROM {self.TABLE} t "
+                        f"LEFT JOIN sj_products p ON (p.id = t.product_id OR p.external_id = t.product_id) "
+                        f"WHERE {where_sql} "
+                        f"GROUP BY t.product_id "
+                        f"ORDER BY latest_ts DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        return [
+            RecentlyViewedProductItem(
+                product_id=str(r.product_id),
+                product_name=str(r.product_name),
+                display_image=str(r.display_image) if r.display_image else None,
+                price=float(r.price) if r.price is not None else None,
+            )
+            for r in rows
+        ]
+
+    async def get_recent_user_searches(
+        self,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[str]:
+        factory = self._factory()
+        if not factory or (not user_id and not session_id):
+            return []
+        
+        user_filter = "user_id = :user_id" if user_id else "session_id = :session_id"
+        u_params = {"user_id": str(user_id)} if user_id else {"session_id": str(session_id)}
+        
+        async with factory() as session:
+            last_cleared = (
+                await session.execute(
+                    text(f"SELECT MAX(event_timestamp) FROM {self.TABLE} WHERE event_type = 'search_history_clear' AND {user_filter}"),
+                    u_params,
+                )
+            ).scalar()
+            
+            where_clauses = [
+                "event_type = 'product_search'",
+                user_filter,
+                "search_term IS NOT NULL",
+                "TRIM(search_term) != ''",
+            ]
+            params = dict(u_params)
+            params["limit"] = int(limit)
+            if last_cleared:
+                where_clauses.append("event_timestamp > :last_cleared")
+                params["last_cleared"] = last_cleared
+            where_sql = " AND ".join(where_clauses)
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT search_term, MAX(event_timestamp) as latest_ts "
+                        f"FROM {self.TABLE} WHERE {where_sql} "
+                        f"GROUP BY LOWER(TRIM(search_term)), search_term "
+                        f"ORDER BY latest_ts DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        return [str(r.search_term) for r in rows]
+
+    async def get_sessions_count(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> int:
+        factory = self._factory()
+        if not factory:
+            return 0
+        where_clauses = ["event_type = 'session'"]
+        params = {}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            count = (
+                await session.execute(
+                    text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"),
+                    params,
+                )
+            ).scalar()
+        return int(count or 0)
+
+    async def get_top_products(
+        self,
+        limit: int = 10,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[TopProductItem]:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = ["event_type = 'product_view'", "product_id IS NOT NULL", "product_id != ''"]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT product_id, COALESCE(product_name, 'Unknown') as product_name, COUNT(*) as views "
+                        f"FROM {self.TABLE} WHERE {where_sql} "
+                        f"GROUP BY product_id, product_name "
+                        f"ORDER BY views DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        return [
+            TopProductItem(product_id=str(r.product_id), product_name=str(r.product_name), views=int(r.views))
+            for r in rows
+        ]
+
+    async def get_drop_offs(
+        self,
+        limit: int = 10,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[DropOffPointItem]:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = ["event_type = 'drop_off'", "page IS NOT NULL", "page != ''"]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT sub.page, CAST(SUM(sub.rcount) AS UNSIGNED) AS total_count, "
+                        f"JSON_OBJECTAGG(sub.reason, sub.rcount) AS reasons_json "
+                        f"FROM ("
+                        f"  SELECT page, COALESCE(reason, 'unspecified') AS reason, COUNT(*) AS rcount "
+                        f"  FROM {self.TABLE} "
+                        f"  WHERE {where_sql} "
+                        f"  GROUP BY page, reason "
+                        f") sub "
+                        f"GROUP BY sub.page "
+                        f"ORDER BY total_count DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+
+        import json
+        items: List[DropOffPointItem] = []
+        for r in rows:
+            reasons_val = r.reasons_json
+            if isinstance(reasons_val, str):
+                try:
+                    reasons_val = json.loads(reasons_val)
+                except Exception:
+                    reasons_val = {}
+            items.append(
+                DropOffPointItem(
+                    page=str(r.page),
+                    count=int(r.total_count),
+                    reasons=reasons_val or {},
+                )
+            )
+        return items
+
+    async def get_most_searched(
+        self,
+        limit: int = 5,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[MostSearchedItem]:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = ["event_type = 'product_search'", "search_term IS NOT NULL", "TRIM(search_term) != ''"]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT LOWER(TRIM(search_term)) as term, COUNT(*) as count, "
+                        f"ROUND(AVG(COALESCE(results_count, 0)), 1) as avg_results "
+                        f"FROM {self.TABLE} WHERE {where_sql} "
+                        f"GROUP BY LOWER(TRIM(search_term)) "
+                        f"ORDER BY count DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        return [
+            MostSearchedItem(term=str(r.term), count=int(r.count), avg_products_found=float(r.avg_results or 0.0))
+            for r in rows
+        ]
+
+    async def get_zero_result_searches(
+        self,
+        limit: int = 50,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[ZeroResultSearchItem]:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = [
+            "event_type = 'product_search'",
+            "search_term IS NOT NULL",
+            "TRIM(search_term) != ''",
+            "COALESCE(results_count, 0) = 0",
+        ]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT LOWER(TRIM(search_term)) as term, COUNT(*) as count "
+                        f"FROM {self.TABLE} WHERE {where_sql} "
+                        f"GROUP BY LOWER(TRIM(search_term)) "
+                        f"ORDER BY count DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        return [
+            ZeroResultSearchItem(term=str(r.term), count=int(r.count))
+            for r in rows
+        ]
+
+    async def get_most_viewed(
+        self,
+        limit: int = 5,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[MostViewedItem]:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = ["event_type = 'product_view'", "product_id IS NOT NULL", "product_id != ''"]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT product_id, COALESCE(product_name, 'Unknown') as product_name, COUNT(*) as count "
+                        f"FROM {self.TABLE} WHERE {where_sql} "
+                        f"GROUP BY product_id, product_name "
+                        f"ORDER BY count DESC LIMIT :limit"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        return [
+            MostViewedItem(product_id=str(r.product_id), product_name=str(r.product_name), count=int(r.count))
+            for r in rows
+        ]
+
+    async def get_cart_abandonments(
+        self,
+        limit: int = 100,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List['Tracking']:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = ["event_type = 'cart_abandonment'"]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY event_timestamp DESC, id DESC LIMIT :limit"),
+                    params,
+                )
+            ).fetchall()
+            c_map = await self._fetch_children(session, [r.id for r in rows])
+        return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
+
+    async def get_most_abandoned_products(
+        self,
+        limit: int = 50,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[MostAbandonedProductItem]:
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = ["t.event_type = 'cart_abandonment'", "ci.product_id IS NOT NULL", "ci.product_id != ''"]
+        params = {"limit": int(limit)}
+        if start_date:
+            where_clauses.append("t.event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("t.event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"""
+                        SELECT 
+                            ci.product_id,
+                            COALESCE(MAX(p.name), 'Unknown') as product_name,
+                            COALESCE(MAX(p.category), 'Uncategorized') as category,
+                            COUNT(DISTINCT ci.tracking_id) as abandon_count,
+                            SUM(COALESCE(ci.quantity, 1)) as quantity_abandoned,
+                            SUM(COALESCE(ci.quantity, 1) * COALESCE(ci.price, 0)) as value_lost
+                        FROM sj_tracking_cart_items ci
+                        JOIN {self.TABLE} t ON t.id = ci.tracking_id
+                        LEFT JOIN sj_products p ON (p.id = ci.product_id OR p.external_id = ci.product_id)
+                        WHERE {where_sql}
+                        GROUP BY ci.product_id
+                        ORDER BY abandon_count DESC LIMIT :limit
+                        """
+                    ),
+                    params,
+                )
+            ).fetchall()
+
+        return [
+            MostAbandonedProductItem(
+                product_id=str(r.product_id),
+                product_name=str(r.product_name),
+                category=str(r.category),
+                abandon_count=int(r.abandon_count),
+                quantity_abandoned=int(r.quantity_abandoned or 0),
+                value_lost=round(float(r.value_lost or 0.0), 2),
+            )
+            for r in rows
+        ]
+
+    async def get_returning_user_ids(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> tuple[List[str], dict[str, str]]:
+        factory = self._factory()
+        if not factory:
+            return [], {}
+        where_clauses = ["user_id IS NOT NULL", "user_id != ''"]
+        params = {}
+        if start_date:
+            where_clauses.append("start_time >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("start_time <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"SELECT user_id, MAX(start_time) as last_seen "
+                        f"FROM sj_analytics_sessions WHERE {where_sql} "
+                        f"GROUP BY user_id HAVING COUNT(*) > 1"
+                    ),
+                    params,
+                )
+            ).fetchall()
+        user_ids = [str(r.user_id) for r in rows]
+        last_seen_map = {
+            str(r.user_id): r.last_seen.isoformat() if r.last_seen and hasattr(r.last_seen, "isoformat") else str(r.last_seen or "")
+            for r in rows
+        }
+        return user_ids, last_seen_map
 
     async def findOne(
         self,

@@ -1207,6 +1207,42 @@ class RecommendationResponse(CamelBaseModel):
     wholesaler_favourites: List[SkinnyProductResponse] = Field(default_factory=list)
     business_favourites: List[SkinnyProductResponse] = Field(default_factory=list)
     section_order: List[str] = Field(default_factory=list)
+    city_name: Optional[str] = None
+
+    def __getitem__(self, item: str):
+        mapping = {
+            "newArrivals": self.new_arrivals,
+            "new_arrivals": self.new_arrivals,
+            "customerFavourites": self.customer_favourites,
+            "customer_favourites": self.customer_favourites,
+            "trendingNow": self.trending_now,
+            "trending_now": self.trending_now,
+            "explore": self.explore,
+            "wholesalerFavourites": self.wholesaler_favourites,
+            "wholesaler_favourites": self.wholesaler_favourites,
+            "businessFavourites": self.business_favourites,
+            "business_favourites": self.business_favourites,
+            "sectionOrder": self.section_order,
+            "section_order": self.section_order,
+            "cityName": self.city_name,
+            "city_name": self.city_name,
+        }
+        if item in mapping:
+            return mapping[item]
+        raise KeyError(item)
+
+    def __contains__(self, item: str):
+        keys = (
+            "newArrivals", "new_arrivals",
+            "customerFavourites", "customer_favourites",
+            "trendingNow", "trending_now",
+            "explore",
+            "wholesalerFavourites", "wholesaler_favourites",
+            "businessFavourites", "business_favourites",
+            "sectionOrder", "section_order",
+            "cityName", "city_name",
+        )
+        return item in keys
 
 class SkinnyProductResponse(CamelBaseModel):
     id: str = Field(alias="_id")

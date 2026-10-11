@@ -17,4 +17,11 @@ class AvailabilityRequests(CamelBaseModel):
 class AvailabilityRequestResponse(AvailabilityRequests):
     pass
 
+class AvailabilityRequestFilter(CamelBaseModel):
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    pincode: Optional[str] = None
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+
 
