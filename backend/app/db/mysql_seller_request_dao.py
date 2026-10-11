@@ -6,8 +6,7 @@ MySQL DAO for sj_seller_requests. Implements FileStorage-like interface.
 
 import secrets
 from datetime import datetime
-from collections import defaultdict
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 from app.models.seller_request import SellerRequest, SellerRequestResponseItem
 from app.models.schemas import TicketResponseItem
 
@@ -33,12 +32,12 @@ class MySQLSellerRequestDAO:
         sr.responses = responses
         return sr
 
-    async def _fetch_children(self, session, req_ids: List[int]) -> Tuple[defaultdict[int, List[str]], defaultdict[int, List[SellerRequestResponseItem]]]:
-        att_map: defaultdict[int, List[str]] = defaultdict(list)
-        resp_map: defaultdict[int, List[SellerRequestResponseItem]] = defaultdict(list)
+    async def _fetch_children(self, session, req_ids: List[int]) -> Tuple[List[Any], List[Any]]:
         if not req_ids:
-            return att_map, resp_map
+            return [], []
         chunks = [req_ids[i : i + 999] for i in range(0, len(req_ids), 999)]
+        all_att = []
+        all_resp = []
         for chunk in chunks:
             chunk_params = {f"rid_{i}": rid for i, rid in enumerate(chunk)}
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
@@ -48,8 +47,7 @@ class MySQLSellerRequestDAO:
                 text(f"SELECT request_id, url FROM sj_seller_request_attachments WHERE request_id IN ({placeholders})"),
                 chunk_params,
             )
-            for r in att_res.fetchall():
-                att_map[r.request_id].append(r.url)
+            all_att.extend(att_res.fetchall())
 
             # Responses
             resp_res = await session.execute(
@@ -58,15 +56,8 @@ class MySQLSellerRequestDAO:
                 ),
                 chunk_params,
             )
-            for r in resp_res.fetchall():
-                resp_map[r.request_id].append(
-                    SellerRequestResponseItem(
-                        admin_id=r.admin_id,
-                        response=r.response_text,
-                        created_at=r.created_at,
-                    )
-                )
-        return att_map, resp_map
+            all_resp.extend(resp_res.fetchall())
+        return all_att, all_resp
 
     async def _replace_children(self, session, req_id: int, data: Union['SellerRequestInternalCreate', 'SellerRequestInternalUpdate']):
         await session.execute(
@@ -138,8 +129,23 @@ class MySQLSellerRequestDAO:
                 params,
             )
             rows = result.fetchall()
-            att_map, resp_map = await self._fetch_children(session, [int(r.id) for r in rows])
-        return [self._map_row(r, att_map[int(r.id)], resp_map[int(r.id)]) for r in rows]
+            att_rows, resp_rows = await self._fetch_children(session, [int(r.id) for r in rows])
+        return [
+            self._map_row(
+                r,
+                attachments=[str(a.url) for a in att_rows if int(a.request_id) == int(r.id)],
+                responses=[
+                    SellerRequestResponseItem(
+                        admin_id=resp.admin_id,
+                        response=resp.response_text,
+                        created_at=resp.created_at,
+                    )
+                    for resp in resp_rows
+                    if int(resp.request_id) == int(r.id)
+                ],
+            )
+            for r in rows
+        ]
 
     async def findOne(
         self,
@@ -169,8 +175,20 @@ class MySQLSellerRequestDAO:
             row = result.fetchone()
             if not row:
                 return None
-            att_map, resp_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_row(row, att_map[int(row.id)], resp_map[int(row.id)])
+            att_rows, resp_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_row(
+                row,
+                attachments=[str(a.url) for a in att_rows if int(a.request_id) == int(row.id)],
+                responses=[
+                    SellerRequestResponseItem(
+                        admin_id=resp.admin_id,
+                        response=resp.response_text,
+                        created_at=resp.created_at,
+                    )
+                    for resp in resp_rows
+                    if int(resp.request_id) == int(row.id)
+                ],
+            )
 
     async def create(self, data: 'SellerRequestInternalCreate') -> Optional[SellerRequest]:
         factory = self._factory()
