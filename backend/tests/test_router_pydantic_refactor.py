@@ -205,9 +205,9 @@ class TestTier1ASTStaticAnalysis:
     """Tier 1: AST / Static check verifying zero Category A .get( calls across routers."""
 
     def test_tier1_router_inventory_complete(self):
-        """Assert that all 55 active router files are discovered and tested."""
-        assert len(ACTIVE_ROUTER_FILES) == 55, (
-            f"Expected exactly 55 active router files, found {len(ACTIVE_ROUTER_FILES)}: {ACTIVE_ROUTER_FILES}"
+        """Assert that all 57 active router files are discovered and tested."""
+        assert len(ACTIVE_ROUTER_FILES) == 57, (
+            f"Expected exactly 57 active router files, found {len(ACTIVE_ROUTER_FILES)}: {ACTIVE_ROUTER_FILES}"
         )
 
     def test_tier1_reference_router_ads_clean(self):
