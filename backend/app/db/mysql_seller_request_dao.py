@@ -6,9 +6,8 @@ MySQL DAO for sj_seller_requests. Implements FileStorage-like interface.
 
 import secrets
 from datetime import datetime
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple
 from app.models.seller_request import SellerRequest, SellerRequestResponseItem
-from app.models.schemas import TicketResponseItem
 
 from sqlalchemy import text
 
@@ -64,7 +63,7 @@ class MySQLSellerRequestDAO:
         session,
         req_id: int,
         attachments: Optional[List[str]] = None,
-        responses: Optional[List[Union[SellerRequestResponseItem, TicketResponseItem]]] = None,
+        responses: Optional[List[SellerRequestResponseItem]] = None,
     ) -> None:
         if attachments is not None:
             await session.execute(
@@ -79,23 +78,15 @@ class MySQLSellerRequestDAO:
         if responses is not None:
             await session.execute(text("DELETE FROM sj_seller_request_responses WHERE request_id = :rid"), {"rid": req_id})
             for resp in responses:
-                if isinstance(resp, TicketResponseItem):
-                    admin_id = resp.user
-                    response_text = resp.message
-                    created_at = resp.created_at or now_utc()
-                else:
-                    admin_id = resp.admin_id
-                    response_text = resp.response
-                    created_at = resp.created_at or now_utc()
                 await session.execute(
                     text(
                         "INSERT INTO sj_seller_request_responses (request_id, admin_id, response_text, created_at) VALUES (:rid, :admin, :text, :c)"
                     ),
                     {
                         "rid": req_id,
-                        "admin": admin_id,
-                        "text": response_text,
-                        "c": created_at,
+                        "admin": resp.admin_id,
+                        "text": resp.response,
+                        "c": resp.created_at or now_utc(),
                     },
                 )
 
@@ -333,11 +324,31 @@ class MySQLSellerRequestDAO:
         factory = self._factory()
         if not factory:
             return False
+        is_digit = str(id).isdigit()
         async with factory() as session:
-            is_digit = str(id).isdigit()
-            sql = f"DELETE FROM {self.TABLE} WHERE id = :id" if is_digit else f"DELETE FROM {self.TABLE} WHERE external_id = :id"
+            if is_digit:
+                req_id = int(id)
+            else:
+                find_res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
+                    {"eid": str(id)},
+                )
+                row = find_res.fetchone()
+                if not row:
+                    return False
+                req_id = int(row.id)
+
+            await session.execute(
+                text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"),
+                {"rid": req_id},
+            )
+            await session.execute(
+                text("DELETE FROM sj_seller_request_responses WHERE request_id = :rid"),
+                {"rid": req_id},
+            )
             result = await session.execute(
-                text(sql), {"id": int(id) if is_digit else str(id)}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :rid"),
+                {"rid": req_id},
             )
             await session.commit()
             return result.rowcount > 0

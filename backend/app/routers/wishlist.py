@@ -69,7 +69,7 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
                 {
                     "quantity": quantity,
                     "externalId": item.external_id,
-                    "_id": str(item.id_) if item.id_ else None,
+                    "_id": str(item.id) if item.id else None,
                     "product": {
                         "_id": str(product.id),
                         "name": product.name,

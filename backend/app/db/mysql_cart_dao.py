@@ -107,7 +107,7 @@ class MySQLCartDAO:
                         pass
                 items_map[ir.cart_id].append(
                     CartItemInternal(
-                        id_=str(ir.id),
+                        id=str(ir.id),
                         product=str(ir.product_id),
                         quantity=int(ir.quantity),
                         sell_as_case=bool(ir.sell_as_case),

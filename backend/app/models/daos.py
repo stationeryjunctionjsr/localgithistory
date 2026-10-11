@@ -3,13 +3,14 @@ from typing import List, Optional, Any, Union
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.schemas import (
     VisibilityRuleSnippet, ProductDetails, VariantAttributes,
-    TicketResponseItem, NotificationMetadata, ProductSellerEntry, VariantOption
+    NotificationMetadata, ProductSellerEntry, VariantOption
 )
 from app.models.seller_request import SellerRequestResponseItem
 from datetime import datetime
 
 class CartItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
+    id: Optional[str] = None
     external_id: Optional[str] = Field(None, alias='externalId')
     product: Optional[str] = None
     quantity: Optional[int] = 0
@@ -18,23 +19,6 @@ class CartItemInternal(CamelBaseModel):
     bundle_name: Optional[str] = None
     price: Optional[float] = None
     variant_attributes: Optional[VariantAttributes] = None
-    id_: Optional[str] = Field(default=None, alias="_id")
-
-    @property
-    def id(self) -> Optional[str]:
-        return self.id_
-
-    @property
-    def _id(self) -> Optional[str]:
-        return self.id_
-
-    @property
-    def product_id(self) -> Optional[str]:
-        return self.product
-
-    @property
-    def selectedVariation(self) -> Optional[VariantAttributes]:
-        return self.variant_attributes
 
 class CartInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -237,7 +221,7 @@ class ValetAvailabilityInternalUpdate(CamelBaseModel):
 
 class ValetAvailabilityFilter(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    id: Optional[Union[str, int]] = Field(None, alias="_id")
+    id: Optional[Union[str, int]] = None
     valet_id: Optional[str] = Field(None, alias="valetId")
     date: Optional[str] = None
     availability_type: Optional[str] = Field(None, alias="availabilityType")
@@ -262,6 +246,7 @@ class DeviceSnippet(CamelBaseModel):
 
 class SessionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
+    id: Optional[str] = None
     external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     user_id: Optional[str] = None
@@ -275,18 +260,12 @@ class SessionInternalCreate(CamelBaseModel):
     device: Optional[DeviceSnippet] = None
     is_guest: Optional[bool] = None
     comment: Optional[str] = None
-    id: Optional[str] = None
-    user_id: Optional[str] = None
-    refresh_token_id: Optional[str] = None
-    last_active_at: Optional[datetime] = None
-    revoked_at: Optional[datetime] = None
-    revoked_reason: Optional[str] = None
-    is_guest: Optional[bool] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
+    id: Optional[str] = None
     external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     user_id: Optional[str] = None
@@ -294,7 +273,6 @@ class SessionInternalUpdate(CamelBaseModel):
     ip_address: Optional[str] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[datetime] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
     last_active_at: Optional[datetime] = None
@@ -303,29 +281,15 @@ class SessionInternalUpdate(CamelBaseModel):
     device: Optional[DeviceSnippet] = None
     is_guest: Optional[bool] = None
     comment: Optional[str] = None
-    id_: Optional[str] = Field(default=None, alias="_id")
-    created_at: Optional[datetime] = None
-    external_id: Optional[str] = None
     comments: Optional[str] = None
-    eid: Optional[str] = None
-    now: Optional[str] = None
-    deletedCount: Optional[int] = None
-    uid: Optional[str] = None
-    id: Optional[str] = None
-    user_id: Optional[str] = None
-    refresh_token_id: Optional[str] = None
-    last_active_at: Optional[datetime] = None
-    revoked_at: Optional[datetime] = None
-    revoked_reason: Optional[str] = None
-    is_guest: Optional[bool] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 
 class WishlistItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
+    id: Optional[str] = None
     external_id: Optional[str] = Field(None, alias='externalId')
-    id_: Optional[str] = Field(default=None, alias="_id")
     product: str
     quantity: Optional[int] = 1
     addedAt: Optional[str] = None
@@ -373,7 +337,7 @@ class SellerRequestInternalCreate(CamelBaseModel):
     priority: Optional[str] = "medium"
     status: str = "open"
     attachments: Optional[List[str]] = None
-    responses: Optional[List[Union[SellerRequestResponseItem, TicketResponseItem]]] = None
+    responses: Optional[List[SellerRequestResponseItem]] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -390,7 +354,7 @@ class SellerRequestInternalUpdate(CamelBaseModel):
     priority: Optional[str] = None
     status: Optional[str] = None
     attachments: Optional[List[str]] = None
-    responses: Optional[List[Union[SellerRequestResponseItem, TicketResponseItem]]] = None
+    responses: Optional[List[SellerRequestResponseItem]] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -398,12 +362,7 @@ class SellerRequestInternalUpdate(CamelBaseModel):
 
 
 class ProductInternalCreate(CamelBaseModel):
-    model_config = ConfigDict(extra='ignore')
-    stock: int = 0
-    sellers: List[ProductSellerEntry] = []
-    rating: float = 0.0
-    reviews: int = 0
-    quantity_per_case: int = 0
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
@@ -589,8 +548,8 @@ class BundleInternalUpdate(CamelBaseModel):
 
 class ReturnRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
+    id: Optional[str] = None
     external_id: Optional[str] = Field(None, alias='externalId')
-    id: Optional[str] = Field(default=None, alias="_id")
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -642,8 +601,8 @@ class ReturnRequestInternalUpdate(CamelBaseModel):
 
 class ReturnRequestInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
+    id: Optional[str] = None
     external_id: Optional[str] = Field(None, alias='externalId')
-    id: Optional[str] = Field(default=None, alias="_id")
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -668,7 +627,7 @@ class ReturnRequestInternal(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
+from app.models.schemas import ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
 class CustomerSegmentFilters(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -680,7 +639,7 @@ class CustomerSegmentFilters(CamelBaseModel):
     role: Optional[str] = None
 
 class CustomerSegmentInternalCreate(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: Optional[str] = None
     name: str
     type: str
     userIds: List[str]
@@ -700,7 +659,7 @@ class CustomerSegmentInternalUpdate(CamelBaseModel):
     lastRefreshedAt: Optional[str] = None
 
 class NotificationInternalCreate(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: Optional[str] = None
     user_id: str
     type: str
     title: str
@@ -725,7 +684,7 @@ class NotificationFilter(CamelBaseModel):
     endDate: Optional[str] = None
 
 class NotificationInternal(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: Optional[str] = None
     user_id: str
     type: str
     title: str
@@ -735,3 +694,18 @@ class NotificationInternal(CamelBaseModel):
     metadata: Optional[NotificationMetadata] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class OrderFilter(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: Optional[Union[str, int]] = None
+    user_id: Optional[str] = None
+    status: Optional[str] = None
+    order_type: Optional[str] = None
+    payment_method: Optional[str] = None
+    start_date: Optional[Union[datetime, str]] = None
+    end_date: Optional[Union[datetime, str]] = None
+    order_number_prefix: Optional[str] = None
+    idempotency_key: Optional[str] = None
+    assigned_valet: Optional[str] = None
+

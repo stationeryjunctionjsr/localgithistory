@@ -86,7 +86,7 @@ async def get_cart(
 
             cart_items.append(
                 {
-                    "_id": str(item.id_) if item.id_ else item.external_id,
+                    "_id": str(item.id) if item.id else item.external_id,
                     "productId": product.id,
                     "name": product.name,
                     "sku": product.sku,
@@ -193,7 +193,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
 
         from app.models.daos import CartItemInternal
         new_item = CartItemInternal(
-            id_=str(uuid.uuid4()),
+            id=str(uuid.uuid4()),
             product=item.product_id,
             quantity=item.quantity,
             sellAsCase=sell_as_case,
