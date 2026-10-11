@@ -231,7 +231,7 @@ class MySQLActivitiesDAO:
             else None
         )
         return ActivityInternal(
-            _id=str(r.id),
+            id=str(r.id),
             user_id=r.user_id,
             session_id=r.session_id,
             action=r.action,

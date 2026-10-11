@@ -98,7 +98,7 @@ async def run_events_sync_job_async():
                 continue
 
             # Build typed tracking event model
-            doc = AnalyticsEventCreate(
+            tracking_event = AnalyticsEventCreate(
                 type=tracking_type,
                 user_id=user_id,
                 session_id=session_id,
@@ -106,37 +106,36 @@ async def run_events_sync_job_async():
             )
 
             if event_type == "session_start":
-                doc.is_returning = payload.returning
-                doc.page_views = 1
+                tracking_event.is_returning = payload.returning
             elif event_type == "page_view":
-                doc.page = e.page
+                tracking_event.page = e.page
             elif event_type == "product_view":
-                doc.product_id = payload.product_id
-                doc.product_name = payload.product_name
+                tracking_event.product_id = payload.product_id
+                tracking_event.product_name = payload.product_name
             elif event_type == "product_click":
-                doc.product_id = payload.product_id
-                doc.product_name = payload.product_name
-                doc.source = payload.source
+                tracking_event.product_id = payload.product_id
+                tracking_event.product_name = payload.product_name
+                tracking_event.source = payload.source
             elif event_type == "add_to_cart":
-                doc.product_id = payload.product_id
-                doc.quantity = payload.quantity
+                tracking_event.product_id = payload.product_id
+                tracking_event.quantity = payload.quantity
             elif event_type == "remove_from_cart":
-                doc.product_id = payload.product_id
-                doc.quantity = payload.quantity
+                tracking_event.product_id = payload.product_id
+                tracking_event.quantity = payload.quantity
             elif event_type == "search":
-                doc.search_term = payload.query
-                doc.results_count = payload.results_count
-                doc.segment = "customer"
+                tracking_event.search_term = payload.query
+                tracking_event.results_count = payload.results_count
+                tracking_event.segment = "customer"
             elif event_type == "add_to_wishlist":
-                doc.product_id = payload.product_id
+                tracking_event.product_id = payload.product_id
             elif event_type == "begin_checkout":
-                doc.page = "/checkout/step1"
+                tracking_event.page = "/checkout/step1"
             elif event_type == "purchase":
-                doc.page = "/checkout/complete"
+                tracking_event.page = "/checkout/complete"
             elif event_type == "session_end":
-                doc.reason = payload.reason
+                tracking_event.reason = payload.reason
 
-            await tracking_repository.create(doc)
+            await tracking_repository.create(tracking_event)
             migrated_count += 1
 
         logger.info("Daily events synchronization job finished. Synced %d events.", migrated_count)

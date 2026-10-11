@@ -8,7 +8,6 @@ class DivisionCategoryTag(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
     id: Union[int, str]
     external_id: Optional[str] = None
-    mongo_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: bool = Field(True, alias="isActive")

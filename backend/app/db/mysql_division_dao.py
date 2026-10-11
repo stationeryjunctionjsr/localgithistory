@@ -53,7 +53,6 @@ class MySQLDivisionDAO:
                     DivisionCategoryTag(
                         id=tid,
                         external_id=row.external_id,
-                        mongo_id=str(tid),
                         name=row.name,
                         description=row.description,
                         is_active=bool(row.is_active) if row.is_active is not None else True,

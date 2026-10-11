@@ -1892,19 +1892,7 @@ class AnalyticsEventCreate(CamelBaseModel):
     order_value: Optional[float] = None
     page: Optional[str] = None
     reason: Optional[str] = None
-    order_id: Optional[str] = None
-    order_value: Optional[float] = None
-    cartItems: Optional[List[ItemSnippet]] = None
     timestamp: Optional[str] = None
-    os: Optional[str] = None
-    browser: Optional[str] = None
-    ipAddress: Optional[str] = None
-    campaign: Optional[str] = None
-    device: Optional[str] = None
-    deviceType: Optional[str] = None
-    deviceOsVersion: Optional[str] = None
-    deviceModel: Optional[str] = None
-    deviceAppVersion: Optional[str] = None
 
 
 class Msg91WebhookPayload(CamelBaseModel):

@@ -953,7 +953,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 eligible_quantity = 0
                 eligible_item_indices = []
                 for idx, item in enumerate(cart_items):
-                    product = await product_repository.findByIditem.product_id
+                    product = await product_repository.findById(item.product_id)
                     if not product:
                         continue
                     if await self._product_eligible_async(

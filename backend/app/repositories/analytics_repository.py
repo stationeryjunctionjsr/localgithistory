@@ -961,7 +961,7 @@ class AnalyticsRepository:
 
         searched = await tracking_repository.getMostSearched(1000, start_date, end_date)
         viewed = await tracking_repository.getMostViewed(1000, start_date, end_date)
-        drop_offs = await tracking_repository.getDropOffPoints(1000, start_date, end_date)
+        drop_offs = await tracking_repository.getDropOffs(1000, start_date, end_date)
         abandonments = await tracking_repository.getCartAbandonments(1000, start_date, end_date)
         returning = await tracking_repository.getReturningUsers(start_date, end_date)
         user_type_items = await self.get_items_by_user_type(start_date, end_date)
