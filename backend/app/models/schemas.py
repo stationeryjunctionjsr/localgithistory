@@ -80,7 +80,6 @@ class BannerPosition(str, Enum):
 
 class AddressSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[Union[str, int]] = None
     name: Optional[str] = None
     is_primary: Optional[bool] = None
     phone: Optional[str] = None

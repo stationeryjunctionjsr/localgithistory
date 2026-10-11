@@ -2,7 +2,7 @@ from app.models.schemas import UserUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse, Msg91WebhookPayload
 import os
-from typing import Optional, Union
+from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Response, Depends, Header, HTTPException, Request, status
@@ -414,7 +414,7 @@ class RefreshTokenClaims(BaseModel):
     sessionId: str
     refreshId: str
     type: Optional[str] = None
-    exp: Optional[Union[int, float]] = None
+    exp: Optional[int] = None
 
 
 class RefreshRequest(BaseModel):
