@@ -34,14 +34,14 @@ class MySQLBannerDAO:
             except Exception:
                 zone_ids = None
 
-        user_segments_raw = json_loads(r.user_segments_json) if getattr(r, "user_segments_json", None) else []
+        user_segments_raw = json_loads(r.user_segments_json) if r.user_segments_json else []
         user_segments = [str(s) for s in user_segments_raw if s] if isinstance(user_segments_raw, list) else []
         if not user_segments and r.target_audience:
             user_segments = [r.target_audience]
         if not user_segments:
             user_segments = ["all"]
 
-        rules_raw = json_loads(r.visibility_rules_json) if getattr(r, "visibility_rules_json", None) else []
+        rules_raw = json_loads(r.visibility_rules_json) if r.visibility_rules_json else []
         visibility_rules = []
         if isinstance(rules_raw, list):
             for rule in rules_raw:

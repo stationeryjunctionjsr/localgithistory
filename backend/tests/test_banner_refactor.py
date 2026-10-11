@@ -42,9 +42,13 @@ def test_zero_lambdas_and_zero_anti_patterns():
     assert "_build_where" not in router_source
     assert "_build_where" not in flat_dao_source
 
+    assert "getattr" not in dao_source
+    assert "getattr" not in repo_source
+    assert "getattr" not in router_source
+    assert "getattr" not in flat_dao_source
+
     assert "_mapping" not in dao_source
     assert "setdefault" not in dao_source
-    assert "getattr(banner_data" not in repo_source
     assert "isinstance(filters, dict)" not in repo_source
     assert "query.items()" not in flat_dao_source
 
