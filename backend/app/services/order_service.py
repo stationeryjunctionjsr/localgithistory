@@ -1233,19 +1233,22 @@ async def create_order_service(
                     status_code=400, detail="Your pincode is not serviceable for Pan-India courier delivery."
                 )
         else:
-            is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
-            if not is_serviceable:
+            from app.repositories.zone_seller_cache import get_zone_for_pincode
+            zone = await get_zone_for_pincode(shipping_zip)
+            if not zone or not zone.is_active:
                 raise HTTPException(
-                    status_code=400, detail="Your pincode is not serviceable. Please contact support for assistance."
+                    status_code=400, detail="Your pincode is not serviceable for Hyperlocal delivery."
+                )
+
+            if effective_role == "wholesaler" and zone.customer_type not in ("business", "both"):
+                raise HTTPException(
+                    status_code=400, detail="Hyperlocal delivery in your zone is not available for wholesale orders."
                 )
 
             # Zone-based seller serviceability check
             # Resolve zone_id if not already set (e.g. non-slot standard orders)
-            if not order_zone_id and shipping_zip:
-                from app.repositories.zone_seller_cache import get_zone_for_pincode as _gz2
-                _z2 = await _gz2(shipping_zip)
-                if _z2:
-                    order_zone_id = str(_z2.id or "")
+            if not order_zone_id:
+                order_zone_id = str(zone.id or "")
 
             if order_zone_id:
                 seller_ids_in_order = {

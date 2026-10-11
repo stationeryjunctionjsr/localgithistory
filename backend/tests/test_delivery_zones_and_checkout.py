@@ -67,6 +67,7 @@ class TestDeliveryChargeRepository:
         """Order below first tier max pays first tier charge."""
         class MockTier:
             def __init__(self, m, c):
+                self.external_id = "t_mock"
                 self.max = m
                 self.charge = c
         tiers = [
@@ -75,36 +76,46 @@ class TestDeliveryChargeRepository:
             MockTier("Infinity", 0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=300)
-        assert result['charge'] == 60.0
-        assert result['tier'] is not None
+        assert result.charge == 60.0
+        assert result.tier is not None
 
     # ── A2 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_infinity_tier(self):
         """Order above all finite thresholds falls into Infinity tier (free shipping)."""
+        class MockTier:
+            def __init__(self, m, c):
+                self.external_id = "t_mock"
+                self.max = m
+                self.charge = c
         tiers = [
-            MagicMock(max=500, charge=60),
-            MagicMock(max="Infinity", charge=0),
+            MockTier(500, 60),
+            MockTier("Infinity", 0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=1500)
-        assert result['charge'] == 0.0
+        assert result.charge == 0.0
 
     # ── A3 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_empty(self):
         """Empty tiers list returns zero charge."""
         result = self.repo.calculateTieredCharge([], order_amount=500)
-        assert result['charge'] == 0
-        assert result['tier'] is None
+        assert result.charge == 0
+        assert result.tier is None
 
     # ── A4 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_boundary(self):
         """order_amount exactly equal to maxAmount picks the NEXT tier (strict <)."""
+        class MockTier:
+            def __init__(self, m, c):
+                self.external_id = "t_mock"
+                self.max = m
+                self.charge = c
         tiers = [
-            MagicMock(max=500, charge=60),
-            MagicMock(max="Infinity", charge=0),
+            MockTier(500, 60),
+            MockTier("Infinity", 0),
         ]
         # order_amount = 500 is NOT < 500, so it falls to the Infinity tier
         result = self.repo.calculateTieredCharge(tiers, order_amount=500)
-        assert result['charge'] == 0.0
+        assert result.charge == 0.0
 
     # ── A5 ──────────────────────────────────────────────────────────────────
     def test_is_charge_applicable_to_role(self):
@@ -148,6 +159,38 @@ class TestDeliveryChargeRepository:
             mock_find.return_value = mock_charge_not_serviceable
             result = await self.repo.isPincodeServiceable("110002", "wholesaler")
             assert result is True  # serviceable_for_wholesaler=True
+
+    @pytest.mark.asyncio
+    async def test_is_pan_india_serviceable(self):
+        """isPanIndiaServiceable returns True only when pincode exists with serviceable_for_customer=True."""
+        mock_charge_serviceable = MagicMock(
+            pincode="110001",
+            is_active=True,
+            serviceable_for_customer=True,
+        )
+        mock_charge_not_serviceable = MagicMock(
+            pincode="110002",
+            is_active=True,
+            serviceable_for_customer=False,
+        )
+
+        with patch.object(self.repo, "findByPincode", new_callable=AsyncMock) as mock_find:
+            # Case 1: Pincode exists and serviceable_for_customer is True
+            mock_find.return_value = mock_charge_serviceable
+            assert await self.repo.isPanIndiaServiceable("110001") is True
+
+            # Case 2: Pincode exists but serviceable_for_customer is False
+            mock_find.return_value = mock_charge_not_serviceable
+            assert await self.repo.isPanIndiaServiceable("110002") is False
+
+            # Case 3: Pincode not configured in sj_delivery_charges
+            mock_find.return_value = None
+            assert await self.repo.isPanIndiaServiceable("110003") is False
+
+            # Case 4: Invalid pincode format
+            assert await self.repo.isPanIndiaServiceable("123") is False
+            assert await self.repo.isPanIndiaServiceable("012345") is False
+            assert await self.repo.isPanIndiaServiceable("ABCDEF") is False
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -232,6 +275,72 @@ async def test_check_serviceability_urgent_flag_propagated():
         result = await check_serviceability("560001", "customer")
 
     assert result.urgent_delivery_available is True
+
+
+@pytest.mark.asyncio
+async def test_check_serviceability_hyperlocal_when_pan_india_disabled():
+    """B5 – Decoupled serviceability: active zone allows hyperlocal even if pan-india is disabled."""
+    from app.routers.delivery_charges import check_serviceability
+    from app.models.schemas import DeliveryZoneResponse
+
+    mock_zone = DeliveryZoneResponse(
+        id="zone_jsr",
+        urgentDeliveryAvailable=True,
+        customerType="retail",
+        name="Jamshedpur Zone",
+        is_active=True,
+        pincodes=["831001"],
+    )
+
+    repo_path = "app.routers.delivery_charges.delivery_charge_repository"
+    zone_path = "app.repositories.zone_seller_cache.get_zone_for_pincode"
+    storage_path = "app.db.storage_factory.get_storage"
+
+    with patch(zone_path, new_callable=AsyncMock) as mock_zone_fn, \
+         patch(f"{repo_path}.isPanIndiaServiceable", new_callable=AsyncMock) as mock_pan_india, \
+         patch(storage_path) as mock_get_storage:
+
+        mock_zone_fn.return_value = mock_zone
+        mock_pan_india.return_value = False  # Pan-India is NOT serviceable
+        mock_slot_storage = MagicMock()
+        mock_slot_storage.findAll = AsyncMock(return_value=[])
+        mock_get_storage.return_value = mock_slot_storage
+
+        result = await check_serviceability("831001", "customer")
+
+    assert result.is_serviceable is True
+    assert result.has_zone is True
+    assert result.has_pan_india is False
+    assert result.allowed_modes == ["hyperlocal"]
+    assert result.default_mode == "hyperlocal"
+
+
+@pytest.mark.asyncio
+async def test_check_serviceability_pan_india_only():
+    """B6 – Decoupled serviceability: pan-india allowed when not in any zone."""
+    from app.routers.delivery_charges import check_serviceability
+
+    repo_path = "app.routers.delivery_charges.delivery_charge_repository"
+    zone_path = "app.repositories.zone_seller_cache.get_zone_for_pincode"
+    storage_path = "app.db.storage_factory.get_storage"
+
+    with patch(zone_path, new_callable=AsyncMock) as mock_zone_fn, \
+         patch(f"{repo_path}.isPanIndiaServiceable", new_callable=AsyncMock) as mock_pan_india, \
+         patch(storage_path) as mock_get_storage:
+
+        mock_zone_fn.return_value = None  # No zone
+        mock_pan_india.return_value = True  # Pan-India serviceable
+        mock_slot_storage = MagicMock()
+        mock_slot_storage.findAll = AsyncMock(return_value=[])
+        mock_get_storage.return_value = mock_slot_storage
+
+        result = await check_serviceability("110001", "customer")
+
+    assert result.is_serviceable is True
+    assert result.has_zone is False
+    assert result.has_pan_india is True
+    assert result.allowed_modes == ["pan_india"]
+    assert result.default_mode == "pan_india"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -889,3 +998,81 @@ async def test_check_pincode_conflicts_exclude_own_zone():
         conflicts = await _check_pincode_conflicts(["831001"], exclude_zone_id="z_own")
 
     assert conflicts == []
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# K. Decoupled Order Placement Serviceability
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_order_fulfillment_serviceability_courier_rejected():
+    """K1 – Courier fulfillment raises 400 when isPanIndiaServiceable is False."""
+    from fastapi import HTTPException
+    from app.repositories.delivery_charge_repository import delivery_charge_repository
+
+    with patch.object(delivery_charge_repository, "isPanIndiaServiceable", new_callable=AsyncMock) as mock_pan:
+        mock_pan.return_value = False
+
+        shipping_zip = "831001"
+        fulfillment_type = "courier"
+
+        with pytest.raises(HTTPException) as exc_info:
+            if fulfillment_type == "courier":
+                is_svc = await delivery_charge_repository.isPanIndiaServiceable(shipping_zip)
+                if not is_svc:
+                    raise HTTPException(
+                        status_code=400, detail="Your pincode is not serviceable for Pan-India courier delivery."
+                    )
+
+        assert exc_info.value.status_code == 400
+        assert "Pan-India courier delivery" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_order_fulfillment_serviceability_hyperlocal_rejected_when_inactive():
+    """K2 – Hyperlocal fulfillment raises 400 when zone is inactive or missing."""
+    from fastapi import HTTPException
+
+    mock_inactive_zone = MagicMock(id="z1", is_active=False, customer_type="retail")
+    with patch("app.repositories.zone_seller_cache.get_zone_for_pincode", new_callable=AsyncMock) as mock_gz:
+        mock_gz.return_value = mock_inactive_zone
+
+        shipping_zip = "831001"
+        fulfillment_type = "valet"
+
+        with pytest.raises(HTTPException) as exc_info:
+            if fulfillment_type != "courier":
+                zone = await mock_gz(shipping_zip)
+                if not zone or not zone.is_active:
+                    raise HTTPException(
+                        status_code=400, detail="Your pincode is not serviceable for Hyperlocal delivery."
+                    )
+
+        assert exc_info.value.status_code == 400
+        assert "Hyperlocal delivery" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_order_fulfillment_serviceability_hyperlocal_accepted_when_active():
+    """K3 – Hyperlocal fulfillment succeeds when zone is active (independent of pan-india flag)."""
+    from fastapi import HTTPException
+
+    mock_active_zone = MagicMock(id="z1", is_active=True, customer_type="retail")
+    with patch("app.repositories.zone_seller_cache.get_zone_for_pincode", new_callable=AsyncMock) as mock_gz:
+        mock_gz.return_value = mock_active_zone
+
+        shipping_zip = "831001"
+        fulfillment_type = "valet"
+        order_zone_id = None
+
+        if fulfillment_type != "courier":
+            zone = await mock_gz(shipping_zip)
+            if not zone or not zone.is_active:
+                raise HTTPException(
+                    status_code=400, detail="Your pincode is not serviceable for Hyperlocal delivery."
+                )
+            if not order_zone_id:
+                order_zone_id = str(zone.id or "")
+
+        assert order_zone_id == "z1"

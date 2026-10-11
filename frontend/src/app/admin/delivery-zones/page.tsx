@@ -488,14 +488,14 @@ export default function DeliveryZonesPage() {
                   Pincodes
                 </label>
                 <p className="mb-2 text-xs text-slate-500">
-                  Only serviceable pincodes are shown. Greyed-out pincodes belong to another zone.
+                  Select pincodes from Delivery Charges. Pincodes already assigned to another zone cannot be selected.
                 </p>
 
                 {loadingPincodes ? (
                   <p className="text-sm text-slate-400">Loading pincodes…</p>
                 ) : serviceablePincodes.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-slate-300 p-3 text-center text-sm text-slate-400">
-                    No serviceable pincodes found. Add pincodes in Delivery Charges first.
+                    No pincodes found. Add pincodes in Delivery Charges first.
                   </p>
                 ) : (
                   <>
@@ -528,21 +528,28 @@ export default function DeliveryZonesPage() {
                         return (
                           <label
                             key={pc}
-                            className={`flex cursor-pointer items-center gap-1.5 rounded p-1 text-sm ${
+                            className={`flex cursor-pointer items-center justify-between gap-1.5 rounded p-1 text-sm ${
                               isClaimed
-                                ? 'cursor-not-allowed opacity-40'
+                                ? 'cursor-not-allowed bg-slate-50 opacity-40'
                                 : 'hover:bg-slate-50'
                             }`}
                             title={isClaimed ? 'Already assigned to another zone' : undefined}
                           >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              disabled={isClaimed}
-                              onChange={() => !isClaimed && togglePincode(pc)}
-                              className="h-4 w-4 rounded text-indigo-600"
-                            />
-                            <span>{pc}</span>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                disabled={isClaimed}
+                                onChange={() => !isClaimed && togglePincode(pc)}
+                                className="h-4 w-4 rounded text-indigo-600"
+                              />
+                              <span>{pc}</span>
+                            </div>
+                            {isClaimed && (
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                In other zone
+                              </span>
+                            )}
                           </label>
                         );
                       })}

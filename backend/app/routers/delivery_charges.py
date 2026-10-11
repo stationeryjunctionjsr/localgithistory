@@ -175,13 +175,13 @@ async def get_delivery_charge_by_location(
 
 @router.get("/serviceable-pincodes", response_model=List[str])
 async def get_serviceable_pincodes(current_user: User = Depends(require_super_admin)):
-    """Return all pincodes where serviceableForCustomer OR serviceableForWholesaler is True.
-    Used by the Delivery Slots admin page to populate the pincode picker."""
+    """Return all pincodes configured in delivery charges.
+    Used by the Delivery Zones and Slots admin page to populate the pincode picker."""
     charges = await delivery_charge_repository.findAll()
     pincodes = [
         c.pincode
         for c in charges
-        if c.pincode and (c.serviceable_for_customer or c.serviceable_for_wholesaler)
+        if c.pincode
     ]
     return sorted(set(pincodes))
 
@@ -214,8 +214,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     from app.db.storage_factory import get_storage
     from app.repositories.zone_seller_cache import get_seller_ids_for_pincode, get_zone_for_pincode
     from app.repositories.user_repository import user_repository
-
-    is_serviceable = await delivery_charge_repository.isPincodeServiceable(pincode, userRole)
 
     # ── Zone metadata (urgent delivery flag + customerType + seller IDs) ───────
     zone = await get_zone_for_pincode(pincode)
@@ -320,11 +318,18 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     allowed_modes = []
     if has_zone:
-        allowed_modes.append("hyperlocal")
+        if not is_wholesaler or wholesale_zone_eligible:
+            allowed_modes.append("hyperlocal")
     if has_pan_india:
-        allowed_modes.append("pan_india")
+        if not is_wholesaler:
+            allowed_modes.append("pan_india")
+        else:
+            wholesaler_svc = await delivery_charge_repository.isPincodeServiceable(pincode, "wholesaler")
+            if wholesaler_svc:
+                allowed_modes.append("pan_india")
 
-    default_mode = "hyperlocal" if has_zone else "pan_india"
+    default_mode = "hyperlocal" if "hyperlocal" in allowed_modes else "pan_india"
+    is_serviceable = len(allowed_modes) > 0
 
     return ServiceabilityResponse(
         is_serviceable=is_serviceable,

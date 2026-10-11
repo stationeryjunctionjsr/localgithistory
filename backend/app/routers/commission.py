@@ -1,6 +1,7 @@
 from app.models.schemas import UserUpdate
 from app.models.user import User
 from app.models.sub_order import SubOrder
+from app.models.base import CamelBaseModel
 from typing import List
 from app.models.schemas import MessageResponse
 """
