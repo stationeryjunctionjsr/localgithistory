@@ -81,7 +81,7 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: Use
     # Find referrer in user repository
     from app.repositories.user_repository import user_repository
 
-    referrer = await user_repository.findOne({"referralCode": code})
+    referrer = await user_repository.findByReferralCode(code)
     if not referrer:
         raise HTTPException(status_code=400, detail="Invalid referral code")
 

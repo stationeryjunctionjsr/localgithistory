@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.models.user import User
+from app.models.user import User, UserFilter
 from app.models.schemas import CamelBaseModel, MessageResponse, SellerPayoutDetailResponse, MarkPaidRequest
 from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate
 from app.models.sub_order import SubOrderInternalUpdate, SubOrderFilter
@@ -241,7 +241,7 @@ async def get_seller_payout_summary(
 async def get_all_seller_payout_summaries(
     current_user: User = Depends(require_super_admin)):
     import asyncio
-    sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
+    sellers = await user_repository.findAll(UserFilter(role="wholesaler", is_seller_admin=True))
     tasks = [_get_seller_summary(str(seller.id)) for seller in sellers]
     results = await asyncio.gather(*tasks)
 

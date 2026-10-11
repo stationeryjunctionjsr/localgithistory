@@ -53,7 +53,7 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
         product_ids = [item.product for item in raw_items if item.product]
         products_map = {}
         if product_ids:
-            products = await product_repository.findAll({"allowed_ids": product_ids})
+            products = await product_repository.findByIds(product_ids)
             products_map = {str(p.id): p for p in products}
 
         for item in raw_items:

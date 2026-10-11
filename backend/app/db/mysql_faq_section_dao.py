@@ -33,7 +33,7 @@ class MySQLFaqSectionDAO:
 
     async def _map_row(self, row) -> FaqSectionResponse:
         return FaqSectionResponse(
-            _id=str(row.id),
+            id=str(row.id),
             externalId=row.external_id,
             title=row.title,
             orderIndex=row.order_index,

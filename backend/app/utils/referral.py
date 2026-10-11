@@ -12,6 +12,6 @@ async def get_unique_referral_code(user_repository) -> str:
     """Generate a unique referral code by checking against existing users."""
     while True:
         code = generate_referral_code()
-        existing = await user_repository.findOne({"referral_code": code})
+        existing = await user_repository.findByReferralCode(code)
         if not existing:
             return code

@@ -221,7 +221,7 @@ class MySQLNotificationsDAO:
                 elif k in ("courier_partner", "courierPartner"):
                     meta_obj.courier_partner = v
         return NotificationInternal(
-            _id=str(r.id),
+            id=str(r.id),
             user_id=str(r.user_id),
             type=r.type,
             title=r.title,

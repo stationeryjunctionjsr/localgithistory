@@ -1,6 +1,6 @@
 from typing import Any
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse, AddressSnippet
-from app.models.user import User
+from app.models.user import User, UserFilter
 '\nMySQL DAO for sj_users (Fully Relational).\n'
 import secrets
 from datetime import datetime, timezone
@@ -38,40 +38,38 @@ class MySQLUserDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _build_query_conditions(self, query: Dict) -> tuple[str, Dict]:
+    def _build_query_conditions(self, filter_params: Optional[UserFilter] = None) -> tuple[str, Dict]:
         where_clauses = []
         params = {}
-        if 'role' in query:
+        if not filter_params:
+            return "1=1", {}
+
+        if filter_params.role is not None:
             where_clauses.append('role = :role')
-            params['role'] = query['role']
-        if 'email' in query:
+            params['role'] = filter_params.role
+        if filter_params.email is not None:
             where_clauses.append('LOWER(email) = :email')
-            params['email'] = query['email'].lower()
-        if 'phone' in query:
+            params['email'] = filter_params.email.lower()
+        if filter_params.phone is not None:
             where_clauses.append('phone = :phone')
-            params['phone'] = query['phone']
-        if 'referral_code' in query or 'referralCode' in query:
-            ref_val = query['referral_code'] if 'referral_code' in query else query['referralCode']
+            params['phone'] = filter_params.phone
+        if filter_params.referral_code is not None:
             where_clauses.append('UPPER(referral_code) = :referral_code')
-            params['referral_code'] = ref_val.upper()
-        if 'is_seller_admin' in query or 'isSellerAdmin' in query:
-            isa_val = query['is_seller_admin'] if 'is_seller_admin' in query else query['isSellerAdmin']
+            params['referral_code'] = filter_params.referral_code.upper()
+        if filter_params.is_seller_admin is not None:
             where_clauses.append('is_seller_admin = :is_seller_admin')
-            params['is_seller_admin'] = 1 if isa_val else 0
-        if 'is_on_duty' in query or 'isOnDuty' in query:
-            iod_val = query['is_on_duty'] if 'is_on_duty' in query else query['isOnDuty']
+            params['is_seller_admin'] = 1 if filter_params.is_seller_admin else 0
+        if filter_params.is_on_duty is not None:
             where_clauses.append('is_on_duty = :is_on_duty')
-            params['is_on_duty'] = 1 if iod_val else 0
-        if 'approvalStatus' in query or 'approval_status' in query:
-            app_val = query['approvalStatus'] if 'approvalStatus' in query else query['approval_status']
+            params['is_on_duty'] = 1 if filter_params.is_on_duty else 0
+        if filter_params.approval_status is not None:
             where_clauses.append('approval_status = :approval_status')
-            params['approval_status'] = app_val
-        if 'isActive' in query or 'is_active' in query:
-            act_val = query['isActive'] if 'isActive' in query else query['is_active']
+            params['approval_status'] = filter_params.approval_status
+        if filter_params.is_active is not None:
             where_clauses.append('is_active = :is_active')
-            params['is_active'] = 1 if act_val else 0
-        if 'allowed_ids' in query:
-            allowed_ids = query['allowed_ids']
+            params['is_active'] = 1 if filter_params.is_active else 0
+        if filter_params.allowed_ids is not None:
+            allowed_ids = filter_params.allowed_ids
             if not allowed_ids:
                 where_clauses.append('1=0')
             else:
@@ -173,11 +171,11 @@ class MySQLUserDAO:
             zone_name = name_row.name if name_row else zone_ext_id
             await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': zone_ext_id})
 
-    async def findAll(self, query: Optional[Dict]=None, skip: Optional[int]=None, limit: Optional[int]=None) -> List[User]:
+    async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[User]:
         factory = self._factory()
         if not factory:
             return []
-        where_sql, params = self._build_query_conditions(query or {})
+        where_sql, params = self._build_query_conditions(filter_params)
         async with factory() as session:
             try:
                 query_str = f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
@@ -195,16 +193,12 @@ class MySQLUserDAO:
         pass
         return records
 
-    async def findOne(self, query: Dict) -> Optional[User]:
-        if set(query.keys()) in ({'_id'}, {'id'}):
-            return await self.findById((query['_id'] if '_id' in query else None) or (query['id'] if 'id' in query else None))
-        if set(query.keys()) == {'email'} and (query['email'] if 'email' in query else None):
-            return await self.findByEmail(query['email'])
-        if set(query.keys()) == {'phone'} and (query['phone'] if 'phone' in query else None):
-            return await self.findByPhone(query['phone'])
-        if set(query.keys()) == {'referral_code'} and (query['referral_code'] if 'referral_code' in query else None):
-            return await self.findByReferralCode(query['referral_code'])
-        records = await self.findAll(query)
+    async def findSuperAdmin(self) -> Optional[User]:
+        records = await self.findAll(UserFilter(role="super_admin"), limit=1)
+        return records[0] if records else None
+
+    async def findOne(self, filter_params: UserFilter) -> Optional[User]:
+        records = await self.findAll(filter_params, limit=1)
         return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[User]:

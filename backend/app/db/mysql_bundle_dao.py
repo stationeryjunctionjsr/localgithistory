@@ -38,7 +38,7 @@ class MySQLBundleDAO:
 
     async def _map_row(self, row) -> BundleResponse:
         return BundleResponse(
-            _id=str(row.id),
+            id=str(row.id),
             external_id=row.external_id,
             name=row.name,
             description=row.description,

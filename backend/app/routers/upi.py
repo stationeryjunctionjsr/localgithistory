@@ -22,7 +22,7 @@ class UPIUpdateRequest(BaseModel):
 @router.get("/details", response_model=UPIDetailsResponse)
 async def get_upi_details(current_user: User = Depends(get_current_user)):
     # Find super admin user
-    super_admin = await user_repository.findOne({"role": "super_admin"})
+    super_admin = await user_repository.findSuperAdmin()
     if super_admin and super_admin.upi_id and super_admin.qr_code_url:
         return {
             "upiId": super_admin.upi_id,
@@ -45,7 +45,7 @@ async def update_upi_details(upi_data: UPIUpdateRequest, current_user: User = De
         raise HTTPException(status_code=400, detail="UPI ID is required")
 
     # Find super admin user
-    super_admin = await user_repository.findOne({"role": "super_admin"})
+    super_admin = await user_repository.findSuperAdmin()
     if not super_admin:
         raise HTTPException(status_code=404, detail="Super admin not found")
 

@@ -139,7 +139,6 @@ class MySQLOrderFeedbackDAO:
 
     def __map_to_schema(self, row) -> OrderFeedbackResponse:
         return OrderFeedbackResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             orderId=row.order_id,
@@ -321,7 +320,7 @@ class MySQLPromoStripsDAO:
 
     def __map_to_schema(self, row) -> PromoStripResponse:
         return PromoStripResponse(
-            _id=str(row.id),
+            id=str(row.id),
             text=row.text,
             isActive=bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
             createdAt=row.created_at.isoformat() if row.created_at else None,
@@ -842,7 +841,6 @@ class MySQLCategoryTagsDAO:
 
     def __map_to_schema(self, row) -> 'CategoryTagsInternal':
         return CategoryTagResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             name=row.name,
@@ -1456,7 +1454,6 @@ class MySQLProductReviewsDAO:
 
     def __map_to_schema(self, row) -> ProductReviewResponse:
         return ProductReviewResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             productId=row.product_id,
@@ -1615,7 +1612,6 @@ class MySQLClassificationTagsDAO:
 
     def __map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             name=row.name,
@@ -1743,7 +1739,6 @@ class MySQLReviewClassificationsDAO:
 
     def __map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             reviewId=row.review_id,
@@ -2186,7 +2181,6 @@ class MySQLAvailabilityRequestsDAO:
 
     def __map_to_schema(self, row) -> AvailabilityRequestResponse:
         return AvailabilityRequestResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             productId=row.product_id,
@@ -2547,7 +2541,6 @@ class MySQLSystemSettingsDAO:
 
     def __map_to_schema(self, row) -> 'SystemSettingsInternal':
         return SystemSettingsResponse(
-            _id=str(row.id),
             id=row.id,
             external_id=row.external_id,
             maintenanceMode=bool(row.maintenance_mode) if ("maintenance_mode" in row._mapping and row.maintenance_mode is not None) else False,

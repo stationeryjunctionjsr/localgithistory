@@ -676,7 +676,7 @@ async def update_order_status(
             try:
                 payments_for_order = await payment_repository.findByOrderId(order_id)
                 payment_for_invoice = payments_for_order[0] if payments_for_order else None
-                super_admin = await user_repository.findOne({"role": "super_admin"})
+                super_admin = await user_repository.findSuperAdmin()
                 pdf_buffer = await generate_invoice_pdf(
                     populated_order,
                     payment_for_invoice,
@@ -1154,7 +1154,7 @@ async def valet_response(
                 payments = await payment_repository.findByOrderId(updated_order.id)
                 payment_record = payments[0] if payments else None
                 if payment_record:
-                    super_admin = await user_repository.findOne({"role": "super_admin"})
+                    super_admin = await user_repository.findSuperAdmin()
                     populated_for_invoice = await populate_order(updated_order)
                     pdf_buffer = await generate_invoice_pdf(
                         populated_for_invoice,
@@ -1452,7 +1452,7 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
             status_code=400, detail="Payment record not found for this order")
 
     # Get seller (Super Admin) information
-    super_admin = await user_repository.findOne({"role": "super_admin"})
+    super_admin = await user_repository.findSuperAdmin()
     if not super_admin:
         raise HTTPException(status_code=500, detail="Super admin not found")
 

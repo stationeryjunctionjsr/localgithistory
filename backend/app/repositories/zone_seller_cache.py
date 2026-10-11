@@ -53,7 +53,7 @@ async def get_super_admin_seller_id() -> Optional[str]:
         return _super_admin_id_cache
         
     from app.repositories.user_repository import user_repository
-    super_admin = await user_repository.findOne({"role": "super_admin"})
+    super_admin = await user_repository.findSuperAdmin()
     if super_admin:
         _super_admin_id_cache = str(super_admin.id)
         _super_admin_cache_expiry = time.monotonic() + 3600

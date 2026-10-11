@@ -1,9 +1,24 @@
 from app.models.schemas import AddressSnippet as Address, CartItem, OrderItem, VisibilityRule
 from datetime import datetime
 from typing import Optional, List, Any, Dict
-from pydantic import Field, AliasChoices
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from app.models.base import CamelBaseModel
+
+class UserFilter(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: Optional[str] = None
+    role: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    referral_code: Optional[str] = None
+    is_seller_admin: Optional[bool] = None
+    is_on_duty: Optional[bool] = None
+    approval_status: Optional[str] = None
+    is_active: Optional[bool] = None
+    allowed_ids: Optional[List[str]] = None
+
+UserFilter.model_rebuild()
+
 
 class User(CamelBaseModel):
     id: str = Field(validation_alias=AliasChoices("external_id", "id", "_id")) 

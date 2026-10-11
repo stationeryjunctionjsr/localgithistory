@@ -348,7 +348,7 @@ async def submit_credit_settlement(
 
         # Create notification for new payment (credit settlement)
         try:
-            super_admin = await user_repository.findOne({"role": "super_admin"})
+            super_admin = await user_repository.findSuperAdmin()
             if super_admin:
                 payment_id = updated_payment.payment_id or updated_payment.id
                 import uuid
@@ -356,7 +356,6 @@ async def submit_credit_settlement(
                 from app.models.schemas import NotificationMetadata
                 await notification_repository.create(
                     NotificationInternalCreate(
-                        _id=str(uuid.uuid4()),
                         user_id=super_admin.id,
                         type="new_payment",
                         title="New Payment Received",

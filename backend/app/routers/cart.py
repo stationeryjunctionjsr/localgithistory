@@ -57,7 +57,7 @@ async def get_cart(
         product_ids = [item.product for item in cart.items if item.product]
         products_map = {}
         if product_ids:
-            products = await product_repository.findAll({"allowed_ids": product_ids})
+            products = await product_repository.findByIds(product_ids)
             products_map = {str(p.id): p for p in products}
 
         cart_items = []

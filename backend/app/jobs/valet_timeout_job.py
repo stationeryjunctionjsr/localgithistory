@@ -13,6 +13,7 @@ from app.models.order import OrderInternalUpdate
 from app.models.daos import OrderFilter, ValetAvailabilityFilter
 from app.models.daos_flat import ReturnRequestInternalUpdate
 from app.repositories.user_repository import user_repository
+from app.models.user import UserFilter
 from app.utils.logger import logger
 URGENT_TIMEOUT_MINUTES = 5
 NORMAL_TIMEOUT_MINUTES = 20
@@ -70,7 +71,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
             if so_seller_id:
                 so_seller = await user_repository.findById(so_seller_id)
             else:
-                so_seller = await user_repository.findOne({'role': 'super_admin'})
+                so_seller = await user_repository.findSuperAdmin()
             if so_seller:
                 so_addr = so_seller.address
                 pincode = str((so_addr.zip_code or so_addr.pincode or '') if so_addr else '')
@@ -81,7 +82,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
         if seller_id:
             seller = await user_repository.findById(seller_id)
         else:
-            seller = await user_repository.findOne({'role': 'super_admin'})
+            seller = await user_repository.findSuperAdmin()
         if not seller:
             return None
         seller_address = seller.address
@@ -96,7 +97,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
         zone = await get_zone_for_pincode(pin)
         if zone:
             required_zones.add(str(zone.id))
-    all_valets = await user_repository.findAll({'role': 'valet', 'isOnDuty': True})
+    all_valets = await user_repository.findAll(UserFilter(role='valet', is_on_duty=True))
     print(f"DEBUG: all_valets={len(all_valets)}")
     skip_ids: set[str] = set()
     for entry in skip_valet_ids:
@@ -185,10 +186,10 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     if seller_id:
         seller = await user_repository.findById(seller_id)
     else:
-        seller = await user_repository.findOne({'role': 'super_admin'})
+        seller = await user_repository.findSuperAdmin()
     slot_id = return_req.delivery_slot_id
     slot_date = (return_req.delivery_slot_date) or dt_date.today().isoformat()
-    all_valets = await user_repository.findAll({'role': 'valet', 'isOnDuty': True})
+    all_valets = await user_repository.findAll(UserFilter(role='valet', is_on_duty=True))
     print(f"DEBUG: all_valets={len(all_valets)}")
     skip_ids: set[str] = set()
     for entry in skip_valet_ids:
@@ -282,7 +283,7 @@ async def _cascade_or_revert_return(return_req):
         await return_request_repository.update(req_id, ReturnRequestInternalUpdate(status='pending', pendingValetId=None, valetAssignedAt=None, valetCascadeCount=(return_req.valet_cascade_count or 0) + 1))
         try:
             from app.services.push_notification_service import push_notification_service
-            super_admin = await user_repository.findOne({'role': 'super_admin'})
+            super_admin = await user_repository.findSuperAdmin()
             return_num = return_req.return_id or req_id
             if super_admin:
                 await push_notification_service.send_to_user(str(super_admin.id), PushNotificationPayload(title='Return Valet Unavailable — Reassign Required', message=f'No valets accepted return pickup #{return_num}. Please reassign manually.', link='/admin/returns-management', data=PushNotificationMetadata(returnId=req_id, type='valet_return_all_declined')))

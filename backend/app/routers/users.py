@@ -1,4 +1,4 @@
-from app.models.user import User
+from app.models.user import User, UserFilter
 import os
 from typing import List, Optional
 
@@ -25,13 +25,7 @@ async def get_users(
     limit: Optional[int] = None,
     current_user: User = Depends(require_super_admin),
 ):
-    query = {}
-    if role:
-        query["role"] = role
-    if approvalStatus:
-        query["approval_status"] = approvalStatus
-    if isActive is not None:
-        query["is_active"] = isActive
+    query = UserFilter(role=role, approval_status=approvalStatus, is_active=isActive)
 
     if page is not None and limit is not None and limit > 0:
         page = max(1, page)
@@ -63,7 +57,7 @@ async def get_users(
 
 @router.get("/pending-approvals", response_model=List[UserResponse])
 async def get_pending_approvals(current_user: User = Depends(require_super_admin)):
-    users = await user_repository.findAll({"approvalStatus": "pending"})
+    users = await user_repository.findAll(UserFilter(approval_status="pending"))
     users_without_passwords = users
     return [user for user in users_without_passwords]
 
@@ -153,7 +147,7 @@ async def get_available_valets(
     current_user: User = Depends(get_current_user),
 ):
     # 1. Get on-duty valets
-    all_valets = await user_repository.findAll({"role": "valet"})
+    all_valets = await user_repository.findAll(UserFilter(role="valet"))
     on_duty = [v for v in all_valets if v.is_on_duty]
     
     # 2. Filter by service area
@@ -307,7 +301,7 @@ async def get_seller_delivery_settings(
     from app.db.storage_factory import get_storage
 
     zones_storage = get_storage("deliveryZones")
-    all_zones = await zones_storage.findAll({"is_active": True})
+    all_zones = await zones_storage.findAll(is_active=True)
 
     current_zone_ids = current_user.service_area_zones or []
 

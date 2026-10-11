@@ -81,6 +81,10 @@ class ReviewClassificationRepository:
         await self.ensure_table_exists()
         return await self.storage.findAll(query)
 
+    async def find_active(self) -> List[ClassificationTagResponse]:
+        await self.ensure_table_exists()
+        return await self.storage.findAll({"isActive": True})
+
     async def findById(self, id: str) -> Optional[ClassificationTagResponse]:
         await self.ensure_table_exists()
         return await self.storage.findById(id)

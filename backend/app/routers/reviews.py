@@ -69,7 +69,7 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
         )
 
     # 3. Verify that the classification is valid and active
-    classifications = await review_classification_repository.findAll({"isActive": True})
+    classifications = await review_classification_repository.find_active()
     valid_class = False
     for c in classifications:
         if (c.name or "").strip().lower() == review_data.classification.strip().lower():
@@ -103,7 +103,7 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
 @cache.ttl_cache(ttl=600.0)
 async def get_product_reviews(product_id: str):
     """Retrieve all approved reviews for a product."""
-    reviews = await product_review_repository.findAll({"productId": str(product_id), "status": "approved"})
+    reviews = await product_review_repository.find_approved_by_product(product_id)
 
     # Sort reviews by creation date descending (newest first)
     reviews.sort(key=lambda r: (r.created_at or ""), reverse=True)
@@ -114,7 +114,7 @@ async def get_product_reviews(product_id: str):
 @cache.ttl_cache(ttl=3600.0)
 async def get_active_classifications():
     """Retrieve all active review classifications."""
-    return await review_classification_repository.findAll({"isActive": True})
+    return await review_classification_repository.find_active()
 
 
 # --- Admin Endpoints ---
@@ -146,7 +146,7 @@ async def admin_approve_review(review_id: str, current_user: User = Depends(requ
     try:
         product_id = review.product_id
         if product_id:
-            all_approved = await product_review_repository.findAll({"productId": product_id, "status": "approved"})
+            all_approved = await product_review_repository.find_approved_by_product(product_id)
             if all_approved:
                 avg_rating = sum(int((r.rating if r.rating is not None else 0)) for r in all_approved) / len(all_approved)
                 await product_repository.update(
@@ -191,7 +191,7 @@ async def admin_remove_review(review_id: str, current_user: User = Depends(requi
     try:
         product_id = review.product_id
         if product_id:
-            all_approved = await product_review_repository.findAll({"productId": product_id, "status": "approved"})
+            all_approved = await product_review_repository.find_approved_by_product(product_id)
             if all_approved:
                 avg_rating = sum(int((r.rating if r.rating is not None else 0)) for r in all_approved) / len(all_approved)
                 await product_repository.update(

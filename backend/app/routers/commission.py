@@ -1,6 +1,6 @@
 from app.models.schemas import UserUpdate
-from app.models.user import User
-from app.models.sub_order import SubOrder
+from app.models.user import User, UserFilter
+from app.models.sub_order import SubOrder, SubOrderFilter
 from app.models.base import CamelBaseModel
 from typing import List
 from app.models.schemas import MessageResponse
@@ -322,7 +322,7 @@ async def update_commission_tiers(
 
 @router.get("/sellers", response_model=List[SellerCommissionInfo])
 async def list_sellers_commission(current_user: User = Depends(require_super_admin)):
-    sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
+    sellers = await user_repository.findAll(UserFilter(role="wholesaler", is_seller_admin=True))
     settings = await _get_settings()
     tiers = (settings.tiers or [])
     default_pct = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
@@ -430,7 +430,7 @@ async def realize_pending_commissions(
 
     sub_order_storage = get_storage("subOrders")
     # Only fetch delivered sub-orders with unrealized commission
-    candidates = await sub_order_storage.findAll({"commissionStatus": "unrealized", "status": "delivered"})
+    candidates = await sub_order_storage.findAll(SubOrderFilter(commission_status="unrealized", status="delivered"))
     promoted = 0
     errors = 0
     for so in candidates:

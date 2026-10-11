@@ -119,13 +119,13 @@ async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optiona
     logger.debug(f"_resolve_zone_config: pincode={pincode} date={date} segment={segment} zone_id={zone_id}")
 
     if zone_id:
-        configs = await storage.findAll({"date": date, "segment": segment, "zoneId": str(zone_id), "isActive": True})
+        configs = await storage.findAll(date=date, segment=segment, zone_id=str(zone_id), is_active=True)
         logger.debug(f"_resolve_zone_config: found {len(configs)} configs for zone_id={zone_id}")
         if configs:
             config = configs[0]
             return config
 
-    default_configs = await storage.findAll({"date": date, "segment": segment, "zoneId": DEFAULT_ZONE_ID, "isActive": True})
+    default_configs = await storage.findAll(date=date, segment=segment, zone_id=DEFAULT_ZONE_ID, is_active=True)
     logger.debug(f"_resolve_zone_config: found {len(default_configs)} default configs")
     if default_configs:
         default_config = default_configs[0]
@@ -142,15 +142,7 @@ async def get_delivery_slots(
     zoneId: Optional[str] = Query(None),
     current_user: User = Depends(require_super_admin),
 ):
-    query: dict = {}
-    if segment:
-        query["segment"] = segment
-    if date:
-        query["date"] = date
-    if zoneId:
-        query["zoneId"] = zoneId
-
-    slots = await storage.findAll(query)
+    slots = await storage.findAll(date=date, zone_id=zoneId, segment=segment)
     return slots
 
 
@@ -396,7 +388,7 @@ async def create_delivery_slot_config(
         )
 
         # Check for existing config for this date/segment/zone
-        existing = await storage.findAll({"date": config.date, "segment": config.segment, "zone_id": zone_id})
+        existing = await storage.findAll(date=config.date, segment=config.segment, zone_id=zone_id)
         if existing:
             config_id = str(existing[0].id)
             updated = await storage.update(config_id, config_obj)

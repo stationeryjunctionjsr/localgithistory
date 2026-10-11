@@ -1,4 +1,4 @@
-from app.models.user import User
+from app.models.user import User, UserFilter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate, UserCreate
 
@@ -16,23 +16,26 @@ class UserRepository:
     def __init__(self):
         self.storage = get_storage("users")
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
-        users_data = await self.storage.findAll(query or {}, skip=skip, limit=limit)
-        return users_data
+    async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[User]:
+        return await self.storage.findAll(filter_params, skip=skip, limit=limit)
 
     async def findById(self, id: str) -> Optional[User]:
-        data = await self.storage.findById(id)
-        return data
+        return await self.storage.findById(id)
 
     async def findByIds(self, ids: List[str]) -> List[User]:
         return await self.storage.findByIds(ids)
 
-    async def findOne(self, query: dict) -> Optional[User]:
-        data = await self.storage.findOne(query)
-        return data
+    async def findOne(self, filter_params: UserFilter) -> Optional[User]:
+        return await self.storage.findOne(filter_params)
+
+    async def findSuperAdmin(self) -> Optional[User]:
+        return await self.storage.findSuperAdmin()
+
+    async def findByReferralCode(self, code: str) -> Optional[User]:
+        return await self.storage.findByReferralCode(code)
 
     async def findByEmail(self, email: str) -> Optional[User]:
-        data = await self.storage.findOne({"email": email.lower()})
+        data = await self.storage.findByEmail(email.lower())
         return data
 
     async def findByPhone(self, phone: str):
@@ -54,7 +57,7 @@ class UserRepository:
             candidates.add(normalized_phone[1:])
 
         for candidate in candidates:
-            user = await self.storage.findOne({"phone": candidate})
+            user = await self.storage.findByPhone(candidate)
             if user:
                 return user
         return None

@@ -167,7 +167,7 @@ def _resolve_product_seller_id(product: Product, serviceable_seller_ids: list[st
 async def create_order_notification(order) -> None:
     order_zone_id = None
     try:
-        super_admin = await user_repository.findOne({"role": "super_admin"})
+        super_admin = await user_repository.findSuperAdmin()
         if not super_admin:
             return
 
@@ -195,7 +195,7 @@ async def create_order_notification(order) -> None:
 # Helper function to create payment notification
 async def create_payment_notification(payment) -> None:
     try:
-        super_admin = await user_repository.findOne({"role": "super_admin"})
+        super_admin = await user_repository.findSuperAdmin()
         if not super_admin:
             return
 
@@ -504,7 +504,7 @@ async def create_order_service(
                 terms_days = 30
 
         user_id_val = user.user_id if user.user_id else str(user.id)
-        user_payments = await payment_repository.findAll({"userId": user_id_val})
+        user_payments = await payment_repository.findAll(user_id=str(user_id_val))
         import datetime as dt
         now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
         has_overdue = False
@@ -594,7 +594,7 @@ async def create_order_service(
         }
     )
     _cart_products_list = (
-        await product_repository.findAll({"allowed_ids": _cart_product_ids}) if _cart_product_ids else []
+        await product_repository.findByIds(list(_cart_product_ids)) if _cart_product_ids else []
     )
     _cart_products_map = {str(p.id): p for p in _cart_products_list}
 
@@ -883,7 +883,7 @@ async def create_order_service(
                 status_code=400, detail="Referral program is not active at the moment")
 
         # 4. Valid referrer user
-        referrer = await user_repository.findOne({"referralCode": ref_code})
+        referrer = await user_repository.findByReferralCode(ref_code)
         if not referrer:
             raise HTTPException(
                 status_code=400, detail="Invalid referral code")
@@ -1723,11 +1723,10 @@ async def create_order_service(
 
             if should_notify and threshold is not None:
                 try:
-                    super_admin = await user_repository.findOne({"role": "super_admin"})
+                    super_admin = await user_repository.findSuperAdmin()
                     if super_admin:
                         await notification_repository.create(
                             NotificationInternalCreate(
-                                _id=str(uuid.uuid4()),
                                 user_id=super_admin.id,
                                 type="low_stock",
                                 title="Low Stock Alert",
@@ -1869,7 +1868,7 @@ async def create_order_service(
     # a seller bucket with seller_id=None).
     # ────────────────────────────────────────────────────────────────
     try:
-        super_admin_doc = await user_repository.findOne({"role": "super_admin"})
+        super_admin_doc = await user_repository.findSuperAdmin()
         super_admin_id = str(super_admin_doc.id) if super_admin_doc else None
 
         # Fallback to super_admin for legacy products (H6)

@@ -250,7 +250,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     try:
         from app.repositories.notification_repository import notification_repository
 
-        super_admin = await user_repository.findOne({"role": "super_admin"})
+        super_admin = await user_repository.findSuperAdmin()
         if super_admin:
             created_model = created
             created_ret_id = str(created_model.id or "")
@@ -258,7 +258,6 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             from app.models.daos import NotificationInternalCreate
             await notification_repository.create(
                 NotificationInternalCreate(
-                    _id=str(uuid.uuid4()),
                     user_id=super_admin.id,
                     type="new_return",
                     title="New Return Request",

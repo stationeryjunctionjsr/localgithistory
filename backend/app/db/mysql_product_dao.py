@@ -432,6 +432,11 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [pid])
         return self._row_to_product(row, children_map[pid])
 
+    async def findByIds(self, ids: List[str]) -> List[Product]:
+        if not ids:
+            return []
+        return await self.findAll({"allowed_ids": ids})
+
     async def _replace_children(self, session, pid: int, data: 'CamelBaseModel'):
         # Delete old
         await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})

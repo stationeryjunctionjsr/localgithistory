@@ -210,3 +210,68 @@ def test_order_filter_model():
     # Extra fields must be forbidden
     with pytest.raises(ValidationError):
         OrderFilter.model_validate({"unknown_filter": "bad"})
+
+
+def test_user_filter_model_strict_typing():
+    from app.models.user import UserFilter
+
+    # Valid instantiation
+    uf = UserFilter(role="customer", is_active=True, referral_code="REF123")
+    assert uf.role == "customer"
+    assert uf.is_active is True
+    assert uf.referral_code == "REF123"
+
+    # CamelCase parsing
+    uf_camel = UserFilter.model_validate({
+        "role": "valet",
+        "isOnDuty": True,
+        "isSellerAdmin": False,
+        "approvalStatus": "approved",
+        "allowedIds": ["1", "2"]
+    })
+    assert uf_camel.is_on_duty is True
+    assert uf_camel.is_seller_admin is False
+    assert uf_camel.approval_status == "approved"
+    assert uf_camel.allowed_ids == ["1", "2"]
+
+    # Extra fields MUST be forbidden
+    with pytest.raises(ValidationError):
+        UserFilter.model_validate({"rogue_field": "disallowed"})
+
+
+def test_user_dao_and_repository_strict_signatures():
+    from app.db.mysql_user_dao import MySQLUserDAO
+    from app.repositories.user_repository import UserRepository
+    from app.models.user import UserFilter
+    import inspect
+    from typing import get_type_hints
+
+    # MySQLUserDAO._build_query_conditions
+    sig_build = inspect.signature(MySQLUserDAO._build_query_conditions)
+    filter_param = sig_build.parameters["filter_params"]
+    assert "Dict" not in str(filter_param.annotation), "Raw Dict found in _build_query_conditions annotation"
+    assert "Union" not in str(filter_param.annotation), "Union found in _build_query_conditions annotation"
+
+    # MySQLUserDAO.findOne
+    sig_find_one = inspect.signature(MySQLUserDAO.findOne)
+    param_find_one = sig_find_one.parameters["filter_params"]
+    assert param_find_one.annotation == UserFilter, "MySQLUserDAO.findOne must strictly type filter_params to UserFilter"
+
+    # UserRepository.findOne
+    sig_repo_find_one = inspect.signature(UserRepository.findOne)
+    repo_param = sig_repo_find_one.parameters["filter_params"]
+    assert repo_param.annotation == UserFilter, "UserRepository.findOne must strictly type filter_params to UserFilter"
+
+
+def test_section_1b_repository_typed_methods():
+    from app.repositories.product_repository import product_repository
+    from app.repositories.review_classification_repository import review_classification_repository
+    from app.repositories.product_review_repository import product_review_repository
+    from app.repositories.user_repository import user_repository
+
+    assert hasattr(product_repository, "findByIds"), "product_repository must have findByIds"
+    assert hasattr(review_classification_repository, "find_active"), "review_classification_repository must have find_active"
+    assert hasattr(product_review_repository, "find_approved_by_product"), "product_review_repository must have find_approved_by_product"
+    assert hasattr(user_repository, "findSuperAdmin"), "user_repository must have findSuperAdmin"
+    assert hasattr(user_repository, "findByReferralCode"), "user_repository must have findByReferralCode"
+
