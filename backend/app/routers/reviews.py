@@ -38,7 +38,7 @@ class ClassificationUpdate(BaseModel):
 # --- Customer Endpoints ---
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=ReviewActionResponse)
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=ReviewActionResponse)
 async def create_review(review_data: ReviewCreate, current_user: User = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
@@ -85,18 +85,19 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
         )
 
     # 4. Create review with status 'pending'
-    review = {
-        "productId": product_id,
-        "userId": user_id,
-        "userName": (current_user.name if current_user.name is not None else "Verified Buyer"),
-        "rating": review_data.rating,
-        "reviewText": review_data.comment.strip(),
-        "classification": review_data.classification,
-        "status": "pending",
-    }
+    from app.models.daos_flat import ProductReviewsInternalCreate
+    review = ProductReviewsInternalCreate(
+        product_id=product_id,
+        user_id=user_id,
+        user_name=(current_user.name if current_user.name is not None else "Verified Buyer"),
+        rating=review_data.rating,
+        review_text=review_data.comment.strip(),
+        classification=review_data.classification,
+        status="pending",
+    )
 
     created = await product_review_repository.create(review)
-    return {"message": "Review submitted successfully and is pending moderation.", "review": created}
+    return ReviewActionResponse(message="Review submitted successfully and is pending moderation.", review=created)
 
 
 @router.get("/product/{product_id}", response_model=List[ProductReviewResponse])
@@ -175,7 +176,7 @@ async def admin_approve_review(review_id: str, current_user: User = Depends(requ
     except Exception as e:
         logger.warning("Notification failed for review approval %s: %s", review_id, str(e))
 
-    return {"message": "Review approved successfully", "review": updated}
+    return ReviewActionResponse(message="Review approved successfully", review=updated)
 
 
 @router.post("/admin/{review_id}/remove", response_model=ReviewActionResponse)
@@ -185,7 +186,8 @@ async def admin_remove_review(review_id: str, current_user: User = Depends(requi
     if not review:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
 
-    updated = await product_review_repository.update(review_id, {"status": "removed"})
+    from app.models.daos_flat import ProductReviewsInternalUpdate
+    updated = await product_review_repository.update(review_id, ProductReviewsInternalUpdate(status="removed"))
 
     # Recalculate average rating for the product
     try:
@@ -202,7 +204,7 @@ async def admin_remove_review(review_id: str, current_user: User = Depends(requi
     except Exception as e:
         logger.error("Failed to update product aggregated rating after review removal (review %s): %s", review_id, str(e), exc_info=True)
 
-    return {"message": "Review removed successfully", "review": updated}
+    return ReviewActionResponse(message="Review removed successfully", review=updated)
 
 
 @router.get("/admin/classifications", response_model=List[ClassificationTagResponse])
@@ -227,7 +229,7 @@ async def admin_create_classification(
 
     from app.models.daos_flat import ClassificationTagsInternalCreate
     created = await review_classification_repository.create(ClassificationTagsInternalCreate(name=name, is_active=True))
-    return {"message": "Classification created successfully", "classification": created}
+    return ClassificationActionResponse(message="Classification created successfully", classification=created)
 
 
 @router.put("/admin/classifications/{class_id}", response_model=ClassificationActionResponse)
@@ -260,7 +262,7 @@ async def admin_update_classification(
         has_updates = True
 
     if not has_updates:
-        return existing
+        return ClassificationActionResponse(message="No changes made", classification=existing)
 
     updated = await review_classification_repository.update(class_id, existing)
-    return {"message": "Classification updated successfully", "classification": updated}
+    return ClassificationActionResponse(message="Classification updated successfully", classification=updated)

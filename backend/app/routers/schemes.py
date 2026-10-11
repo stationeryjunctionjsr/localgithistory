@@ -41,7 +41,7 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
                 if now > end_dt:
                     continue
             except (ValueError, TypeError) as e:
-                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", getattr(c, 'id', '?'), valid_until)
+                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", (c.id if c else '?'), valid_until)
         business_coupons.append(c)
 
     # Sort by createdAt descending
@@ -84,7 +84,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
                 if now > end_dt:
                     continue
             except (ValueError, TypeError) as e:
-                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", getattr(c, 'id', '?'), valid_until)
+                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", (c.id if c else '?'), valid_until)
         business_coupons.append(c)
 
     applicable_offers = []
@@ -110,7 +110,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
     return out
 
 
-@router.get("/applicable/bundle/{bundle_id}", )
+@router.get("/applicable/bundle/{bundle_id}", response_model=List[CouponResponse])
 async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given bundle.
@@ -137,7 +137,7 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Dep
                 if now > end_dt:
                     continue
             except (ValueError, TypeError) as e:
-                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", getattr(c, 'id', '?'), valid_until)
+                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", (c.id if c else '?'), valid_until)
         business_coupons.append(c)
 
     applicable_offers = []

@@ -79,7 +79,8 @@ class BannerPosition(str, Enum):
 # User Schemas
 
 class AddressSnippet(CamelBaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra='forbid')
+    id: Optional[Union[str, int]] = None
     name: Optional[str] = None
     is_primary: Optional[bool] = None
     phone: Optional[str] = None
@@ -1902,7 +1903,7 @@ class Msg91WebhookPayload(CamelBaseModel):
 
 
 class TrackBeaconRequest(CamelBaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
     event: Optional[str] = None
     page: Optional[str] = None
     session_id: Optional[str] = None
@@ -1918,7 +1919,7 @@ class TrackBeaconRequest(CamelBaseModel):
 
 
 class TrackNotifyPincodeRequest(CamelBaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
     product_id: str
     pincode: str
     product_name: Optional[str] = "Unknown"

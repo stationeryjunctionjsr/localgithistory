@@ -35,17 +35,17 @@ async def populate_return_request(request: ReturnRequestInternal) -> ReturnReque
     populated_items = []
     items_list = request.items or []
     for item in items_list:
-        pid = getattr(item, "productId", getattr(item, "product", None))
+        pid = item.product_id
         product = await product_repository.findById(pid) if pid else None
         
         populated_items.append(ItemSnippet(
             product_id=pid,
             product=product.name if product else "Product not found",
-            quantity=getattr(item, "quantity", 0),
+            quantity=item.quantity if item.quantity is not None else 0,
             price=product.price if product else 0.0,
             mrp=product.mrp if product else 0.0,
             name=product.name if product else "Unknown",
-            image=product.images[0] if product and getattr(product, "images", None) else None
+            image=product.images[0] if (product and product.images) else None
         ))
 
     response = ReturnRequestResponse.model_validate(request, from_attributes=True)

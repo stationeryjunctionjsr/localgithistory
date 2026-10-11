@@ -363,23 +363,23 @@ async def export_csv(current_user: User = Depends(require_super_admin)):
     ]
 
     output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(headers)
+    writer = csv.DictWriter(output, fieldnames=headers, restval="")
+    writer.writeheader()
 
     for p in products:
-        name = (p.name or "")
-        category = (p.category or "")
+        name = p.name or ""
+        category = p.category or ""
         sub_category = p.sub_category or ""
         description = p.description or ""
         brand = p.brand or ""
-        mrp = (p.mrp or "")
+        mrp = p.mrp if p.mrp is not None else ""
         mrp_per_case = p.mrp_per_case if p.mrp_per_case is not None else ""
         quantity_per_case = p.quantity_per_case if p.quantity_per_case is not None else ""
 
-        images_list = (p.images or [])
+        images_list = p.images or []
         images = ",".join(images_list) if images_list else ""
 
-        videos_list = (p.videos or [])
+        videos_list = p.videos or []
         videos = ",".join(videos_list) if videos_list else ""
 
         is_active = "true" if (p.is_active if p.is_active is not None else True) else "false"
@@ -387,56 +387,53 @@ async def export_csv(current_user: User = Depends(require_super_admin)):
             f"PDT-{p.product_id}" if p.product_id is not None else ""
         )
 
-        combinations = (p.variants or []) or []
+        combinations = p.variants or []
         if combinations:
             for idx, combo in enumerate(combinations):
                 combo_mrp = combo.price if combo.price is not None else mrp
                 combo_stock = combo.stock if combo.stock is not None else 0
 
-                combo_attrs = combo.attributes or {}
-                attr_cols = [""] * 10
-                for attr_idx, (attr_key, attr_val) in enumerate(list(combo_attrs.items())[:5]):
-                    attr_cols[attr_idx * 2] = attr_key
-                    attr_cols[attr_idx * 2 + 1] = attr_val
-
+                row = {
+                    "name": name,
+                    "mrp": combo_mrp,
+                    "stock": combo_stock,
+                }
                 if idx == 0:
-                    row = [
-                        name,
-                        category,
-                        sub_category,
-                        description,
-                        brand,
-                        combo_mrp,
-                        mrp_per_case,
-                        quantity_per_case,
-                        combo_stock,
-                        *attr_cols,
-                        images,
-                        videos,
-                        is_active,
-                        product_id,
-                    ]
-                else:
-                    row = [name, "", "", "", "", combo_mrp, "", "", combo_stock, *attr_cols, "", "", "", ""]
+                    row.update({
+                        "category": category,
+                        "subCategory": sub_category,
+                        "description": description,
+                        "brand": brand,
+                        "mrpPerCase": mrp_per_case,
+                        "quantityPerCase": quantity_per_case,
+                        "images": images,
+                        "videos": videos,
+                        "isActive": is_active,
+                        "productId": product_id,
+                    })
+
+                combo_attrs = combo.attributes or {}
+                for attr_idx, (attr_key, attr_val) in enumerate(list(combo_attrs.items())[:5], start=1):
+                    row[f"Attribute {attr_idx}"] = attr_key
+                    row[f"Variant {attr_idx}"] = attr_val
+
                 writer.writerow(row)
         else:
-            attr_cols = [""] * 10
-            row = [
-                name,
-                category,
-                sub_category,
-                description,
-                brand,
-                mrp,
-                mrp_per_case,
-                quantity_per_case,
-                (p.stock if p.stock is not None else 0),
-                *attr_cols,
-                images,
-                videos,
-                is_active,
-                product_id,
-            ]
+            row = {
+                "name": name,
+                "category": category,
+                "subCategory": sub_category,
+                "description": description,
+                "brand": brand,
+                "mrp": mrp,
+                "mrpPerCase": mrp_per_case,
+                "quantityPerCase": quantity_per_case,
+                "stock": p.stock if p.stock is not None else 0,
+                "images": images,
+                "videos": videos,
+                "isActive": is_active,
+                "productId": product_id,
+            }
             writer.writerow(row)
 
     output.seek(0)

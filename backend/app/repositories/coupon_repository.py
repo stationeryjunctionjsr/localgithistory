@@ -492,13 +492,13 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             coupon_mode=coupon_data.coupon_mode or "override",
             max_usage_per_user=int(coupon_data.max_usage_per_user) if coupon_data.max_usage_per_user else None,
             user_behavior=coupon_data.user_behavior,
-            applicable_payment_methods=getattr(coupon_data, "applicable_payment_methods", None),
-            shipping_pincodes=getattr(coupon_data, "shipping_pincodes", None),
+            applicable_payment_methods=coupon_data.applicable_payment_methods,
+            shipping_pincodes=coupon_data.shipping_pincodes,
         )
 
         # Handle Overlap
-        resolution = getattr(coupon_data, "resolution", "overwrite")
-        force = bool(getattr(coupon_data, "force", False))
+        resolution = coupon_data.resolution or "overwrite"
+        force = bool(coupon_data.force)
 
         if not force:
             overlap = await self.check_discount_overlap(coupon)

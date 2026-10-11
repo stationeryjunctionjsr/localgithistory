@@ -63,7 +63,7 @@ async def check_referral_eligibility(current_user: User = Depends(get_current_us
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error checking referral eligibility for user %s: %s", getattr(current_user, 'id', '?'), str(e), exc_info=True)
+        logger.error("Error checking referral eligibility for user %s: %s", (current_user.id if current_user else '?'), str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while checking referral eligibility")
 
 

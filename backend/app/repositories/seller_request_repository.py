@@ -73,7 +73,7 @@ class SellerRequestRepository:
         )
 
         existing_responses = list(request.responses) if request.responses is not None else []
-        new_responses = [*existing_responses, response]
+        new_responses = existing_responses + [response]
 
         new_status = request.status
         if response_data.is_admin_response and request.status == "open":

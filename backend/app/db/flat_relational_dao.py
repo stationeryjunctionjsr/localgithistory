@@ -62,7 +62,7 @@ class FlatRelationalDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, r) -> 'CamelBaseModel':
-        out = {"_id": str(r.id)}
+        out = {"id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
             try:

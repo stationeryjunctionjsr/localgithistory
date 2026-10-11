@@ -110,6 +110,7 @@ class OrderCreateRequest(CamelBaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: str
+    note: Optional[str] = None
 
 
 class AssignValetRequest(BaseModel):
@@ -608,7 +609,7 @@ async def update_order_status(
             order_id=updated_order.id,
             status=status_data.status,
             changed_by=str(current_user.id),
-            note=getattr(status_data, "note", None),
+            note=status_data.note,
         )
     except Exception as _tl_err:
         logger.warning("order_timeline: log failed: %s", _tl_err)
@@ -1076,7 +1077,7 @@ async def valet_response(
         except HTTPException:
             raise
         except Exception as e:
-            logging.warning("orders: could not parse assigned_at for acceptance window check on order %r; skipping timeout check: %s", getattr(order, 'id', '?'), e, exc_info=e)
+            logging.warning("orders: could not parse assigned_at for acceptance window check on order %r; skipping timeout check: %s", (order.id if order else '?'), e, exc_info=e)
 
     now_iso = datetime.now(__import__(
         "datetime").timezone.utc).isoformat() + "Z"

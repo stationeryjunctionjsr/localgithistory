@@ -153,12 +153,10 @@ class FileStorage:
         # Strip _id from data so the explicit assignment below is authoritative
         data_without_id = {k: v for k, v in data.items() if k != "_id"}
 
-        new_doc = {
-            "_id": supplied_id,
-            **data_without_id,
-            "createdAt": (data["createdAt"] if "createdAt" in data else datetime.now(timezone.utc).isoformat()),
-            "updatedAt": (data["updatedAt"] if "updatedAt" in data else datetime.now(timezone.utc).isoformat()),
-        }
+        new_doc = dict(data_without_id)
+        new_doc["_id"] = supplied_id
+        new_doc["createdAt"] = (data["createdAt"] if "createdAt" in data else datetime.now(timezone.utc).isoformat())
+        new_doc["updatedAt"] = (data["updatedAt"] if "updatedAt" in data else datetime.now(timezone.utc).isoformat())
 
         documents.append(new_doc)
         self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
@@ -174,7 +172,10 @@ class FileStorage:
         if index is None:
             return None
 
-        documents[index] = {**documents[index], **update_data, "updatedAt": datetime.now(timezone.utc).isoformat()}
+        updated_doc = dict(documents[index])
+        updated_doc.update(update_data)
+        updated_doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        documents[index] = updated_doc
 
         self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
         self._invalidate_cache()
@@ -231,7 +232,8 @@ class FileStorage:
                         match = False
                         break
             if match:
-                doc.update({**update_data, "updatedAt": now_str})
+                doc.update(update_data)
+                doc["updatedAt"] = now_str
                 count += 1
 
         if count > 0:

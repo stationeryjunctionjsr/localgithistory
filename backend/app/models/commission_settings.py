@@ -9,7 +9,7 @@ class CommissionTierInternal(CamelBaseModel):
     pct: float
 
 class CommissionSettings(CamelBaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     
     id: str
     external_id: Optional[str] = None

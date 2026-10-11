@@ -304,3 +304,49 @@ def test_section_3_in_memory_pushdowns():
     assert "product_repository.findAll()" not in create_prod_source, "create_product must not call findAll() for duplicate checks"
 
 
+def test_section_2a_models_extra_forbid():
+    from app.models.commission_settings import CommissionSettings
+    from app.models.daos_flat import ProductNotificationsInternal
+    from app.models.division import DivisionCategoryTag, DivisionInternal, DivisionInternalCreate, DivisionInternalUpdate
+    from app.models.schemas import AddressSnippet, TrackBeaconRequest, TrackNotifyPincodeRequest
+    from app.routers.auth import RefreshTokenClaims
+    from app.routers.tracking import BaseTrackingRequest
+
+    models = [
+        CommissionSettings,
+        ProductNotificationsInternal,
+        DivisionCategoryTag,
+        DivisionInternal,
+        DivisionInternalCreate,
+        DivisionInternalUpdate,
+        AddressSnippet,
+        TrackBeaconRequest,
+        TrackNotifyPincodeRequest,
+        RefreshTokenClaims,
+        BaseTrackingRequest,
+    ]
+    for m in models:
+        assert m.model_config.get("extra") == "forbid", f"Model {m.__name__} must have extra='forbid', found {m.model_config.get('extra')}"
+
+
+def test_section_2b_zero_reflection_in_repositories_and_routers():
+    import app.repositories.coupon_repository as coupon_repo_mod
+    import app.routers.orders as orders_router_mod
+    import app.routers.returns as returns_router_mod
+    import app.routers.bundles as bundles_router_mod
+    import inspect
+
+    coupon_src = inspect.getsource(coupon_repo_mod.CouponRepository.create)
+    assert "getattr(" not in coupon_src, "CouponRepository.create must not use getattr"
+
+    orders_src = inspect.getsource(orders_router_mod.update_order_status)
+    assert "getattr(" not in orders_src, "orders router update_order_status must not use getattr"
+
+    returns_src = inspect.getsource(returns_router_mod.populate_return_request)
+    assert "getattr(" not in returns_src, "returns router populate_return_request must not use getattr"
+
+    bundles_src = inspect.getsource(bundles_router_mod._enrich_bundle)
+    assert "hasattr(" not in bundles_src, "bundles router _enrich_bundle must not use hasattr"
+
+
+

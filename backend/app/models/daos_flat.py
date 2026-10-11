@@ -851,7 +851,7 @@ class StockReservationsInternalUpdate(FlatCamelBaseModel):
 
 
 class ProductNotificationsInternal(CamelBaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     id: int
     external_id: Optional[str] = None
     email: Optional[str] = None

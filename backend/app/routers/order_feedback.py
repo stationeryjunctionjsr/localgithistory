@@ -98,7 +98,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
     except Exception:
         logger.warning(
             "Could not parse latest feedback createdAt %r for feedback %r; defaulting to now() for eligibility window.",
-            latest_feedback.created_at, getattr(latest_feedback, 'id', '?'), exc_info=True,
+            latest_feedback.created_at, (latest_feedback.id if latest_feedback else '?'), exc_info=True,
         )
         latest_feedback_date = datetime.now(timezone.utc)
 

@@ -500,7 +500,7 @@ async def create_order_service(
             try:
                 terms_days = int(terms_days)
             except (ValueError, TypeError):
-                logger.warning("Wholesaler user %r has non-integer payment_terms %r; defaulting to 30 days.", getattr(user, 'id', '?'), terms_days, exc_info=True)
+                logger.warning("Wholesaler user %r has non-integer payment_terms %r; defaulting to 30 days.", (user.id if user else '?'), terms_days, exc_info=True)
                 terms_days = 30
 
         user_id_val = user.user_id if user.user_id else str(user.id)
@@ -541,7 +541,7 @@ async def create_order_service(
                                 has_overdue = True
                                 break
                         except Exception as e:
-                            logging.warning("orders: could not parse credit bill order_date for overdue check (bill order_id=%r): %s", getattr(bill, 'order_id', '?'), e, exc_info=e)
+                            logging.warning("orders: could not parse credit bill order_date for overdue check (bill order_id=%r): %s", (p.order_id if p else '?'), e, exc_info=e)
         if has_overdue:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

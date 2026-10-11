@@ -5,7 +5,7 @@ from app.models.base import CamelBaseModel
 
 
 class DivisionCategoryTag(CamelBaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
     id: Union[int, str]
     external_id: Optional[str] = None
     name: Optional[str] = None
@@ -67,7 +67,7 @@ class DivisionResponse(CamelBaseModel):
 
 
 class DivisionInternal(CamelBaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
     id: Optional[str] = None
     external_id: Optional[str] = None
     name: str
@@ -84,7 +84,7 @@ class DivisionInternal(CamelBaseModel):
 
 
 class DivisionInternalCreate(CamelBaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -94,7 +94,7 @@ class DivisionInternalCreate(CamelBaseModel):
 
 
 class DivisionInternalUpdate(CamelBaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     name: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
