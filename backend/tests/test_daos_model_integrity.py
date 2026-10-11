@@ -56,6 +56,22 @@ def test_zero_alias_id_in_auxiliary_models():
     import app.models.faq_section as faq_section_mod
     import app.models.otp as otp_mod
     import app.models.valet_availability as valet_availability_mod
+    import app.models.schemas as schemas_mod
+    import app.models.about_us as about_us_mod
+    import app.models.brand as brand_mod
+    import app.models.classification_tags as classification_tags_mod
+    import app.models.coach_marks as coach_marks_mod
+    import app.models.google_reviews as google_reviews_mod
+    import app.models.order_feedback as order_feedback_mod
+    import app.models.pincode_searches as pincode_searches_mod
+    import app.models.privacy_policy as privacy_policy_mod
+    import app.models.product_reviews as product_reviews_mod
+    import app.models.promo_strips as promo_strips_mod
+    import app.models.push_notifications as push_notifications_mod
+    import app.models.return_settings as return_settings_mod
+    import app.models.review_classifications as review_classifications_mod
+    import app.models.system_settings as system_settings_mod
+    import app.models.valet_payout_settings as valet_payout_settings_mod
 
     modules = [
         bundle_mod,
@@ -65,6 +81,22 @@ def test_zero_alias_id_in_auxiliary_models():
         faq_section_mod,
         otp_mod,
         valet_availability_mod,
+        schemas_mod,
+        about_us_mod,
+        brand_mod,
+        classification_tags_mod,
+        coach_marks_mod,
+        google_reviews_mod,
+        order_feedback_mod,
+        pincode_searches_mod,
+        privacy_policy_mod,
+        product_reviews_mod,
+        promo_strips_mod,
+        push_notifications_mod,
+        return_settings_mod,
+        review_classifications_mod,
+        system_settings_mod,
+        valet_payout_settings_mod,
     ]
 
     for mod in modules:

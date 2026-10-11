@@ -5,7 +5,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 class NotificationResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     userId: str
     type: str
     title: str

@@ -243,7 +243,7 @@ async def get_notification_inbox():
 
 from pydantic import Field
 class PushNotificationResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     title: str
     message: str
     link: Optional[str] = None

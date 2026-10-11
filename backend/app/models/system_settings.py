@@ -4,7 +4,7 @@ from pydantic import Field
 from app.models.base import CamelBaseModel
 
 class SystemSettings(CamelBaseModel):
-    id: Optional[str] = Field(default=None, alias='_id')
+    id: Optional[str] = None
     external_id: Optional[str] = None
     maintenance_mode: bool = False
     allow_signups: bool = False

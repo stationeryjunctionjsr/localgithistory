@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class ReturnSettings(BaseModel):
-    id: str = Field(default=None, alias='_id')
+    id: Optional[str] = None
     external_id: Optional[str] = Field(default=None, alias='external_id')
     return_days: Optional[str] = Field(default=None, alias='returnDays')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')

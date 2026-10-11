@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class Brand(BaseModel):
-    id: int = Field(alias='_id')
+    id: int
     name: str
     slug: str
     image_url: Optional[str] = Field(default=None, alias='imageUrl')

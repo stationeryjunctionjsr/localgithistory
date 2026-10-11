@@ -98,7 +98,7 @@ class AddressSnippet(CamelBaseModel):
 
 class UserSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     user_id: Optional[int] = None
     user_id_formatted: Optional[str] = None
     name: Optional[str] = None
@@ -125,7 +125,7 @@ class ProductSellerEntry(CamelBaseModel):
 
 class ItemSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[str] = Field(default=None, alias="_id")
+    id: Optional[str] = None
     product_id: Optional[str] = None
     product: Optional[str] = None
     quantity: Optional[int] = None
@@ -169,7 +169,7 @@ VisibilityRule = VisibilityRuleSnippet
 
 class ValetSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     name: Optional[str] = None
     phone: Optional[str] = None
 
@@ -358,7 +358,7 @@ class UserUpdate(CamelBaseModel):
 
 
 class UserResponse(UserBase):
-    id: str = Field(alias="_id")
+    id: str
     user_id: Optional[int] = None
     user_id_formatted: Optional[str] = None
     role: Optional[str] = None
@@ -390,7 +390,7 @@ class ProductVariation(CamelBaseModel):
 # Product Schemas
 
 class ProductReviewResponse(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: str
     product_id: str
     user_id: str
     rating: int
@@ -400,7 +400,7 @@ class ProductReviewResponse(CamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class ClassificationTagResponse(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: str
     name: str
     is_active: bool
     created_at: Optional[datetime] = None
@@ -430,7 +430,7 @@ class BundleItemResponse(CamelBaseModel):
 class BundleResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = None
-    id: str = Field(alias="_id")
+    id: str
     name: str
     description: Optional[str] = None
     price: float
@@ -564,7 +564,7 @@ class CouponValidateCart(CamelBaseModel):
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
 class SchemeResponse(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: str
     name: str
     description: Optional[str] = None
     discount_type: str  # percentage | fixed
@@ -619,7 +619,7 @@ class BannerUpdate(CamelBaseModel):
 
 
 class BannerResponse(BannerBase):
-    id: str = Field(alias="_id")
+    id: str
     external_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
@@ -631,7 +631,7 @@ class BannerResponse(BannerBase):
 # Brand Schemas
 
 class BrandResponse(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: str
     name: str
     slug: str
     logo_url: Optional[str] = None
@@ -760,7 +760,7 @@ class ContactUpdate(CamelBaseModel):
 
 
 class ContactResponse(ContactBase):
-    id: str = Field(alias="_id")
+    id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
@@ -816,7 +816,7 @@ class TicketResponseItem(CamelBaseModel):
 class SupportTicketInternal(SupportTicketBase):
     # We rely on SupportTicketBase which is CamelBaseModel
     model_config = ConfigDict(extra='forbid')
-    id: str = Field(alias="_id")
+    id: str
     ticket_number: str
     user: Optional[str] = None
     status: str
@@ -830,7 +830,7 @@ class SupportTicketInternal(SupportTicketBase):
 
 
 class SupportTicketResponse(SupportTicketBase):
-    id: str = Field(alias="_id")
+    id: str
     ticketNumber: str
     user: Optional[UserSnippet] = None
     status: str
@@ -896,7 +896,7 @@ class DeliveryChargeUpdate(CamelBaseModel):
 
 
 class DeliveryChargeResponse(DeliveryChargeBase):
-    id: str = Field(alias="_id")
+    id: str
     location_id: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -930,7 +930,7 @@ class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):
 
 
 class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
-    id: str = Field(alias="_id")
+    id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -952,7 +952,7 @@ class OrderFeedbackCreate(OrderFeedbackBase):
 
 
 class OrderFeedbackResponse(OrderFeedbackBase):
-    id: str = Field(alias="_id")
+    id: str
     userId: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -983,7 +983,7 @@ class CoachMarkUpdate(CamelBaseModel):
 
 
 class CoachMarkResponse(CoachMarkBase):
-    id: str = Field(alias="_id")
+    id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
@@ -1022,7 +1022,7 @@ class SearchTagUpdate(CamelBaseModel):
 
 
 class SearchTagResponse(SearchTagBase):
-    id: str = Field(alias="_id")
+    id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
@@ -1060,7 +1060,7 @@ class CollectionUpdate(CamelBaseModel):
 
 
 class CollectionResponse(CollectionBase):
-    id: str = Field(alias="_id")
+    id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
@@ -1147,7 +1147,7 @@ class ReturnRequestUpdate(CamelBaseModel):
 
 
 class ReturnRequestResponse(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: str
     order_id: str
     user_id: str
     items: List[ItemSnippet]  # populated items
@@ -1198,7 +1198,7 @@ class ReturnRequest(CamelBaseModel):
 
 
 class ProductResponse(ProductBase):
-    id: str = Field(alias="_id")
+    id: str
     productId: Optional[int] = None
     productIdFormatted: Optional[str] = None
     price: Optional[float] = None
@@ -1264,7 +1264,7 @@ class RecommendationResponse(CamelBaseModel):
         return item in keys
 
 class SkinnyProductResponse(CamelBaseModel):
-    id: str = Field(alias="_id")
+    id: str
     product_id: Optional[int] = None
     product_id_formatted: Optional[str] = None
     name: str
@@ -1410,7 +1410,7 @@ class CouponUpdate(CamelBaseModel):
 
 
 class CouponResponse(CouponBase):
-    id: str = Field(alias="_id")
+    id: str
     used_count: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -1728,7 +1728,7 @@ class PromoStripUpdate(CamelBaseModel):
     zone_ids: Optional[List[str]] = None
 
 class PromoStripResponse(PromoStripBase):
-    id: str = Field(alias='_id')
+    id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -1986,7 +1986,7 @@ class PromoteGuestResponse(BaseModel):
 
 class AvailabilityRequestResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     external_id: Optional[str] = None
     product_id: Optional[str] = None
     product_name: Optional[str] = None
@@ -2007,7 +2007,7 @@ class AvailabilityRequestListResponse(BaseModel):
 
 class DeliveryZoneResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     name: Optional[str] = None
     zone_id: Optional[str] = None
     zone_name: Optional[str] = None
@@ -2061,7 +2061,7 @@ class ValetPayoutSettingsResponse(CamelBaseModel):
 
 class PincodeSearchResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     pincode: Optional[str] = None
     is_serviceable: Optional[bool] = None
     status: Optional[str] = None
@@ -2107,7 +2107,7 @@ class SearchSuggestResponse(BaseModel):
 
 class PushNotificationResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     title: Optional[str] = None
     message: Optional[str] = None
     link: Optional[str] = None
@@ -2141,7 +2141,7 @@ class SellerRequestResponseCreate(BaseModel):
 
 class SellerRequestResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     subject: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
@@ -2187,7 +2187,7 @@ class ActivityUpdate(CamelBaseModel):
     metadata: Optional[ActivityMetadata] = None
 
 class ActivityResponse(ActivityCreate):
-    id: Optional[str] = Field(default='', alias='_id')
+    id: Optional[str] = None
 
 class SellerProductRequestCreate(BaseModel):
     stock: Optional[int] = 0
@@ -2225,7 +2225,7 @@ class PopulatedOrderResponse(CamelBaseModel):
     """
     model_config = ConfigDict(extra='forbid')
 
-    id: Optional[str] = Field(default=None, alias="_id")
+    id: Optional[str] = None
     order_id: Optional[str] = None
     status: Optional[str] = None
     order_status: Optional[str] = None    # router alias for status

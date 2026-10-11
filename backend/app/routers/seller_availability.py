@@ -43,7 +43,7 @@ storage = get_storage("sellerAvailability")
 
 
 class SellerAvailabilityResponse(CamelBaseModel):
-    id: Optional[str] = Field(default=None, alias="_id")
+    id: Optional[str] = None
     seller_id: str
     status: str
     start_at: Optional[datetime] = None

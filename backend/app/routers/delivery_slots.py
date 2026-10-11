@@ -38,7 +38,7 @@ class SlotBase(CamelBaseModel):
 
 class DeliverySlotConfigModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     segment: Optional[str] = None
     date: Optional[str] = None
     zone_id: Optional[str] = None
@@ -49,7 +49,7 @@ class DeliverySlotConfigModel(BaseModel):
 
 class DeliverySlotConfigResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     segment: str
     date: str
     zone_id: str

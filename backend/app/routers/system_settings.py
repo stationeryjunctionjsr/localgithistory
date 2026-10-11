@@ -19,7 +19,7 @@ class SystemSettingsUpdate(BaseModel):
     timezone: Optional[str] = None
 
 class SystemSettingsResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     maintenanceMode: bool
     allowSignups: bool
     maxUploadSizeMb: Optional[int] = None

@@ -126,7 +126,7 @@ class DropOffPointResponse(BaseModel):
     reasons: Dict[str, int]
 
 class CartAbandonmentResponse(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     type: Optional[str] = None
     user_id: Optional[str] = None
     session_id: Optional[str] = None

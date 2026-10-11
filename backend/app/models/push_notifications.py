@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class PushNotifications(BaseModel):
-    id: str = Field(default=None, alias='_id')
+    id: Optional[str] = None
     external_id: Optional[str] = Field(default=None, alias='external_id')
     title: Optional[str] = Field(default=None, alias='title')
     message: Optional[str] = Field(default=None, alias='message')

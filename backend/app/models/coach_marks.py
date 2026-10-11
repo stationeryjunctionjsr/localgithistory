@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class CoachMarks(BaseModel):
-    id: str = Field(default=None, alias='_id')
+    id: Optional[str] = None
     external_id: Optional[str] = Field(default=None, alias='external_id')
     anchor_id: Optional[str] = Field(default=None, alias='anchorId')
     title: Optional[str] = Field(default=None, alias='title')

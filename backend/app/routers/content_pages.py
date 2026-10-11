@@ -59,7 +59,7 @@ class AboutUsUpdate(BaseModel):
 
 class FAQSectionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
-    id: str = Field(alias="_id")
+    id: str
     title: str
     displayOrder: Optional[int] = 0
     isActive: bool
@@ -68,7 +68,7 @@ class FAQSectionResponse(BaseModel):
     updatedAt: Optional[str] = None
 
 class AboutUsResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     title: str
     content: str
     imageUrls: List[str]
@@ -77,7 +77,7 @@ class AboutUsResponse(BaseModel):
     updatedAt: Optional[str] = None
 
 class PrivacyPolicyResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     title: str
     content: str
     version: str

@@ -81,7 +81,7 @@ class TiersResponse(BaseModel):
     defaultCommissionPct: float
 
 class SellerCommissionInfo(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     name: str
     email: str
     phone: Optional[str] = None

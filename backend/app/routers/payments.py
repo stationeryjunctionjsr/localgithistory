@@ -186,7 +186,7 @@ class VerifyEntryRequest(BaseModel):
 
 
 class PaymentEntryResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     orderId: str
     amount: float
     method: str
@@ -196,7 +196,7 @@ class PaymentEntryResponse(BaseModel):
     updatedAt: Optional[str] = None
 
 class PaymentResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     orderId: str
     orderNumber: Optional[str] = None
     amount: float

@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class ReviewClassifications(BaseModel):
-    id: str = Field(default=None, alias='_id')
+    id: Optional[str] = None
     external_id: Optional[str] = Field(default=None, alias='external_id')
     review_id: Optional[str] = Field(default=None, alias='reviewId')
     category: Optional[str] = Field(default=None, alias='category')
