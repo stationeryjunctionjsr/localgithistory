@@ -100,7 +100,7 @@ class CouponDetailModel(BaseModel):
 
     @property
     def type_of_discount(self) -> Optional[str]:
-        return self.type_of_discount
+        return self.typeOfDiscount
 
 
 class ItemDiscountEntry(BaseModel):
@@ -130,7 +130,7 @@ class ReferralProgramSegmentSettings(BaseModel):
 
     @property
     def is_active(self) -> bool:
-        return self.is_active
+        return self.isActive
 
     @property
     def discount_type(self) -> str:
@@ -1478,6 +1478,8 @@ async def create_order_service(
     # Create order
 
     order_number = await order_repository.generateOrderNumber(effective_role)
+    ship_addr = order_data.shipping_address
+    bill_addr = order_data.billing_address or order_data.shipping_address
     order, _order_created = await order_repository.storage.create_idempotent(
         OrderInternalCreate(
             order_number=order_number,
@@ -1509,8 +1511,30 @@ async def create_order_service(
             isUrgentDelivery=order_data.is_urgent_delivery if effective_role in (
                 "customer", "wholesaler") else False,
             deliverySlot=selected_slot_info,
-            shippingAddress=order_data.shipping_address,
-            billingAddress=order_data.billing_address or order_data.shipping_address,
+            ship_name=ship_addr.name if ship_addr else None,
+            ship_phone=ship_addr.phone if ship_addr else None,
+            ship_street=ship_addr.street if ship_addr else None,
+            ship_city=ship_addr.city if ship_addr else None,
+            ship_state=ship_addr.state if ship_addr else None,
+            ship_pincode=str(ship_addr.effective_pincode or ship_addr.zip_code or ship_addr.pincode or "") if ship_addr else None,
+            ship_address=ship_addr.address if ship_addr else None,
+            ship_district=ship_addr.district if ship_addr else None,
+            ship_country=ship_addr.country if ship_addr else None,
+            ship_google_location=ship_addr.google_location if ship_addr else None,
+            ship_latitude=ship_addr.latitude if ship_addr else None,
+            ship_longitude=ship_addr.longitude if ship_addr else None,
+            bill_name=bill_addr.name if bill_addr else None,
+            bill_phone=bill_addr.phone if bill_addr else None,
+            bill_street=bill_addr.street if bill_addr else None,
+            bill_city=bill_addr.city if bill_addr else None,
+            bill_state=bill_addr.state if bill_addr else None,
+            bill_pincode=str(bill_addr.effective_pincode or bill_addr.zip_code or bill_addr.pincode or "") if bill_addr else None,
+            bill_address=bill_addr.address if bill_addr else None,
+            bill_district=bill_addr.district if bill_addr else None,
+            bill_country=bill_addr.country if bill_addr else None,
+            bill_google_location=bill_addr.google_location if bill_addr else None,
+            bill_latitude=bill_addr.latitude if bill_addr else None,
+            bill_longitude=bill_addr.longitude if bill_addr else None,
             paymentMethod=order_data.payment_method,
             upiPaymentScreenshot=screenshot_path if order_data.payment_method == "upi" else None,
             notes=f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(

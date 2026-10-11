@@ -1,4 +1,5 @@
-from app.models.daos import NotificationInternalCreate, OrderFilter
+from app.models.daos import NotificationInternalCreate, OrderFilter, PaymentEntryInternal
+from app.models.push_notifications import PushNotifications
 from fastapi.responses import FileResponse
 from app.models.schemas import VariantAttributes, CouponResponse
 from app.utils.logger import logger
@@ -1635,7 +1636,7 @@ async def get_all_sub_orders(
     current_user: User = Depends(require_super_admin),
 ):
     """List all sub-orders from seller admins (Super Admin only)."""
-    seller_filter = None if sellerId == "platform" else sellerId
+    seller_filter = None if seller_id == "platform" else seller_id
     filter_params = SubOrderFilter(
         seller_id=seller_filter,
         status=status,

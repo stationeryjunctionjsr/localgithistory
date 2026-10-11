@@ -1,6 +1,7 @@
-from app.models.schemas import AddressSnippet as Address, ItemSnippet as CartItem, ItemSnippet as OrderItem
+from typing import Optional, List, Any, Dict, TYPE_CHECKING
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+if TYPE_CHECKING:
+    from app.models.schemas import AddressSnippet as Address
 from pydantic import Field, BaseModel, computed_field
 from app.models.base import CamelBaseModel
 

@@ -329,9 +329,9 @@ class MySQLProductDAO:
         price_col = "COALESCE(p.mrp_per_case, p.mrp)" if (query["role"] if "role" in query else None) == "wholesaler" else "p.mrp"
         
         if sort == "price_asc":
-            sort_sql = f"ORDER BY {price_col} ASC NULLS LAST"
+            sort_sql = f"ORDER BY ({price_col} IS NULL) ASC, {price_col} ASC"
         elif sort == "price_desc":
-            sort_sql = f"ORDER BY {price_col} DESC NULLS LAST"
+            sort_sql = f"ORDER BY ({price_col} IS NULL) ASC, {price_col} DESC"
         elif sort == "name_asc":
             sort_sql = "ORDER BY p.name ASC"
         elif sort == "name_desc":

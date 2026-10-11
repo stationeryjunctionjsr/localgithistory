@@ -9,6 +9,7 @@ from app.models.schemas import (
     SellerRequestResponse,
     SellerRequestResponseCreate,
     TicketResponseItem,
+    TicketResponseItemInternal,
     UserSnippet,
 )
 from app.models.seller_request import SellerRequest, SellerRequestResponseItem

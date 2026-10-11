@@ -246,7 +246,8 @@ class MySQLTrackingDAO:
                     text(
                         f"SELECT t.product_id, MAX(t.event_timestamp) as latest_ts, "
                         f"COALESCE(MAX(p.name), MAX(t.product_name), '') as product_name, "
-                        f"MAX(p.display_image) as display_image, MAX(p.price) as price "
+                        f"(SELECT pi.image_url FROM sj_product_images pi WHERE pi.product_id = MAX(p.id) ORDER BY pi.order_index ASC LIMIT 1) as display_image, "
+                        f"MAX(p.mrp) as price "
                         f"FROM {self.TABLE} t "
                         f"LEFT JOIN sj_products p ON (p.id = t.product_id OR p.external_id = t.product_id) "
                         f"WHERE {where_sql} "

@@ -91,6 +91,48 @@ class Order(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    @property
+    def _id(self) -> str:
+        return self.id
+
+    @property
+    def shipping_address(self) -> Optional[Address]:
+        if not self.ship_city and not self.ship_street and not self.ship_name and not self.ship_pincode:
+            return None
+        return Address(
+            name=self.ship_name,
+            phone=self.ship_phone,
+            street=self.ship_street,
+            city=self.ship_city,
+            state=self.ship_state,
+            pincode=self.ship_pincode,
+            address=self.ship_address,
+            district=self.ship_district,
+            country=self.ship_country or "India",
+            google_location=self.ship_google_location,
+            latitude=self.ship_latitude,
+            longitude=self.ship_longitude,
+        )
+
+    @property
+    def billing_address(self) -> Optional[Address]:
+        if not self.bill_city and not self.bill_street and not self.bill_name and not self.bill_pincode:
+            return None
+        return Address(
+            name=self.bill_name,
+            phone=self.bill_phone,
+            street=self.bill_street,
+            city=self.bill_city,
+            state=self.bill_state,
+            pincode=self.bill_pincode,
+            address=self.bill_address,
+            district=self.bill_district,
+            country=self.bill_country or "India",
+            google_location=self.bill_google_location,
+            latitude=self.bill_latitude,
+            longitude=self.bill_longitude,
+        )
+
 from pydantic import BaseModel, Field
 from app.models.base import CamelBaseModel
 from typing import Any, Dict, List, Optional

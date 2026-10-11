@@ -94,7 +94,7 @@ class MySQLSchemesDAO:
             roles_rows = await self._fetch_roles(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, roles_rows) for r in rows]
 
-    async def create(self, data: 'SchemesInternalCreate') -> 'SchemeInternal':
+    async def create(self, data: SchemeInternalCreate) -> Optional[SchemeInternal]:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -139,7 +139,7 @@ class MySQLSchemesDAO:
             params["s_code"] = data.code
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'discount_type', 'discount_value', 'min_purchase_amount', 'valid_from', 'valid_until', 'is_active', 'code'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'discount_type', 'discount_value', 'min_purchase_amount', 'valid_from', 'valid_until', 'is_active', 'code'] if f"s_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -153,7 +153,7 @@ class MySQLSchemesDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'SchemesInternalUpdate') -> 'SchemeInternal':
+    async def update(self, id: str, data: SchemeInternalUpdate) -> Optional[SchemeInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -167,27 +167,27 @@ class MySQLSchemesDAO:
             params["s_description"] = data.description
 
         if data.discount_type is not None:
-            updates.append("discount_type = :s_discountType")
+            updates.append("discount_type = :s_discount_type")
             params["s_discount_type"] = data.discount_type
 
         if data.discount_value is not None:
-            updates.append("discount_value = :s_discountValue")
+            updates.append("discount_value = :s_discount_value")
             params["s_discount_value"] = data.discount_value
 
         if data.min_purchase_amount is not None:
-            updates.append("min_order_value = :s_minOrderValue")
+            updates.append("min_order_value = :s_min_purchase_amount")
             params["s_min_purchase_amount"] = data.min_purchase_amount
 
         if data.valid_from is not None:
-            updates.append("valid_from = :s_validFrom")
+            updates.append("valid_from = :s_valid_from")
             params["s_valid_from"] = data.valid_from
 
         if data.valid_until is not None:
-            updates.append("valid_until = :s_validUntil")
+            updates.append("valid_until = :s_valid_until")
             params["s_valid_until"] = data.valid_until
 
         if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
+            updates.append("is_active = :s_is_active")
             params["s_is_active"] = data.is_active
 
         if data.code is not None:

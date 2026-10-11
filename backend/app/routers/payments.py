@@ -3,6 +3,7 @@ import logging
 from app.models.user import User
 from app.models.schemas import MessageResponse
 from app.models.payment import Payment, PaymentEntry
+from app.models.daos import PaymentEntryInternal
 from typing import List
 from pydantic import BaseModel, Field
 

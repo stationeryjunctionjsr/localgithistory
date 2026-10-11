@@ -6,8 +6,8 @@ Fully relational with child tables for user_segments and visibility_rules.
 from app.models.schemas import BannerResponse, VisibilityRuleSnippet
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate, BannerChildrenData
 import secrets
+from datetime import datetime
 from typing import List, Optional, Union
-from pydantic import BaseModel
 from app.models.banner import Banner
 
 from sqlalchemy import text
@@ -164,8 +164,8 @@ class MySQLBannerDAO:
         is_published: Optional[bool] = None,
         title: Optional[str] = None,
     ) -> Optional[BannerResponse]:
-        docs = await self.findAll(id=id, is_active=is_active, is_published=is_published, title=title)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, is_active=is_active, is_published=is_published, title=title)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[BannerResponse]:
         return await self.findOne(id=id)
@@ -277,11 +277,11 @@ class MySQLBannerDAO:
                     "updated_at": now,
                 },
             )
-            dummy_merged = BannerChildrenData(
+            children_data = BannerChildrenData(
                 user_segments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
                 visibility_rules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules,
             )
-            await self._replace_children(session, bid, dummy_merged)
+            await self._replace_children(session, bid, children_data)
             await session.commit()
         return await self.findById(id)
 
@@ -293,8 +293,6 @@ class MySQLBannerDAO:
             )
             await session.commit()
             return result.rowcount > 0
-
-
 
     async def _replace_children(self, session, bid: int, data: Union[BannerInternalCreate, BannerInternalUpdate, BannerChildrenData]):
         await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
@@ -309,7 +307,10 @@ class MySQLBannerDAO:
             
         visibility_rules = data.visibility_rules if data.visibility_rules is not None else []
         for rule in visibility_rules:
-            rule_val = rule.model_dump_json() if isinstance(rule, BaseModel) else str(rule)
+            try:
+                rule_val = rule.model_dump_json()
+            except AttributeError:
+                rule_val = str(rule)
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
                 {"bid": bid, "rule": rule_val}
