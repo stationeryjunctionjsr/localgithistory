@@ -1,8 +1,9 @@
 from app.models.daos import CartItemInternal
 from app.models.user import User
-from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse
+from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse, ItemSnippet
+from app.models.stock_reservation import StockReservationBatch
 from app.models.daos import WishlistItemInternal
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -55,19 +56,18 @@ async def get_cart(
 
         # Bulk load products and active reservations
         product_ids = [item.product for item in cart.items if item.product]
-        products_map = {}
-        reserved_map = {}
+        products = []
+        batch_reservations = StockReservationBatch()
         if product_ids:
             products = await product_repository.findByIds(product_ids)
-            products_map = {str(p.id): p for p in products}
             from app.repositories.stock_reservation_repository import stock_reservation_repository
-            reserved_map = await stock_reservation_repository.get_reserved_quantities_bulk(
+            batch_reservations = await stock_reservation_repository.get_batch_reservations(
                 product_ids, exclude_user_id=current_user.id
             )
 
-        cart_items = []
+        cart_items: List[ItemSnippet] = []
         for item in cart.items:
-            product = (products_map[str(item.product)] if str(item.product) in products_map else None)
+            product = next((p for p in products if str(p.id) == str(item.product)), None)
             if not product:
                 continue
             quantity = item.quantity
@@ -77,47 +77,47 @@ async def get_cart(
             )
             if subtotal is None:
                 raise ValueError(f"Data Integrity Error: Subtotal calculation failed for product {product.id}")
-            price = (subtotal / quantity) if quantity else 0  # effective price per unit for display
+            price = (subtotal / quantity) if quantity else 0.0
 
-            reserved = reserved_map.get(str(product.id), 0)
+            reserved = batch_reservations.get_reserved_for_product(str(product.id))
             if product.stock is None:
                 raise ValueError(f"Data Integrity Error: Product {product.id} is missing stock information")
             available_stock = max(0, int(product.stock) - reserved)
             is_out_of_stock = quantity > available_stock
 
             cart_items.append(
-                {
-                    "_id": str(item.id) if item.id else item.external_id,
-                    "productId": product.id,
-                    "name": product.name,
-                    "sku": product.sku,
-                    "images": product.images,
-                    "mrp": product.mrp,
-                    "mrpPerCase": product.mrp_per_case,
-                    "quantityPerCase": product.quantity_per_case,
-                    "quantity": quantity,
-                    "sellAsCase": sell_as_case,
-                    "price": price,
-                    "subtotal": subtotal,
-                    "outOfStock": is_out_of_stock,
-                    "bundleId": item.bundle_id,
-                    "bundleName": item.bundle_name,
-                    "variantAttributes": item.variant_attributes,
-                }
+                ItemSnippet(
+                    id=str(item.id) if item.id else item.external_id,
+                    productId=product.id,
+                    name=product.name,
+                    sku=product.sku,
+                    images=product.images,
+                    mrp=float(product.mrp) if product.mrp is not None else None,
+                    mrpPerCase=float(product.mrp_per_case) if product.mrp_per_case is not None else None,
+                    quantityPerCase=product.quantity_per_case,
+                    quantity=quantity,
+                    sellAsCase=sell_as_case,
+                    price=price,
+                    subtotal=subtotal,
+                    outOfStock=is_out_of_stock,
+                    bundleId=item.bundle_id,
+                    bundleName=item.bundle_name,
+                    variantAttributes=item.variant_attributes,
+                )
             )
 
         if fulfillment_type == "pan_india":
             from app.repositories.zone_seller_cache import get_super_admin_seller_id
             sa_id = await get_super_admin_seller_id()
-            filtered_items = []
+            filtered_items: List[ItemSnippet] = []
             for c_item in cart_items:
-                p = products_map.get(str(c_item["productId"]))
+                p = next((prod for prod in products if str(prod.id) == str(c_item.product_id)), None)
                 p_seller = p.sellers[0].seller_id if p and p.sellers else None
                 if p_seller is None or (sa_id and str(p_seller) == str(sa_id)):
                     filtered_items.append(c_item)
             cart_items = filtered_items
 
-        subtotal = sum(i["subtotal"] for i in cart_items)
+        subtotal = sum((i.subtotal if i.subtotal is not None else 0.0) for i in cart_items)
 
         # Get earliest expiry for active reservations to display countdown timer in frontend
         from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -129,7 +129,12 @@ async def get_cart(
             if expiry_times:
                 earliest_expiry = min(expiry_times)
 
-        return {"items": cart_items, "subtotal": subtotal, "itemCount": len(cart_items), "expiresAt": earliest_expiry}
+        return CartResponse(
+            items=cart_items,
+            subtotal=subtotal,
+            itemCount=len(cart_items),
+            expiresAt=earliest_expiry.isoformat() if earliest_expiry else None,
+        )
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")

@@ -1118,13 +1118,50 @@ class MySQLGoogle_reviewsDAO:
             await session.commit()
             return res.rowcount > 0
 
-from app.models.stock_reservation import StockReservation
+from app.models.stock_reservation import StockReservation, ProductReservedStock
 
 class MySQLStockReservationsDAO:
     TABLE = "sj_stock_reservations"
 
     def _factory(self):
         return get_async_session_factory()
+
+    async def get_reserved_quantities_by_product_ids(
+        self, product_ids: List[str], exclude_user_id: Optional[str] = None
+    ) -> List[ProductReservedStock]:
+        if not product_ids:
+            return []
+        factory = self._factory()
+        now = now_utc()
+
+        placeholders = [f":pid_{i}" for i in range(len(product_ids))]
+        params = {f"pid_{i}": str(pid) for i, pid in enumerate(product_ids)}
+        params["status"] = "active"
+        params["now"] = now
+
+        user_clause = ""
+        if exclude_user_id:
+            user_clause = "AND (user_id IS NULL OR user_id != :exclude_uid)"
+            params["exclude_uid"] = str(exclude_user_id)
+
+        sql = f"""
+            SELECT product_id, SUM(quantity) as total_reserved
+            FROM {self.TABLE}
+            WHERE status = :status
+              AND expires_at > :now
+              AND product_id IN ({', '.join(placeholders)})
+              {user_clause}
+            GROUP BY product_id
+        """
+        async with factory() as session:
+            rows = (await session.execute(text(sql), params)).fetchall()
+            return [
+                ProductReservedStock(
+                    product_id=str(r.product_id),
+                    reserved_quantity=int(r.total_reserved or 0),
+                )
+                for r in rows
+            ]
 
     async def findAll(self, query: Optional[Dict] = None) -> List[StockReservation]:
         query = query or {}
