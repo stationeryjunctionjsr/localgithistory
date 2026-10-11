@@ -45,7 +45,7 @@ class ReturnRequestRepository:
         try:
             async with factory() as session:
                 result = await session.execute(text(f"SHOW COLUMNS FROM {table_name}"))
-                existing_cols = {row[0].lower() for row in result.fetchall()}
+                existing_cols = {row.Field.lower() for row in result.fetchall()}
                 for col_name, col_def in columns_to_add:
                     if col_name.lower() not in existing_cols:
                         logger.info("Adding missing column %s to %s", col_name, table_name)

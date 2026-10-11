@@ -1377,9 +1377,9 @@ class AnalyticsRepository:
                     pair_counts[pair] += 1
 
         result = []
-        for pair, count in pair_counts.items():
-            product_a = (product_map[pair[0]] if pair[0] in product_map else None)
-            product_b = (product_map[pair[1]] if pair[1] in product_map else None)
+        for (prod_a_id, prod_b_id), count in pair_counts.items():
+            product_a = (product_map[prod_a_id] if prod_a_id in product_map else None)
+            product_b = (product_map[prod_b_id] if prod_b_id in product_map else None)
 
             # Skip if products are deleted/missing
             if not product_a or not product_b:
@@ -1387,9 +1387,9 @@ class AnalyticsRepository:
 
             result.append(
                 {
-                    "productAId": pair[0],
+                    "productAId": prod_a_id,
                     "productAName": product_a.name,
-                    "productBId": pair[1],
+                    "productBId": prod_b_id,
                     "productBName": product_b.name,
                     "frequency": count,
                 }

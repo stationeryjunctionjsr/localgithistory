@@ -966,8 +966,8 @@ class ProductRepository:
             from sqlalchemy import text as _text
 
             async with factory_fn() as _session:
-                row = (await _session.execute(_text(f"SELECT MAX(id) FROM {self.storage.TABLE}"))).fetchone()
-                max_id = int(row[0]) if row and row[0] is not None else 0
+                row = (await _session.execute(_text(f"SELECT MAX(id) AS max_id FROM {self.storage.TABLE}"))).fetchone()
+                max_id = int(row.max_id) if row and row.max_id is not None else 0
         else:
             all_products = await self.storage.findAll()
             max_id = max(

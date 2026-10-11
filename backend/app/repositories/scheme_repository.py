@@ -17,8 +17,8 @@ class SchemeRepository:
         code: Optional[str] = None
     ) -> List[SchemeInternal]:
         if id is not None:
-            doc = await self.storage.findById(id)
-            return [doc] if doc else []
+            record = await self.storage.findById(id)
+            return [record] if record else []
         schemes = await self.storage.findAll(is_active=is_active, code=code)
         if name is not None:
             schemes = [s for s in schemes if s.name == name]

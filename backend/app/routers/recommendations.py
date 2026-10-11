@@ -298,11 +298,11 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
     for action in ("recommendation_section_view", "recommendation_product_view", "recommendation_add_to_cart"):
         try:
             activities = await storage.findAll({"action": action})
-            for doc in activities:
-                created = doc.created_at or ""
+            for record in activities:
+                created = record.created_at or ""
                 if created < cutoff:
                     continue
-                meta_list = doc.meta or []
+                meta_list = record.meta or []
                 slot = "unknown"
                 for m in meta_list:
                     if m.key == "slot":

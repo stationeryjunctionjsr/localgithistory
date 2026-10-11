@@ -26,8 +26,8 @@ class AboutUsRepository:
         self.storage = get_storage("aboutUs")
 
     async def get(self) -> Optional[AboutUs]:
-        docs = await self.storage.findAll()
-        return docs[0] if docs else None
+        records = await self.storage.findAll()
+        return records[0] if records else None
 
     async def upsert(self, data) -> AboutUs:
         existing = await self.get()
@@ -55,8 +55,8 @@ class PrivacyPolicyRepository:
         self.storage = get_storage("privacyPolicy")
 
     async def get(self) -> Optional[PrivacyPolicy]:
-        docs = await self.storage.findAll()
-        return docs[0] if docs else None
+        records = await self.storage.findAll()
+        return records[0] if records else None
 
     async def upsert(self, data) -> PrivacyPolicy:
         existing = await self.get()

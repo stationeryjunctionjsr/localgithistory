@@ -53,17 +53,17 @@ class SellerPayoutSummaryResponse(BaseModel):
     subOrderCount: int
 
 
-async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
-    seller = await user_repository.findById(doc.seller_id)
+async def _enrich_with_seller(payout: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
+    seller = await user_repository.findById(payout.seller_id)
     if seller:
-        doc.seller_name = seller.company_name or seller.name or ""
-        doc.seller_upi_id = seller.upi_id
-        doc.seller_qr_code_url = seller.qr_code_url
-        doc.seller_bank_account_number = seller.bank_account_number
-        doc.seller_bank_ifsc_code = seller.bank_ifsc_code
-        doc.seller_bank_account_holder = seller.bank_account_holder
-        doc.seller_bank_name = seller.bank_name
-    return doc
+        payout.seller_name = seller.company_name or seller.name or ""
+        payout.seller_upi_id = seller.upi_id
+        payout.seller_qr_code_url = seller.qr_code_url
+        payout.seller_bank_account_number = seller.bank_account_number
+        payout.seller_bank_ifsc_code = seller.bank_ifsc_code
+        payout.seller_bank_account_holder = seller.bank_account_holder
+        payout.seller_bank_name = seller.bank_name
+    return payout
 
 @router.get("", response_model=List[SellerPayoutDetailResponse])
 @router.get("/", response_model=List[SellerPayoutDetailResponse])

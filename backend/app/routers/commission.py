@@ -50,9 +50,9 @@ def _get_commission_storage():
 
 async def _get_settings() -> CommissionSettings:
     storage = _get_commission_storage()
-    docs = await storage.findAll()
-    if docs:
-        return docs[0]
+    records = await storage.findAll()
+    if records:
+        return records[0]
     # Create default settings
     default = CommissionSettingsInternalCreate(
         default_commission_pct=5.0,

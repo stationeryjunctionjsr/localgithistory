@@ -686,18 +686,18 @@ class RecommendationRepository:
                 self.tracking_storage.findAll(event_type="recommendation_add_to_cart"),
             )
         except Exception:
-            logger.warning("Failed to fetch activity docs for engagement scoring; returning zero scores.", exc_info=True)
+            logger.warning("Failed to fetch activity records for engagement scoring; returning zero scores.", exc_info=True)
             return scores
 
-        for docs, weight in [
+        for records, weight in [
             (pv_docs, (weights["product_view"] if "product_view" in weights else 1)),
             (atc_docs, (weights["add_to_cart"] if "add_to_cart" in weights else 3)),
         ]:
-            for doc in docs:
-                created = self._parse_created_at(doc)
+            for record in records:
+                created = self._parse_created_at(record)
                 if created and created < cutoff:
                     continue
-                meta_list = doc.meta if doc.meta is not None else []
+                meta_list = record.meta if record.meta is not None else []
                 pid = None
                 for m in meta_list:
                     if m.key == "productId":
@@ -708,8 +708,8 @@ class RecommendationRepository:
 
         return scores
 
-    def _parse_created_at(self, doc) -> Optional[datetime]:
-        raw = doc.created_at
+    def _parse_created_at(self, record) -> Optional[datetime]:
+        raw = record.created_at
             
         if not raw:
             return None

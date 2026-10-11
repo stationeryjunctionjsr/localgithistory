@@ -137,14 +137,14 @@ async def delete_faq_section(section_id: str, user: User = Depends(require_super
 @router.get("/about/public", response_model=AboutUsResponse)
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_about():
-    doc = await about_repository.get()
-    return doc or {}
+    content = await about_repository.get()
+    return content or {}
 
 
 @router.get("/about", response_model=AboutUsResponse)
 async def get_about(user: User = Depends(require_super_admin)):
-    doc = await about_repository.get()
-    return doc or {}
+    content = await about_repository.get()
+    return content or {}
 
 
 @router.put("/about", response_model=AboutUsResponse)
@@ -160,14 +160,14 @@ async def update_about(data: AboutUsUpdate, user: User = Depends(require_super_a
 @router.get("/privacy/public", response_model=PrivacyPolicyResponse)
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_privacy():
-    doc = await privacy_repository.get()
-    return doc or {}
+    policy = await privacy_repository.get()
+    return policy or {}
 
 
 @router.get("/privacy", response_model=PrivacyPolicyResponse)
 async def get_privacy(user: User = Depends(require_super_admin)):
-    doc = await privacy_repository.get()
-    return doc or {}
+    policy = await privacy_repository.get()
+    return policy or {}
 
 
 @router.put("/privacy", response_model=PrivacyPolicyResponse)
@@ -185,12 +185,12 @@ async def update_privacy(data: PrivacyPolicyUpdate, user: User = Depends(require
 @router.get("/privacy/history", response_model=List[PrivacyPolicyResponse])
 async def get_privacy_version_history(user: User = Depends(require_super_admin)):
     """Return the full version history of the Privacy Policy."""
-    doc = await privacy_repository.get()
-    if not doc:
+    policy = await privacy_repository.get()
+    if not policy:
         return {"version": 0, "versionHistory": []}
     return {
-        "version": (doc.version if doc.version is not None else 1),
-        "versionHistory": (doc.version_history or []),
+        "version": (policy.version if policy.version is not None else 1),
+        "versionHistory": (policy.version_history or []),
     }
 
 

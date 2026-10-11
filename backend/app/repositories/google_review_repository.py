@@ -138,8 +138,8 @@ class GoogleReviewRepository:
                 lastUpdated=new_data.lastUpdated,
                 method=new_data.method
             )
-            for doc in existing:
-                await self.storage.update(doc.id, update_data)
+            for record in existing:
+                await self.storage.update(record.id, update_data)
         else:
             await self.storage.create(new_data)
 

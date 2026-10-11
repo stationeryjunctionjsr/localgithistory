@@ -433,9 +433,9 @@ class TrackingRepository:
             event_type="product_search", start_date=cutoff, segment=segment
         )
         counts = {}
-        for doc in all_searches:
-            if doc.product_ids:
-                for pid in doc.product_ids:
+        for record in all_searches:
+            if record.product_ids:
+                for pid in record.product_ids:
                     if pid:
                         counts[pid] = counts.get(pid, 0) + 1
         return [ProductSearchCount(product_id=pid, count=cnt) for pid, cnt in counts.items()]
@@ -445,7 +445,7 @@ class TrackingRepository:
         all_searches = await self.storage.find_by_date_range(
             event_type="product_search", start_date=cutoff, segment=segment
         )
-        return [doc for doc in all_searches if doc.product_ids]
+        return [record for record in all_searches if record.product_ids]
 
     async def getMostSearched(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
