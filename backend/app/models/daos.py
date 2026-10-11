@@ -224,6 +224,16 @@ class ValetAvailabilityInternalUpdate(CamelBaseModel):
     slots: Optional[List[str]] = None
     zones: Optional[List[str]] = None
 
+class ValetAvailabilityFilter(CamelBaseModel):
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
+    id: Optional[Union[str, int]] = Field(None, alias="_id")
+    valet_id: Optional[str] = Field(None, alias="valetId")
+    date: Optional[str] = None
+    availability_type: Optional[str] = Field(None, alias="availabilityType")
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    seller_zones: Optional[List[str]] = None
+
 class DeviceSnippet(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     type: Optional[str] = None

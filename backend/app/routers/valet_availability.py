@@ -1,5 +1,3 @@
-from app.models.user import User
-from app.models.schemas import MessageResponse
 """
 Valet Availability Router
 
@@ -13,22 +11,28 @@ Endpoints:
   DELETE /valet-availability/{id}     – Remove own availability entry (valet)
 """
 
+import logging
 from datetime import date as dt_date
 from datetime import timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ValidationInfo, field_validator, model_validator, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.db.storage_factory import get_storage
+from app.models.base import CamelBaseModel
+from app.models.daos import (
+    ValetAvailabilityFilter,
+    ValetAvailabilityInternalCreate,
+    ValetAvailabilityInternalUpdate,
+)
+from app.models.schemas import MessageResponse
+from app.models.user import User
+from app.models.valet_availability import ValetAvailability
+from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin_or_seller
 
-
-from app.models.valet_availability import ValetAvailability
-class EnrichedValetAvailabilityResponse(ValetAvailability):
-    valetName: Optional[str] = None
-    valetPhone: Optional[str] = None
-    serviceAreaZones: Optional[List[str]] = []
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 storage = get_storage("valetAvailability")
@@ -37,15 +41,21 @@ storage = get_storage("valetAvailability")
 # ─── Schemas ─────────────────────────────────────────────────────────────────
 
 
+class EnrichedValetAvailabilityResponse(ValetAvailability):
+    valet_name: Optional[str] = None
+    valet_phone: Optional[str] = None
+    service_area_zones: list[str] = Field(default_factory=list)
+
+
 class ValetAvailabilityCreate(BaseModel):
     date: str  # ISO date string, e.g. "2026-08-10"
     availabilityType: str  # "full_day" | "custom"
-    slots: Optional[List[str]] = []  # slot IDs — only used when type = "custom"
-    zones: List[str] = []  # zones selected for this date
+    slots: list[str] = Field(default_factory=list)  # slot IDs — only used when type = "custom"
+    zones: list[str] = Field(default_factory=list)  # zones selected for this date
 
     @field_validator("availabilityType")
     @classmethod
-    def validate_type(cls, v):
+    def validate_type(cls, v: str) -> str:
         if v not in ("full_day", "custom"):
             raise ValueError("availabilityType must be 'full_day' or 'custom'")
         return v
@@ -78,7 +88,7 @@ async def mark_availability(
 ):
     """
     Mark (or update) availability for a date.
-    One document per valetId + date — upserts on conflict.
+    One document per valetId + date — upserts on conflict via DAO.
     """
     _require_valet(current_user)
 
@@ -97,7 +107,7 @@ async def mark_availability(
     # Validate slot IDs exist in delivery slot config for the given date
     if data.availabilityType == "custom" and data.slots:
         slot_cfg_storage = get_storage("deliverySlots")
-        slot_configs = await slot_cfg_storage.findAll({"date": data.date, "isActive": True})
+        slot_configs = await slot_cfg_storage.findAll(date=data.date, is_active=True)
         all_valid_slot_ids = {
             slot.id
             for config in slot_configs
@@ -123,106 +133,85 @@ async def mark_availability(
             detail=f"You are not assigned to these zones: {invalid_zones}. Your assigned zones: {list(permitted_zones)}",
         )
 
-    # Check for existing entry to upsert
-    existing = await storage.findAll({"valetId": valet_id, "date": data.date})
-
-    from datetime import datetime, timezone
-
-    from app.models.daos import ValetAvailabilityInternalCreate, ValetAvailabilityInternalUpdate
-
-    if existing:
-        availability_id = str(existing[0].id)
-        updated = await storage.update(availability_id, ValetAvailabilityInternalUpdate(
-            valetId=valet_id,
+    return await storage.upsert_availability(
+        ValetAvailabilityInternalCreate(
+            valet_id=valet_id,
             date=data.date,
-            availabilityType=data.availabilityType,
+            availability_type=data.availabilityType,
             slots=data.slots,
-            zones=data.zones
-        ))
-        return updated
-    else:
-        created = await storage.create(ValetAvailabilityInternalCreate(
-            valetId=valet_id,
-            date=data.date,
-            availabilityType=data.availabilityType,
-            slots=data.slots,
-            zones=data.zones
-        ))
-        return created
+            zones=data.zones,
+        )
+    )
 
 
-@router.get("/my", response_model=List[ValetAvailability])
+@router.get("/my", response_model=list[ValetAvailability])
 async def get_my_availability(
     current_user: User = Depends(get_current_user),
 ):
-    """Return own upcoming availability (today + next 7 days)."""
+    """Return own upcoming availability (today + next 7 days) via pushdown SQL, ordered by date ASC."""
     _require_valet(current_user)
 
     today = dt_date.today()
-    upcoming_dates = [(today + timedelta(days=i)).isoformat() for i in range(8)]
-
+    max_date = today + timedelta(days=7)
     valet_id = str(current_user.id)
-    all_docs = await storage.findAll({"valetId": valet_id})
 
-    return [record for record in all_docs if (record.date.strftime("%Y-%m-%d")) in upcoming_dates]
+    return await storage.get_my_upcoming_availability(
+        valet_id=valet_id,
+        start_date=today.isoformat(),
+        end_date=max_date.isoformat(),
+    )
 
 
-@router.get("", response_model=List[EnrichedValetAvailabilityResponse])
-@router.get("/", response_model=List[EnrichedValetAvailabilityResponse])
+@router.get("", response_model=list[EnrichedValetAvailabilityResponse])
+@router.get("/", response_model=list[EnrichedValetAvailabilityResponse])
 async def get_all_availability(
     date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
     valetId: Optional[str] = Query(None, description="Filter by valet ID"),
     current_user: User = Depends(require_super_admin_or_seller),
 ):
     """Return valets' availability. Super Admin sees all. Sellers see valets in their service area."""
-    query: dict = {}
-    if date:
-        query["date"] = date
-    if valetId:
-        query["valetId"] = valetId
+    is_seller = current_user.role == "seller" or current_user.is_seller_admin
+    seller_zones: Optional[list[str]] = None
+    if is_seller and current_user.role != "super_admin":
+        seller_zones = current_user.service_area_zones or []
 
-    records = await storage.findAll(query)
+    filters = ValetAvailabilityFilter(
+        date=date,
+        valet_id=valetId,
+        seller_zones=seller_zones if seller_zones else None,
+    )
 
-    # Enrich with valet name for admin display
-    from app.repositories.user_repository import user_repository
+    records = await storage.findAll(filters)
 
     valet_ids = list({record.valet_id for record in records if record.valet_id})
-    valets_map: Dict[str, User] = {}
-    for vid in valet_ids:
-        valet = await user_repository.findById(vid)
-        if valet:
-            valets_map[vid] = valet
+    valet_users = await user_repository.findByIds(valet_ids)
+    valets_map: dict[str, User] = {}
+    for u in valet_users:
+        valets_map[str(u.id)] = u
+        if u.external_id:
+            valets_map[str(u.external_id)] = u
 
-    # Determine seller's service area if applicable
-    is_seller = current_user.role == "seller" or current_user.is_seller_admin
-    seller_zones = set()
-    if is_seller and current_user.role != "super_admin":
-        # Use serviceableZoneIds directly — sellers now declare zones, not pincodes
-        zone_ids = current_user.service_area_zones or []
-        seller_zones = set(zone_ids)
-
-    enriched = []
+    enriched: list[EnrichedValetAvailabilityResponse] = []
     for record in records:
-        vid = (record.valet_id or "")
-        valet = valets_map[vid] if vid in valets_map else None
-
-        # Filter for sellers
-        if is_seller and current_user.role != "super_admin":
-            # Compare valet's daily selected zones with seller's zones
-            valet_daily_zones = set(record.zones or [])
-            if not seller_zones.intersection(valet_daily_zones):
-                continue
-
+        vid = record.valet_id or ""
+        valet = valets_map.get(vid)
         enriched.append(
-            record.model_copy(update={
-                "valetName": valet.name if valet else "",
-                "valetPhone": valet.phone if valet else "",
-                "serviceAreaZones": valet.service_area_zones if valet else [],
-            })
+            EnrichedValetAvailabilityResponse(
+                id=record.id,
+                external_id=record.external_id,
+                valet_id=record.valet_id,
+                date=record.date,
+                availability_type=record.availability_type,
+                slots=record.slots,
+                zones=record.zones,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+                valet_name=valet.name if valet else "",
+                valet_phone=valet.phone if valet else "",
+                service_area_zones=valet.service_area_zones if valet else [],
+            )
         )
 
-    # Sort by date ascending
-    enriched.sort(key=lambda r: r.date or "")
     return enriched
 
 
@@ -241,13 +230,13 @@ async def delete_availability(
     if str(record.valet_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="You can only delete your own availability entries")
 
-    # Prevent deleting past entries
-    try:
-        entry_date = dt_date.fromisoformat(record.date)
-        if entry_date < dt_date.today():
-            raise HTTPException(status_code=400, detail="Cannot delete past availability entries")
-    except (ValueError, KeyError):
-        pass
+    if record.date:
+        try:
+            entry_date = dt_date.fromisoformat(str(record.date))
+            if entry_date < dt_date.today():
+                raise HTTPException(status_code=400, detail="Cannot delete past availability entries")
+        except (ValueError, TypeError):
+            pass
 
     await storage.delete(record_id)
     return {"message": "Availability entry deleted successfully"}
