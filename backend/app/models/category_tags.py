@@ -1,7 +1,7 @@
-from app.models.base import CamelBaseModel
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional
 from pydantic import Field
+from app.models.base import CamelBaseModel
 
 class CategoryTags(CamelBaseModel):
     id: str = Field(default=None)
