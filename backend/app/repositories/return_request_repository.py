@@ -98,13 +98,13 @@ class ReturnRequestRepository:
 
     async def create(self, data: ReturnRequestInternalCreate) -> ReturnRequestInternal:
         return_id = await self.generateReturnId()
-        data.returnId = return_id
+        data.return_id = return_id
         if data.status is None:
             data.status = "pending"
-        if data.valetCascadeCount is None:
-            data.valetCascadeCount = 0
-        if data.valetDeclineHistory is None:
-            data.valetDeclineHistory = []
+        if data.valet_cascade_count is None:
+            data.valet_cascade_count = 0
+        if data.valet_decline_history is None:
+            data.valet_decline_history = []
         if data.delivery_charge is None:
             data.delivery_charge = 0
 

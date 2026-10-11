@@ -508,7 +508,7 @@ async def valet_return_response(
     else:
         # Declined -> Cascade
         from app.models.daos_flat import ReturnRequestValetDeclineInternal
-        raw_history = ret.valetDeclineHistory
+        raw_history = ret.valet_decline_history
         history = list(raw_history or [])
         valet_id_str = str(current_user.id)
         if not any(d.valet_id == valet_id_str for d in history):
@@ -517,7 +517,7 @@ async def valet_return_response(
         await return_request_repository.update(
             return_id, ReturnRequestInternalUpdate(valetDeclineHistory=history, pendingValetId=None)
         )
-        ret.valetDeclineHistory = history
+        ret.valet_decline_history = history
         ret.pending_valet_id = None
         
         from app.jobs.valet_timeout_job import _cascade_or_revert_return

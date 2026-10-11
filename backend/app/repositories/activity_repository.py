@@ -30,7 +30,7 @@ class ActivityRepository:
             session_id=session_id,
             action=action,
             meta=meta_list,
-            comment=comment,
+            comments=comment,
             is_guest=is_guest,
         )
         if device:
@@ -46,9 +46,9 @@ class ActivityRepository:
         activities = await self.storage.findAll(session_id=session_id)
         updated = 0
         for act in activities:
-            if act.userId is None:
+            if act.user_id is None:
                 await self.storage.update(
-                    act.id, ActivityInternalUpdate(user_id=user_id, is_guest=False, comment="login performed in the same session")
+                    act.id, ActivityInternalUpdate(user_id=user_id, is_guest=False, comments="login performed in the same session")
                 )
                 updated += 1
         return {"updated": updated}

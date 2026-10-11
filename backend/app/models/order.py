@@ -96,6 +96,37 @@ class Order(CamelBaseModel):
         return self.id
 
     @property
+    def orderNumber(self) -> Optional[str]:
+        return self.order_number
+
+    @property
+    def valetCascadeCount(self) -> int:
+        return self.valet_cascade_count or 0
+
+    @valetCascadeCount.setter
+    def valetCascadeCount(self, value: int):
+        self.valet_cascade_count = value
+
+    @property
+    def valetDeclineHistory(self) -> List[ValetDeclineHistoryEntry]:
+        return self.valet_decline_history or []
+
+    @valetDeclineHistory.setter
+    def valetDeclineHistory(self, value: List[ValetDeclineHistoryEntry]):
+        self.valet_decline_history = value
+
+    @property
+    def valetAssignedAt(self) -> Optional[str]:
+        return self.valet_assigned_at.isoformat() if self.valet_assigned_at else None
+
+    @valetAssignedAt.setter
+    def valetAssignedAt(self, value: Optional[Any]):
+        if isinstance(value, str):
+            self.valet_assigned_at = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        else:
+            self.valet_assigned_at = value
+
+    @property
     def shipping_address(self) -> Optional[Address]:
         if not self.ship_city and not self.ship_street and not self.ship_name and not self.ship_pincode:
             return None
