@@ -59,38 +59,45 @@ class MySQLSellerRequestDAO:
             all_resp.extend(resp_res.fetchall())
         return all_att, all_resp
 
-    async def _replace_children(self, session, req_id: int, data: Union['SellerRequestInternalCreate', 'SellerRequestInternalUpdate']):
-        await session.execute(
-            text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"), {"rid": req_id}
-        )
-        await session.execute(text("DELETE FROM sj_seller_request_responses WHERE request_id = :rid"), {"rid": req_id})
-
-        for url in (data.attachments if data.attachments is not None else []):
+    async def _replace_children(
+        self,
+        session,
+        req_id: int,
+        attachments: Optional[List[str]] = None,
+        responses: Optional[List[Union[SellerRequestResponseItem, TicketResponseItem]]] = None,
+    ) -> None:
+        if attachments is not None:
             await session.execute(
-                text("INSERT INTO sj_seller_request_attachments (request_id, url) VALUES (:rid, :url)"),
-                {"rid": req_id, "url": url},
+                text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"), {"rid": req_id}
             )
+            for url in attachments:
+                await session.execute(
+                    text("INSERT INTO sj_seller_request_attachments (request_id, url) VALUES (:rid, :url)"),
+                    {"rid": req_id, "url": url},
+                )
 
-        for resp in (data.responses if data.responses is not None else []):
-            if isinstance(resp, TicketResponseItem):
-                admin_id = resp.user
-                response_text = resp.message
-                created_at = resp.created_at or now_utc()
-            else:
-                admin_id = resp.admin_id
-                response_text = resp.response
-                created_at = resp.created_at or now_utc()
-            await session.execute(
-                text(
-                    "INSERT INTO sj_seller_request_responses (request_id, admin_id, response_text, created_at) VALUES (:rid, :admin, :text, :c)"
-                ),
-                {
-                    "rid": req_id,
-                    "admin": admin_id,
-                    "text": response_text,
-                    "c": created_at,
-                },
-            )
+        if responses is not None:
+            await session.execute(text("DELETE FROM sj_seller_request_responses WHERE request_id = :rid"), {"rid": req_id})
+            for resp in responses:
+                if isinstance(resp, TicketResponseItem):
+                    admin_id = resp.user
+                    response_text = resp.message
+                    created_at = resp.created_at or now_utc()
+                else:
+                    admin_id = resp.admin_id
+                    response_text = resp.response
+                    created_at = resp.created_at or now_utc()
+                await session.execute(
+                    text(
+                        "INSERT INTO sj_seller_request_responses (request_id, admin_id, response_text, created_at) VALUES (:rid, :admin, :text, :c)"
+                    ),
+                    {
+                        "rid": req_id,
+                        "admin": admin_id,
+                        "text": response_text,
+                        "c": created_at,
+                    },
+                )
 
     async def findAll(
         self,
@@ -238,7 +245,12 @@ class MySQLSellerRequestDAO:
                     text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
                 )
             ).scalar()
-            await self._replace_children(session, new_id, data)
+            await self._replace_children(
+                session,
+                int(new_id),
+                attachments=data.attachments or [],
+                responses=data.responses or [],
+            )
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -259,8 +271,9 @@ class MySQLSellerRequestDAO:
                 logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
+        oid = int(existing.id) if existing.id and str(existing.id).isdigit() else (int(id) if str(id).isdigit() else None)
         updates = ["updated_at = :updated_at"]
-        params = {"id": int(id) if str(id).isdigit() else None, "updated_at": now}
+        params = {"id": oid, "updated_at": now}
 
         if update_data.user is not None:
             updates.append("user_id = :user_id")
@@ -294,21 +307,13 @@ class MySQLSellerRequestDAO:
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
-            if update_data.comments is not None:
-                await session.execute(
-                    text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"),
-                    {"id": params["id"]},
+            if update_data.attachments is not None or update_data.responses is not None:
+                await self._replace_children(
+                    session,
+                    params["id"],
+                    attachments=update_data.attachments,
+                    responses=update_data.responses,
                 )
-                for comment in update_data.comments:
-                    await session.execute(
-                        text(f"INSERT INTO {self.CHILD_TABLE} (parent_id, user_id, message, created_at) VALUES (:parent_id, :user_id, :message, :created_at)"),
-                        {
-                            "parent_id": params["id"],
-                            "user_id": comment.user,
-                            "message": comment.message,
-                            "created_at": to_dt(comment.created_at) or now,
-                        },
-                    )
             await session.commit()
         return await self.findById(id)
 
@@ -317,8 +322,10 @@ class MySQLSellerRequestDAO:
         if not factory:
             return False
         async with factory() as session:
+            is_digit = str(id).isdigit()
+            sql = f"DELETE FROM {self.TABLE} WHERE id = :id" if is_digit else f"DELETE FROM {self.TABLE} WHERE external_id = :id"
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
+                text(sql), {"id": int(id) if is_digit else str(id)}
             )
             await session.commit()
             return result.rowcount > 0
