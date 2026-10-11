@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from pydantic import Field
 from app.models.base import CamelBaseModel
 
@@ -43,8 +43,8 @@ class RecommendationConfig(CamelBaseModel):
     bandit: BanditConfig = Field(default_factory=BanditConfig)
     customer_favourites_weights: FavouriteWeights = Field(default_factory=FavouriteWeights)
     business_favourites_weights: FavouriteWeights = Field(default_factory=FavouriteWeights)
-    segments: Dict[str, SegmentConfig] = Field(default_factory=dict)
-    section_wise_weights: Dict[str, EngagementWeights] = Field(default_factory=dict)
+    segments: dict[str, SegmentConfig] = Field(default_factory=dict)
+    section_wise_weights: dict[str, EngagementWeights] = Field(default_factory=dict)
 
 
 class FavouritesCacheResult(CamelBaseModel):
