@@ -239,7 +239,7 @@ async def get_payments(
 
     # Bulk-fetch all referenced orders in one query to avoid N+1 DB calls
     order_ids = list({p.order_id for p in payments if p.order_id})
-    orders_list = await order_repository.findAll({"_id": {"$in": order_ids}}) if order_ids else []
+    orders_list = await order_repository.findByIds(order_ids) if order_ids else []
     order_map = {str(o.id): o for o in orders_list}
 
     enhanced_payments = []

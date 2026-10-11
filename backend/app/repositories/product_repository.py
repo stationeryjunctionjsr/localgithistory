@@ -721,11 +721,11 @@ class ProductRepository:
             from app.repositories.order_repository import order_repository
 
             # Only fetch orders for this specific user
-            user_orders = await order_repository.findAll({"user": user_id})
+            user_orders = await order_repository.findByUser(user_id)
             for o in user_orders:
-                for item in o["items"] if "items" in o else []:
-                    if item.product:
-                        user_ordered_pids.add(str(item.product))
+                for item in o.items or []:
+                    if item.product_id:
+                        user_ordered_pids.add(str(item.product_id))
 
         # Calculate thresholds (Aware)
         from datetime import datetime, timezone

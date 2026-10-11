@@ -185,9 +185,10 @@ async def get_available_valets(
         
     # 4. Sort by active load
     from app.repositories.order_repository import order_repository
-    active_orders = await order_repository.findAll({
-        "status": {"$in": ["pending_valet", "shipped", "return_pickup"]}
-    })
+    from app.models.daos import OrderFilter
+    active_orders = await order_repository.findAll(
+        OrderFilter(statuses=["pending_valet", "shipped", "return_pickup"])
+    )
     
     load_map = {str((v.id or "")): 0 for v in available_valets}
     for o in active_orders:

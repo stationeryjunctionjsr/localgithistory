@@ -1,14 +1,15 @@
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
+from app.models.daos import OrderFilter
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
     from app.models.daos import OrderInternalCreate, OrderInternalUpdate
-    
+
 
 
 class OrderRepository:
@@ -28,17 +29,39 @@ class OrderRepository:
         next_id = max(1, max_id + 1)  # ORDER-RT-1, ORDER-WH-1, etc. (never 0)
         return f"{prefix}{next_id}"
 
-    async def findAll(self, query: Optional[dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
-        return await self.storage.findAll(query, skip=skip, limit=limit)
+    async def findAll(
+        self,
+        filter: Optional[OrderFilter] = None,
+        user_id: Optional[str] = None,
+        status: Optional[str] = None,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List[Order]:
+        if filter is None and (user_id is not None or status is not None):
+            filter = OrderFilter(user_id=user_id, status=status)
+        return await self.storage.findAll(filter, skip=skip, limit=limit)
 
-    async def count(self, query: Optional[dict] = None) -> int:
-        return await self.storage.count(query)
+    async def findByUser(
+        self,
+        user_id: str,
+        status: Optional[str] = None,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List[Order]:
+        filter_obj = OrderFilter(user_id=str(user_id), status=status) if status else OrderFilter(user_id=str(user_id))
+        return await self.storage.findAll(filter_obj, skip=skip, limit=limit)
+
+    async def count(self, filter: Optional[OrderFilter] = None) -> int:
+        return await self.storage.count(filter)
 
     async def countByUser(self, user_id: str) -> int:
-        return await self.count({"user": user_id})
+        return await self.count(OrderFilter(user_id=str(user_id)))
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[Order]:
         return await self.storage.findById(id)
+
+    async def findByIds(self, ids: List[str]) -> List[Order]:
+        return await self.storage.findByIds(ids)
 
     async def create(self, order_data: 'OrderInternalCreate'):
         if not order_data.created_at:

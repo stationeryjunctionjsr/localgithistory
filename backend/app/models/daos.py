@@ -698,14 +698,17 @@ class NotificationInternal(CamelBaseModel):
 
 class OrderFilter(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[Union[str, int]] = None
+    id: Optional[str] = None
     user_id: Optional[str] = None
+    user_ids: Optional[List[str]] = None
     status: Optional[str] = None
+    statuses: Optional[List[str]] = None
     order_type: Optional[str] = None
     payment_method: Optional[str] = None
-    start_date: Optional[Union[datetime, str]] = None
-    end_date: Optional[Union[datetime, str]] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     order_number_prefix: Optional[str] = None
     idempotency_key: Optional[str] = None
     assigned_valet: Optional[str] = None
+    pending_valet_id: Optional[str] = None
 

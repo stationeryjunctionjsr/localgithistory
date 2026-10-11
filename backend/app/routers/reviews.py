@@ -51,12 +51,12 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     # 2. Verify that the user has a delivered order with this product
-    orders = await order_repository.findAll({"user": user_id, "status": "delivered"})
+    orders = await order_repository.findByUser(user_id, status="delivered")
     has_purchased = False
     for order in orders:
         items = (order.items or [])
         for item in items:
-            if str(item.product) == product_id:
+            if str(item.product_id or "") == product_id:
                 has_purchased = True
                 break
         if has_purchased:

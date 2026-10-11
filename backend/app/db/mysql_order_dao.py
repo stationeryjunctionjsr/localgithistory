@@ -1,20 +1,10 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
-from typing import Any, Dict, List, Optional, Set, Tuple
+from app.models.daos import OrderFilter
+from app.models.order import Order
+from typing import Any, List, Optional, Set, Tuple
 import logging
-"""
-MySQL DAO for sj_orders (+ sj_order_items).
-Implements FileStorage-like interface for 'orders' so repositories keep working.
-
-Assumptions (matches current MySQLUserDAO / MySQLDocStore behavior):
-- API/_id values are numeric `id` PKs (not external_id).
-- Order `user` field stores numeric user id as string.
-- Order items store `product` as numeric product id as string.
-"""
-
 import secrets
 from datetime import datetime
-from typing import Dict
-from app.models.order import Order, List, Optional
 
 from sqlalchemy import text
 
@@ -45,88 +35,128 @@ class MySQLOrderDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def _load_children(self, session, order_id: int) -> tuple[list[dict], list[dict]]:
-        result = await session.execute(
-            text(
-                f"""
-                SELECT product_id, quantity, price
-                FROM {self.ITEMS_TABLE}
-                WHERE order_id = :order_id
-                """
-            ),
-            {"order_id": order_id},
-        )
-        items = [{"productId": str(r.product_id), "quantity": int(r.quantity) if r.quantity is not None else 0, "price": float(r.price) if r.price is not None else 0.0} for r in result.fetchall()]
-
-        decl_res = await session.execute(
-            text("SELECT valet_id, reason FROM sj_order_valet_declines WHERE parent_id = :order_id"),
-            {"order_id": order_id},
-        )
-        declines = [{"valetId": str(r.valet_id), "reason": r.reason} for r in decl_res.fetchall()]
-
-        return items, declines
-
-    def __map_to_schema(self, r, items: List[Dict], declines: List[Dict]) -> Order:
+    def __map_to_schema(self, r, items_rows=None, declines_rows=None) -> Order:
         order = Order.model_validate(r)
-        order.items = [ItemSnippet.model_validate(i) for i in items]
-        order.valet_decline_history = [ValetDeclineHistoryEntry.model_validate(d) for d in declines]
+        if items_rows:
+            order.items = [
+                ItemSnippet(
+                    product_id=str(ir.product_id),
+                    quantity=int(ir.quantity) if ir.quantity is not None else 0,
+                    price=float(ir.price) if ir.price is not None else 0.0,
+                )
+                for ir in items_rows
+                if ir.order_id == r.id
+            ]
+        else:
+            order.items = []
+
+        if declines_rows:
+            order.valet_decline_history = [
+                ValetDeclineHistoryEntry(
+                    valet_id=str(dr.valet_id),
+                    reason=dr.reason,
+                )
+                for dr in declines_rows
+                if dr.parent_id == r.id
+            ]
+        else:
+            order.valet_decline_history = []
         return order
 
-    def _build_query_conditions(self, query: Optional[Dict]) -> tuple[str, Dict]:
-        where_clauses = []
+    def _build_query_conditions(self, filter: Optional[OrderFilter] = None) -> tuple[str, dict[str, Any]]:
+        where_clauses: list[str] = []
         params = {}
 
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
+        if filter:
+            if filter.id is not None:
+                if filter.id.isdigit():
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "user":
+                    params["id"] = int(filter.id)
+                else:
+                    where_clauses.append("external_id = :id")
+                    params["id"] = filter.id
+
+            if filter.user_id is not None:
+                if filter.user_id.isdigit():
                     where_clauses.append("user_id = :user_id")
-                    params["user_id"] = int(v) if str(v).isdigit() else None
-                elif k == "status":
-                    where_clauses.append("status = :status")
-                    params["status"] = v
-                elif k == "order_type":
-                    where_clauses.append("order_type = :order_type")
-                    params["order_type"] = v
-                elif k == "payment_method":
-                    where_clauses.append("payment_method = :payment_method")
-                    params["payment_method"] = v
-                elif k == "start_date":
-                    dt = _to_ts(v)
-                    if dt:
-                        where_clauses.append("created_at >= :start_date")
-                        params["start_date"] = dt
-                elif k == "end_date":
-                    dt = _to_ts(v)
-                    if dt:
-                        where_clauses.append("created_at <= :end_date")
-                        params["end_date"] = dt
-                elif k == "order_number_prefix":
-                    if v:
-                        where_clauses.append("order_number LIKE :order_prefix")
-                        params["order_prefix"] = f"{v}%"
-                elif k == "idempotencyKey":
-                    where_clauses.append("idempotency_key = :idempotency_key")
-                    params["idempotency_key"] = v
+                    params["user_id"] = int(filter.user_id)
+                else:
+                    where_clauses.append("user_id = (SELECT id FROM sj_users WHERE external_id = :uid_str)")
+                    params["uid_str"] = filter.user_id
+
+            if filter.user_ids:
+                int_uids = [int(u) for u in filter.user_ids if str(u).isdigit()]
+                str_uids = [str(u) for u in filter.user_ids if not str(u).isdigit()]
+                u_clauses = []
+                if int_uids:
+                    u_params = {f"u_int_{j}": v for j, v in enumerate(int_uids)}
+                    params.update(u_params)
+                    u_clauses.append(f"user_id IN ({', '.join(f':{k}' for k in u_params)})")
+                if str_uids:
+                    u_params = {f"u_str_{j}": v for j, v in enumerate(str_uids)}
+                    params.update(u_params)
+                    u_clauses.append(f"user_id IN (SELECT id FROM sj_users WHERE external_id IN ({', '.join(f':{k}' for k in u_params)}))")
+                if u_clauses:
+                    where_clauses.append(f"({' OR '.join(u_clauses)})")
+
+            if filter.status is not None:
+                where_clauses.append("status = :status")
+                params["status"] = filter.status
+
+            if filter.statuses is not None:
+                placeholders = []
+                for idx, st in enumerate(filter.statuses):
+                    param_key = f"status_{idx}"
+                    placeholders.append(f":{param_key}")
+                    params[param_key] = st
+                where_clauses.append(f"status IN ({', '.join(placeholders)})")
+
+            if filter.order_type is not None:
+                where_clauses.append("order_type = :order_type")
+                params["order_type"] = filter.order_type
+
+            if filter.payment_method is not None:
+                where_clauses.append("payment_method = :payment_method")
+                params["payment_method"] = filter.payment_method
+
+            if filter.start_date is not None:
+                where_clauses.append("created_at >= :start_date")
+                params["start_date"] = filter.start_date
+
+            if filter.end_date is not None:
+                where_clauses.append("created_at <= :end_date")
+                params["end_date"] = filter.end_date
+
+            if filter.order_number_prefix is not None:
+                where_clauses.append("order_number LIKE :order_prefix")
+                params["order_prefix"] = f"{filter.order_number_prefix}%"
+
+            if filter.idempotency_key is not None:
+                where_clauses.append("idempotency_key = :idempotency_key")
+                params["idempotency_key"] = filter.idempotency_key
+
+            if filter.assigned_valet is not None:
+                where_clauses.append("assigned_valet = :assigned_valet")
+                params["assigned_valet"] = filter.assigned_valet
+
+            if filter.pending_valet_id is not None:
+                where_clauses.append("pending_valet_id = :pending_valet_id")
+                params["pending_valet_id"] = filter.pending_valet_id
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return where_sql, params
 
     async def findAll(
-        self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
+        self, filter: Optional[OrderFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Order]:
         factory = self._factory()
         if not factory:
             return []
 
-        where_sql, params = self._build_query_conditions(query)
+        where_sql, params = self._build_query_conditions(filter)
 
         pagination_sql = ""
         if skip is not None and limit is not None:
-            # Oracle: pagination_sql = "OFFSET :skip ROWS FETCH NEXT :limit ROWS ONLY"
-            # MySQL syntax for pagination
             pagination_sql = "LIMIT :limit OFFSET :skip"
             params["skip"] = skip
             params["limit"] = limit
@@ -154,13 +184,10 @@ class MySQLOrderDAO:
             if not rows:
                 return []
 
-            # Bulk load items to avoid N+1 problem
             order_ids = [int(r.id) for r in rows]
-            # Handle MySQL IN limit
-            items_map: Dict[int, List[Dict]] = {oid: [] for oid in order_ids}
             chunks = [order_ids[i : i + 999] for i in range(0, len(order_ids), 999)]
-
-            declines_map: Dict[int, List[Dict]] = {oid: [] for oid in order_ids}
+            items_rows = []
+            declines_rows = []
 
             for chunk in chunks:
                 chunk_params = {f"oid_{i}": oid for i, oid in enumerate(chunk)}
@@ -175,33 +202,27 @@ class MySQLOrderDAO:
                     ),
                     chunk_params,
                 )
-                for ir in items_result.fetchall():
-                    items_map[ir.order_id].append(
-                        {
-                            "productId": str(ir.product_id),
-                            "quantity": int(ir.quantity) if ir.quantity is not None else 0,
-                            "price": float(ir.price) if ir.price is not None else 0.0,
-                        }
-                    )
-                
+                items_rows.extend(items_result.fetchall())
+
                 decl_result = await session.execute(
                     text(f"SELECT parent_id, valet_id, reason FROM sj_order_valet_declines WHERE parent_id IN ({placeholders})"),
                     chunk_params,
                 )
-                for dr in decl_result.fetchall():
-                    declines_map[dr.parent_id].append({"valetId": str(dr.valet_id), "reason": dr.reason})
+                declines_rows.extend(decl_result.fetchall())
 
-            return [self.__map_to_schema(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
+            return [self.__map_to_schema(r, items_rows, declines_rows) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Order]:
-        docs = await self.findAll(query)
+    async def findOne(self, filter: Optional[OrderFilter] = None) -> Optional[Order]:
+        docs = await self.findAll(filter)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional[Order]:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return None
-        oid = int(id) if str(id).isdigit() else None
+        is_digit = str(id).isdigit()
+        where_cond = "id = :id" if is_digit else "external_id = :id"
+        param_val = int(id) if is_digit else str(id)
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -214,16 +235,102 @@ class MySQLOrderDAO:
                            idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                            created_at, updated_at
                     FROM {self.TABLE}
-                    WHERE id = :id
+                    WHERE {where_cond}
                     """
                 ),
-                {"id": oid},
+                {"id": param_val},
             )
             row = result.fetchone()
             if not row:
                 return None
-            items, declines = await self._load_children(session, oid)
-        return self.__map_to_schema(row, items, declines)
+            items_res = await session.execute(
+                text(f"SELECT order_id, product_id, quantity, price FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
+                {"order_id": int(row.id)},
+            )
+            decl_res = await session.execute(
+                text("SELECT parent_id, valet_id, reason FROM sj_order_valet_declines WHERE parent_id = :order_id"),
+                {"order_id": int(row.id)},
+            )
+            return self.__map_to_schema(row, items_res.fetchall(), decl_res.fetchall())
+
+    async def findByIds(self, ids: List[str]) -> List[Order]:
+        if not ids:
+            return []
+        factory = self._factory()
+        if not factory:
+            return []
+
+        int_ids = [int(i) for i in ids if str(i).isdigit()]
+        str_ids = [str(i) for i in ids if not str(i).isdigit()]
+
+        clauses: list[str] = []
+        params = {}
+        if int_ids:
+            chunks_int = [int_ids[i : i + 999] for i in range(0, len(int_ids), 999)]
+            for c_idx, chunk in enumerate(chunks_int):
+                c_params = {f"iid_{c_idx}_{j}": v for j, v in enumerate(chunk)}
+                params.update(c_params)
+                clauses.append(f"id IN ({', '.join(f':{k}' for k in c_params)})")
+        if str_ids:
+            chunks_str = [str_ids[i : i + 999] for i in range(0, len(str_ids), 999)]
+            for c_idx, chunk in enumerate(chunks_str):
+                c_params = {f"sid_{c_idx}_{j}": v for j, v in enumerate(chunk)}
+                params.update(c_params)
+                clauses.append(f"external_id IN ({', '.join(f':{k}' for k in c_params)})")
+
+        if not clauses:
+            return []
+
+        where_sql = " OR ".join(clauses)
+        async with factory() as session:
+            result = await session.execute(
+                text(
+                    f"""
+                    SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
+                           order_type, payment_status, payment_method, upi_payment_screenshot,
+                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
+                           shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
+                           decline_reason, cancelled_at, cancelled_by, turnaround_hours,
+                           idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
+                           created_at, updated_at
+                    FROM {self.TABLE}
+                    WHERE {where_sql}
+                    ORDER BY created_at DESC
+                    """
+                ),
+                params,
+            )
+            rows = result.fetchall()
+            if not rows:
+                return []
+
+            order_ids = [int(r.id) for r in rows]
+            chunks = [order_ids[i : i + 999] for i in range(0, len(order_ids), 999)]
+            items_rows = []
+            declines_rows = []
+
+            for chunk in chunks:
+                chunk_params = {f"oid_{i}": oid for i, oid in enumerate(chunk)}
+                placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+                items_result = await session.execute(
+                    text(
+                        f"""
+                        SELECT order_id, product_id, quantity, price
+                        FROM {self.ITEMS_TABLE}
+                        WHERE order_id IN ({placeholders})
+                        """
+                    ),
+                    chunk_params,
+                )
+                items_rows.extend(items_result.fetchall())
+
+                decl_result = await session.execute(
+                    text(f"SELECT parent_id, valet_id, reason FROM sj_order_valet_declines WHERE parent_id IN ({placeholders})"),
+                    chunk_params,
+                )
+                declines_rows.extend(decl_result.fetchall())
+
+            return [self.__map_to_schema(r, items_rows, declines_rows) for r in rows]
 
     async def _replace_children(self, session, order_id: int, items: List[ItemSnippet], declines: List[ValetDeclineHistoryEntry]) -> None:
         await session.execute(
@@ -283,12 +390,8 @@ class MySQLOrderDAO:
         now = now_utc()
         external_id = secrets.token_hex(16)
         user_val = str(data.user) if data.user is not None else ""
-        if user_val and not user_val.isdigit():
-            user_id_subquery = "(SELECT id FROM sj_users WHERE external_id = :uid)"
-            uid_param = user_val
-        else:
-            user_id_subquery = ":uid"
-            uid_param = int(user_val) if user_val else None
+        uid_num = int(user_val) if user_val and user_val.isdigit() else None
+        uid_str = user_val if user_val and not user_val.isdigit() else None
 
         async with factory() as session:
             result = await session.execute(
@@ -303,7 +406,7 @@ class MySQLOrderDAO:
                         idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                         created_at, updated_at
                     ) VALUES (
-                        :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
+                        :external_id, COALESCE(:uid_num, (SELECT id FROM sj_users WHERE external_id = :uid_str)), :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
                         :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
                         :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
                         :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
@@ -315,7 +418,8 @@ class MySQLOrderDAO:
                 ),
                 {
                     "external_id": external_id,
-                    "uid": uid_param,
+                    "uid_num": uid_num,
+                    "uid_str": uid_str,
                     "order_number": data.order_number,
                     "status": data.status,
                     "total": (data.total if data.total is not None else 0),
@@ -393,119 +497,9 @@ class MySQLOrderDAO:
                 # Another request already inserted this idempotency key — fetch it
                 await session.rollback()
                 existing = await self.findOne(
-                    {"user": str(uid_param), "idempotencyKey": data.idempotency_key}
+                    OrderFilter(user_id=user_val, idempotency_key=data.idempotency_key)
                 )
                 return existing, False
-
-
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
-        now = now_utc()
-        external_id = secrets.token_hex(16)
-        user_val = str(data.user) if data.user is not None else ""
-        if user_val and not user_val.isdigit():
-            user_id_subquery = f"(SELECT id FROM sj_users WHERE external_id = :uid)"
-            uid_param = user_val
-        else:
-            user_id_subquery = ":uid"
-            uid_param = int(user_val) if user_val else None
-
-        async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    INSERT INTO {self.TABLE} (
-                        external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
-                        order_type, payment_status, payment_method, upi_payment_screenshot,
-                        ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
-                        shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
-                        decline_reason, cancelled_at, cancelled_by, turnaround_hours,
-                        idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
-                        created_at, updated_at
-                    ) VALUES (
-                        :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
-                        :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
-                        :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
-                        :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
-                        :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
-                        :idempotency_key, :fulfillment_type, :courier_partner, :tracking_id, :awb_code, :shipping_label_url, :estimated_delivery_date,
-                        :created_at, :updated_at
-                    )
-                    """
-                ),
-                {
-                    "external_id": external_id,
-                    "uid": uid_param,
-                    "order_number": data.order_number,
-                    "status": data.status,
-                    "total": (data.total if data.total is not None else 0),
-                    "subtotal": (data.subtotal if data.subtotal is not None else 0),
-                    "tax": (data.tax if data.tax is not None else 0),
-                    "shipping": (data.shipping if data.shipping is not None else 0),
-                    "discount": (data.discount if data.discount is not None else 0),
-                    "order_type": data.order_type,
-                    "payment_status": data.payment_status,
-                    "payment_method": data.payment_method,
-                    "upi_payment_screenshot": data.upi_payment_screenshot,
-                    "ship_name": data.ship_name,
-                    "ship_street": data.ship_street,
-                    "ship_city": data.ship_city,
-                    "ship_state": data.ship_state,
-                    "ship_pincode": data.ship_pincode,
-                    "ship_phone": data.ship_phone,
-                    "ship_address": data.ship_address,
-                    "ship_district": data.ship_district,
-                    "ship_country": data.ship_country,
-                    "ship_google_location": data.ship_google_location,
-                    "ship_latitude": data.ship_latitude,
-                    "ship_longitude": data.ship_longitude,
-                    "bill_name": data.bill_name,
-                    "bill_street": data.bill_street,
-                    "bill_city": data.bill_city,
-                    "bill_state": data.bill_state,
-                    "bill_pincode": data.bill_pincode,
-                    "bill_phone": data.bill_phone,
-                    "bill_address": data.bill_address,
-                    "bill_district": data.bill_district,
-                    "bill_country": data.bill_country,
-                    "bill_google_location": data.bill_google_location,
-                    "bill_latitude": data.bill_latitude,
-                    "bill_longitude": data.bill_longitude,
-                    "notes": data.notes,
-                    "printed_bill": 1 if data.printed_bill else 0,
-                    "assigned_valet": data.assigned_valet,
-                    "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
-                    "pending_valet_id": data.pending_valet_id,
-                    "valet_assigned_at": _to_ts(data.valet_assigned_at),
-                    "valet_cascade_count": data.valet_cascade_count or 0,
-                    "shipped_at": _to_ts(data.shipped_at),
-                    "delivered_at": _to_ts(data.delivered_at),
-                    "cod_payment_received": 1 if data.cod_payment_received else 0,
-                    "cod_payment_received_at": _to_ts(data.cod_payment_received_at),
-                    "decline_reason": data.decline_reason,
-                    "cancelled_at": _to_ts(data.cancelled_at),
-                    "cancelled_by": data.cancelled_by,
-                    "turnaround_hours": data.turnaround_hours,
-                    "idempotency_key": data.idempotency_key,
-                    "fulfillment_type": data.fulfillment_type or "hyperlocal",
-                    "courier_partner": data.courier_partner,
-                    "tracking_id": data.tracking_id,
-                    "awb_code": data.awb_code,
-                    "shipping_label_url": data.shipping_label_url,
-                    "estimated_delivery_date": _to_ts(data.estimated_delivery_date),
-                    "created_at": _to_ts(data.created_at) or now,
-                    "updated_at": now,
-                },
-            )
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                {"eid": external_id},
-            )
-            new_id = int(r.scalar() or 0)
-            await self._replace_children(session, new_id, data.items or [], data.valet_decline_history or [])
-            await session.commit()
-        return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: 'OrderInternalUpdate') -> Optional[Order]:
         existing = await self.findById(id)
@@ -515,22 +509,18 @@ class MySQLOrderDAO:
         if not factory:
             return None
         now = now_utc()
-        oid = int(id) if str(id).isdigit() else None
+        oid = int(existing.id)
         raw_user_id = update_data.user if update_data.user is not None else existing.user
         user_val = str(raw_user_id) if raw_user_id is not None else ""
-        if user_val and not user_val.isdigit():
-            user_id_subquery = f"(SELECT id FROM sj_users WHERE external_id = :uid)"
-            uid_param = user_val
-        else:
-            user_id_subquery = ":uid"
-            uid_param = int(user_val) if user_val else None
+        uid_num = int(user_val) if user_val and user_val.isdigit() else None
+        uid_str = user_val if user_val and not user_val.isdigit() else None
 
         async with factory() as session:
             await session.execute(
                 text(
                     f"""
                     UPDATE {self.TABLE} SET
-                        user_id = {user_id_subquery},
+                        user_id = COALESCE(:uid_num, (SELECT id FROM sj_users WHERE external_id = :uid_str)),
                         order_number = :order_number,
                         status = :status,
                         total = :total,
@@ -571,7 +561,8 @@ class MySQLOrderDAO:
                 ),
                 {
                     "id": oid,
-                    "uid": uid_param,
+                    "uid_num": uid_num,
+                    "uid_str": uid_str,
                     "order_number": update_data.order_number if update_data.order_number is not None else existing.order_number,
                     "status": update_data.status if update_data.status is not None else existing.status,
                     "total": (update_data.total if update_data.total is not None else (existing.total if existing.total is not None else 0)),
@@ -638,11 +629,17 @@ class MySQLOrderDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        oid = int(id) if str(id).isdigit() else None
+        existing = await self.findById(id)
+        if not existing:
+            return False
+        oid = int(existing.id)
         async with factory() as session:
-            # order_items has ON DELETE CASCADE, but delete explicitly is fine too
+            await session.execute(
+                text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
+                {"order_id": oid},
+            )
             await session.execute(
                 text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
                 {"order_id": oid},
@@ -663,8 +660,6 @@ class MySQLOrderDAO:
             result = await session.execute(
                 text(
                     f"""
-                    -- Oracle: SELECT IFNULL(MAX(TO_NUMBER(REGEXP_SUBSTR(order_number, '[0-9]+$'))), 0)
-                    -- MySQL:  CAST(... AS UNSIGNED) replaces TO_NUMBER
                     SELECT IFNULL(MAX(CAST(REGEXP_SUBSTR(order_number, '[0-9]+$') AS UNSIGNED)), 0)
                     FROM {self.TABLE}
                     WHERE order_number LIKE :prefix_like
@@ -674,55 +669,36 @@ class MySQLOrderDAO:
             )
             return int(result.scalar() or 0)
 
-    async def deleteMany(self, query: Dict) -> Dict:
-        """Delete matching orders in a single statement (or batched statements) instead of N+1."""
-        docs = await self.findAll(query)
-        if not docs:
-            return {"deletedCount": 0}
-        
-        ids = [int(d.id) for d in docs if str(d.id).isdigit()]
-        if not ids:
-            return {"deletedCount": 0}
-            
-        factory = self._factory()
-        if not factory:
-            return {"deletedCount": 0}
-            
-        deleted_total = 0
-        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
-        
-        async with factory() as session:
-            for chunk in chunks:
-                id_params = {f"id_{i}": v for i, v in enumerate(chunk)}
-                placeholders = ", ".join(f":{k}" for k in id_params)
-                
-                # Delete items first (maintains referential integrity if ON DELETE CASCADE is missing)
-                await session.execute(
-                    text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id IN ({placeholders})"),
-                    id_params,
-                )
-                # Delete orders
-                result = await session.execute(
-                    text(f"DELETE FROM {self.TABLE} WHERE id IN ({placeholders})"),
-                    id_params,
-                )
-                deleted_total += result.rowcount
-            await session.commit()
-            
-        return {"deletedCount": deleted_total}
-
-    async def count(self, query: Optional[Dict] = None) -> int:
+    async def deleteMany(self, filter: Optional[OrderFilter] = None) -> int:
+        """Delete matching orders and their child items/declines in SQL pushdown."""
         factory = self._factory()
         if not factory:
             return 0
-        where_sql, params = self._build_query_conditions(query)
+        where_sql, params = self._build_query_conditions(filter)
+        async with factory() as session:
+            await session.execute(
+                text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
+                params,
+            )
+            await session.execute(
+                text(f"DELETE FROM sj_order_valet_declines WHERE parent_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
+                params,
+            )
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"),
+                params,
+            )
+            await session.commit()
+            return result.rowcount or 0
+
+    async def count(self, filter: Optional[OrderFilter] = None) -> int:
+        factory = self._factory()
+        if not factory:
+            return 0
+        where_sql, params = self._build_query_conditions(filter)
         async with factory() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"), params)
             return int(result.scalar() or 0)
-
-    find_all = findAll
-    find_by_id = findById
-    find_one = findOne
 
     async def get_user_purchased_subcategories(
         self, user_id: str, start_date: datetime
@@ -755,7 +731,7 @@ class MySQLOrderDAO:
             GROUP BY subcat
             ORDER BY total_qty ASC
         """
-        params: Dict[str, Any] = {"start_date": start_date, "user_id_str": str(user_id)}
+        params = {"start_date": start_date, "user_id_str": str(user_id)}
         if uid is not None:
             params["uid"] = uid
 
@@ -794,7 +770,7 @@ class MySQLOrderDAO:
             GROUP BY product_id, subcat
             ORDER BY sales DESC
         """
-        params: Dict[str, Any] = {"start_date": start_date, **sc_params}
+        params = {"start_date": start_date, **sc_params}
 
         async with factory() as session:
             result = await session.execute(text(sql), params)
@@ -827,7 +803,7 @@ class MySQLOrderDAO:
               AND o.status != 'cancelled'
               {date_cond}
         """
-        params: Dict[str, Any] = {"user_id_str": str(user_id)}
+        params = {"user_id_str": str(user_id)}
         if uid is not None:
             params["uid"] = uid
         if start_date:
@@ -860,7 +836,7 @@ class MySQLOrderDAO:
             GROUP BY pid
             ORDER BY total_qty DESC
         """
-        params: Dict[str, Any] = {"start_date": start_date}
+        params = {"start_date": start_date}
 
         exclude = exclude_product_ids or set()
         async with factory() as session:
@@ -906,7 +882,7 @@ class MySQLOrderDAO:
             ORDER BY total_qty DESC
             LIMIT :limit
         """
-        params: Dict[str, Any] = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
+        params = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
         if uid is not None:
             params["uid"] = uid
 
@@ -943,7 +919,7 @@ class MySQLOrderDAO:
             ORDER BY total_qty DESC
             LIMIT :limit
         """
-        params: Dict[str, Any] = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
+        params = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
         if uid is not None:
             params["uid"] = uid
 
@@ -971,7 +947,7 @@ class MySQLOrderDAO:
         user_filter = "AND u.role = 'customer'" if kind == "customer" else ""
 
         city_cond = ""
-        params: Dict[str, Any] = {"prefix": prefix, "start_date": start_date}
+        params = {"prefix": prefix, "start_date": start_date}
 
         if city and city.strip():
             city_cond = "AND LOWER(TRIM(o.ship_city)) = :city"
@@ -1024,7 +1000,7 @@ class MySQLOrderDAO:
         user_join = "JOIN sj_users u ON u.id = o.user_id" if kind == "customer" else ""
         user_filter = "AND u.role = 'customer'" if kind == "customer" else ""
 
-        geo_params: Dict[str, Any] = {"prefix": prefix, "start_date": start_date}
+        geo_params = {"prefix": prefix, "start_date": start_date}
 
         geo_sql = f"""
             SELECT DISTINCT TRIM(o.ship_state) AS state, TRIM(o.ship_city) AS city

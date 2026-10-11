@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.models.user import User
 from app.models.schemas import MessageResponse, ValetPayoutSettingsResponse, ValetEarningsResponse, ValetPayoutDetailResponse, ValetPayoutCreate, MarkPaidRequest
-from app.models.daos import ValetPayoutInternalCreate, ValetPayoutInternalUpdate
+from app.models.daos import OrderFilter, ValetPayoutInternalCreate, ValetPayoutInternalUpdate
 from app.models.valet_payout_settings import ValetPayoutSettings
 from app.db.storage_factory import get_storage
 from app.db.mysql_valet_payout_dao import MySQLValetPayoutDAO
@@ -119,7 +119,7 @@ async def get_my_valet_earnings(
 
     valet_id = str(current_user.id)
     settings = await _get_settings()
-    orders = await order_repository.findAll({"assignedValet": valet_id})
+    orders = await order_repository.findAll(OrderFilter(assigned_valet=valet_id))
     returns = await return_request_repository.findAll({"valetId": valet_id})
 
     return await _compute_valet_earnings(valet_id, settings, orders, returns)
@@ -135,7 +135,7 @@ async def get_valet_earnings_by_id(
         raise HTTPException(status_code=404, detail="Valet not found")
 
     settings = await _get_settings()
-    orders = await order_repository.findAll({"assignedValet": valet_id})
+    orders = await order_repository.findAll(OrderFilter(assigned_valet=valet_id))
     returns = await return_request_repository.findAll({"valetId": valet_id})
 
     result = await _compute_valet_earnings(valet_id, settings, orders, returns)

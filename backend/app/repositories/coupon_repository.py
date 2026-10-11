@@ -360,7 +360,7 @@ class CouponRepository:
                     if user_orders is None:
                         from app.repositories.order_repository import order_repository
 
-                        user_orders = await order_repository.findAll({"user": str(user_id)})
+                        user_orders = await order_repository.findByUser(user_id)
 
                     order_count = len(user_orders)
 

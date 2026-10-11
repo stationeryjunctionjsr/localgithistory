@@ -22,7 +22,7 @@ async def verify_media_ownership(key_or_path: str, current_user: Optional[User])
         # It's safer to extract the filename
         filename = key_or_path.split("/")[-1]
         
-        orders = await order_repository.findAll({"user": str(current_user.id)})
+        orders = await order_repository.findByUser(str(current_user.id))
         for o in orders:
             if o.invoice_path and filename in o.invoice_path:
                 return True

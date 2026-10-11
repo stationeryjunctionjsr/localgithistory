@@ -60,8 +60,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
     user_id = current_user.id
 
     # get all 'delivered' orders for the user
-    # Wait, order_repository.findAll might not be the correct method if we don't have it.
-    orders = await order_repository.findAll({"user": user_id, "status": "delivered"})
+    orders = await order_repository.findByUser(user_id, status="delivered")
 
     if not orders:
         return {"eligibleOrderId": None}

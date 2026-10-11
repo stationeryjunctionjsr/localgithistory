@@ -36,7 +36,7 @@ def _populate_response_item(
     )
 
 
-async def _build_user_map(requests: List[SellerRequest]) -> dict[str, UserSnippet]:
+async def _build_users_map(requests: List[SellerRequest]) -> dict[str, UserSnippet]:
     user_ids: set[str] = set()
     for req in requests:
         if req.user:
@@ -61,10 +61,10 @@ async def _build_user_map(requests: List[SellerRequest]) -> dict[str, UserSnippe
     }
 
 
-def _map_request(request: SellerRequest, user_map: dict[str, UserSnippet]) -> SellerRequestResponse:
-    user_snippet = user_map.get(str(request.user)) if request.user else None
+def _map_request(request: SellerRequest, users_map: dict[str, UserSnippet]) -> SellerRequestResponse:
+    user_snippet = users_map.get(str(request.user)) if request.user else None
     populated_responses: List[TicketResponseItem] = [
-        _populate_response_item(resp, user_map.get(str(resp.admin_id)) if resp.admin_id else None)
+        _populate_response_item(resp, users_map.get(str(resp.admin_id)) if resp.admin_id else None)
         for resp in (request.responses or [])
     ]
     return SellerRequestResponse(
@@ -84,8 +84,8 @@ def _map_request(request: SellerRequest, user_map: dict[str, UserSnippet]) -> Se
 
 async def populate_request(request: SellerRequest) -> SellerRequestResponse:
     """Populate single request with user data"""
-    user_map = await _build_user_map([request])
-    return _map_request(request, user_map)
+    users_map = await _build_users_map([request])
+    return _map_request(request, users_map)
 
 
 @router.get("", response_model=List[SellerRequestResponse])
@@ -95,8 +95,8 @@ async def get_seller_requests(
 ) -> List[SellerRequestResponse]:
     user_filter = current_user.id if current_user.role != "super_admin" else None
     requests = await seller_request_repository.findAll(user=user_filter, status=status, priority=priority)
-    user_map = await _build_user_map(requests)
-    return [_map_request(req, user_map) for req in requests]
+    users_map = await _build_users_map(requests)
+    return [_map_request(req, users_map) for req in requests]
 
 
 @router.get("/{request_id}", response_model=SellerRequestResponse)

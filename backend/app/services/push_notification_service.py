@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
+from app.models.daos import OrderFilter
 from app.repositories.order_repository import order_repository
 from app.repositories.push_notification_repository import push_notification_repository
 from app.repositories.user_repository import user_repository
@@ -120,7 +121,7 @@ class PushNotificationService:
                 
                 # Fetch users and orders only for this chunk
                 chunk_users = await user_repository.findAll({"allowed_ids": chunk_uids})
-                chunk_orders = await order_repository.findAll({"user": {"$in": chunk_uids}})
+                chunk_orders = await order_repository.findAll(OrderFilter(user_ids=chunk_uids))
                 
                 user_map = {str((u["_id"] if "_id" in u else None)): u for u in chunk_users}
                 
@@ -302,7 +303,7 @@ class PushNotificationService:
                         break
                 else:
                     if user_orders is None:
-                        all_orders = await order_repository.findAll({"user": user_id})
+                        all_orders = await order_repository.findByUser(user_id)
                         user_orders = []
                         for order in all_orders:
                             try:

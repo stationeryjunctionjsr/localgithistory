@@ -107,8 +107,8 @@ def test_customer_segment_and_notification_purged():
 
 def test_order_filter_model():
     # Test by field names
-    f1 = OrderFilter(id=10, user_id="usr-5", status="pending")
-    assert f1.id == 10
+    f1 = OrderFilter(id="10", user_id="usr-5", status="pending")
+    assert f1.id == "10"
     assert f1.user_id == "usr-5"
     assert f1.status == "pending"
 

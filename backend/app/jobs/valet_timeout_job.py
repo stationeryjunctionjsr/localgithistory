@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from app.repositories.order_repository import order_repository
 from app.repositories.return_request_repository import return_request_repository
 from app.models.order import OrderInternalUpdate
+from app.models.daos import OrderFilter
 from app.models.daos_flat import ReturnRequestInternalUpdate
 from app.repositories.user_repository import user_repository
 from app.utils.logger import logger
@@ -133,10 +134,8 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     global_max = int(sys_doc["maxConcurrentOrders"] if "maxConcurrentOrders" in sys_doc else 1) if sys_doc else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     available_valet_ids = [str(v.id) for v in available_valets]
-    all_active_orders = []
-    for st in BUSY_STATUSES:
-        st_orders = await order_repository.findAll({'status': st})
-        all_active_orders.extend([o for o in st_orders if str(o.assigned_valet or '') in available_valet_ids])
+    active_orders = await order_repository.findAll(OrderFilter(statuses=BUSY_STATUSES))
+    all_active_orders = [o for o in active_orders if str(o.assigned_valet or '') in available_valet_ids]
     order_count_by_valet: dict[str, int] = {}
     for o in all_active_orders:
         vid = str(o.assigned_valet or "")
@@ -244,10 +243,8 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     ACTIVE_RETURN_STATUSES = ['pending_valet', 'assigned']
     available_valet_ids = [str(v.id) for v in available_valets]
-    all_active_orders = []
-    for st in BUSY_STATUSES:
-        st_orders = await order_repository.findAll({'status': st})
-        all_active_orders.extend([o for o in st_orders if str(o.assigned_valet or '') in available_valet_ids])
+    active_orders = await order_repository.findAll(OrderFilter(statuses=BUSY_STATUSES))
+    all_active_orders = [o for o in active_orders if str(o.assigned_valet or '') in available_valet_ids]
     order_count_by_valet: dict[str, int] = {}
     for o in all_active_orders:
         vid = str(o.assigned_valet or "")
@@ -309,7 +306,7 @@ async def _cascade_or_revert_return(return_req):
 async def run_valet_timeout_job():
     """Entry point called by the scheduler every 1 minute for both forward orders and returns."""
     try:
-        pending_orders = await order_repository.findAll({'status': 'pending_valet'})
+        pending_orders = await order_repository.findAll(OrderFilter(status='pending_valet'))
         now = datetime.now(timezone.utc)
         if pending_orders:
             for order in pending_orders:

@@ -1,4 +1,4 @@
-from app.models.daos import NotificationInternalCreate
+from app.models.daos import NotificationInternalCreate, OrderFilter
 from fastapi.responses import FileResponse
 from app.models.schemas import VariantAttributes, CouponResponse
 from app.utils.logger import logger
@@ -139,34 +139,32 @@ async def get_orders(
     assignedValet: Optional[str] = None,
     current_user: User = Depends(get_current_user),
 ):
-    query = {}
+    user_id_filter: Optional[str] = None
+    assigned_valet_filter: Optional[str] = None
 
     # Role-based filtering
     if current_user.role in ["customer", "wholesaler"]:
-        query["user"] = str(current_user.id)
+        user_id_filter = str(current_user.id)
     elif current_user.role == "valet":
-        query["assignedValet"] = str(current_user.id)
-    elif current_user.role == "seller":
-        query["subOrders.seller_id"] = str(current_user.id)
-    # Super admin sees all orders; optionally filter by assignedValet
+        assigned_valet_filter = str(current_user.id)
     elif current_user.role == "super_admin" and assignedValet:
-        query["assignedValet"] = assignedValet
+        assigned_valet_filter = assignedValet
 
-    if status:
-        query["status"] = status
-    if paymentMethod:
-        query["paymentMethod"] = paymentMethod
-    if startDate:
-        query["startDate"] = startDate
-    if endDate:
-        query["endDate"] = endDate
+    filter_params = OrderFilter(
+        user_id=user_id_filter,
+        assigned_valet=assigned_valet_filter,
+        status=status,
+        payment_method=paymentMethod,
+        start_date=startDate,
+        end_date=endDate,
+    )
 
-    total = await order_repository.count(query)
+    total = await order_repository.count(filter_params)
 
     page = max(1, page or 1)
     limit = limit or 50
     start = (page - 1) * limit
-    orders = await order_repository.findAll(query, skip=start, limit=limit)
+    orders = await order_repository.findAll(filter_params, skip=start, limit=limit)
     has_more = (start + limit) < total
 
     populated_orders = await populate_orders(orders)
@@ -872,10 +870,9 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
     if current_user.role != "valet":
         raise HTTPException(
             status_code=403, detail="Only valets can view pending assignments")
-    orders = await order_repository.findAll({
-        "status": "pending_valet",
-        "pendingValetId": str(current_user.id)
-    })
+    orders = await order_repository.findAll(
+        OrderFilter(status="pending_valet", pending_valet_id=str(current_user.id))
+    )
     return [await populate_order(o) for o in orders]
 
 
