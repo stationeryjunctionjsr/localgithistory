@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 import app.models.daos as daos_mod
+import app.models.daos_flat as daos_flat_mod
 from app.models.daos import (
     CartItemInternal,
     WishlistItemInternal,
@@ -31,6 +32,20 @@ def test_zero_alias_id_in_daos_models():
                 alias_id_nodes.append(node)
 
     assert len(alias_id_nodes) == 0, f"Found alias='_id' in daos.py: {len(alias_id_nodes)} instances"
+
+
+def test_zero_alias_id_in_daos_flat_models():
+    source = inspect.getsource(daos_flat_mod)
+    tree = ast.parse(source)
+
+    # Verify no alias="_id", alias="externalId", or alias="sellerId" in AST
+    alias_nodes = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.keyword) and node.arg == "alias":
+            if isinstance(node.value, ast.Constant) and node.value.value in ("_id", "externalId", "sellerId"):
+                alias_nodes.append((node.value.value, getattr(node, "lineno", None)))
+
+    assert len(alias_nodes) == 0, f"Found legacy aliases in daos_flat.py: {alias_nodes}"
 
 
 def test_product_internal_create_forbids_extra_fields():

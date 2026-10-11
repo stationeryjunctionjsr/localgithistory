@@ -108,7 +108,9 @@ async def test_dao_pushdown_async_execution():
     mock_session = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar.return_value = 1
-    mock_result.fetchall.return_value = [("seller_456", datetime(2026, 8, 17, 18, 0, 0, tzinfo=timezone.utc))]
+    from collections import namedtuple
+    RowMock = namedtuple("RowMock", ["seller_id", "max_end_at"])
+    mock_result.fetchall.return_value = [RowMock("seller_456", datetime(2026, 8, 17, 18, 0, 0, tzinfo=timezone.utc))]
     mock_result.rowcount = 2
     mock_session.execute.return_value = mock_result
     mock_session_ctx = MagicMock()

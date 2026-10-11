@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 def _to_dt(v: Optional[datetime | str]) -> Optional[datetime]:
     if v is None:
         return None
-    try:
-        return datetime.fromisoformat(v.replace("Z", ""))
-    except AttributeError:
+    if isinstance(v, datetime):
         return v
+    try:
+        return datetime.fromisoformat(str(v).replace("Z", "+00:00"))
     except Exception as e:
         logger.warning("mysql_seller_availability_dao._to_dt: could not parse datetime %r: %s", v, e, exc_info=e)
         return None
