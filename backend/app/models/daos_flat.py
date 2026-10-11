@@ -1262,6 +1262,6 @@ class SellerAvailabilityFilter(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[Union[str, int]] = Field(None, alias="_id")
     seller_id: Optional[str] = Field(None, alias="sellerId")
-    status: Optional[Union[str, List[str], Dict[str, Any]]] = None
+    status: Optional[str] = None
     statuses: Optional[List[str]] = None
 

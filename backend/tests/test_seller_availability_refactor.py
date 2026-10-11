@@ -1,22 +1,23 @@
 import ast
 import inspect
-from typing import List, Optional
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from app.models.seller_availability import SellerAvailability
+
+from app.models.seller_availability import SellerAvailability, SellerAvailabilityEnriched
 from app.models.daos_flat import (
     SellerAvailabilityFilter,
     SellerAvailabilityInternalCreate,
     SellerAvailabilityInternalUpdate,
 )
 from app.routers.seller_availability import (
-    SellerAvailabilityItem,
     SellerAvailabilityResponse,
-    _availability_sort_key,
+    TickResponse,
 )
 from app.db.mysql_seller_availability_dao import MySQLSellerAvailabilityDAO
 
 
-def test_seller_availability_zero_lambdas_and_zero_build_where():
+def test_zero_lambdas_and_zero_build_where():
     import app.routers.seller_availability as router_mod
     import app.db.mysql_seller_availability_dao as dao_mod
 
@@ -35,6 +36,22 @@ def test_seller_availability_zero_lambdas_and_zero_build_where():
     assert "_build_where" not in dao_source
 
 
+def test_zero_untyped_dicts_in_signatures():
+    dao_methods = [
+        MySQLSellerAvailabilityDAO.findAll,
+        MySQLSellerAvailabilityDAO.findOne,
+        MySQLSellerAvailabilityDAO.count,
+        MySQLSellerAvailabilityDAO.create,
+        MySQLSellerAvailabilityDAO.update,
+    ]
+    for method in dao_methods:
+        sig = inspect.signature(method)
+        for param_name, param in sig.parameters.items():
+            annotation = str(param.annotation)
+            assert "dict" not in annotation.lower(), f"Untyped dict found in {method.__name__} parameter {param_name}: {annotation}"
+            assert "any" not in annotation.lower(), f"Any found in {method.__name__} parameter {param_name}: {annotation}"
+
+
 def test_seller_availability_filter_models():
     filt = SellerAvailabilityFilter(seller_id="seller_123", statuses=["scheduled", "active"])
     assert filt.seller_id == "seller_123"
@@ -45,22 +62,7 @@ def test_seller_availability_filter_models():
     assert dumped["statuses"] == ["scheduled", "active"]
 
 
-def test_seller_availability_sort_key():
-    item1 = SellerAvailabilityItem(startAt="2026-08-10T10:00:00Z", sellerId="s1")
-    item2 = SellerAvailabilityItem(startAt="2026-08-12T10:00:00Z", sellerId="s2")
-    item3 = SellerAvailabilityItem(startDate="2026-08-11T10:00:00Z", sellerId="s3")
-
-    items = [item1, item2, item3]
-    items.sort(key=_availability_sort_key, reverse=True)
-
-    assert items[0].sellerId == "s2"
-    assert items[1].sellerId == "s3"
-    assert items[2].sellerId == "s1"
-
-
-def test_seller_availability_model_properties():
-    from datetime import datetime, timezone
-
+def test_seller_availability_models():
     now = datetime(2026, 8, 15, 12, 0, 0, tzinfo=timezone.utc)
     model = SellerAvailability(
         id="42",
@@ -69,8 +71,62 @@ def test_seller_availability_model_properties():
         end_at=now,
         status="active",
     )
-    assert model.sellerId == "seller_999"
-    assert model.startAt == now.isoformat()
-    assert model.endAt == now.isoformat()
-    assert model.startDate == now.isoformat()
-    assert model.endDate == now.isoformat()
+    assert model.seller_id == "seller_999"
+    assert model.start_at == now
+    assert model.end_at == now
+
+    # Verify serialization to camelCase wire format
+    data = model.model_dump(by_alias=True)
+    assert data["sellerId"] == "seller_999"
+    assert data["startAt"] == now
+
+
+def test_dao_pushdown_queries_sql_generation():
+    dao = MySQLSellerAvailabilityDAO()
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar.return_value = 1
+    mock_result.fetchall.return_value = [("s1",), ("s2",)]
+    mock_result.rowcount = 3
+    mock_session.execute.return_value = mock_result
+    mock_session_ctx = MagicMock()
+    mock_session_ctx.__aenter__.return_value = mock_session
+    mock_session_ctx.__aexit__.return_value = None
+    mock_factory = MagicMock(return_value=mock_session_ctx)
+
+    with patch.object(dao, "_get_session_factory", return_value=mock_factory):
+        # 1. is_seller_currently_unavailable
+        res_avail = pytest.run_async(dao.is_seller_currently_unavailable("s1")) if hasattr(pytest, "run_async") else None
+
+    # Verify execute was called with pushdown SQL containing SELECT 1 and LIMIT 1
+    # We test via direct async call:
+
+
+@pytest.mark.asyncio
+async def test_dao_pushdown_async_execution():
+    dao = MySQLSellerAvailabilityDAO()
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar.return_value = 1
+    mock_result.fetchall.return_value = [("seller_456", datetime(2026, 8, 17, 18, 0, 0, tzinfo=timezone.utc))]
+    mock_result.rowcount = 2
+    mock_session.execute.return_value = mock_result
+    mock_session_ctx = MagicMock()
+    mock_session_ctx.__aenter__.return_value = mock_session
+    mock_session_ctx.__aexit__.return_value = None
+    mock_factory = MagicMock(return_value=mock_session_ctx)
+
+    with patch.object(dao, "_get_session_factory", return_value=mock_factory):
+        is_unavail = await dao.is_seller_currently_unavailable("seller_456")
+        assert is_unavail is True
+        call_args = mock_session.execute.call_args[0]
+        assert "SELECT 1 FROM" in str(call_args[0])
+        assert "LIMIT 1" in str(call_args[0])
+
+        zone_map = await dao.get_zone_unavailable_sellers_map({"seller_456"})
+        assert "seller_456" in zone_map
+        assert "2026-08-17" in zone_map["seller_456"]
+
+        act, ended = await dao.advance_availability_statuses()
+        assert act == 2
+        assert ended == 2

@@ -10,25 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from sqlalchemy import event
+from sqlalchemy.exc import DisconnectionError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-
-# Patch AsyncAdapt_aiomysql_connection.ping for compatibility with SQLAlchemy / PyMySQL:
-# In PyMySQL >= 1.1 / 2.0, Connection.ping() defaults to reconnect=False.
-# SQLAlchemy's MySQLDialect_pymysql.do_ping() calls dbapi_connection.ping() without
-# arguments when PyMySQL's default is reconnect=False.
-# However, AsyncAdapt_aiomysql_connection.ping(self, reconnect: bool) omitted the
-# default value (= False), raising a TypeError when pool_pre_ping=True checks out a connection.
-try:
-    from sqlalchemy.dialects.mysql.aiomysql import AsyncAdapt_aiomysql_connection
-    _orig_aiomysql_ping = AsyncAdapt_aiomysql_connection.ping
-
-    def _safe_aiomysql_ping(self, reconnect: bool = False) -> None:
-        return _orig_aiomysql_ping(self, reconnect)
-
-    AsyncAdapt_aiomysql_connection.ping = _safe_aiomysql_ping
-except Exception:
-    pass
 
 
 # DATABASE_URL format: mysql+aiomysql://user:password@host:port/dbname
@@ -52,6 +37,29 @@ _async_engine = None
 _async_session_factory = None
 
 
+def _register_pre_ping(engine) -> None:
+    """Attach a pool checkout listener that replicates pool_pre_ping behaviour.
+
+    SQLAlchemy's built-in pool_pre_ping calls do_ping() → dbapi_connection.ping()
+    with no arguments.  AsyncAdapt_aiomysql_connection.ping() requires the
+    `reconnect` argument (no default), so the zero-arg call raises a TypeError.
+
+    Instead of patching the library class, we register a checkout event on the
+    *sync* pool that explicitly calls ping(False) — same protection, correct
+    call signature, no global mutation of third-party code.
+    """
+    @event.listens_for(engine.sync_engine, "checkout")
+    def _ping_on_checkout(dbapi_connection, connection_record, connection_proxy):
+        try:
+            dbapi_connection.ping(False)  # False = do not auto-reconnect
+        except Exception:
+            # Raise DisconnectionError so SQLAlchemy discards the stale
+            # connection and retries with a fresh one.
+            raise DisconnectionError(
+                "aiomysql pre-ping failed; connection will be recycled."
+            )
+
+
 def get_async_engine():
     global _async_engine
     if _async_engine is not None:
@@ -64,10 +72,9 @@ def get_async_engine():
     import sys
 
     if "pytest" in sys.modules:
-        # pool_pre_ping is intentionally OFF for tests.
-        # AsyncAdapt_aiomysql_connection.ping() is not compatible with the way
-        # pytest-asyncio manages the event loop, causing test failures.
-        # Tests use short-lived connections — pre-ping is not needed.
+        # Pre-ping is intentionally OFF for tests.
+        # Tests use short-lived connections — stale-connection protection is
+        # not needed, and the checkout event would complicate event-loop scoping.
         _async_engine = create_async_engine(
             DATABASE_URL,
             pool_size=5,
@@ -79,8 +86,8 @@ def get_async_engine():
         )
     else:
         # Use QueuePool for connection pooling in a long-running FastAPI app.
-        # pool_pre_ping=True protects against stale connections after DB restart
-        # or long idle periods (safe for the production async loop).
+        # pool_pre_ping=False because we implement the same check ourselves via
+        # the checkout event registered below (avoids the aiomysql ping() arity bug).
         pool_size = int(os.getenv("DB_POOL_SIZE", 5))
         max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
 
@@ -90,10 +97,11 @@ def get_async_engine():
             max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
-            pool_pre_ping=True,
+            pool_pre_ping=False,
             echo=(os.environ.get("SQL_ECHO", "")).lower() in ("1", "true"),
             connect_args=connect_args,
         )
+        _register_pre_ping(_async_engine)
     return _async_engine
 
 
