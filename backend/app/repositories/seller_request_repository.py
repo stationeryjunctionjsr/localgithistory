@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING, Optional
 from app.db.storage_factory import get_storage
 from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
 
-if TYPE_CHECKING:
-    from app.models.daos import TicketResponseItemInternal
-    
+from app.models.schemas import TicketResponseItemInternal
+from app.models.seller_request import SellerRequestResponseItem
 
 
 class SellerRequestRepository:
@@ -60,31 +59,27 @@ class SellerRequestRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, request_id: str, response_data: 'TicketResponseItemInternal'):
-        from app.models.schemas import TicketResponseItem
+    async def addResponse(self, request_id: str, response_data: TicketResponseItemInternal):
         request = await self.findById(request_id)
         if not request:
             raise ValueError("Request not found")
 
-        response = TicketResponseItem(
-            user=response_data.user,
-            message=response_data.message,
-            attachments=response_data.attachments if response_data.attachments is not None else [],
-            isAdminResponse=response_data.isAdminResponse if response_data.isAdminResponse is not None else False,
-            createdAt=datetime.now(timezone.utc).isoformat(),
+        response = SellerRequestResponseItem(
+            admin_id=response_data.user,
+            response=response_data.message,
+            created_at=datetime.now(timezone.utc),
         )
 
-        if request.responses is None:
-            request.responses = []
-        request.responses.append(response)
+        existing_responses = list(request.responses) if request.responses is not None else []
+        new_responses = [*existing_responses, response]
 
-        # Update request status if admin responds
-        if response_data.isAdminResponse and request.status == "open":
-            request.status = "in_progress"
+        new_status = request.status
+        if response_data.is_admin_response and request.status == "open":
+            new_status = "in_progress"
 
         update_payload = SellerRequestInternalUpdate(
-            responses=request.responses,
-            status=request.status
+            responses=new_responses,
+            status=new_status,
         )
 
         return await self.update(request_id, update_payload)
