@@ -3,10 +3,9 @@ MySQL DAO for sj_divisions.
 Fully relational with junction table sj_division_category_tags and foreign key to sj_category_tags.
 """
 
-from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from sqlalchemy import text
 
@@ -33,11 +32,36 @@ class MySQLDivisionDAO:
     def _map_to_schema(
         self,
         r,
-        tag_list: List[Dict[str, Any]],
-        category_count: int = 0,
+        junc_rows=None,
+        direct_rows=None,
+        count_rows=None,
     ) -> DivisionInternal:
-        tag_ids = [t["id"] for t in tag_list if "id" in t]
-        tag_names = [t["name"] for t in tag_list if "name" in t]
+        did = int(r.id)
+        seen_tag_ids = set()
+        tag_list = []
+        tag_ids = []
+        tag_names = []
+        for row in (junc_rows or []) + (direct_rows or []):
+            if int(row.division_id) == did and int(row.id) not in seen_tag_ids:
+                tid = int(row.id)
+                seen_tag_ids.add(tid)
+                tag_ids.append(tid)
+                if row.name:
+                    tag_names.append(row.name)
+                tag_list.append({
+                    "id": tid,
+                    "externalId": row.external_id,
+                    "_id": str(tid),
+                    "name": row.name,
+                    "description": row.description,
+                    "isActive": bool(row.is_active) if row.is_active is not None else True,
+                })
+        category_count = 0
+        if count_rows and tag_names:
+            tag_names_set = set(tag_names)
+            for crow in count_rows:
+                if crow.tag in tag_names_set:
+                    category_count += int(crow.cnt)
         return DivisionInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -54,13 +78,9 @@ class MySQLDivisionDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(
-        self, session, division_ids: List[int]
-    ) -> Tuple[Dict[int, List[Dict[str, Any]]], Dict[int, int]]:
-        tags_by_division: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
-        categories_count_by_division: Dict[int, int] = defaultdict(int)
+    async def _fetch_children(self, session, division_ids: List[int]):
         if not division_ids:
-            return tags_by_division, categories_count_by_division
+            return [], [], []
 
         placeholders = ", ".join([f":d_{i}" for i in range(len(division_ids))])
         params = {f"d_{i}": did for i, did in enumerate(division_ids)}
@@ -80,27 +100,7 @@ class MySQLDivisionDAO:
             WHERE j.division_id IN ({placeholders})
             ORDER BY j.display_order ASC, t.name ASC
         """)
-        res_junc = await session.execute(q_junction_tags, params)
-        seen_pairs = set()
-        all_tag_names = set()
-        tag_name_to_div: Dict[str, set] = defaultdict(set)
-        for row in res_junc.fetchall():
-            did = int(row.division_id)
-            tag_id = int(row.id)
-            if (did, tag_id) not in seen_pairs:
-                seen_pairs.add((did, tag_id))
-                tag_dict = {
-                    "id": tag_id,
-                    "externalId": row.external_id,
-                    "_id": str(tag_id),
-                    "name": row.name,
-                    "description": row.description,
-                    "isActive": bool(row.is_active) if row.is_active is not None else True,
-                }
-                tags_by_division[did].append(tag_dict)
-                if row.name:
-                    all_tag_names.add(row.name)
-                    tag_name_to_div[row.name].add(did)
+        junc_rows = (await session.execute(q_junction_tags, params)).fetchall()
 
         # 2. Also fetch tags that have division_id set on sj_category_tags directly
         q_direct_tags = text(f"""
@@ -115,26 +115,11 @@ class MySQLDivisionDAO:
             WHERE t.division_id IN ({placeholders})
             ORDER BY t.name ASC
         """)
-        res_direct = await session.execute(q_direct_tags, params)
-        for row in res_direct.fetchall():
-            did = int(row.division_id)
-            tag_id = int(row.id)
-            if (did, tag_id) not in seen_pairs:
-                seen_pairs.add((did, tag_id))
-                tag_dict = {
-                    "id": tag_id,
-                    "externalId": row.external_id,
-                    "_id": str(tag_id),
-                    "name": row.name,
-                    "description": row.description,
-                    "isActive": bool(row.is_active) if row.is_active is not None else True,
-                }
-                tags_by_division[did].append(tag_dict)
-                if row.name:
-                    all_tag_names.add(row.name)
-                    tag_name_to_div[row.name].add(did)
+        direct_rows = (await session.execute(q_direct_tags, params)).fetchall()
 
         # 3. Count total categories under the tags for each division
+        all_tag_names = list({row.name for row in junc_rows + direct_rows if row.name})
+        count_rows = []
         if all_tag_names:
             tag_placeholders = ", ".join([f":t_{i}" for i in range(len(all_tag_names))])
             tag_params = {f"t_{i}": tn for i, tn in enumerate(all_tag_names)}
@@ -147,16 +132,11 @@ class MySQLDivisionDAO:
                 GROUP BY cct.tag
             """)
             try:
-                res_counts = await session.execute(q_cat_counts, tag_params)
-                for crow in res_counts.fetchall():
-                    tag_name = crow.tag
-                    cnt = int(crow.cnt)
-                    for did in tag_name_to_div.get(tag_name, []):
-                        categories_count_by_division[did] += cnt
+                count_rows = (await session.execute(q_cat_counts, tag_params)).fetchall()
             except Exception:
                 pass
 
-        return tags_by_division, categories_count_by_division
+        return junc_rows, direct_rows, count_rows
 
     async def _sync_junction_tags(self, session, division_id: int, tag_ids: List[int]):
         # 1. Clear previous junction entries
@@ -201,12 +181,8 @@ class MySQLDivisionDAO:
             row = result.fetchone()
             if not row:
                 return None
-            tags_map, cat_counts = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(
-                row,
-                tags_map.get(int(row.id), []),
-                cat_counts.get(int(row.id), 0),
-            )
+            junc_rows, direct_rows, count_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, junc_rows, direct_rows, count_rows)
 
     async def findByName(self, name: str) -> Optional[DivisionInternal]:
         factory = self._factory()
@@ -218,12 +194,8 @@ class MySQLDivisionDAO:
             row = result.fetchone()
             if not row:
                 return None
-            tags_map, cat_counts = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(
-                row,
-                tags_map.get(int(row.id), []),
-                cat_counts.get(int(row.id), 0),
-            )
+            junc_rows, direct_rows, count_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, junc_rows, direct_rows, count_rows)
 
     async def findOne(
         self,
@@ -274,15 +246,8 @@ class MySQLDivisionDAO:
             if not rows:
                 return []
             division_ids = [int(r.id) for r in rows]
-            tags_map, cat_counts = await self._fetch_children(session, division_ids)
-            return [
-                self._map_to_schema(
-                    r,
-                    tags_map.get(int(r.id), []),
-                    cat_counts.get(int(r.id), 0),
-                )
-                for r in rows
-            ]
+            junc_rows, direct_rows, count_rows = await self._fetch_children(session, division_ids)
+            return [self._map_to_schema(r, junc_rows, direct_rows, count_rows) for r in rows]
 
     async def create(self, item: DivisionInternalCreate) -> DivisionInternal:
         factory = self._factory()

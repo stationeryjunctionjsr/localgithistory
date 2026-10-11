@@ -2,7 +2,6 @@
 MySQL DAO for sj_categories. Fully relational with child tables for images, sub_categories, and category_tags.
 """
 
-from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 import secrets
 from sqlalchemy import text
@@ -23,10 +22,13 @@ class MySQLCategoryDAO:
     def _map_to_schema(
         self,
         r,
-        images: List[str],
-        sub_categories: List[str],
-        category_tags: List[str],
+        images_rows=None,
+        sub_rows=None,
+        tags_rows=None,
     ) -> Category:
+        images = [str(ir.image_url) for ir in images_rows if ir.category_id == r.id] if images_rows else []
+        sub_categories = [str(sr.sub_category) for sr in sub_rows if sr.category_id == r.id] if sub_rows else []
+        category_tags = [str(tr.tag) for tr in tags_rows if tr.category_id == r.id] if tags_rows else []
         return Category(
             id=str(r.id),
             name=r.name,
@@ -45,16 +47,14 @@ class MySQLCategoryDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(
-        self, session, ids: List[int]
-    ) -> Tuple[Dict[int, List[str]], Dict[int, List[str]], Dict[int, List[str]]]:
-        images_by_cat: Dict[int, List[str]] = defaultdict(list)
-        sub_cats_by_cat: Dict[int, List[str]] = defaultdict(list)
-        tags_by_cat: Dict[int, List[str]] = defaultdict(list)
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return images_by_cat, sub_cats_by_cat, tags_by_cat
+            return [], [], []
 
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        img_rows = []
+        sub_rows = []
+        tag_rows = []
         for chunk in chunks:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
@@ -63,8 +63,7 @@ class MySQLCategoryDAO:
                 text(f"SELECT category_id, image_url FROM sj_category_images WHERE category_id IN ({placeholders})"),
                 chunk_params,
             )
-            for r in res_img.fetchall():
-                images_by_cat[int(r.category_id)].append(str(r.image_url))
+            img_rows.extend(res_img.fetchall())
 
             res_sub = await session.execute(
                 text(
@@ -72,17 +71,15 @@ class MySQLCategoryDAO:
                 ),
                 chunk_params,
             )
-            for r in res_sub.fetchall():
-                sub_cats_by_cat[int(r.category_id)].append(str(r.sub_category))
+            sub_rows.extend(res_sub.fetchall())
 
             res_tag = await session.execute(
                 text(f"SELECT category_id, tag FROM sj_category_category_tags WHERE category_id IN ({placeholders})"),
                 chunk_params,
             )
-            for r in res_tag.fetchall():
-                tags_by_cat[int(r.category_id)].append(str(r.tag))
+            tag_rows.extend(res_tag.fetchall())
 
-        return images_by_cat, sub_cats_by_cat, tags_by_cat
+        return img_rows, sub_rows, tag_rows
 
     async def _replace_children(self, session, cid: int, data: Union[CategoryInternalCreate, CategoryInternalUpdate, CategoryChildrenData]):
         await session.execute(text("DELETE FROM sj_category_images WHERE category_id = :cid"), {"cid": cid})
@@ -173,16 +170,8 @@ class MySQLCategoryDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            images_by_cat, subs_by_cat, tags_by_cat = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [
-                self._map_to_schema(
-                    r,
-                    images=images_by_cat[int(r.id)],
-                    sub_categories=subs_by_cat[int(r.id)],
-                    category_tags=tags_by_cat[int(r.id)],
-                )
-                for r in rows
-            ]
+            img_rows, sub_rows, tag_rows = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, img_rows, sub_rows, tag_rows) for r in rows]
 
     async def findOne(
         self,
@@ -220,13 +209,8 @@ class MySQLCategoryDAO:
             row = result.fetchone()
             if not row:
                 return None
-            images_by_cat, subs_by_cat, tags_by_cat = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(
-                row,
-                images=images_by_cat[int(row.id)],
-                sub_categories=subs_by_cat[int(row.id)],
-                category_tags=tags_by_cat[int(row.id)],
-            )
+            img_rows, sub_rows, tag_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, img_rows, sub_rows, tag_rows)
 
     async def create(self, data: CategoryInternalCreate) -> Category:
         factory = self._factory()

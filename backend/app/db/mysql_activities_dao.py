@@ -1,5 +1,4 @@
-from collections import defaultdict
-from typing import Optional, Dict, List, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -40,8 +39,8 @@ class MySQLActivitiesDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map[int(row.id)])
+            meta_rows = await self._fetch_meta(session, [int(row.id)])
+            return self._map_to_schema(row, meta_rows)
 
     async def findOne(
         self,
@@ -87,8 +86,8 @@ class MySQLActivitiesDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map[int(r.id)]) for r in rows]
+            meta_rows = await self._fetch_meta(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, meta_rows) for r in rows]
 
     async def create(self, data: ActivityInternalCreate) -> ActivityInternal:
         factory = self._factory()
@@ -221,7 +220,16 @@ class MySQLActivitiesDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, meta: Optional[List[ActivityMetaInternal]] = None) -> ActivityInternal:
+    def _map_to_schema(self, r, meta_rows=None) -> ActivityInternal:
+        meta = (
+            [
+                ActivityMetaInternal(key=mr.meta_key, value=mr.meta_value)
+                for mr in meta_rows
+                if mr.parent_id == r.id
+            ]
+            if meta_rows
+            else None
+        )
         return ActivityInternal(
             _id=str(r.id),
             user_id=r.user_id,
@@ -235,26 +243,26 @@ class MySQLActivitiesDAO:
             device_type=r.device_type,
             created_at=r.created_at,
             updated_at=r.updated_at,
-            meta=meta if meta else None,
+            meta=meta,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[ActivityMetaInternal]]:
-        c_map: defaultdict[int, List[ActivityMetaInternal]] = defaultdict(list)
+    async def _fetch_meta(self, session, ids: List[int]):
         if not ids:
-            return c_map
-            
-        id_list = ",".join(str(int(i)) for i in ids)
-        q_meta = text(f"SELECT parent_id, meta_key, meta_value FROM sj_activity_meta WHERE parent_id IN ({id_list})")
-        res_meta = await session.execute(q_meta)
-        rows_meta = res_meta.fetchall()
-
-        for r in rows_meta:
-            c_map[r.parent_id].append(ActivityMetaInternal(key=r.meta_key, value=r.meta_value))
-
-        return c_map
+            return []
+        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        meta_rows = []
+        for chunk in chunks:
+            chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
+            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+            res_meta = await session.execute(
+                text(f"SELECT parent_id, meta_key, meta_value FROM sj_activity_meta WHERE parent_id IN ({placeholders})"),
+                chunk_params,
+            )
+            meta_rows.extend(res_meta.fetchall())
+        return meta_rows
 
     async def _replace_children(self, session, row_id: int, data: Union[ActivityInternalCreate, ActivityInternalUpdate]):
-        if isinstance(data, ActivityInternalCreate) and data.meta is not None:
+        if type(data) is ActivityInternalCreate and data.meta is not None:
             await session.execute(text("DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": row_id})
             for item in data.meta:
                 await session.execute(

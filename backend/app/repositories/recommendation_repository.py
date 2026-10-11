@@ -325,7 +325,7 @@ class RecommendationRepository:
         orders = await self.order_storage.findAll(
             OrderFilter(order_number_prefix=prefix, start_date=cutoff)
         )
-        converted_sales_count: dict[str, int] = {}
+        converted_sales_count = {}
         for order in orders:
             order_dt = _parse_order_date(order.created_at)
             if not order_dt:
@@ -361,17 +361,17 @@ class RecommendationRepository:
                     converted_sales_count[pid] = (converted_sales_count[pid] if pid in converted_sales_count else 0) + 1
 
         # ── Step 3: search counts per product ───────────────────────────────────
-        search_count = await tracking_repository.get_search_counts_by_product(days, segment)
+        search_counts = await tracking_repository.get_search_counts_by_product(days, segment)
 
         # ── Step 4: score every product with ≥1 search ──────────────────────────
         # (No subcat grouping — all products compete in one global pool)
         all_scored: List[Tuple[str, float]] = []
-        for pid, sc in search_count.items():
-            if sc < 1:
+        for item in search_counts:
+            if item.count < 1:
                 continue
-            converted = converted_sales_count[pid] if pid in converted_sales_count else 0
-            rate = converted / sc  # conversion score ∈ [0, 1]
-            all_scored.append((pid, rate))
+            converted = converted_sales_count.get(item.product_id, 0)
+            rate = converted / item.count  # conversion score ∈ [0, 1]
+            all_scored.append((item.product_id, rate))
 
         if not all_scored:
             return []

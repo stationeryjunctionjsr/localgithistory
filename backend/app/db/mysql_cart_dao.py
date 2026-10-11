@@ -3,7 +3,6 @@ MySQL DAO for sj_carts (+ sj_cart_items).
 """
 
 import secrets
-from collections import defaultdict
 from typing import List, Optional, Any, Union
 from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
@@ -64,21 +63,45 @@ class MySQLCartDAO:
             if not rows:
                 return []
 
-            # Bulk fetch items
             cart_ids = [str(r.external_id) for r in rows]
-            items_map = await self._fetch_children(session, cart_ids)
+            items_rows = await self._fetch_items(session, cart_ids)
 
-        out = []
-        for r in rows:
-            cart = Cart.model_validate(r)
-            cart.items = items_map[r.external_id]
-            out.append(cart)
-        return out
+        return [self._map_to_schema(r, items_rows) for r in rows]
 
-    async def _fetch_children(self, session, cart_ids: List[str]) -> defaultdict[str, List[CartItemInternal]]:
-        items_map: defaultdict[str, List[CartItemInternal]] = defaultdict(list)
+    def _row_to_item(self, ir) -> CartItemInternal:
+        variant_attrs = None
+        if ir.variant_attributes:
+            try:
+                from app.models.schemas import VariantAttributes
+                variant_attrs = VariantAttributes.model_validate_json(ir.variant_attributes)
+            except (TypeError, ValueError):
+                pass
+        return CartItemInternal(
+            id=str(ir.id),
+            product=str(ir.product_id),
+            quantity=int(ir.quantity),
+            sell_as_case=bool(ir.sell_as_case),
+            bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
+            bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
+            variant_attributes=variant_attrs,
+        )
+
+    def _map_to_schema(self, r, items_rows=None) -> Cart:
+        cart = Cart.model_validate(r)
+        if items_rows:
+            cart.items = [
+                self._row_to_item(ir)
+                for ir in items_rows
+                if ir.cart_id == r.external_id
+            ]
+        else:
+            cart.items = []
+        return cart
+
+    async def _fetch_items(self, session, cart_ids: List[str]):
         if not cart_ids:
-            return items_map
+            return []
+        items_rows = []
         chunks = [cart_ids[i : i + 999] for i in range(0, len(cart_ids), 999)]
         for chunk in chunks:
             chunk_params = {f"cid_{i}": cid for i, cid in enumerate(chunk)}
@@ -94,29 +117,8 @@ class MySQLCartDAO:
                 ),
                 chunk_params,
             )
-            for ir in items_result.fetchall():
-                variant_attrs = None
-                if ir.variant_attributes:
-                    try:
-                        import json
-                        parsed = json.loads(ir.variant_attributes)
-                        from app.models.schemas import VariantAttributes
-                        if parsed:
-                            variant_attrs = VariantAttributes(**parsed)
-                    except (json.JSONDecodeError, TypeError, ValueError):
-                        pass
-                items_map[ir.cart_id].append(
-                    CartItemInternal(
-                        id=str(ir.id),
-                        product=str(ir.product_id),
-                        quantity=int(ir.quantity),
-                        sell_as_case=bool(ir.sell_as_case),
-                        bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
-                        bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
-                        variant_attributes=variant_attrs,
-                    )
-                )
-        return items_map
+            items_rows.extend(items_result.fetchall())
+        return items_rows
 
     async def findOne(
         self,
@@ -143,17 +145,7 @@ class MySQLCartDAO:
             sell_as_case = 1 if it.sell_as_case else 0
             bundle_id = it.bundle_id
             bundle_name = it.bundle_name
-            import json
-            var_attrs = None
-            if it.variant_attributes:
-                var_attrs = json.dumps({
-                    "size": it.variant_attributes.size,
-                    "color": it.variant_attributes.color,
-                    "material": it.variant_attributes.material,
-                    "style": it.variant_attributes.style,
-                    "weight": it.variant_attributes.weight,
-                    "flavor": it.variant_attributes.flavor
-                })
+            var_attrs = it.variant_attributes.model_dump_json() if it.variant_attributes else None
 
             await session.execute(
                 text(
@@ -257,7 +249,6 @@ class MySQLCartDAO:
 
         Returns the updated Cart, or None when the factory is unavailable.
         """
-        import json
         factory = self._factory()
         if not factory:
             return None
@@ -313,32 +304,12 @@ class MySQLCartDAO:
                 # Fetch current items while holding the lock
                 items_res = await session.execute(
                     text(
-                        f"SELECT product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes "
+                        f"SELECT id, product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes "
                         f"FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id ORDER BY id ASC"
                     ),
                     {"cart_id": ext_id},
                 )
-                current_items = []
-                for ir in items_res.fetchall():
-                    variant_attrs = None
-                    if ir.variant_attributes:
-                        try:
-                            parsed = json.loads(ir.variant_attributes)
-                            from app.models.schemas import VariantAttributes
-                            if parsed:
-                                variant_attrs = VariantAttributes(**parsed)
-                        except (json.JSONDecodeError, TypeError, ValueError):
-                            pass
-                    current_items.append(
-                        CartItemInternal(
-                            product=str(ir.product_id),
-                            quantity=int(ir.quantity),
-                            sell_as_case=bool(ir.sell_as_case),
-                            bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
-                            bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
-                            variant_attributes=variant_attrs,
-                        )
-                    )
+                current_items = [self._row_to_item(ir) for ir in items_res.fetchall()]
 
             # Let the caller decide what the new item list should be
             new_items = merge_fn(current_items)

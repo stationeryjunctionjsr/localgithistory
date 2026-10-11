@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from collections import defaultdict
 from typing import List, Optional
 from app.models.tracking import (
     Tracking,
@@ -12,6 +11,7 @@ from app.models.tracking import (
     ZeroResultSearchItem,
     MostViewedItem,
     ReturningUserItem,
+    ProductSearchCount,
 )
 
 from app.db.storage_factory import get_storage
@@ -427,17 +427,18 @@ class TrackingRepository:
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid timestamp format: {raw}") from e
 
-    async def get_search_counts_by_product(self, days: int, segment: str) -> defaultdict[str, int]:
+    async def get_search_counts_by_product(self, days: int, segment: str) -> List[ProductSearchCount]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         all_searches = await self.storage.find_by_date_range(
             event_type="product_search", start_date=cutoff, segment=segment
         )
-        counts: defaultdict[str, int] = defaultdict(int)
+        counts = {}
         for doc in all_searches:
-            for pid in doc.product_ids if doc.product_ids is not None else []:
-                if pid:
-                    counts[pid] += 1
-        return counts
+            if doc.product_ids:
+                for pid in doc.product_ids:
+                    if pid:
+                        counts[pid] = counts.get(pid, 0) + 1
+        return [ProductSearchCount(product_id=pid, count=cnt) for pid, cnt in counts.items()]
 
     async def get_searches_with_products(self, days: int, segment: str) -> List[Tracking]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)

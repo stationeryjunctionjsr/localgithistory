@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import List, Optional, Union
 import logging
 """
@@ -63,8 +62,21 @@ class MySQLTrackingDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_tracking(self, r, cart_items: List[ItemSnippet]) -> Tracking:
+    def _row_to_tracking(self, r, cart_items_rows=None) -> Tracking:
         from app.models.tracking import Tracking
+        items = (
+            [
+                ItemSnippet(
+                    product_id=str(ir.product_id),
+                    quantity=int(ir.quantity or 1),
+                    price=float(ir.price) if ir.price is not None else None,
+                )
+                for ir in cart_items_rows
+                if ir.tracking_id == r.id
+            ]
+            if cart_items_rows
+            else []
+        )
         return Tracking(
             id=str(r.id),
             external_id=r.external_id,
@@ -73,7 +85,7 @@ class MySQLTrackingDAO:
             type=r.event_type,
             userId=r.user_id,
             sessionId=r.session_id,
-            timestamp=r.event_timestamp.isoformat() if r.event_timestamp and not isinstance(r.event_timestamp, str) else str(r.event_timestamp) if r.event_timestamp else None,
+            timestamp=r.event_timestamp.isoformat() if r.event_timestamp and type(r.event_timestamp) is not str else str(r.event_timestamp) if r.event_timestamp else None,
             searchTerm=r.search_term,
             resultsCount=int(r.results_count) if r.results_count is not None else None,
             productId=r.product_id,
@@ -89,14 +101,14 @@ class MySQLTrackingDAO:
             orderValue=float(r.order_value) if r.order_value is not None else None,
             price=float(r.price) if r.price is not None else None,
             category=r.category,
-            cartItems=cart_items
+            cartItems=items
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[ItemSnippet]]:
-        c_map: defaultdict[int, List[ItemSnippet]] = defaultdict(list)
+    async def _fetch_cart_items(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return []
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        items_rows = []
 
         for chunk in chunks:
             chunk_params = {f"tid_{i}": tid for i, tid in enumerate(chunk)}
@@ -106,16 +118,9 @@ class MySQLTrackingDAO:
                 text(f"SELECT tracking_id, product_id, quantity, price FROM sj_tracking_cart_items WHERE tracking_id IN ({placeholders})"),
                 chunk_params
             )
-            for r in res.fetchall():
-                c_map[r.tracking_id].append(
-                    ItemSnippet(
-                        product_id=str(r.product_id),
-                        quantity=int(r.quantity or 1),
-                        price=float(r.price) if r.price is not None else None,
-                    )
-                )
+            items_rows.extend(res.fetchall())
 
-        return c_map
+        return items_rows
 
     async def _replace_children(self, session, tid: int, data: 'CamelBaseModel'):
         await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
@@ -177,8 +182,8 @@ class MySQLTrackingDAO:
         async with factory() as session:
             res = await session.execute(text(query_str), params)
             rows = res.fetchall()
-            c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
+            items_rows = await self._fetch_cart_items(session, [r.id for r in rows])
+        return [self._row_to_tracking(r, items_rows) for r in rows]
 
     async def find_by_date_range(
         self,
@@ -213,8 +218,8 @@ class MySQLTrackingDAO:
                 params,
             )
             rows = res.fetchall()
-            c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
+            items_rows = await self._fetch_cart_items(session, [r.id for r in rows])
+        return [self._row_to_tracking(r, items_rows) for r in rows]
 
     async def get_recently_viewed_products(
         self,
@@ -558,8 +563,8 @@ class MySQLTrackingDAO:
                     params,
                 )
             ).fetchall()
-            c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
+            items_rows = await self._fetch_cart_items(session, [r.id for r in rows])
+        return [self._row_to_tracking(r, items_rows) for r in rows]
 
     async def get_most_abandoned_products(
         self,

@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Optional, List, Any, Union
 from datetime import datetime, timezone
 import secrets
@@ -38,8 +37,8 @@ class MySQLSchemesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map[int(row.id)])
+            roles_rows = await self._fetch_roles(session, [int(row.id)])
+            return self._map_to_schema(row, roles_rows)
 
     async def findByCode(self, code: str) -> Optional['SchemeInternal']:
         factory = self._factory()
@@ -51,8 +50,8 @@ class MySQLSchemesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map[int(row.id)])
+            roles_rows = await self._fetch_roles(session, [int(row.id)])
+            return self._map_to_schema(row, roles_rows)
 
     async def findOne(
         self,
@@ -92,8 +91,8 @@ class MySQLSchemesDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map[int(r.id)]) for r in rows]
+            roles_rows = await self._fetch_roles(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, roles_rows) for r in rows]
 
     async def create(self, data: 'SchemesInternalCreate') -> 'SchemeInternal':
         factory = self._factory()
@@ -232,8 +231,13 @@ class MySQLSchemesDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, applicable_roles: List[str]) -> 'SchemeInternal':
+    def _map_to_schema(self, r, roles_rows=None) -> 'SchemeInternal':
         from app.models.daos_flat import SchemeInternal
+        applicable_roles = (
+            [r_row.role for r_row in roles_rows if r_row.parent_id == r.id]
+            if roles_rows
+            else None
+        )
         return SchemeInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -251,21 +255,20 @@ class MySQLSchemesDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[str]]:
-        c_map: defaultdict[int, List[str]] = defaultdict(list)
+    async def _fetch_roles(self, session, ids: List[int]):
         if not ids:
-            return c_map
-            
-        id_list = ",".join(map(str, ids))
-
-        q_applicableRoles = text(f"SELECT parent_id, role FROM sj_scheme_roles WHERE parent_id IN ({id_list})")
-        res_applicableRoles = await session.execute(q_applicableRoles)
-        rows_applicableRoles = res_applicableRoles.fetchall()
-
-        for r in rows_applicableRoles:
-            c_map[r.parent_id].append(r[1])
-
-        return c_map
+            return []
+        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        roles_rows = []
+        for chunk in chunks:
+            chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
+            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+            res = await session.execute(
+                text(f"SELECT parent_id, role FROM sj_scheme_roles WHERE parent_id IN ({placeholders})"),
+                chunk_params,
+            )
+            roles_rows.extend(res.fetchall())
+        return roles_rows
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 

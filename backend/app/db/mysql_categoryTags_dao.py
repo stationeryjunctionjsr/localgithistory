@@ -3,7 +3,6 @@ MySQL DAO for sj_category_tags.
 Supports division_id / category_head_id relationships and category counts.
 """
 
-from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
 from typing import Any, List, Optional, Tuple, Union
@@ -34,10 +33,29 @@ class MySQLCategoryTagsDAO:
     def _map_to_schema(
         self,
         r,
-        division_name: Optional[str] = None,
-        category_count: int = 0,
+        div_rows=None,
+        count_rows=None,
+        cat_col_rows=None,
     ) -> CategoryTagInternal:
         div_id = r.division_id if r.division_id is not None else r.category_head_id
+        division_name = None
+        if div_id is not None and div_rows:
+            for d in div_rows:
+                if int(d.id) == int(div_id):
+                    division_name = d.name
+                    break
+        category_count = 0
+        if r.name:
+            if count_rows:
+                for c in count_rows:
+                    if c.tag == r.name:
+                        category_count = int(c.cnt)
+                        break
+            if cat_col_rows:
+                for c in cat_col_rows:
+                    if c.category_tag == r.name and int(c.cnt) > category_count:
+                        category_count = int(c.cnt)
+                        break
         return CategoryTagInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -53,13 +71,13 @@ class MySQLCategoryTagsDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_extra_info(
-        self, session, rows: List[Any]
-    ) -> Tuple[defaultdict[int, str], defaultdict[str, int]]:
-        division_name_map: defaultdict[int, str] = defaultdict(str)
-        category_count_map: defaultdict[str, int] = defaultdict(int)
+    async def _fetch_extra_info(self, session, rows: List[Any]):
         if not rows:
-            return division_name_map, category_count_map
+            return [], [], []
+
+        div_rows = []
+        count_rows = []
+        cat_col_rows = []
 
         # 1. Fetch division / head names
         div_ids = list({
@@ -75,17 +93,14 @@ class MySQLCategoryTagsDAO:
                     text(f"SELECT id, name FROM sj_divisions WHERE id IN ({d_placeholders})"),
                     d_params,
                 )
-                for d in res_divs.fetchall():
-                    division_name_map[int(d.id)] = d.name
+                div_rows = res_divs.fetchall()
             except Exception:
-                # Fallback to sj_category_heads
                 try:
                     res_heads = await session.execute(
                         text(f"SELECT id, name FROM sj_category_heads WHERE id IN ({d_placeholders})"),
                         d_params,
                     )
-                    for h in res_heads.fetchall():
-                        division_name_map[int(h.id)] = h.name
+                    div_rows = res_heads.fetchall()
                 except Exception:
                     pass
 
@@ -103,8 +118,7 @@ class MySQLCategoryTagsDAO:
                 """),
                 t_params,
             )
-            for c in res_counts.fetchall():
-                category_count_map[c.tag] = int(c.cnt)
+            count_rows = res_counts.fetchall()
 
             res_cat_col = await session.execute(
                 text(f"""
@@ -115,11 +129,9 @@ class MySQLCategoryTagsDAO:
                 """),
                 t_params,
             )
-            for c in res_cat_col.fetchall():
-                if c.category_tag:
-                    category_count_map[c.category_tag] = max(category_count_map[c.category_tag], int(c.cnt))
+            cat_col_rows = res_cat_col.fetchall()
 
-        return division_name_map, category_count_map
+        return div_rows, count_rows, cat_col_rows
 
     async def findById(self, id: Union[int, str]) -> Optional[CategoryTagInternal]:
         factory = self._factory()
@@ -136,11 +148,8 @@ class MySQLCategoryTagsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            div_map, count_map = await self._fetch_extra_info(session, [row])
-            target_div_id = row.division_id if row.division_id is not None else row.category_head_id
-            div_name = div_map[int(target_div_id)] if target_div_id and int(target_div_id) in div_map else None
-            count = count_map[row.name] if row.name and row.name in count_map else 0
-            return self._map_to_schema(row, division_name=div_name, category_count=count)
+            div_rows, count_rows, cat_col_rows = await self._fetch_extra_info(session, [row])
+            return self._map_to_schema(row, div_rows, count_rows, cat_col_rows)
 
     async def findOne(
         self,
@@ -187,14 +196,8 @@ class MySQLCategoryTagsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            div_map, count_map = await self._fetch_extra_info(session, rows)
-            result_list = []
-            for r in rows:
-                did = r.division_id if r.division_id is not None else r.category_head_id
-                div_name = div_map[int(did)] if did is not None and int(did) in div_map else None
-                cat_count = count_map[r.name] if r.name and r.name in count_map else 0
-                result_list.append(self._map_to_schema(r, division_name=div_name, category_count=cat_count))
-            return result_list
+            div_rows, count_rows, cat_col_rows = await self._fetch_extra_info(session, rows)
+            return [self._map_to_schema(r, div_rows, count_rows, cat_col_rows) for r in rows]
 
     async def create(self, data: CategoryTagInternalCreate) -> CategoryTagInternal:
         factory = self._factory()

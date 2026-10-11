@@ -2,7 +2,6 @@
 MySQL DAO for sj_wishlists. Fully relational.
 """
 
-from collections import defaultdict
 import secrets
 from typing import List, Optional, Union
 from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate, WishlistItemInternal
@@ -23,16 +22,23 @@ class MySQLWishlistDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r, items: List[WishlistItemInternal]) -> Wishlist:
+    def _map_to_schema(self, r, items_rows=None) -> Wishlist:
         w = Wishlist.model_validate(r)
         w.user = str(r.user_id) if r.user_id is not None else None
-        w.items = items
+        if items_rows:
+            w.items = [
+                WishlistItemInternal(product=str(ir.product_id))
+                for ir in items_rows
+                if ir.wishlist_id == r.id
+            ]
+        else:
+            w.items = []
         return w
 
-    async def _fetch_children(self, session, ids: List[int]) -> defaultdict[int, List[WishlistItemInternal]]:
-        c_map: defaultdict[int, List[WishlistItemInternal]] = defaultdict(list)
+    async def _fetch_items(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return []
+        items_rows = []
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
         for chunk in chunks:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
@@ -41,9 +47,8 @@ class MySQLWishlistDAO:
                 text(f"SELECT wishlist_id, product_id FROM sj_wishlist_items WHERE wishlist_id IN ({placeholders})"),
                 chunk_params,
             )
-            for r in res.fetchall():
-                c_map[r.wishlist_id].append(WishlistItemInternal(product=str(r.product_id)))
-        return c_map
+            items_rows.extend(res.fetchall())
+        return items_rows
 
     async def _replace_items(self, session, wid: int, items: List[WishlistItemInternal]):
         await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
@@ -83,8 +88,8 @@ class MySQLWishlistDAO:
                 text(f"SELECT * FROM {self.TABLE} {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
-            items_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._map_to_schema(r, items_map[r.id]) for r in rows]
+            items_rows = await self._fetch_items(session, [r.id for r in rows])
+        return [self._map_to_schema(r, items_rows) for r in rows]
 
     async def findOne(
         self,

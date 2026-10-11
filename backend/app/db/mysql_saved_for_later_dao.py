@@ -19,10 +19,10 @@ from app.db.db_utils import now_utc
 def _to_ts(val):
     if val is None:
         return None
-    if not isinstance(val, str):
+    if type(val) is not str:
         return val
     try:
-        return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+        return datetime.fromisoformat(val.replace("Z", "+00:00"))
     except Exception as e:
         logging.warning("mysql_saved_for_later_dao._to_ts: could not parse timestamp %r: %s", val, e, exc_info=e)
         return None
@@ -74,7 +74,7 @@ class MySQLSavedForLaterDAO:
             )
             rows = result.fetchall()
 
-        user_items: dict[str, list[SavedForLaterItem]] = {}
+        user_items = {}
         for r in rows:
             uid = str(r[0])
             if uid not in user_items:

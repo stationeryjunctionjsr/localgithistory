@@ -110,6 +110,11 @@ class ReturningUserItem(CamelBaseModel):
     last_seen: Optional[str] = Field(default=None, alias="lastSeen")
 
 
+class ProductSearchCount(CamelBaseModel):
+    product_id: str
+    count: int = 0
+
+
 Tracking.model_rebuild()
 TrackingPayload.model_rebuild()
 
