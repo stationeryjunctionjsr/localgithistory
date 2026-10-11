@@ -115,6 +115,14 @@ class ProductSellerEntry(CamelBaseModel):
     request_status: str = "pending"
     notes: Optional[str] = None
 
+    @property
+    def requestStatus(self) -> str:
+        return self.request_status
+
+    @requestStatus.setter
+    def requestStatus(self, value: str):
+        self.request_status = value
+
 class ItemSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     id: Optional[str] = Field(default=None, alias="_id")

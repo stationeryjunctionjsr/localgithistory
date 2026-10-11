@@ -55,7 +55,7 @@ class RecommendationEventBody(BaseModel):
 @router.get("", )
 @router.get("/", )
 async def get_recommendations(
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
     pincode: Optional[str] = Query(None),
     category_tag: Optional[str] = Query(None, description="Filter recommendations to a specific category tag (e.g. 'Stationery'). Case-insensitive.")
 ):
@@ -337,7 +337,7 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
 async def track_recommendation_event(
     body: RecommendationEventBody,
     request: Request,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Track recommendation engagement for analytics.

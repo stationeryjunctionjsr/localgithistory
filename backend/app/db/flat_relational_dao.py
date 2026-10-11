@@ -2,6 +2,7 @@ import logging
 import secrets
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union
+from pydantic import BaseModel
 
 from sqlalchemy import text
 
@@ -215,7 +216,7 @@ class FlatRelationalDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_data = existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing
+        existing_data = existing.model_dump(by_alias=True) if isinstance(existing, BaseModel) else existing
         merged = {**existing_data, **update_data}
         factory = self._factory()
         if not factory:

@@ -141,6 +141,17 @@ class TrendingCacheResult(CamelBaseModel):
     guest: Optional[FavouritesCacheResult] = None
     retail: Optional[FavouritesCacheResult] = None
 
+    def for_segment(self, segment: str) -> Optional[FavouritesCacheResult]:
+        if segment == "customer":
+            return self.customer or self.retail
+        if segment == "retail":
+            return self.retail or self.customer
+        if segment in ("wholesaler", "business"):
+            return self.wholesaler
+        if segment == "guest":
+            return self.guest
+        return None
+
     def get(self, segment: str, default: Optional[FavouritesCacheResult] = None) -> Optional[FavouritesCacheResult]:
         if segment == "customer":
             return self.customer or self.retail or default

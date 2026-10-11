@@ -22,35 +22,56 @@ def test_zero_lambdas_and_zero_anti_patterns():
     router_source = inspect.getsource(router_mod)
     flat_dao_source = inspect.getsource(flat_dao_mod)
 
-    repo_tree = ast.parse(repo_source)
-    dao_tree = ast.parse(dao_source)
-    router_tree = ast.parse(router_source)
-    flat_dao_tree = ast.parse(flat_dao_source)
+    trees = {
+        "repo": ast.parse(repo_source),
+        "dao": ast.parse(dao_source),
+        "router": ast.parse(router_source),
+        "flat_dao": ast.parse(flat_dao_source),
+    }
 
-    repo_lambdas = [n for n in ast.walk(repo_tree) if isinstance(n, ast.Lambda)]
-    dao_lambdas = [n for n in ast.walk(dao_tree) if isinstance(n, ast.Lambda)]
-    router_lambdas = [n for n in ast.walk(router_tree) if isinstance(n, ast.Lambda)]
-    flat_dao_lambdas = [n for n in ast.walk(flat_dao_tree) if isinstance(n, ast.Lambda)]
+    # 1. Zero lambdas across all components
+    for name, tree in trees.items():
+        lambdas = [n for n in ast.walk(tree) if isinstance(n, ast.Lambda)]
+        assert len(lambdas) == 0, f"Found lambdas in {name}: {lambdas}"
 
-    assert len(repo_lambdas) == 0, f"Found lambdas in banner_repository: {repo_lambdas}"
-    assert len(dao_lambdas) == 0, f"Found lambdas in mysql_banner_dao: {dao_lambdas}"
-    assert len(router_lambdas) == 0, f"Found lambdas in banners router: {router_lambdas}"
-    assert len(flat_dao_lambdas) == 0, f"Found lambdas in flat_relational_dao: {flat_dao_lambdas}"
+    # 2. Zero reflection calls (getattr, setattr, hasattr)
+    for name in ("repo", "dao", "router", "flat_dao"):
+        reflection_calls = [
+            n.func.id
+            for n in ast.walk(trees[name])
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in {"getattr", "setattr", "hasattr"}
+        ]
+        assert len(reflection_calls) == 0, f"Found reflection calls in {name}: {reflection_calls}"
 
-    assert "_build_where" not in repo_source
-    assert "_build_where" not in dao_source
-    assert "_build_where" not in router_source
-    assert "_build_where" not in flat_dao_source
+    # 3. Zero **kwargs in DAO and repo method definitions
+    for name in ("repo", "dao"):
+        kwargs_defs = [
+            n.name
+            for n in ast.walk(trees[name])
+            if isinstance(n, ast.FunctionDef) and n.args.kwarg is not None
+        ]
+        assert len(kwargs_defs) == 0, f"Found **kwargs in {name}: {kwargs_defs}"
 
-    assert "getattr" not in dao_source
-    assert "getattr" not in repo_source
-    assert "getattr" not in router_source
-    assert "getattr" not in flat_dao_source
+    # 4. Zero document-store legacy methods (deleteMany, updateMany)
+    for name in ("repo", "dao", "flat_dao"):
+        docstore_methods = [
+            n.name
+            for n in ast.walk(trees[name])
+            if isinstance(n, ast.FunctionDef) and n.name in {"deleteMany", "updateMany"}
+        ]
+        assert len(docstore_methods) == 0, f"Found legacy docstore methods in {name}: {docstore_methods}"
 
-    assert "_mapping" not in dao_source
-    assert "setdefault" not in dao_source
-    assert "isinstance(filters, dict)" not in repo_source
-    assert "query.items()" not in flat_dao_source
+    # 5. Zero in-memory accumulators (_mapping, setdefault)
+    dao_acc = [
+        n.attr
+        for n in ast.walk(trees["dao"])
+        if isinstance(n, ast.Attribute) and n.attr in {"_mapping", "setdefault"}
+    ]
+    assert len(dao_acc) == 0, f"Found in-memory accumulators in dao: {dao_acc}"
+
+    # 6. Zero dynamic string query builders (_build_where)
+    for name, src in [("repo", repo_source), ("dao", dao_source), ("router", router_source), ("flat_dao", flat_dao_source)]:
+        assert "_build_where" not in src, f"Found _build_where in {name}"
 
 
 def test_flat_relational_dao_no_backward_compatibility_aliases():

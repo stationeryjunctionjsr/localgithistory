@@ -310,7 +310,7 @@ class ProductRepository:
                         for s in (p.sellers or [])
                         if s.is_active
                         and (s.stock or 0) > 0
-                        and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
+                        and (s.request_status or "approved") == "approved"
                     ],
                     # Seller IDs for catalogue filtering (mega menu, brands, collections).
                     # Includes out-of-stock items so they still appear in navigation.
@@ -318,7 +318,7 @@ class ProductRepository:
                         str(s.seller_id)
                         for s in (p.sellers or [])
                         if s.is_active
-                        and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
+                        and (s.request_status or "approved") == "approved"
                     ],
                     "displayImage": p.display_image or (p.images[0] if p.images else None),
                 }

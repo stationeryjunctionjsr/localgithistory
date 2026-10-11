@@ -237,16 +237,7 @@ class RecommendationRepository:
     async def _get_user_purchased_product_ids(self, user_id: str, days: int) -> set:
         """Products the user purchased in the last `days` days."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        if hasattr(self.order_storage, "get_user_purchased_product_ids"):
-            return await self.order_storage.get_user_purchased_product_ids(user_id, cutoff)
-        orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
-        out = set()
-        for order in orders:
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if pid:
-                    out.add(pid)
-        return out
+        return await self.order_storage.get_user_purchased_product_ids(user_id, cutoff)
 
     async def _get_user_cart_product_ids(self, user_id: str) -> set:
         """Products currently in the user's cart."""
@@ -265,28 +256,9 @@ class RecommendationRepository:
     ) -> List[str]:
         """Bestsellers (or trending) from retail customer orders only, last `days` days. Optionally exclude product IDs."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        if hasattr(self.order_storage, "get_retail_bestsellers"):
-            return await self.order_storage.get_retail_bestsellers(
-                start_date=cutoff, limit=limit, exclude_product_ids=exclude_product_ids
-            )
-        retail_ids = await self._get_retail_customer_ids()
-        if not retail_ids:
-            return []
-        exclude = exclude_product_ids or set()
-        orders = await self.order_storage.findAll({
-            "orderNumber_prefix": "ORDER-RT-",
-            "startDate": cutoff.isoformat(),
-        })
-        product_counts: dict[str, int] = {}
-        for order in orders:
-            if order.user not in retail_ids:
-                continue
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if pid and pid not in exclude:
-                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
-        sorted_products = sorted(product_counts.items(), key=itemgetter(1), reverse=True)[:limit]
-        return [pid for pid, _ in sorted_products]
+        return await self.order_storage.get_retail_bestsellers(
+            start_date=cutoff, limit=limit, exclude_product_ids=exclude_product_ids
+        )
 
     def _order_segment_prefix(self, segment: str) -> Optional[str]:
         """Order number prefix for segment: customer -> ORDER-RT, wholesaler -> ORDER-WH."""
@@ -329,7 +301,7 @@ class RecommendationRepository:
         """
         if use_cache:
             cached = _read_trending_cache()
-            seg_data = cached.get(segment)
+            seg_data = cached.for_segment(segment)
             if seg_data and seg_data.product_ids:
                 exclude = exclude_product_ids or set()
                 return [x for x in seg_data.product_ids if x not in exclude]  # cache is already in descending rank order
@@ -1114,18 +1086,20 @@ class RecommendationRepository:
             logging.error(f"Error fetching bundles for recommendations: {e}")
             return []
 
-    def _is_available_in_zone(self, product: 'Product', seller_id_set: set) -> bool:
+    def _is_available_in_zone(self, product: Any, seller_id_set: Optional[Set[str]]) -> bool:
         """True if product has at least one active, in-stock seller in the zone."""
         if seller_id_set is None:
             return True  # no zone filter
+        if isinstance(product, BundleRecommendationItem):
+            return True  # Bundles are available platform-wide
         sellers = product.sellers or []
         if not sellers:
-            return True
+            return False
         return any(
             str(s.seller_id) in seller_id_set
             and s.is_active
             and (s.stock or 0) > 0
-            and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
+            and (s.request_status or "approved") == "approved"
             for s in sellers
         )
 
