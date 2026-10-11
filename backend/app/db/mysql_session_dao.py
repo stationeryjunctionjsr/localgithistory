@@ -19,10 +19,10 @@ from app.db.db_utils import now_utc
 def _to_ts(value: Optional[Union[str, datetime]]) -> Optional[datetime]:
     if not value:
         return None
-    if isinstance(value, datetime):
-        return value
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except AttributeError:
+        return value
     except Exception as e:
         logging.warning("mysql_session_dao._to_ts: could not parse timestamp %r: %s", value, e, exc_info=e)
         return None
@@ -90,8 +90,8 @@ class MySQLSessionDAO:
         refresh_token_id: Optional[str] = None,
         status: Optional[str] = None,
     ) -> Optional[Session]:
-        docs = await self.findAll(id=id, user_id=user_id, refresh_token_id=refresh_token_id, status=status)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, user_id=user_id, refresh_token_id=refresh_token_id, status=status)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional['Session']:
         factory = self._factory()

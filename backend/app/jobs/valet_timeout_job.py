@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from app.repositories.order_repository import order_repository
 from app.repositories.return_request_repository import return_request_repository
 from app.models.order import OrderInternalUpdate
-from app.models.daos import OrderFilter
+from app.models.daos import OrderFilter, ValetAvailabilityFilter
 from app.models.daos_flat import ReturnRequestInternalUpdate
 from app.repositories.user_repository import user_repository
 from app.utils.logger import logger
@@ -25,7 +25,7 @@ async def _cascade_or_revert(order):
     order_id = str(order.id)
     seller_id = order.seller_id
     is_urgent = order.is_urgent_delivery
-    declined_history = order['valetDeclineHistory'] if 'valetDeclineHistory' in order else []
+    declined_history = list(order.valetDeclineHistory or [])
     next_valet = await _find_next_available_valet(order, declined_history)
     now_iso = datetime.now(timezone.utc).isoformat()
     if next_valet:
@@ -49,7 +49,7 @@ async def _cascade_or_revert(order):
                 logger.error('[ValetTimeout] Failed to notify seller %s: %s', seller_id, e)
         logger.info('[ValetTimeout] Order %s reverted to processing — no valets available', order_id)
 
-async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None:
+async def _find_next_available_valet(order, skip_valet_ids: list):
     """
     Find the next best eligible valet for this order, skipping already-declined ones.
     Applies the same 4-step filter as GET /valets/available and sorts by active order count.
@@ -72,8 +72,8 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
             else:
                 so_seller = await user_repository.findOne({'role': 'super_admin'})
             if so_seller:
-                so_addr = (so_seller['address'] if 'address' in so_seller else None) or {}
-                pincode = str((so_addr['zipCode'] if 'zipCode' in so_addr else None) or (so_addr['pincode'] if 'pincode' in so_addr else None) or '')
+                so_addr = so_seller.address
+                pincode = str((so_addr.zip_code or so_addr.pincode or '') if so_addr else '')
                 if pincode:
                     required_pincodes.add(pincode)
     else:
@@ -84,8 +84,8 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
             seller = await user_repository.findOne({'role': 'super_admin'})
         if not seller:
             return None
-        seller_address = (seller['address'] if 'address' in seller else None) or {}
-        pincode = str((seller_address['zipCode'] if 'zipCode' in seller_address else None) or (seller_address['pincode'] if 'pincode' in seller_address else None) or '')
+        seller_address = seller.address
+        pincode = str((seller_address.zip_code or seller_address.pincode or '') if seller_address else '')
         if pincode:
             required_pincodes.add(pincode)
     if not required_pincodes:
@@ -93,9 +93,9 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     required_zones = set()
     from app.repositories.zone_seller_cache import get_zone_for_pincode
     for pin in required_pincodes:
-        zone_doc = await get_zone_for_pincode(pin)
-        if zone_doc:
-            required_zones.add(str(zone_doc.id))
+        zone = await get_zone_for_pincode(pin)
+        if zone:
+            required_zones.add(str(zone.id))
     all_valets = await user_repository.findAll({'role': 'valet', 'isOnDuty': True})
     print(f"DEBUG: all_valets={len(all_valets)}")
     skip_ids: set[str] = set()
@@ -110,13 +110,11 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     if not eligible_valets:
         return None
     availability_storage = get_storage('valetAvailability')
-    availability_docs = await availability_storage.findAll({'date': today})
-    avail_map = {str(doc.valet_id): doc for doc in availability_docs if doc.valet_id}
-    print(f"DEBUG: avail_map keys={list(avail_map.keys())}")
+    availability_records = await availability_storage.findAll(ValetAvailabilityFilter(date=today))
     available_valets = []
     for v in eligible_valets:
         vid = str(v.id)
-        avail = avail_map[vid] if vid in avail_map else None
+        avail = next((rec for rec in availability_records if str(rec.valet_id) == vid), None)
         if not avail:
             continue
         valet_daily_zones = set(avail.zones or [])
@@ -130,20 +128,16 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     if not available_valets:
         return None
     sys_storage = get_storage('systemSettings')
-    sys_doc = await sys_storage.findById('global_settings')
-    global_max = int(sys_doc["maxConcurrentOrders"] if "maxConcurrentOrders" in sys_doc else 1) if sys_doc else 1
+    sys_settings = await sys_storage.findById('global_settings')
+    global_max = int(sys_settings.max_concurrent_orders or 1) if sys_settings else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     available_valet_ids = [str(v.id) for v in available_valets]
     active_orders = await order_repository.findAll(OrderFilter(statuses=BUSY_STATUSES))
     all_active_orders = [o for o in active_orders if str(o.assigned_valet or '') in available_valet_ids]
-    order_count_by_valet: dict[str, int] = {}
-    for o in all_active_orders:
-        vid = str(o.assigned_valet or "")
-        order_count_by_valet[vid] = (order_count_by_valet[vid] if vid in order_count_by_valet else 0) + 1
     scored = []
     for v in available_valets:
         vid = str(v.id)
-        active_count = order_count_by_valet[vid] if vid in order_count_by_valet else 0
+        active_count = sum(1 for o in all_active_orders if str(o.assigned_valet or '') == vid)
         max_concurrent = int(v.max_concurrent_orders or global_max)
         if active_count < max_concurrent:
             scored.append((active_count, v))
@@ -152,7 +146,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     scored.sort(key=lambda x: x[0])
     return scored[0][1]
 
-async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list) -> dict | None:
+async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list):
     """
     Find the next best eligible valet for a return pickup.
     - Customer Pincode: Extracted from parent order shipping address.
@@ -174,7 +168,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     customer_pincode = str(shipping_address.pincode) if shipping_address and shipping_address.pincode else ''
     if not customer_pincode:
         user = await user_repository.findById(return_req.userId) if (return_req.userId) else None
-        if user and (user.address if user.address is not None else {}):
+        if user and user.address:
             customer_pincode = str(user.address.pincode) if user.address and user.address.pincode else ''
     if not customer_pincode:
         return None
@@ -208,21 +202,19 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     if not eligible_valets:
         return None
     from app.repositories.zone_seller_cache import get_zone_for_pincode
-    zone_doc = await get_zone_for_pincode(customer_pincode)
-    if not zone_doc:
+    zone = await get_zone_for_pincode(customer_pincode)
+    if not zone:
         logger.warning('[ValetTimeout] Return %s: customer pincode %s not in any zone — cannot route', return_req.id, customer_pincode)
         return None
-    customer_zone_id = str(zone_doc.id)
+    customer_zone_id = str(zone.id)
     print(f"DEBUG: customer_zone_id={customer_zone_id}")
     availability_storage = get_storage('valetAvailability')
     query_date = slot_date if slot_id else dt_date.today().isoformat()
-    availability_docs = await availability_storage.findAll({'date': query_date})
-    avail_map = {str(doc.valet_id): doc for doc in availability_docs if doc.valet_id}
-    print(f"DEBUG: avail_map keys={list(avail_map.keys())}")
+    availability_records = await availability_storage.findAll(ValetAvailabilityFilter(date=query_date))
     available_valets = []
     for v in eligible_valets:
         vid = str(v.id)
-        avail = avail_map[vid] if vid in avail_map else None
+        avail = next((rec for rec in availability_records if str(rec.valet_id) == vid), None)
         if not avail:
             continue
         valet_daily_zones = set(avail.zones or [])
@@ -238,31 +230,26 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     if not available_valets:
         return None
     sys_storage = get_storage('systemSettings')
-    sys_doc = await sys_storage.findById('global_settings')
-    global_max = int(sys_doc["maxConcurrentOrders"] if "maxConcurrentOrders" in sys_doc else 1) if sys_doc else 1
+    sys_settings = await sys_storage.findById('global_settings')
+    global_max = int(sys_settings.max_concurrent_orders or 1) if sys_settings else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     ACTIVE_RETURN_STATUSES = ['pending_valet', 'assigned']
     available_valet_ids = [str(v.id) for v in available_valets]
     active_orders = await order_repository.findAll(OrderFilter(statuses=BUSY_STATUSES))
     all_active_orders = [o for o in active_orders if str(o.assigned_valet or '') in available_valet_ids]
-    order_count_by_valet: dict[str, int] = {}
-    for o in all_active_orders:
-        vid = str(o.assigned_valet or "")
-        order_count_by_valet[vid] = (order_count_by_valet[vid] if vid in order_count_by_valet else 0) + 1
     all_active_returns = []
     for st in ACTIVE_RETURN_STATUSES:
-        st_returns = await return_request_repository.findAll({'status': st})
+        st_returns = await return_request_repository.findAll(status=st)
         all_active_returns.extend([r for r in st_returns if str(r.valet_id or '') in available_valet_ids])
-    return_count_by_valet: dict[str, int] = {}
-    for r in all_active_returns:
-        for key in ('valetId', 'pendingValetId'):
-            vid = str((r[key] if key in r else None) or '')
-            if vid:
-                return_count_by_valet[vid] = (return_count_by_valet[vid] if vid in return_count_by_valet else 0) + 1
     scored = []
     for v in available_valets:
         vid = str(v.id)
-        total_active_load = (order_count_by_valet[vid] if vid in order_count_by_valet else 0) + (return_count_by_valet[vid] if vid in return_count_by_valet else 0)
+        order_load = sum(1 for o in all_active_orders if str(o.assigned_valet or '') == vid)
+        return_load = sum(
+            (1 if str(r.valet_id or '') == vid else 0) + (1 if str(r.pending_valet_id or '') == vid else 0)
+            for r in all_active_returns
+        )
+        total_active_load = order_load + return_load
         max_concurrent = int(v.max_concurrent_orders or global_max)
         if total_active_load < max_concurrent:
             scored.append((total_active_load, v))
@@ -287,7 +274,7 @@ async def _cascade_or_revert_return(return_req):
         try:
             from app.services.push_notification_service import push_notification_service
             return_num = return_req.returnId or req_id
-            await push_notification_service.send_to_user(next_valet_id, {'title': 'New Return Pickup Request', 'message': f'You have a new return pickup request #{return_num}. Please respond within 20 minutes.', 'link': '/valet', 'data': {'returnId': req_id, 'type': 'valet_return_assignment', 'timeoutMinutes': 20}})
+            await push_notification_service.send_to_user(next_valet_id, PushNotificationPayload(title='New Return Pickup Request', message=f'You have a new return pickup request #{return_num}. Please respond within 20 minutes.', link='/valet', data=PushNotificationMetadata(returnId=req_id, type='valet_return_assignment', timeoutMinutes=20)))
         except Exception as e:
             logger.error('[ValetTimeout] Failed to notify next valet for return %s: %s', next_valet_id, e)
         logger.info('[ValetTimeout] Return %s cascaded to valet %s (cascade #%d)', req_id, next_valet_id, cascade_count)
@@ -298,7 +285,7 @@ async def _cascade_or_revert_return(return_req):
             super_admin = await user_repository.findOne({'role': 'super_admin'})
             return_num = return_req.returnId or req_id
             if super_admin:
-                await push_notification_service.send_to_user(str(super_admin.id), {'title': 'Return Valet Unavailable — Reassign Required', 'message': f'No valets accepted return pickup #{return_num}. Please reassign manually.', 'link': '/admin/returns-management', 'data': {'returnId': req_id, 'type': 'valet_return_all_declined'}})
+                await push_notification_service.send_to_user(str(super_admin.id), PushNotificationPayload(title='Return Valet Unavailable — Reassign Required', message=f'No valets accepted return pickup #{return_num}. Please reassign manually.', link='/admin/returns-management', data=PushNotificationMetadata(returnId=req_id, type='valet_return_all_declined')))
         except Exception as e:
             logger.error('[ValetTimeout] Failed to notify admin for return %s: %s', req_id, e)
         logger.info('[ValetTimeout] Return %s reverted to pending — no valets available', req_id)
@@ -333,7 +320,7 @@ async def run_valet_timeout_job():
                         await order_repository.update(str(order.id), OrderInternalUpdate(valetDeclineHistory=history, pendingValetId=None))
                         order = await order_repository.findById(str(order.id))
                     await _cascade_or_revert(order)
-        pending_returns = await return_request_repository.findAll({'status': 'pending_valet'})
+        pending_returns = await return_request_repository.findAll(status='pending_valet')
         if pending_returns:
             for ret in pending_returns:
                 assigned_at_str = ret.valetAssignedAt

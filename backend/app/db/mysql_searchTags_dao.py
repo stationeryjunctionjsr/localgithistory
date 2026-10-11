@@ -1,7 +1,6 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import SearchTagInternal
@@ -16,7 +15,6 @@ class MySQLSearchTagsDAO:
     
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
@@ -37,42 +35,31 @@ class MySQLSearchTagsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            child_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, child_rows)
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
+        id: Optional[Union[int, str]] = None,
+        external_id: Optional[str] = None,
         is_active: Optional[bool] = None,
         tag_id: Optional[str] = None,
         name: Optional[str] = None,
     ) -> Optional['SearchTagInternal']:
-        if query:
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active, tag_id=tag_id, name=name)
+        if id is not None:
+            return await self.findById(id)
+        if external_id is not None:
+            return await self.findById(external_id)
+        results = await self.findAll(is_active=is_active, tag_id=tag_id, name=name)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         tag_id: Optional[str] = None,
         name: Optional[str] = None,
         tag_type: Optional[str] = None,
     ) -> List['SearchTagInternal']:
-        if query:
-            if is_active is None and "is_active" in query:
-                is_active = query["is_active"]
-            if tag_id is None and "tag_id" in query:
-                tag_id = query["tag_id"]
-            if name is None and "name" in query:
-                name = query["name"]
-            if tag_type is None and "type" in query:
-                tag_type = query["type"]
-
         clauses = []
         params = {}
         if is_active is not None:
@@ -99,8 +86,8 @@ class MySQLSearchTagsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            child_rows = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, child_rows) for r in rows]
 
     async def create(self, data: 'SearchTagInternalCreate') -> 'SearchTagInternal':
         factory = self._factory()
@@ -127,7 +114,7 @@ class MySQLSearchTagsDAO:
             params["s_is_active"] = data.is_active
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['tag_id', 'name', 'type', 'is_active'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['tag_id', 'name', 'type', 'is_active'] if f"s_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -146,31 +133,31 @@ class MySQLSearchTagsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.tag_id is not None:
-            updates.append("tag_id = :s_tagId")
-            params["s_tag_id"] = data.tag_id
+        if update_data.tag_id is not None:
+            updates.append("tag_id = :s_tag_id")
+            params["s_tag_id"] = update_data.tag_id
 
-        if data.name is not None:
+        if update_data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = data.name
+            params["s_name"] = update_data.name
 
-        if data.type is not None:
+        if update_data.type is not None:
             updates.append("type = :s_type")
-            params["s_type"] = data.type
+            params["s_type"] = update_data.type
 
-        if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
-            params["s_is_active"] = data.is_active
+        if update_data.is_active is not None:
+            updates.append("is_active = :s_is_active")
+            params["s_is_active"] = update_data.is_active
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, int(id), update_data)
                 await session.commit()
         else:
             async with factory() as session:
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, int(id), update_data)
                 await session.commit()
                 
         return await self.findById(id)
@@ -204,8 +191,22 @@ class MySQLSearchTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> 'SearchTagInternal':
-        from app.models.daos_flat import SearchTagInternal
+    def _map_to_schema(self, r, child_rows=None) -> 'SearchTagInternal':
+        if child_rows:
+            rows_categories, rows_subcats, rows_brands, rows_collections, rows_products, rows_ex_products = child_rows
+            categories = [cr[1] for cr in rows_categories if cr.parent_id == r.id]
+            sub_categories = [cr[1] for cr in rows_subcats if cr.parent_id == r.id]
+            brands = [cr[1] for cr in rows_brands if cr.parent_id == r.id]
+            collections = [cr[1] for cr in rows_collections if cr.parent_id == r.id]
+            product_ids = [cr[1] for cr in rows_products if cr.parent_id == r.id]
+            excluded_product_ids = [cr[1] for cr in rows_ex_products if cr.parent_id == r.id]
+        else:
+            categories = []
+            sub_categories = []
+            brands = []
+            collections = []
+            product_ids = []
+            excluded_product_ids = []
         return SearchTagInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -213,78 +214,48 @@ class MySQLSearchTagsDAO:
             name=r.name,
             type=r.type,
             is_active=bool(r.is_active) if r.is_active is not None else None,
-            categories=children.get("categories", []),
-            sub_categories=children.get("subCategories", []),
-            brands=children.get("brands", []),
-            collections=children.get("collections", []),
-            product_ids=children.get("productIds", []),
-            excluded_product_ids=children.get("excludedProductIds", []),
+            categories=categories,
+            sub_categories=sub_categories,
+            brands=brands,
+            collections=collections,
+            product_ids=product_ids,
+            excluded_product_ids=excluded_product_ids,
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return ([], [], [], [], [], [])
             
         id_list = ",".join(map(str, ids))
 
         q_categories = text(f"SELECT parent_id, category FROM sj_search_tag_categories WHERE parent_id IN ({id_list})")
-        res_categories = await session.execute(q_categories)
-        rows_categories = res_categories.fetchall()
-
-        for r in rows_categories:
-            if "categories" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["categories"] = []
-            c_map[r.parent_id]["categories"].append(r[1])
+        rows_categories = (await session.execute(q_categories)).fetchall()
 
         q_subCategories = text(f"SELECT parent_id, sub_category FROM sj_search_tag_subcats WHERE parent_id IN ({id_list})")
-        res_subCategories = await session.execute(q_subCategories)
-        rows_subCategories = res_subCategories.fetchall()
-
-        for r in rows_subCategories:
-            if "subCategories" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["subCategories"] = []
-            c_map[r.parent_id]["subCategories"].append(r[1])
+        rows_subCategories = (await session.execute(q_subCategories)).fetchall()
 
         q_brands = text(f"SELECT parent_id, brand FROM sj_search_tag_brands WHERE parent_id IN ({id_list})")
-        res_brands = await session.execute(q_brands)
-        rows_brands = res_brands.fetchall()
-
-        for r in rows_brands:
-            if "brands" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["brands"] = []
-            c_map[r.parent_id]["brands"].append(r[1])
+        rows_brands = (await session.execute(q_brands)).fetchall()
 
         q_collections = text(f"SELECT parent_id, collection FROM sj_search_tag_collections WHERE parent_id IN ({id_list})")
-        res_collections = await session.execute(q_collections)
-        rows_collections = res_collections.fetchall()
-
-        for r in rows_collections:
-            if "collections" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["collections"] = []
-            c_map[r.parent_id]["collections"].append(r[1])
+        rows_collections = (await session.execute(q_collections)).fetchall()
 
         q_productIds = text(f"SELECT parent_id, product_id FROM sj_search_tag_products WHERE parent_id IN ({id_list})")
-        res_productIds = await session.execute(q_productIds)
-        rows_productIds = res_productIds.fetchall()
-
-        for r in rows_productIds:
-            if "productIds" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["productIds"] = []
-            c_map[r.parent_id]["productIds"].append(r[1])
+        rows_productIds = (await session.execute(q_productIds)).fetchall()
 
         q_excludedProductIds = text(f"SELECT parent_id, product_id FROM sj_search_tag_ex_products WHERE parent_id IN ({id_list})")
-        res_excludedProductIds = await session.execute(q_excludedProductIds)
-        rows_excludedProductIds = res_excludedProductIds.fetchall()
+        rows_excludedProductIds = (await session.execute(q_excludedProductIds)).fetchall()
 
-        for r in rows_excludedProductIds:
-            if "excludedProductIds" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["excludedProductIds"] = []
-            c_map[r.parent_id]["excludedProductIds"].append(r[1])
-
-        return c_map
+        return (
+            rows_categories,
+            rows_subCategories,
+            rows_brands,
+            rows_collections,
+            rows_productIds,
+            rows_excludedProductIds,
+        )
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 

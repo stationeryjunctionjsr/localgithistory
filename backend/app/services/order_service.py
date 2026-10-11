@@ -266,7 +266,7 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     products_task = get_storage("products").findAll(
         {"allowed_ids": list(product_ids)}) if product_ids else None
     payments_task = get_storage("payments").findAll(
-        {"allowed_order_ids": list(order_ids)}) if order_ids else None
+        allowed_order_ids=list(order_ids)) if order_ids else None
 
     # Execute DB queries concurrently (if any)
     users_list = await users_task if users_task else []
@@ -288,7 +288,7 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
         if p.id:
             products_map[str(p.id)] = p
 
-    payments_map: dict = {}
+    payments_map = {}
     for p in payments_list:
         # Payment.order_id is the declared Pydantic field (alias: orderId)
         oid = str(p.order_id) if p.order_id else None

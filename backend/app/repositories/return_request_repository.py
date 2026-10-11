@@ -69,9 +69,24 @@ class ReturnRequestRepository:
         next_id = max(1, max_id + 1)
         return f"{prefix}{next_id}"
 
-    async def findAll(self, query: Optional[dict] = None) -> List[ReturnRequestInternal]:
-        requests = await self.storage.findAll(query)
-        if not query:
+    async def findAll(
+        self,
+        status: Optional[str] = None,
+        user_id: Optional[str] = None,
+        order_id: Optional[str] = None,
+        valet_id: Optional[str] = None,
+        pending_valet_id: Optional[str] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[ReturnRequestInternal]:
+        requests = await self.storage.findAll(
+            status=status,
+            user_id=user_id,
+            order_id=order_id,
+            valet_id=valet_id,
+            pending_valet_id=pending_valet_id,
+            seller_id=seller_id,
+        )
+        if not any([status, user_id, order_id, valet_id, pending_valet_id, seller_id]):
             requests.sort(key=lambda x: x.created_at or "", reverse=True)
         return requests
 
@@ -79,7 +94,7 @@ class ReturnRequestRepository:
         return await self.storage.findById(id)
 
     async def findByOrderId(self, order_id: str) -> List[ReturnRequestInternal]:
-        return await self.findAll({"orderId": order_id})
+        return await self.findAll(order_id=order_id)
 
     async def create(self, data: ReturnRequestInternalCreate) -> ReturnRequestInternal:
         return_id = await self.generateReturnId()

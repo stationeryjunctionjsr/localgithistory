@@ -175,13 +175,12 @@ class MySQLPromoStripsDAO:
         zone_ids = None
         raw_zone = r.zone_ids
         if raw_zone:
-            if isinstance(raw_zone, str):
-                try:
-                    zone_ids = json.loads(raw_zone)
-                except Exception:
-                    zone_ids = []
-            elif isinstance(raw_zone, list):
+            try:
+                zone_ids = json.loads(raw_zone)
+            except TypeError:
                 zone_ids = raw_zone
+            except Exception:
+                zone_ids = []
 
         return PromoStripsInternal(
             id=str(r.id),

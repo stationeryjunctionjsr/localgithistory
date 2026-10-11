@@ -465,19 +465,19 @@ class TrackingRepository:
     async def getReturningUsers(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[ReturningUserItem]:
-        user_ids, last_seen_map = await self.storage.get_returning_user_ids(
+        seen_items = await self.storage.get_returning_user_ids(
             start_date=start_date, end_date=end_date
         )
-        if not user_ids:
+        if not seen_items:
             return []
         from app.repositories.user_repository import user_repository
-        users = await user_repository.findByIds(user_ids)
+        users = await user_repository.findByIds([item.user_id for item in seen_items])
         return [
             ReturningUserItem(
                 user_id=u.id,
                 name=u.name or "Unknown",
                 email=u.email or "Unknown",
-                last_seen=last_seen_map.get(u.id),
+                last_seen=next((item.last_seen for item in seen_items if item.user_id == u.id), None),
             )
             for u in users
         ]

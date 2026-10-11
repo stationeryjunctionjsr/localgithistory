@@ -1,11 +1,15 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import ReturnRequestInternal
-from app.models.daos_flat import ReturnRequestInternalCreate, ReturnRequestInternalUpdate
+from app.models.daos_flat import (
+    ReturnRequestInternal,
+    ReturnRequestInternalCreate,
+    ReturnRequestInternalUpdate,
+    ReturnRequestItemInternal,
+    ReturnRequestValetDeclineInternal,
+)
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -16,7 +20,6 @@ class MySQLReturnRequestsDAO:
     
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
@@ -37,50 +40,35 @@ class MySQLReturnRequestsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            child_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, child_rows)
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
+        id: Optional[Union[int, str]] = None,
+        external_id: Optional[str] = None,
         return_id: Optional[str] = None,
         order_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> Optional['ReturnRequestInternal']:
         if return_id:
             return await self.findById(return_id)
-        if query:
-            rid = query.get("returnId") or query.get("return_id")
-            if rid:
-                return await self.findById(rid)
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, order_id=order_id, user_id=user_id)
+        if id is not None:
+            return await self.findById(id)
+        if external_id is not None:
+            return await self.findById(external_id)
+        results = await self.findAll(order_id=order_id, user_id=user_id)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         status: Optional[str] = None,
         user_id: Optional[str] = None,
         order_id: Optional[str] = None,
         valet_id: Optional[str] = None,
+        pending_valet_id: Optional[str] = None,
         seller_id: Optional[str] = None,
     ) -> List['ReturnRequestInternal']:
-        if query:
-            if status is None and "status" in query:
-                status = query["status"]
-            if user_id is None:
-                user_id = query.get("userId") or query.get("user_id")
-            if order_id is None:
-                order_id = query.get("orderId") or query.get("order_id")
-            if valet_id is None:
-                valet_id = query.get("valetId") or query.get("valet_id")
-            if seller_id is None:
-                seller_id = query.get("sellerId") or query.get("seller_id")
-
         clauses = []
         params = {}
         if status is not None:
@@ -95,6 +83,9 @@ class MySQLReturnRequestsDAO:
         if valet_id is not None:
             clauses.append("valet_id = :vid")
             params["vid"] = str(valet_id)
+        if pending_valet_id is not None:
+            clauses.append("pending_valet_id = :pvid")
+            params["pvid"] = str(pending_valet_id)
         if seller_id is not None:
             clauses.append("seller_id = :sid")
             params["sid"] = str(seller_id)
@@ -110,8 +101,8 @@ class MySQLReturnRequestsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            child_rows = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, child_rows) for r in rows]
 
     async def create(self, data: 'ReturnRequestInternalCreate') -> 'ReturnRequestInternal':
         factory = self._factory()
@@ -123,23 +114,23 @@ class MySQLReturnRequestsDAO:
 
         if data.return_id is not None:
             cols.append("return_id")
-            params["s_returnId"] = data.return_id
+            params["s_return_id"] = data.return_id
 
         if data.order_id is not None:
             cols.append("order_id")
-            params["s_orderId"] = data.order_id
+            params["s_order_id"] = data.order_id
 
         if data.user_id is not None:
             cols.append("user_id")
-            params["s_userId"] = data.user_id
+            params["s_user_id"] = data.user_id
 
         if data.payment_method is not None:
             cols.append("payment_method")
-            params["s_paymentMethod"] = data.payment_method
+            params["s_payment_method"] = data.payment_method
 
         if data.upi_payment_screenshot is not None:
             cols.append("upi_payment_screenshot")
-            params["s_upiPaymentScreenshot"] = data.upi_payment_screenshot
+            params["s_upi_payment_screenshot"] = data.upi_payment_screenshot
 
         if data.notes is not None:
             cols.append("notes")
@@ -151,42 +142,42 @@ class MySQLReturnRequestsDAO:
 
         if data.valet_id is not None:
             cols.append("valet_id")
-            params["s_valetId"] = data.valet_id
+            params["s_valet_id"] = data.valet_id
 
         if data.seller_id is not None:
             cols.append("seller_id")
-            params["s_sellerId"] = data.seller_id
+            params["s_seller_id"] = data.seller_id
 
         if data.delivery_slot_id is not None:
             cols.append("delivery_slot_id")
-            params["s_deliverySlotId"] = data.delivery_slot_id
+            params["s_delivery_slot_id"] = data.delivery_slot_id
 
         if data.delivery_slot_config_id is not None:
             cols.append("delivery_slot_config_id")
-            params["s_deliverySlotConfigId"] = data.delivery_slot_config_id
+            params["s_delivery_slot_config_id"] = data.delivery_slot_config_id
 
         if data.delivery_slot_date is not None:
             cols.append("delivery_slot_date")
-            params["s_deliverySlotDate"] = data.delivery_slot_date
+            params["s_delivery_slot_date"] = data.delivery_slot_date
 
         if data.pending_valet_id is not None:
             cols.append("pending_valet_id")
-            params["s_pendingValetId"] = data.pending_valet_id
+            params["s_pending_valet_id"] = data.pending_valet_id
 
         if data.valet_assigned_at is not None:
             cols.append("valet_assigned_at")
-            params["s_valetAssignedAt"] = data.valet_assigned_at
+            params["s_valet_assigned_at"] = data.valet_assigned_at
 
         if data.valet_cascade_count is not None:
             cols.append("valet_cascade_count")
-            params["s_valetCascadeCount"] = data.valet_cascade_count
+            params["s_valet_cascade_count"] = data.valet_cascade_count
 
         if data.delivery_charge is not None:
             cols.append("delivery_charge")
-            params["s_deliveryCharge"] = data.delivery_charge
+            params["s_delivery_charge"] = data.delivery_charge
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['return_id', 'order_id', 'user_id', 'payment_method', 'upi_payment_screenshot', 'notes', 'status', 'valet_id', 'seller_id', 'delivery_slot_id', 'delivery_slot_config_id', 'delivery_slot_date', 'pending_valet_id', 'valet_assigned_at', 'valet_cascade_count', 'delivery_charge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['return_id', 'order_id', 'user_id', 'payment_method', 'upi_payment_screenshot', 'notes', 'status', 'valet_id', 'seller_id', 'delivery_slot_id', 'delivery_slot_config_id', 'delivery_slot_date', 'pending_valet_id', 'valet_assigned_at', 'valet_cascade_count', 'delivery_charge'] if f"s_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -257,8 +248,22 @@ class MySQLReturnRequestsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> 'ReturnRequestInternal':
-        from app.models.daos_flat import ReturnRequestInternal
+    def _map_to_schema(self, r, child_rows=None) -> 'ReturnRequestInternal':
+        if child_rows:
+            rows_items, rows_declines = child_rows
+            items = [
+                ReturnRequestItemInternal(product_id=ir[1], quantity=ir[2], reason=ir[3])
+                for ir in rows_items
+                if ir.parent_id == r.id
+            ]
+            valet_decline_history = [
+                ReturnRequestValetDeclineInternal(valet_id=dr[1], reason=dr[2])
+                for dr in rows_declines
+                if dr.parent_id == r.id
+            ]
+        else:
+            items = []
+            valet_decline_history = []
         return ReturnRequestInternal(
             id=str(r.id),
             return_id=r.return_id,
@@ -277,50 +282,28 @@ class MySQLReturnRequestsDAO:
             valet_assigned_at=r.valet_assigned_at,
             valet_cascade_count=int(r.valet_cascade_count) if r.valet_cascade_count is not None else None,
             delivery_charge=float(r.delivery_charge) if r.delivery_charge is not None else None,
-            items=children.get("items", []),
-            valet_decline_history=children.get("valetDeclineHistory", []),
+            items=items,
+            valet_decline_history=valet_decline_history,
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return ([], [])
             
         id_list = ",".join(map(str, ids))
 
         q_items = text(f"SELECT parent_id, product_id, quantity, reason FROM sj_return_request_items WHERE parent_id IN ({id_list})")
-        res_items = await session.execute(q_items)
-        rows_items = res_items.fetchall()
-
-        for r in rows_items:
-            if "items" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["items"] = []
-            obj = {}
-
-            obj["product_id"] = r[1]
-            obj["quantity"] = r[2]
-            obj["reason"] = r[3]
-            c_map[r.parent_id]["items"].append(obj)
+        rows_items = (await session.execute(q_items)).fetchall()
 
         q_valetDeclineHistory = text(f"SELECT parent_id, valet_id, reason FROM sj_return_valet_declines WHERE parent_id IN ({id_list})")
-        res_valetDeclineHistory = await session.execute(q_valetDeclineHistory)
-        rows_valetDeclineHistory = res_valetDeclineHistory.fetchall()
+        rows_valetDeclineHistory = (await session.execute(q_valetDeclineHistory)).fetchall()
 
-        for r in rows_valetDeclineHistory:
-            if "valetDeclineHistory" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["valetDeclineHistory"] = []
-            obj = {}
-
-            obj["valet_id"] = r[1]
-            obj["reason"] = r[2]
-            c_map[r.parent_id]["valetDeclineHistory"].append(obj)
-
-        return c_map
+        return (rows_items, rows_valetDeclineHistory)
 
     async def _replace_children(self, session, row_id: int, data: Union[ReturnRequestInternalCreate, ReturnRequestInternalUpdate]):
-        if isinstance(data, ReturnRequestInternalCreate) and data.items is not None:
+        if data.items is not None:
             await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
             for item in data.items:
                 p = {

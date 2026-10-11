@@ -14,13 +14,22 @@ class PaymentRepository:
     def __init__(self):
         self.storage = get_storage("payments")
 
-    async def findAll(self, query: Optional[dict] = None):
-        payments = await self.storage.findAll(query)
-
-        query = query or {}
+    async def findAll(
+        self,
+        order_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        allowed_order_ids: Optional[list[str]] = None,
+    ):
+        payments = await self.storage.findAll(
+            order_id=order_id,
+            user_id=user_id,
+            allowed_order_ids=allowed_order_ids,
+        )
 
         # Date filtering (since CLOB/Date filters are handled post-query)
-        if query["startDate"] if "startDate" in query else None or query["endDate"] if "endDate" in query else None:
+        if start_date or end_date:
             from datetime import datetime, timezone
 
             filtered_payments = []
@@ -38,15 +47,15 @@ class PaymentRepository:
                     )
                     continue
 
-                if query["startDate"] if "startDate" in query else None:
-                    start_date = datetime.fromisoformat(query["startDate"])
-                    if payment_date < start_date:
+                if start_date:
+                    start_dt = datetime.fromisoformat(start_date)
+                    if payment_date < start_dt:
                         continue
 
-                if query["endDate"] if "endDate" in query else None:
-                    end_date = datetime.fromisoformat(query["endDate"])
-                    end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
-                    if payment_date > end_date:
+                if end_date:
+                    end_dt = datetime.fromisoformat(end_date)
+                    end_dt = end_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    if payment_date > end_dt:
                         continue
 
                 filtered_payments.append(payment)
@@ -60,11 +69,11 @@ class PaymentRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def findOne(self, query: dict):
-        return await self.storage.findOne(query)
+    async def findOne(self, order_id: Optional[str] = None, user_id: Optional[str] = None):
+        return await self.storage.findOne(order_id=order_id, user_id=user_id)
 
     async def findByOrderId(self, order_id: str):
-        return await self.storage.findAll({"order_id": order_id})
+        return await self.storage.findAll(order_id=order_id)
 
     async def create(self, payment_data: 'PaymentInternalCreate'):
         # Generate incremental payment ID in PYMT-X format

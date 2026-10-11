@@ -24,7 +24,7 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
     These are essentially coupons where applicableRoles includes 'wholesaler'.
     Returns them sorted by creation date descending.
     """
-    coupons = await coupon_repository.findAll({"isActive": True})
+    coupons = await coupon_repository.findAll(is_active=True)
 
     # Filter for wholesaler and expiration
     from datetime import datetime, timezone
@@ -68,7 +68,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    coupons = await coupon_repository.findAll({"isActive": True})
+    coupons = await coupon_repository.findAll(is_active=True)
     
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
@@ -121,7 +121,7 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Dep
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found")
 
-    coupons = await coupon_repository.findAll({"isActive": True})
+    coupons = await coupon_repository.findAll(is_active=True)
     
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)

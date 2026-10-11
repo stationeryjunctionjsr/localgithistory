@@ -1,11 +1,9 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import CollectionInternal
-from app.models.daos_flat import CollectionInternalCreate, CollectionInternalUpdate
+from app.models.daos_flat import CollectionInternal, CollectionInternalCreate, CollectionInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -37,35 +35,22 @@ class MySQLCollectionsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids)
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> Optional['CollectionInternal']:
-        if query:
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active, name=name)
+        results = await self.findAll(is_active=is_active, name=name)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> List['CollectionInternal']:
-        if query:
-            if is_active is None and "is_active" in query:
-                is_active = query["is_active"]
-            if name is None and "name" in query:
-                name = query["name"]
-
         clauses = []
         params = {}
         if is_active is not None:
@@ -86,10 +71,10 @@ class MySQLCollectionsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids) for r in rows]
 
-    async def create(self, data: 'CollectionsInternalCreate') -> 'CollectionInternal':
+    async def create(self, data: 'CollectionInternalCreate') -> 'CollectionInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -132,40 +117,40 @@ class MySQLCollectionsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'CollectionsInternalUpdate') -> 'CollectionInternal':
+    async def update(self, id: str, update_data: 'CollectionInternalUpdate') -> 'CollectionInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.name is not None:
+        if update_data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = data.name
+            params["s_name"] = update_data.name
 
-        if data.description is not None:
+        if update_data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = data.description
+            params["s_description"] = update_data.description
 
-        if data.image_url is not None:
-            updates.append("image_url = :s_imageUrl")
-            params["s_image_url"] = data.image_url
+        if update_data.image_url is not None:
+            updates.append("image_url = :s_image_url")
+            params["s_image_url"] = update_data.image_url
 
-        if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
-            params["s_is_active"] = data.is_active
+        if update_data.is_active is not None:
+            updates.append("is_active = :s_is_active")
+            params["s_is_active"] = update_data.is_active
 
-        if data.display_order is not None:
-            updates.append("display_order = :s_displayOrder")
-            params["s_display_order"] = data.display_order
+        if update_data.display_order is not None:
+            updates.append("display_order = :s_display_order")
+            params["s_display_order"] = update_data.display_order
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, int(id), update_data)
                 await session.commit()
         else:
             async with factory() as session:
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, int(id), update_data)
                 await session.commit()
                 
         return await self.findById(id)
@@ -197,8 +182,8 @@ class MySQLCollectionsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> 'CollectionInternal':
-        from app.models.daos_flat import CollectionInternal
+    def _map_to_schema(self, r, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids) -> 'CollectionInternal':
+        row_id = int(r.id)
         return CollectionInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -207,18 +192,17 @@ class MySQLCollectionsDAO:
             image_url=r.image_url,
             is_active=bool(r.is_active) if r.is_active is not None else None,
             display_order=r.display_order,
-            visible_pages=children.get("visible_pages", []),
-            user_segments=children.get("user_segments", []),
-            visibility_rules=children.get("visibility_rules", []),
-            product_ids=children.get("product_ids", []),
+            visible_pages=[rp[1] for rp in rows_visible_pages if int(rp.parent_id) == row_id],
+            user_segments=[rs[1] for rs in rows_user_segments if int(rs.parent_id) == row_id],
+            visibility_rules=[rr[1] for rr in rows_visibility_rules if int(rr.parent_id) == row_id],
+            product_ids=[rpr[1] for rpr in rows_product_ids if int(rpr.parent_id) == row_id],
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return [], [], [], []
             
         id_list = ",".join(map(str, ids))
 
@@ -226,39 +210,19 @@ class MySQLCollectionsDAO:
         res_visible_pages = await session.execute(q_visible_pages)
         rows_visible_pages = res_visible_pages.fetchall()
 
-        for r in rows_visible_pages:
-            if "visible_pages" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["visible_pages"] = []
-            c_map[r.parent_id]["visible_pages"].append(r[1])
-
         q_user_segments = text(f"SELECT parent_id, segment FROM sj_collection_segments WHERE parent_id IN ({id_list})")
         res_user_segments = await session.execute(q_user_segments)
         rows_user_segments = res_user_segments.fetchall()
-
-        for r in rows_user_segments:
-            if "user_segments" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["user_segments"] = []
-            c_map[r.parent_id]["user_segments"].append(r[1])
 
         q_visibility_rules = text(f"SELECT parent_id, rule FROM sj_collection_rules WHERE parent_id IN ({id_list})")
         res_visibility_rules = await session.execute(q_visibility_rules)
         rows_visibility_rules = res_visibility_rules.fetchall()
 
-        for r in rows_visibility_rules:
-            if "visibility_rules" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["visibility_rules"] = []
-            c_map[r.parent_id]["visibility_rules"].append(r[1])
-
         q_product_ids = text(f"SELECT parent_id, product_id FROM sj_collection_products WHERE parent_id IN ({id_list})")
         res_product_ids = await session.execute(q_product_ids)
         rows_product_ids = res_product_ids.fetchall()
 
-        for r in rows_product_ids:
-            if "product_ids" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["product_ids"] = []
-            c_map[r.parent_id]["product_ids"].append(r[1])
-
-        return c_map
+        return rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
@@ -284,8 +248,7 @@ class MySQLCollectionsDAO:
 
             if child_list:
                 for item in child_list:
-                    val = item.model_dump_json() if type(item) is not str else item
-                    await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": val})
+                    await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
         if data.product_ids is not None:
             await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})

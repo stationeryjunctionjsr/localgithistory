@@ -71,13 +71,13 @@ async def list_seller_payouts(
     seller_id: Optional[str] = Query(None),
     current_user: User = Depends(require_super_admin_or_seller)):
     storage = _payout_storage()
-    query: dict = {}
+    filter_seller_id: Optional[str] = None
     if is_seller_admin(current_user):
-        query["sellerId"] = str(current_user.id)
+        filter_seller_id = str(current_user.id)
     elif seller_id:
-        query["sellerId"] = seller_id
+        filter_seller_id = seller_id
 
-    records = await storage.findAll(query)
+    records = await storage.findAll(seller_id=filter_seller_id)
     for r in records:
         await _enrich_with_seller(r)
     return records

@@ -18,19 +18,15 @@ router = APIRouter()
 
 
 def _format_collection_response(collection):
-    import json
     from app.models.schemas import VisibilityRuleSnippet, CollectionResponse
     
     parsed_rules = []
     if collection.visibility_rules:
         for r_str in collection.visibility_rules:
-            if isinstance(r_str, str):
-                try:
-                    parsed_rules.append(VisibilityRuleSnippet.model_validate_json(r_str))
-                except Exception:
-                    logger.warning("Collection %r has a visibility rule that could not be parsed as JSON: %r; skipping rule.", getattr(collection, 'id', '?'), r_str, exc_info=True)
-            else:
-                parsed_rules.append(VisibilityRuleSnippet.model_validate(r_str, from_attributes=True))
+            try:
+                parsed_rules.append(VisibilityRuleSnippet.model_validate_json(r_str))
+            except Exception:
+                logger.warning("Collection %r has a visibility rule that could not be parsed as JSON: %r; skipping rule.", collection.id, r_str, exc_info=True)
                 
     response = CollectionResponse.model_validate(collection, from_attributes=True)
     response.visibility_rules = parsed_rules
@@ -45,8 +41,13 @@ async def get_public_collections(
     userRole: Optional[str] = "guest",
 ):
     """Active collections for landing page/consumer view."""
-    query = {"isActive": True, "visiblePage": visiblePage, "pageType": pageType, "pageId": pageId, "userRole": userRole}
-    collections = await collection_repository.findAll(query)
+    collections = await collection_repository.findAll(
+        is_active=True,
+        visible_page=visiblePage,
+        page_type=pageType,
+        page_id=pageId,
+        user_role=userRole,
+    )
     return [_format_collection_response(c) for c in collections]
 
 
@@ -122,7 +123,7 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
         product_ids=data.product_ids
     )
     if data.visibility_rules:
-        internal_data.visibility_rules = data.visibility_rules
+        internal_data.visibility_rules = [r.model_dump_json() for r in data.visibility_rules]
         
     collection = await collection_repository.create(internal_data)
     _invalidate_collection_caches()
@@ -143,7 +144,7 @@ async def update_collection(
     if 'user_segments' in data.model_fields_set: internal_update.user_segments = data.user_segments
     if 'product_ids' in data.model_fields_set: internal_update.product_ids = data.product_ids
     if data.visibility_rules is not None:
-        internal_update.visibility_rules = data.visibility_rules
+        internal_update.visibility_rules = [r.model_dump_json() for r in data.visibility_rules]
 
     collection = await collection_repository.update(collection_id, internal_update)
     if not collection:

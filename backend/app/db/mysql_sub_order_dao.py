@@ -326,10 +326,10 @@ class MySQLSubOrderDAO:
     def _parse_dt(self, dt_val):
         if not dt_val:
             return None
-        if isinstance(dt_val, datetime):
-            return dt_val
         try:
             return datetime.fromisoformat(dt_val.replace('Z', '+00:00'))
+        except AttributeError:
+            return dt_val
         except (ValueError, TypeError):
             return None
 

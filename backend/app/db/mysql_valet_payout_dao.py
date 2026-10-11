@@ -1,5 +1,6 @@
+from datetime import datetime
 import secrets
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from app.models.schemas import ValetPayoutDetailResponse
 from app.models.daos import ValetPayoutInternalCreate, ValetPayoutInternalUpdate
 
@@ -17,16 +18,19 @@ class MySQLValetPayoutDAO:
     def _map_row(self, row) -> ValetPayoutDetailResponse:
         return ValetPayoutDetailResponse.model_validate(row)
 
-    async def findAll(self, query: Dict = None) -> List[ValetPayoutDetailResponse]:
-        query = query or {}
+    async def findAll(
+        self,
+        valet_id: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[ValetPayoutDetailResponse]:
         where_clauses = []
         params = {}
-        if "valet_id" in query:
+        if valet_id is not None:
             where_clauses.append("valet_id = :valet_id")
-            params["valet_id"] = query["valet_id"]
-        if "status" in query:
+            params["valet_id"] = valet_id
+        if status is not None:
             where_clauses.append("status = :status")
-            params["status"] = query["status"]
+            params["status"] = status
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -40,13 +44,16 @@ class MySQLValetPayoutDAO:
         
         return [self._map_row(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Dict:
-        if "_id" in query:
-            return await self.findById(query["_id"])
-        if "id" in query:
-            return await self.findById(query["id"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+    async def findOne(
+        self,
+        id: Optional[str] = None,
+        valet_id: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> Optional[ValetPayoutDetailResponse]:
+        if id is not None:
+            return await self.findById(id)
+        records = await self.findAll(valet_id=valet_id, status=status)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[ValetPayoutDetailResponse]:
         factory = self._factory()
@@ -106,19 +113,19 @@ class MySQLValetPayoutDAO:
             params["payment_method"] = data.payment_method
         if data.payment_reference is not None:
             cols.append("payment_reference")
-            vals.append(":paymentReference")
+            vals.append(":payment_reference")
             params["payment_reference"] = data.payment_reference
         if data.admin_paid_at is not None:
             cols.append("admin_paid_at")
-            vals.append(":adminPaidAt")
+            vals.append(":admin_paid_at")
             params["admin_paid_at"] = _parse_dt(data.admin_paid_at)
         if data.admin_paid_by is not None:
             cols.append("admin_paid_by")
-            vals.append(":adminPaidBy")
+            vals.append(":admin_paid_by")
             params["admin_paid_by"] = data.admin_paid_by
         if data.valet_received_at is not None:
             cols.append("valet_received_at")
-            vals.append(":valetReceivedAt")
+            vals.append(":valet_received_at")
             params["valet_received_at"] = _parse_dt(data.valet_received_at)
         if data.notes is not None:
             cols.append("notes")
@@ -157,19 +164,19 @@ class MySQLValetPayoutDAO:
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("valet_id", "valet_id", data.valet_id, existing.valet_id)
-        _handle_field("amount", "amount", data.amount, existing.amount)
-        _handle_field("delivery_count", "delivery_count", data.delivery_count, existing.delivery_count)
-        _handle_field("return_count", "return_count", data.return_count, existing.return_count)
-        _handle_field("period_start", "period_start", data.period_start, existing.period_start, True)
-        _handle_field("period_end", "period_end", data.period_end, existing.period_end, True)
-        _handle_field("status", "status", data.status, existing.status)
-        _handle_field("payment_method", "payment_method", data.payment_method, existing.payment_method)
-        _handle_field("payment_reference", "payment_reference", data.payment_reference, existing.payment_reference)
-        _handle_field("admin_paid_at", "admin_paid_at", data.admin_paid_at, existing.admin_paid_at, True)
-        _handle_field("admin_paid_by", "admin_paid_by", data.admin_paid_by, existing.admin_paid_by)
-        _handle_field("valet_received_at", "valet_received_at", data.valet_received_at, existing.valet_received_at, True)
-        _handle_field("notes", "notes", data.notes, existing.notes)
+        _handle_field("valet_id", "valet_id", update_data.valet_id, existing.valet_id)
+        _handle_field("amount", "amount", update_data.amount, existing.amount)
+        _handle_field("delivery_count", "delivery_count", update_data.delivery_count, existing.delivery_count)
+        _handle_field("return_count", "return_count", update_data.return_count, existing.return_count)
+        _handle_field("period_start", "period_start", update_data.period_start, existing.period_start, True)
+        _handle_field("period_end", "period_end", update_data.period_end, existing.period_end, True)
+        _handle_field("status", "status", update_data.status, existing.status)
+        _handle_field("payment_method", "payment_method", update_data.payment_method, existing.payment_method)
+        _handle_field("payment_reference", "payment_reference", update_data.payment_reference, existing.payment_reference)
+        _handle_field("admin_paid_at", "admin_paid_at", update_data.admin_paid_at, existing.admin_paid_at, True)
+        _handle_field("admin_paid_by", "admin_paid_by", update_data.admin_paid_by, existing.admin_paid_by)
+        _handle_field("valet_received_at", "valet_received_at", update_data.valet_received_at, existing.valet_received_at, True)
+        _handle_field("notes", "notes", update_data.notes, existing.notes)
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -191,13 +198,14 @@ class MySQLValetPayoutDAO:
             )
             await session.commit()
             return res.rowcount > 0
-def _parse_dt(dt_val):
-    if isinstance(dt_val, str):
+
+
+def _parse_dt(dt_val: Optional[str]):
+    if dt_val:
         if dt_val.endswith("Z"):
             dt_val = dt_val[:-1] + "+00:00"
         dt_val = dt_val.replace("+00:00+00:00", "+00:00")
         try:
-            from datetime import datetime
             dt = datetime.fromisoformat(dt_val)
             if dt.tzinfo is not None:
                 dt = dt.replace(tzinfo=None)
@@ -205,6 +213,3 @@ def _parse_dt(dt_val):
         except ValueError:
             pass
     return dt_val
-
-
-

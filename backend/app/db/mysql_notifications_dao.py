@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Union, Any
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -39,8 +39,8 @@ class MySQLNotificationsDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id)))
+            data_rows = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, data_rows)
 
     async def findOne(
         self,
@@ -86,8 +86,8 @@ class MySQLNotificationsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id))) for r in rows]
+            data_rows = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, data_rows) for r in rows]
 
     async def create(self, data: NotificationInternalCreate) -> NotificationInternal:
         factory = self._factory()
@@ -180,13 +180,46 @@ class MySQLNotificationsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, metadata: Optional[Dict[str, Any]] = None) -> NotificationInternal:
+    def _map_to_schema(self, r, data_rows=None) -> NotificationInternal:
+        matched = [dr for dr in (data_rows or []) if dr.parent_id == r.id]
         meta_obj = None
-        if metadata:
-            try:
-                meta_obj = NotificationMetadata.model_validate(metadata)
-            except Exception:
-                meta_obj = None
+        if matched:
+            meta_obj = NotificationMetadata()
+            for dr in matched:
+                k = dr.data_key
+                v = dr.data_value
+                if k in ("order_id", "orderId"):
+                    meta_obj.order_id = v
+                elif k in ("order_number", "orderNumber"):
+                    meta_obj.order_number = v
+                elif k in ("product_id", "productId"):
+                    meta_obj.product_id = v
+                elif k == "url":
+                    meta_obj.url = v
+                elif k == "type":
+                    meta_obj.type = v
+                elif k == "status":
+                    meta_obj.status = v
+                elif k == "amount":
+                    meta_obj.amount = float(v) if v is not None else None
+                elif k in ("user_id", "userId"):
+                    meta_obj.user_id = v
+                elif k in ("created_at", "createdAt"):
+                    meta_obj.created_at = v
+                elif k in ("payment_id", "paymentId"):
+                    meta_obj.payment_id = v
+                elif k in ("payment_id_formatted", "paymentIdFormatted"):
+                    meta_obj.payment_id_formatted = v
+                elif k in ("payment_method", "paymentMethod"):
+                    meta_obj.payment_method = v
+                elif k in ("sub_order_id", "subOrderId"):
+                    meta_obj.sub_order_id = v
+                elif k in ("sub_order_number", "subOrderNumber"):
+                    meta_obj.sub_order_number = v
+                elif k in ("parent_order_id", "parentOrderId"):
+                    meta_obj.parent_order_id = v
+                elif k in ("courier_partner", "courierPartner"):
+                    meta_obj.courier_partner = v
         return NotificationInternal(
             _id=str(r.id),
             user_id=str(r.user_id),
@@ -200,26 +233,38 @@ class MySQLNotificationsDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict[str, Any]]:
-        c_map: Dict[int, Dict[str, Any]] = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return []
             
         id_list = ",".join(str(int(i)) for i in ids)
         q_data = text(f"SELECT parent_id, data_key, data_value FROM sj_notification_data WHERE parent_id IN ({id_list})")
         res_data = await session.execute(q_data)
-        rows_data = res_data.fetchall()
-
-        for r in rows_data:
-            c_map[r.parent_id][r.data_key] = r.data_value
-
-        return c_map
+        return res_data.fetchall()
 
     async def _replace_children(self, session, row_id: int, data: NotificationInternalCreate):
         if data.metadata is not None:
             await session.execute(text("DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": row_id})
-            meta_dict = data.metadata.model_dump()
-            for k, v in meta_dict.items():
+            m = data.metadata
+            pairs = [
+                ("order_id", m.order_id),
+                ("order_number", m.order_number),
+                ("product_id", m.product_id),
+                ("url", m.url),
+                ("type", m.type),
+                ("status", m.status),
+                ("amount", m.amount),
+                ("user_id", m.user_id),
+                ("created_at", m.created_at),
+                ("payment_id", m.payment_id),
+                ("payment_id_formatted", m.payment_id_formatted),
+                ("payment_method", m.payment_method),
+                ("sub_order_id", m.sub_order_id),
+                ("sub_order_number", m.sub_order_number),
+                ("parent_order_id", m.parent_order_id),
+                ("courier_partner", m.courier_partner),
+            ]
+            for k, v in pairs:
                 if v is not None:
                     await session.execute(
                         text("INSERT INTO sj_notification_data (parent_id, data_key, data_value) VALUES (:id, :k, :v)"),

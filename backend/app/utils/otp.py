@@ -202,24 +202,24 @@ async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, 'JsonPa
     existing = await otp_dao.find_active_otp(user_key, device_key)
 
     if existing:
-        last_sent = (existing["last_sent_at"] if "last_sent_at" in existing else 0)
+        last_sent = existing.last_sent_at or 0
         now = time.time()
         since_last = now - last_sent
         if since_last < RESEND_COOLDOWN_SECONDS:
             resend_in = int(max(1, RESEND_COOLDOWN_SECONDS - since_last))
             return True, {"resend_available_in_seconds": resend_in, "sent": False}
 
-        await otp_dao.update_last_sent(existing["id"])
+        await otp_dao.update_last_sent(existing.id)
         await otp_dao.record_send(user_key)
 
-        otp_code = existing["otp"]
+        otp_code = existing.otp
         sent_ok = send_otp_via_sms(user_key, otp_code)
         if not sent_ok:
             return False, {"message": "Failed to send SMS. Please check provider configuration."}
 
         return True, {
             "otp": otp_code,
-            "expires_at": existing["expires_at"],
+            "expires_at": existing.expires_at,
             "resend_available_in_seconds": 0,
             "sent": True,
         }
@@ -234,7 +234,7 @@ async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, 'JsonPa
 
     return True, {
         "otp": otp_code,
-        "expires_at": record["expires_at"],
+        "expires_at": record.expires_at,
         "resend_available_in_seconds": 0,
         "sent": True,
     }
@@ -249,15 +249,15 @@ async def _db_verify_otp(
     if not stored:
         return {"valid": False, "message": "OTP not found or expired"}
 
-    await otp_dao.increment_attempts(stored["id"])
+    await otp_dao.increment_attempts(stored.id)
 
-    if stored["verify_attempts"] + 1 >= 5:
-        await otp_dao.delete_otp(stored["id"])
+    if stored.verify_attempts + 1 >= 5:
+        await otp_dao.delete_otp(stored.id)
         return {"valid": False, "message": "Too many attempts. Please request a new OTP"}
 
-    if str(stored["otp"]) == str(provided_otp):
+    if str(stored.otp) == str(provided_otp):
         if delete_on_success:
-            await otp_dao.delete_otp(stored["id"])
+            await otp_dao.delete_otp(stored.id)
         return {"valid": True, "message": "OTP verified"}
 
     provider = os.getenv("SMS_PROVIDER", "msg91")
@@ -266,7 +266,7 @@ async def _db_verify_otp(
         ok, res_data = verify_otp_via_msg91_headless(user_key, provided_otp)
         if ok:
             if delete_on_success:
-                await otp_dao.delete_otp(stored["id"])
+                await otp_dao.delete_otp(stored.id)
             return {"valid": True, "message": "OTP verified"}
         else:
             return {"valid": False, "message": (res_data["message"] if "message" in res_data else None) or "Invalid OTP"}

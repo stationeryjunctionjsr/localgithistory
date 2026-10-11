@@ -17,11 +17,7 @@ router = APIRouter()
 @router.get("", response_model=List[CouponResponse])
 @router.get("/", response_model=List[CouponResponse])
 async def get_coupons(isActive: Optional[bool] = None, current_user: User = Depends(require_super_admin)):
-    query = {}
-    if isActive is not None:
-        query["isActive"] = isActive
-
-    coupons = await coupon_repository.findAll(query)
+    coupons = await coupon_repository.findAll(is_active=isActive)
     return coupons
 
 

@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timezone
-from typing import Dict, Optional, Any, List
+from typing import Optional, List
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import SupportTicketInternalCreate, SupportTicketInternalUpdate
@@ -14,19 +14,22 @@ class SupportTicketRepository:
     def generateTicketNumber(self) -> str:
         return f"TKT-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[SupportTicketInternal]:
-        tickets = await self.storage.findAll()
+    async def findAll(
+        self,
+        user_id: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+    ) -> List[SupportTicketInternal]:
+        tickets = await self.storage.findAll(status=status, user_id=user_id, priority=priority)
 
-        query = query or {}
+        if user_id:
+            tickets = [t for t in tickets if t.user == user_id]
 
-        if "user" in query and query["user"]:
-            tickets = [t for t in tickets if t.user == query["user"]]
+        if status:
+            tickets = [t for t in tickets if t.status == status]
 
-        if "status" in query and query["status"]:
-            tickets = [t for t in tickets if t.status == query["status"]]
-
-        if "priority" in query and query["priority"]:
-            tickets = [t for t in tickets if t.priority == query["priority"]]
+        if priority:
+            tickets = [t for t in tickets if t.priority == priority]
 
         # Sort by creation date (newest first)
         tickets.sort(key=lambda x: x.created_at, reverse=True)

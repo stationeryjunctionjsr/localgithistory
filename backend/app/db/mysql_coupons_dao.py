@@ -1,29 +1,25 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import CouponInternal
-from app.models.daos_flat import CouponInternalCreate, CouponInternalUpdate
+from app.models.daos_flat import CouponInternal, CouponInternalCreate, CouponInternalUpdate, CouponQuantityTierInternal
 
 def now_utc():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def _parse_dt(dt_val):
-    if isinstance(dt_val, str):
+    try:
         if dt_val.endswith("Z"):
             dt_val = dt_val[:-1] + "+00:00"
         dt_val = dt_val.replace("+00:00+00:00", "+00:00")
-        try:
-            from datetime import datetime
-            dt = datetime.fromisoformat(dt_val)
-            if dt.tzinfo is not None:
-                dt = dt.replace(tzinfo=None)
-            return dt
-        except ValueError:
-            pass
-    return dt_val
+        dt = datetime.fromisoformat(dt_val)
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
+    except (AttributeError, ValueError):
+        return dt_val
 
 class MySQLCouponsDAO:
     def __init__(self):
@@ -52,8 +48,23 @@ class MySQLCouponsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            (
+                rows_quantity_tiers,
+                rows_applicable_roles,
+                rows_applicable_user_ids,
+                rows_applicable_categories,
+                rows_applies_to_value_ids,
+                rows_excluded_product_ids,
+            ) = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(
+                row,
+                rows_quantity_tiers,
+                rows_applicable_roles,
+                rows_applicable_user_ids,
+                rows_applicable_categories,
+                rows_applies_to_value_ids,
+                rows_excluded_product_ids,
+            )
 
     async def findByCode(self, code: str) -> Optional['CouponInternal']:
         factory = self._factory()
@@ -65,42 +76,41 @@ class MySQLCouponsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            (
+                rows_quantity_tiers,
+                rows_applicable_roles,
+                rows_applicable_user_ids,
+                rows_applicable_categories,
+                rows_applies_to_value_ids,
+                rows_excluded_product_ids,
+            ) = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(
+                row,
+                rows_quantity_tiers,
+                rows_applicable_roles,
+                rows_applicable_user_ids,
+                rows_applicable_categories,
+                rows_applies_to_value_ids,
+                rows_excluded_product_ids,
+            )
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
         code: Optional[str] = None,
         is_active: Optional[bool] = None,
     ) -> Optional['CouponInternal']:
         if code:
             return await self.findByCode(code)
-        if query:
-            if "code" in query and query["code"]:
-                return await self.findByCode(query["code"])
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active)
+        results = await self.findAll(is_active=is_active)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         method: Optional[str] = None,
         code: Optional[str] = None,
+        type_of_discount: Optional[str] = None,
     ) -> List['CouponInternal']:
-        if query:
-            if is_active is None and ("is_active" in query or "isActive" in query):
-                is_active = query.get("is_active") if "is_active" in query else query.get("isActive")
-            if method is None and "method" in query:
-                method = query["method"]
-            if code is None and "code" in query:
-                code = query["code"]
-
         clauses = []
         params = {}
         if is_active is not None:
@@ -112,6 +122,9 @@ class MySQLCouponsDAO:
         if code is not None:
             clauses.append("UPPER(code) = :code")
             params["code"] = code.upper()
+        if type_of_discount is not None:
+            clauses.append("type_of_discount = :type_of_discount")
+            params["type_of_discount"] = type_of_discount
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
@@ -124,10 +137,28 @@ class MySQLCouponsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            (
+                rows_quantity_tiers,
+                rows_applicable_roles,
+                rows_applicable_user_ids,
+                rows_applicable_categories,
+                rows_applies_to_value_ids,
+                rows_excluded_product_ids,
+            ) = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [
+                self._map_to_schema(
+                    r,
+                    rows_quantity_tiers,
+                    rows_applicable_roles,
+                    rows_applicable_user_ids,
+                    rows_applicable_categories,
+                    rows_applies_to_value_ids,
+                    rows_excluded_product_ids,
+                )
+                for r in rows
+            ]
 
-    async def create(self, data: 'CouponsInternalCreate') -> 'CouponInternal':
+    async def create(self, data: 'CouponInternalCreate') -> 'CouponInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -415,8 +446,17 @@ class MySQLCouponsDAO:
                         continue
             return max_num + 1
 
-    def _map_to_schema(self, r, children: Dict) -> 'CouponInternal':
-        from app.models.daos_flat import CouponInternal
+    def _map_to_schema(
+        self,
+        r,
+        rows_quantityTiers,
+        rows_applicableRoles,
+        rows_applicableUserIds,
+        rows_applicableCategories,
+        rows_appliesToValueIds,
+        rows_excludedProductIds,
+    ) -> 'CouponInternal':
+        row_id = int(r.id)
         return CouponInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -438,32 +478,33 @@ class MySQLCouponsDAO:
             display_id=r.display_id,
             buy_x_get_y_customer_gets_applies_to_type=r.bxgy_customer_gets_applies_to_type,
             buy_x_get_y_customer_gets_quantity=r.bxgy_customer_gets_quantity,
-            bxgy_applies_to_ids=children.get("bxgy_applies_to_ids"),
+            bxgy_applies_to_ids=None,
             bxgy_discount_type=r.bxgy_discount_type,
             bxgy_discount_value=float(r.bxgy_discount_value) if r.bxgy_discount_value is not None else None,
             applicable_item_type=r.applicable_item_type,
             coupon_mode=r.coupon_mode,
             max_usage_per_user=r.max_usage_per_user,
-            user_usages=children.get("user_usages"),
+            user_usages=None,
             user_behavior=r.user_behavior,
-            quantity_tiers=children.get("quantity_tiers", []),
-            applicable_roles=children.get("applicable_roles", []),
-            applicable_user_ids=children.get("applicable_user_ids", []),
-            applicable_categories=children.get("applicable_categories", []),
-            applies_to_value_ids=children.get("applies_to_value_ids", []),
-            excluded_product_ids=children.get("excluded_product_ids", []),
-            applicable_payment_methods=(
-                json.loads(r.applicable_payment_methods)
-                if isinstance(r.applicable_payment_methods, str)
-                else r.applicable_payment_methods
-            ) if r.applicable_payment_methods is not None else None,
+            quantity_tiers=[
+                CouponQuantityTierInternal(
+                    min_quantity=rqt.min_qty,
+                    discount_value=float(rqt.discount_value) if rqt.discount_value is not None else None,
+                )
+                for rqt in rows_quantityTiers
+                if int(rqt.parent_id) == row_id
+            ],
+            applicable_roles=[rar.role for rar in rows_applicableRoles if int(rar.parent_id) == row_id],
+            applicable_user_ids=[rau.user_id for rau in rows_applicableUserIds if int(rau.parent_id) == row_id],
+            applicable_categories=[rac.category for rac in rows_applicableCategories if int(rac.parent_id) == row_id],
+            applies_to_value_ids=[rav.value_id for rav in rows_appliesToValueIds if int(rav.parent_id) == row_id],
+            excluded_product_ids=[rep.product_id for rep in rows_excludedProductIds if int(rep.parent_id) == row_id],
+            applicable_payment_methods=r.applicable_payment_methods,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        from app.models.daos_flat import CouponQuantityTierInternal
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return [], [], [], [], [], []
             
         id_list = ",".join(map(str, ids))
 
@@ -471,62 +512,34 @@ class MySQLCouponsDAO:
         res_quantityTiers = await session.execute(q_quantityTiers)
         rows_quantityTiers = res_quantityTiers.fetchall()
 
-        for r in rows_quantityTiers:
-            if "quantity_tiers" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["quantity_tiers"] = []
-            c_map[r.parent_id]["quantity_tiers"].append(
-                CouponQuantityTierInternal(
-                    min_quantity=r[1],
-                    discount_value=float(r[2]) if r[2] is not None else None,
-                )
-            )
-
         q_applicableRoles = text(f"SELECT parent_id, role FROM sj_coupon_roles WHERE parent_id IN ({id_list})")
         res_applicableRoles = await session.execute(q_applicableRoles)
         rows_applicableRoles = res_applicableRoles.fetchall()
-
-        for r in rows_applicableRoles:
-            if "applicable_roles" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicable_roles"] = []
-            c_map[r.parent_id]["applicable_roles"].append(r[1])
 
         q_applicableUserIds = text(f"SELECT parent_id, user_id FROM sj_coupon_users WHERE parent_id IN ({id_list})")
         res_applicableUserIds = await session.execute(q_applicableUserIds)
         rows_applicableUserIds = res_applicableUserIds.fetchall()
 
-        for r in rows_applicableUserIds:
-            if "applicable_user_ids" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicable_user_ids"] = []
-            c_map[r.parent_id]["applicable_user_ids"].append(r[1])
-
         q_applicableCategories = text(f"SELECT parent_id, category FROM sj_coupon_categories WHERE parent_id IN ({id_list})")
         res_applicableCategories = await session.execute(q_applicableCategories)
         rows_applicableCategories = res_applicableCategories.fetchall()
-
-        for r in rows_applicableCategories:
-            if "applicable_categories" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicable_categories"] = []
-            c_map[r.parent_id]["applicable_categories"].append(r[1])
 
         q_appliesToValueIds = text(f"SELECT parent_id, value_id FROM sj_coupon_applies_to_values WHERE parent_id IN ({id_list})")
         res_appliesToValueIds = await session.execute(q_appliesToValueIds)
         rows_appliesToValueIds = res_appliesToValueIds.fetchall()
 
-        for r in rows_appliesToValueIds:
-            if "applies_to_value_ids" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applies_to_value_ids"] = []
-            c_map[r.parent_id]["applies_to_value_ids"].append(r[1])
-
         q_excludedProductIds = text(f"SELECT parent_id, product_id FROM sj_coupon_excluded_products WHERE parent_id IN ({id_list})")
         res_excludedProductIds = await session.execute(q_excludedProductIds)
         rows_excludedProductIds = res_excludedProductIds.fetchall()
 
-        for r in rows_excludedProductIds:
-            if "excluded_product_ids" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["excluded_product_ids"] = []
-            c_map[r.parent_id]["excluded_product_ids"].append(r[1])
-
-        return c_map
+        return (
+            rows_quantityTiers,
+            rows_applicableRoles,
+            rows_applicableUserIds,
+            rows_applicableCategories,
+            rows_appliesToValueIds,
+            rows_excludedProductIds,
+        )
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 

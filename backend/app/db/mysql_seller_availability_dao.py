@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 def _to_dt(v: Optional[datetime | str]) -> Optional[datetime]:
     if v is None:
         return None
-    if isinstance(v, datetime):
-        return v
     try:
-        return datetime.fromisoformat(str(v).replace("Z", ""))
+        return datetime.fromisoformat(v.replace("Z", ""))
+    except AttributeError:
+        return v
     except Exception as e:
         logger.warning("mysql_seller_availability_dao._to_dt: could not parse datetime %r: %s", v, e, exc_info=e)
         return None
@@ -54,7 +54,7 @@ class MySQLSellerAvailabilityDAO:
             return []
 
         where_clauses: list[str] = []
-        params: dict[str, object] = {}
+        params = {}
 
         if filters is not None:
             if filters.id is not None:
@@ -88,8 +88,8 @@ class MySQLSellerAvailabilityDAO:
         self,
         filters: Optional[SellerAvailabilityFilter] = None,
     ) -> Optional[SellerAvailability]:
-        docs = await self.findAll(filters=filters)
-        return docs[0] if docs else None
+        records = await self.findAll(filters=filters)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[SellerAvailability]:
         return await self.findOne(SellerAvailabilityFilter(id=id))
@@ -103,7 +103,7 @@ class MySQLSellerAvailabilityDAO:
             return 0
 
         where_clauses: list[str] = []
-        params: dict[str, object] = {}
+        params = {}
 
         if filters is not None:
             if filters.id is not None:
@@ -136,7 +136,7 @@ class MySQLSellerAvailabilityDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
-        params: dict[str, object] = {
+        params = {
             "external_id": secrets.token_hex(16),
             "seller_id": str(data.seller_id or ""),
             "status": (data.status if data.status is not None else "scheduled"),
@@ -169,7 +169,7 @@ class MySQLSellerAvailabilityDAO:
         now = datetime.now(timezone.utc)
         row_id = int(id) if str(id).isdigit() else id
         set_clauses: list[str] = ["updated_at = :updated_at"]
-        params: dict[str, object] = {"updated_at": now, "row_id": row_id}
+        params = {"updated_at": now, "row_id": row_id}
 
         if update_data.status is not None:
             set_clauses.append("status = :status")
@@ -260,7 +260,7 @@ class MySQLSellerAvailabilityDAO:
         check_time = as_of or datetime.now(timezone.utc)
         sids = list(seller_ids)
         phs = [f":sid_{i}" for i in range(len(sids))]
-        params: dict[str, object] = {"check_time": check_time}
+        params = {"check_time": check_time}
         for i, sid in enumerate(sids):
             params[f"sid_{i}"] = str(sid)
         sql = text(f"""
@@ -275,12 +275,12 @@ class MySQLSellerAvailabilityDAO:
             val = result.scalar()
             if val is None:
                 return None
-            dt = val if isinstance(val, datetime) else _to_dt(val)
+            dt = _to_dt(val)
             return dt.strftime("%Y-%m-%dT%H:%M:%SZ") if dt else None
 
     async def get_zone_unavailable_sellers_map(
         self, seller_ids: set[str], as_of: Optional[datetime] = None
-    ) -> dict[str, str]:
+    ):
         """Fetch map of seller_id -> latest end_at ISO string via pushdown SQL GROUP BY."""
         if not seller_ids:
             return {}
@@ -290,7 +290,7 @@ class MySQLSellerAvailabilityDAO:
         check_time = as_of or datetime.now(timezone.utc)
         sids = list(seller_ids)
         phs = [f":sid_{i}" for i in range(len(sids))]
-        params: dict[str, object] = {"check_time": check_time}
+        params = {"check_time": check_time}
         for i, sid in enumerate(sids):
             params[f"sid_{i}"] = str(sid)
         sql = text(f"""
@@ -303,10 +303,10 @@ class MySQLSellerAvailabilityDAO:
         """)
         async with factory() as session:
             result = await session.execute(sql, params)
-            output: dict[str, str] = {}
+            output = {}
             for row in result.fetchall():
                 sid, val = str(row[0]), row[1]
-                dt = val if isinstance(val, datetime) else _to_dt(val)
+                dt = _to_dt(val)
                 if dt:
                     output[sid] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
             return output
@@ -348,7 +348,7 @@ class MySQLSellerAvailabilityDAO:
             return []
 
         where_clauses: list[str] = []
-        params: dict[str, object] = {}
+        params = {}
 
         if filters is not None:
             if filters.id is not None:

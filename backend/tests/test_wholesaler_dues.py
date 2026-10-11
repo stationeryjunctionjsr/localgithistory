@@ -127,7 +127,8 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
         entry_id = entries[0].entry_id
 
         # Verify the entry via repository update
-        await payment_repository.updatePaymentEntry(payment.id, entry_id, {"verified": True})
+        from app.models.daos import PaymentEntryInternal
+        await payment_repository.updatePaymentEntry(payment.id, entry_id, PaymentEntryInternal(verified=True))
 
         # 9. Fetch dues again. Now it should be cleared!
         response = await client.get("/api/payments/dues", headers=headers)

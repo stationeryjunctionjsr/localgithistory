@@ -65,17 +65,14 @@ async def get_my_returns(current_user: User = Depends(get_current_user)):
     if current_user.role not in ["customer", "wholesaler"]:
         raise HTTPException(status_code=403, detail="Only customers can view their returns")
 
-    requests = await return_request_repository.findAll({"userId": current_user.id})
+    requests = await return_request_repository.findAll(user_id=current_user.id)
     return [await populate_return_request(req) for req in requests]
 
 
 @router.get("/admin/all", response_model=List[ReturnRequestResponse])
 async def get_all_returns(status: Optional[str] = None, current_user: User = Depends(require_super_admin)):
     """Super admin gets all return requests"""
-    query = {}
-    if status:
-        query["status"] = status
-    requests = await return_request_repository.findAll(query)
+    requests = await return_request_repository.findAll(status=status)
     return [await populate_return_request(req) for req in requests]
 
 
@@ -86,7 +83,7 @@ async def get_valet_returns(current_user: User = Depends(require_super_admin_or_
         raise HTTPException(status_code=403, detail="Only valets can view assigned returns")
 
     requests = await return_request_repository.findAll(
-        {"valetId": current_user.id, "status": ReturnRequestStatus.ASSIGNED.value}
+        valet_id=current_user.id, status=ReturnRequestStatus.ASSIGNED.value
     )
     return [await populate_return_request(req) for req in requests]
 
@@ -459,10 +456,10 @@ from pydantic import BaseModel
 async def get_valet_pending_returns(current_user: User = Depends(get_current_user)):
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
-    returns = await return_request_repository.findAll({
-        "status": "pending_valet",
-        "pendingValetId": str(current_user.id)
-    })
+    returns = await return_request_repository.findAll(
+        status="pending_valet",
+        pending_valet_id=str(current_user.id),
+    )
     return [await populate_return_request(r) for r in returns]
 
 class ValetReturnResponseRequest(BaseModel):

@@ -499,6 +499,7 @@ async def update_order_status(
                 __import__("datetime").timezone.utc).isoformat()
 
             # Create or update payment record for COD
+            from app.models.daos import PaymentEntryInternal, PaymentInternalCreate, PaymentInternalUpdate
             existing_payment = await payment_repository.findByOrderId(order.id)
             if existing_payment and len(existing_payment) > 0:
                 payment = existing_payment[0]
@@ -507,14 +508,18 @@ async def update_order_status(
                     # Update existing payment entry
                     await payment_repository.updatePaymentEntry(
                         payment.id,
-                        payment.payment_entries[0].entryId,
-                        {"amount": order.total or payment.total_amount,
-                            "verified": False},
+                        payment.payment_entries[0].entry_id,
+                        PaymentEntryInternal(
+                            amount=order.total or payment.total_amount,
+                            verified=False,
+                        ),
                     )
                     updated_payment = await payment_repository.update(
                         payment.id,
-                        {"amountPaid": order.total or payment.total_amount,
-                            "amountRemaining": 0},
+                        PaymentInternalUpdate(
+                            amount_paid=order.total or payment.total_amount,
+                            amount_remaining=0,
+                        ),
                     )
                     # Create notification for COD payment
                     await create_payment_notification(updated_payment)
@@ -525,51 +530,33 @@ async def update_order_status(
                         PaymentEntryInternal(amount=order.total or payment.total_amount, image=None, verified=False),
                     )
                     # Create notification for COD payment
-                    await create_payment_notification(
-                        {
-                            "_id": updated_payment_with_entry.id,
-                            "paymentId": updated_payment_with_entry.paymentId,
-                            "orderId": updated_payment_with_entry.order_id,
-                            "totalAmount": (order.total if order.total is not None else payment.total_amount),
-                            "paymentMethod": "cod",
-                            "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
-                        }
-                    )
+                    await create_payment_notification(updated_payment_with_entry)
             else:
                 # Create new payment record (should already exist, but handle edge case)
                 user = await user_repository.findById(order.user)
                 new_payment = await payment_repository.create(
-                    {
-                        "orderId": order.id,
-                        "userId": user.user_id if user else None,  # Use userId instead of customerId
-                        "customerName": user.name if user else "Unknown",
-                        "orderDate": order.created_at if isinstance(order.created_at, str) else str(order.created_at),
-                        "paymentMethod": "cod",
-                        "totalAmount": (order.total if order.total is not None else 0),
-                        "amountPaid": (order.total if order.total is not None else 0),
-                        "amountRemaining": 0,
-                        "paymentEntries": [
-                            {
-                                "entryId": 1,
-                                "amount": (order.total if order.total is not None else 0),
-                                "image": None,
-                                "verified": False,
-                                "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat(),
-                            }
+                    PaymentInternalCreate(
+                        order_id=order.id,
+                        user_id=user.user_id if user else None,
+                        customer_name=user.name if user else "Unknown",
+                        order_date=order.created_at if type(order.created_at) is str else str(order.created_at),
+                        payment_method="cod",
+                        total_amount=(order.total if order.total is not None else 0),
+                        amount_paid=(order.total if order.total is not None else 0),
+                        amount_remaining=0,
+                        payment_entries=[
+                            PaymentEntryInternal(
+                                entry_id=1,
+                                amount=(order.total if order.total is not None else 0),
+                                image=None,
+                                verified=False,
+                                created_at=datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                            )
                         ],
-                    }
+                    )
                 )
                 # Create notification for COD payment
-                await create_payment_notification(
-                    {
-                        "_id": new_payment.id,
-                        "paymentId": new_payment.paymentId,
-                        "orderId": new_payment.order_id,
-                        "totalAmount": new_payment.total_amount,
-                        "paymentMethod": "cod",
-                        "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
-                    }
-                )
+                await create_payment_notification(new_payment)
     elif status_data.status == "cancelled":
         # Guard: prevent re-cancelling a terminal order which would double-restore stock/credit.
         _TERMINAL_STATUSES = {"cancelled", "declined",
@@ -602,12 +589,13 @@ async def update_order_status(
         update_data.cancelledBy = current_user.id
 
         # Mark existing payment as cancelled (do NOT create new records or mark as paid)
+        from app.models.daos import PaymentInternalUpdate
         existing_payments_cancel = await payment_repository.findByOrderId(order_id)
         if existing_payments_cancel:
             pay = existing_payments_cancel[0]
             await payment_repository.update(
                 pay.id,
-                {"paymentStatus": "cancelled", "amountRemaining": 0},
+                PaymentInternalUpdate(amount_remaining=0),
             )
 
     updated_order = await order_repository.update(order_id, OrderInternalUpdate.model_validate(update_data))

@@ -1,16 +1,28 @@
 from typing import List, Optional
-from typing import Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Bundle(BaseModel):
     id: str = Field(default="", alias="_id")
 
 class EmailOtp(BaseModel):
-    pass
+    id: Optional[int] = None
+    email: Optional[str] = None
+    device_key: Optional[str] = None
+    otp: str
+    verify_attempts: int = 0
+    created_at: float = 0.0
+    expires_at: float = 0.0
+    last_sent_at: float = 0.0
 
 class FaqSection(BaseModel):
     pass
 
 class Otp(BaseModel):
-    pass
+    id: Optional[int] = None
+    phone: Optional[str] = None
+    device_key: Optional[str] = None
+    otp: str
+    verify_attempts: int = 0
+    created_at: float = 0.0
+    expires_at: float = 0.0
+    last_sent_at: float = 0.0

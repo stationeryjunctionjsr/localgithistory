@@ -164,9 +164,10 @@ async def get_available_valets(
     # 3. Filter by availability (full_day or slotId match for today)
     from datetime import datetime
     from app.db.storage_factory import get_storage
+    from app.models.daos import ValetAvailabilityFilter
     today = datetime.now().strftime("%Y-%m-%d")
     avail_store = get_storage("valetAvailability")
-    today_avails = await avail_store.findAll({"date": today})
+    today_avails = await avail_store.findAll(ValetAvailabilityFilter(date=today))
     
     avail_map = {str((a.userId if a.userId is not None else "")): a for a in today_avails}
     available_valets = []

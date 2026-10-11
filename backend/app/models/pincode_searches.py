@@ -1,17 +1,21 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional
 from pydantic import Field
-from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
-class PincodeSearches(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    pincode: Optional[str] = Field(default=None, alias='pincode')
-    query: Optional[str] = Field(default=None, alias='query')
-    is_serviceable: bool = Field(default=None, alias='isServiceable')
-    timestamp: Optional[str] = Field(default=None, alias='timestamp')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class PincodeSearches(CamelBaseModel):
+    id: Optional[str] = Field(default=None, alias='_id')
+    external_id: Optional[str] = None
+    pincode: Optional[str] = None
+    query: Optional[str] = None
+    is_serviceable: bool = False
+    timestamp: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    @property
+    def searched_at(self) -> Optional[str]:
+        return self.timestamp

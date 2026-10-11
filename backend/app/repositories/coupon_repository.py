@@ -241,8 +241,19 @@ class CouponRepository:
 
         return BxGyEvaluationResponse(discount=total_discount, itemDiscounts=item_discounts, bxgyItemIndices=bxgy_item_indices)
 
-    async def findAll(self, query: Optional[dict] = None):
-        return await self.storage.findAll(query or {})
+    async def findAll(
+        self,
+        is_active: Optional[bool] = None,
+        method: Optional[str] = None,
+        code: Optional[str] = None,
+        type_of_discount: Optional[str] = None,
+    ):
+        return await self.storage.findAll(
+            is_active=is_active,
+            method=method,
+            code=code,
+            type_of_discount=type_of_discount,
+        )
 
     async def findById(self, id: str):
         return await self.storage.findById(id)
@@ -250,7 +261,7 @@ class CouponRepository:
     async def findByCode(self, code: str):
         if not code or not str(code).strip():
             return None
-        return await self.storage.findOne({"code": code.upper()})
+        return await self.storage.findOne(code=code.upper())
 
     async def _product_eligible_async(
         self,
@@ -881,7 +892,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
     ) -> List['CouponInternal']:
         """Find active automatic discounts that match user and cart. Returns list of { coupon, discount, eligibleItemIndices }."""
         now = datetime.now(timezone.utc)
-        all_coupons = await self.storage.findAll({"method": "automatic", "is_active": True})
+        all_coupons = await self.storage.findAll(method="automatic", is_active=True)
         results = []
         for coupon in all_coupons:
             try:
@@ -1108,7 +1119,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             return None
 
         roles = coupon_data.applicable_roles or []
-        all_coupons = await self.storage.findAll({"is_active": True})
+        all_coupons = await self.storage.findAll(is_active=True)
 
         # Filter for same roles
         conflicting_candidates = [
@@ -1203,7 +1214,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             ):
                 return self._active_coupons_cache
 
-            active_coupons = await self.storage.findAll({"is_active": True})
+            active_coupons = await self.storage.findAll(is_active=True)
             self._active_coupons_cache = active_coupons
             self._active_coupons_cache_time = datetime.now(timezone.utc)
             return active_coupons
@@ -1236,7 +1247,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 return self._active_automatic_discounts_cache
 
             discounts = await self.storage.findAll(
-                {"method": "automatic", "is_active": True, "type_of_discount": "product_discount"}
+                method="automatic", is_active=True, type_of_discount="product_discount"
             )
 
             valid_discounts = []

@@ -4,8 +4,8 @@ Implements database-backed persistence and TTL for email verification codes.
 """
 
 from datetime import timedelta
-from typing import Dict
-from app.models.email_otp import EmailOtp, Optional
+from typing import Optional
+from app.models.email_otp import EmailOtp
 
 from sqlalchemy import text
 
@@ -26,7 +26,7 @@ class MySQLEmailOtpDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def find_active_otp(self, email: str, device_key: str = "default") -> Optional[Dict]:
+    async def find_active_otp(self, email: str, device_key: str = "default") -> Optional[EmailOtp]:
         factory = self._factory()
         if not factory:
             return None
@@ -47,16 +47,16 @@ class MySQLEmailOtpDAO:
             row = result.fetchone()
         if not row:
             return None
-        return {
-            "id": row.id,
-            "email": row.email,
-            "device_key": row.device_key,
-            "otp": row.otp_code,
-            "verify_attempts": row.verify_attempts or 0,
-            "created_at": row.created_at.timestamp() if row.created_at else 0,
-            "expires_at": row.expires_at.timestamp() if row.expires_at else 0,
-            "last_sent_at": row.last_sent_at.timestamp() if row.last_sent_at else 0,
-        }
+        return EmailOtp(
+            id=row.id,
+            email=row.email,
+            device_key=row.device_key,
+            otp=row.otp_code,
+            verify_attempts=row.verify_attempts or 0,
+            created_at=row.created_at.timestamp() if row.created_at else 0.0,
+            expires_at=row.expires_at.timestamp() if row.expires_at else 0.0,
+            last_sent_at=row.last_sent_at.timestamp() if row.last_sent_at else 0.0,
+        )
 
     async def create_otp(
         self,
@@ -64,7 +64,7 @@ class MySQLEmailOtpDAO:
         device_key: str,
         otp_code: str,
         valid_seconds: int,
-    ) -> Dict:
+    ) -> EmailOtp:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -88,13 +88,13 @@ class MySQLEmailOtpDAO:
                 },
             )
             await session.commit()
-        return {
-            "otp": otp_code,
-            "created_at": now.timestamp(),
-            "expires_at": expires.timestamp(),
-            "last_sent_at": now.timestamp(),
-            "verify_attempts": 0,
-        }
+        return EmailOtp(
+            otp=otp_code,
+            created_at=now.timestamp(),
+            expires_at=expires.timestamp(),
+            last_sent_at=now.timestamp(),
+            verify_attempts=0,
+        )
 
     async def update_last_sent(self, otp_id: int) -> None:
         factory = self._factory()

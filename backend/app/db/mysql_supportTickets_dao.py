@@ -1,10 +1,9 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.schemas import SupportTicketInternal
+from app.models.schemas import SupportTicketInternal, TicketResponseItemInternal
 from app.models.daos_flat import SupportTicketInternalCreate, SupportTicketInternalUpdate
 
 def now_utc():
@@ -37,8 +36,8 @@ class MySQLSupportTicketsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            rows_attachments, rows_responses = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, rows_attachments, rows_responses)
 
     async def findByTicketNumber(self, ticket_number: str) -> Optional['SupportTicketInternal']:
         factory = self._factory()
@@ -50,47 +49,27 @@ class MySQLSupportTicketsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            rows_attachments, rows_responses = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, rows_attachments, rows_responses)
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
         ticket_number: Optional[str] = None,
         status: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> Optional['SupportTicketInternal']:
         if ticket_number:
             return await self.findByTicketNumber(ticket_number)
-        if query:
-            tn = query.get("ticket_number") or query.get("ticketNumber")
-            if tn:
-                return await self.findByTicketNumber(tn)
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, status=status, user_id=user_id)
+        results = await self.findAll(status=status, user_id=user_id)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         status: Optional[str] = None,
         user_id: Optional[str] = None,
         category: Optional[str] = None,
         priority: Optional[str] = None,
     ) -> List['SupportTicketInternal']:
-        if query:
-            if status is None and "status" in query:
-                status = query["status"]
-            if user_id is None:
-                user_id = query.get("user") or query.get("user_id") or query.get("userId")
-            if category is None and "category" in query:
-                category = query["category"]
-            if priority is None and "priority" in query:
-                priority = query["priority"]
-
         clauses = []
         params = {}
         if status is not None:
@@ -117,8 +96,8 @@ class MySQLSupportTicketsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            rows_attachments, rows_responses = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, rows_attachments, rows_responses) for r in rows]
 
     async def create(self, data: 'SupportTicketInternalCreate') -> 'SupportTicketInternal':
         factory = self._factory()
@@ -299,9 +278,15 @@ class MySQLSupportTicketsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> 'SupportTicketInternal':
-        from app.models.schemas import SupportTicketInternal
+    def _map_to_schema(self, r, rows_attachments, rows_responses) -> 'SupportTicketInternal':
+        row_id = int(r.id)
         user_val = str(r.user_id) if r.user_id is not None else None
+        attachments = [ra[1] for ra in rows_attachments if int(ra.parent_id) == row_id]
+        responses = [
+            TicketResponseItemInternal(user=rr[1], message=rr[2])
+            for rr in rows_responses
+            if int(rr.parent_id) == row_id
+        ]
         return SupportTicketInternal(
             id=str(r.id),
             external_id=r.external_id,
@@ -317,18 +302,17 @@ class MySQLSupportTicketsDAO:
             priority=r.priority,
             status=r.status,
             assigned_to=r.assigned_to,
-            attachments=children.get("attachments", []),
-            responses=children.get("responses", []),
+            attachments=attachments,
+            responses=responses,
             resolved_at=str(r.resolved_at) if r.resolved_at else None,
             closed_at=str(r.closed_at) if r.closed_at else None,
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]):
         if not ids:
-            return c_map
+            return [], []
             
         id_list = ",".join(map(str, ids))
 
@@ -336,25 +320,11 @@ class MySQLSupportTicketsDAO:
         res_attachments = await session.execute(q_attachments)
         rows_attachments = res_attachments.fetchall()
 
-        for r in rows_attachments:
-            if "attachments" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["attachments"] = []
-            c_map[r.parent_id]["attachments"].append(r[1])
-
         q_responses = text(f"SELECT parent_id, admin_id, message FROM sj_ticket_responses WHERE parent_id IN ({id_list})")
         res_responses = await session.execute(q_responses)
         rows_responses = res_responses.fetchall()
 
-        for r in rows_responses:
-            if "responses" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["responses"] = []
-            obj = {}
-
-            obj["user"] = r[1]
-            obj["message"] = r[2]
-            c_map[r.parent_id]["responses"].append(obj)
-
-        return c_map
+        return rows_attachments, rows_responses
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 

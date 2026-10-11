@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text

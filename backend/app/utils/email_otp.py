@@ -49,24 +49,24 @@ async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool
     existing = await email_otp_dao.find_active_otp(email_lower, device_key)
 
     if existing:
-        last_sent = (existing["last_sent_at"] if "last_sent_at" in existing else 0)
+        last_sent = existing.last_sent_at or 0
         now = time.time()
         since_last = now - last_sent
         if since_last < EMAIL_RESEND_COOLDOWN_SECONDS:
             resend_in = int(max(1, EMAIL_RESEND_COOLDOWN_SECONDS - since_last))
             return True, {"resend_available_in_seconds": resend_in, "sent": False}
 
-        await email_otp_dao.update_last_sent(existing["id"])
+        await email_otp_dao.update_last_sent(existing.id)
         await email_otp_dao.record_send(email_lower)
 
-        otp_code = existing["otp"]
+        otp_code = existing.otp
         sent_ok = send_verification_email_sync(email_lower, otp_code)
         if not sent_ok:
             return False, {"message": "Failed to send verification email. Please check configuration."}
 
         return True, {
             "otp": otp_code,
-            "expires_at": existing["expires_at"],
+            "expires_at": existing.expires_at,
             "resend_available_in_seconds": EMAIL_RESEND_COOLDOWN_SECONDS,
             "sent": True,
         }
@@ -81,7 +81,7 @@ async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool
 
     return True, {
         "otp": otp_code,
-        "expires_at": record["expires_at"],
+        "expires_at": record.expires_at,
         "resend_available_in_seconds": EMAIL_RESEND_COOLDOWN_SECONDS,
         "sent": True,
     }
@@ -97,15 +97,15 @@ async def _db_verify_otp(
     if not stored:
         return {"valid": False, "message": "Verification code not found or expired."}
 
-    if stored["verify_attempts"] >= 5:
-        await email_otp_dao.delete_otp(stored["id"])
+    if stored.verify_attempts >= 5:
+        await email_otp_dao.delete_otp(stored.id)
         return {"valid": False, "message": "Too many attempts. Please request a new verification code."}
 
-    await email_otp_dao.increment_attempts(stored["id"])
+    await email_otp_dao.increment_attempts(stored.id)
 
-    if str(stored["otp"]) == str(provided_otp).strip():
+    if str(stored.otp) == str(provided_otp).strip():
         if delete_on_success:
-            await email_otp_dao.delete_otp(stored["id"])
+            await email_otp_dao.delete_otp(stored.id)
         return {"valid": True, "message": "Email verified successfully."}
 
     return {"valid": False, "message": "Invalid verification code."}

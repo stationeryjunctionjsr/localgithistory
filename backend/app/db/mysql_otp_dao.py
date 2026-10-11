@@ -4,8 +4,8 @@ Replaces the in-memory dict-based OTP store with DB-backed persistence and TTL.
 """
 
 from datetime import timedelta
-from typing import Dict
-from app.models.otp import Otp, Optional
+from typing import Optional
+from app.models.otp import Otp
 
 from sqlalchemy import text
 
@@ -26,7 +26,7 @@ class MySQLOtpDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def find_active_otp(self, phone: str, device_key: str) -> Optional[Dict]:
+    async def find_active_otp(self, phone: str, device_key: str) -> Optional[Otp]:
         factory = self._factory()
         if not factory:
             return None
@@ -47,16 +47,16 @@ class MySQLOtpDAO:
             row = result.fetchone()
         if not row:
             return None
-        return {
-            "id": row.id,
-            "phone": row.phone,
-            "device_key": row.device_key,
-            "otp": row.otp_code,
-            "verify_attempts": row.verify_attempts or 0,
-            "created_at": row.created_at.timestamp() if row.created_at else 0,
-            "expires_at": row.expires_at.timestamp() if row.expires_at else 0,
-            "last_sent_at": row.last_sent_at.timestamp() if row.last_sent_at else 0,
-        }
+        return Otp(
+            id=row.id,
+            phone=row.phone,
+            device_key=row.device_key,
+            otp=row.otp_code,
+            verify_attempts=row.verify_attempts or 0,
+            created_at=row.created_at.timestamp() if row.created_at else 0.0,
+            expires_at=row.expires_at.timestamp() if row.expires_at else 0.0,
+            last_sent_at=row.last_sent_at.timestamp() if row.last_sent_at else 0.0,
+        )
 
     async def create_otp(
         self,
@@ -64,7 +64,7 @@ class MySQLOtpDAO:
         device_key: str,
         otp_code: str,
         valid_seconds: int,
-    ) -> Dict:
+    ) -> Otp:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -88,13 +88,13 @@ class MySQLOtpDAO:
                 },
             )
             await session.commit()
-        return {
-            "otp": otp_code,
-            "created_at": now.timestamp(),
-            "expires_at": expires.timestamp(),
-            "last_sent_at": now.timestamp(),
-            "verify_attempts": 0,
-        }
+        return Otp(
+            otp=otp_code,
+            created_at=now.timestamp(),
+            expires_at=expires.timestamp(),
+            last_sent_at=now.timestamp(),
+            verify_attempts=0,
+        )
 
     async def update_last_sent(self, otp_id: int) -> None:
         factory = self._factory()

@@ -9,21 +9,26 @@ class CollectionRepository:
     def __init__(self):
         self.storage = get_storage("collections")
 
-    async def findAll(self, query: Optional[dict] = None) -> List[CollectionInternal]:
+    async def findAll(
+        self,
+        is_active: Optional[bool] = None,
+        visible_page: Optional[str] = None,
+        page_type: Optional[str] = None,
+        page_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> List[CollectionInternal]:
         collections = await self.storage.findAll()
-
-        query = query or {}
 
         # Consolidate all filters into one pass for robustness
         filtered = []
-        user_role = query["userRole"] if "userRole" in query else "guest"
-        target_page_type = query["pageType"] if "pageType" in query else None or query["visiblePage"] if "visiblePage" in query else None
-        target_page_id = query["pageId"] if "pageId" in query else None
+        effective_role = user_role if user_role is not None else "guest"
+        target_page_type = page_type or visible_page
+        target_page_id = page_id
 
         for col in collections:
             # 1. Check isActive
-            if "isActive" in query and query["isActive"] is not None:
-                if col.is_active != query["isActive"]:
+            if is_active is not None:
+                if col.is_active != is_active:
                     continue
             else:
                 if not (col.is_active if col.is_active is not None else True):
@@ -31,7 +36,7 @@ class CollectionRepository:
 
             # 2. Check user segments
             segments = col.user_segments if col.user_segments else ["all"]
-            if "all" not in segments and user_role not in segments:
+            if "all" not in segments and effective_role not in segments:
                 continue
 
             # 3. Check page visibility (if a target page is requested)

@@ -5,13 +5,14 @@ Fully relational with junction table sj_division_category_tags and foreign key t
 
 from datetime import datetime, timezone
 import secrets
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
 from app.models.division import (
+    DivisionCategoryTag,
     DivisionInternal,
     DivisionInternalCreate,
     DivisionInternalUpdate,
@@ -48,14 +49,16 @@ class MySQLDivisionDAO:
                 tag_ids.append(tid)
                 if row.name:
                     tag_names.append(row.name)
-                tag_list.append({
-                    "id": tid,
-                    "externalId": row.external_id,
-                    "_id": str(tid),
-                    "name": row.name,
-                    "description": row.description,
-                    "isActive": bool(row.is_active) if row.is_active is not None else True,
-                })
+                tag_list.append(
+                    DivisionCategoryTag(
+                        id=tid,
+                        external_id=row.external_id,
+                        mongo_id=str(tid),
+                        name=row.name,
+                        description=row.description,
+                        is_active=bool(row.is_active) if row.is_active is not None else True,
+                    )
+                )
         category_count = 0
         if count_rows and tag_names:
             tag_names_set = set(tag_names)
@@ -199,31 +202,17 @@ class MySQLDivisionDAO:
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> Optional[DivisionInternal]:
-        if query:
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active, name=name)
+        results = await self.findAll(is_active=is_active, name=name)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> List[DivisionInternal]:
-        if query:
-            if is_active is None and "is_active" in query:
-                is_active = query["is_active"]
-            elif is_active is None and "isActive" in query:
-                is_active = query["isActive"]
-            if name is None and "name" in query:
-                name = query["name"]
 
         clauses = []
         params = {}

@@ -1,17 +1,14 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional
 from pydantic import Field
-from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
-class PrivacyPolicy(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    version: Optional[str] = Field(default=None, alias='version')
-    content: Optional[str] = Field(default=None, alias='content')
-    effective_date: Optional[datetime] = Field(default=None, alias='effectiveDate')
-    is_active: bool = Field(default=None, alias='isActive')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class PrivacyPolicy(CamelBaseModel):
+    id: Optional[str] = Field(default=None, alias='_id')
+    external_id: Optional[str] = None
+    version: Optional[str] = None
+    content: Optional[str] = None
+    effective_date: Optional[datetime] = None
+    is_active: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

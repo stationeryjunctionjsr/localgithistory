@@ -102,17 +102,9 @@ async def populate_ticket(ticket_data):
 async def get_support_tickets(
     status: Optional[str] = None, priority: Optional[str] = None, current_user: User = Depends(get_current_user)
 ):
-    query = {}
+    user_id = current_user.id if current_user.role != "super_admin" else None
 
-    if current_user.role != "super_admin":
-        query["user"] = current_user.id
-
-    if status:
-        query["status"] = status
-    if priority:
-        query["priority"] = priority
-
-    tickets = await support_ticket_repository.findAll(query)
+    tickets = await support_ticket_repository.findAll(user_id=user_id, status=status, priority=priority)
     populated_tickets = [await populate_ticket(ticket) for ticket in tickets]
 
     return populated_tickets

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.division import (
@@ -19,11 +19,10 @@ class DivisionRepository:
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> List[DivisionInternal]:
-        return await self.storage.findAll(query=query, is_active=is_active, name=name)
+        return await self.storage.findAll(is_active=is_active, name=name)
 
     async def findById(self, id: str) -> Optional[DivisionInternal]:
         return await self.storage.findById(id)

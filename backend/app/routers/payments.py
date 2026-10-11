@@ -62,21 +62,18 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         try:
             terms_days = int(terms_days)
         except (ValueError, TypeError):
-            logging.warning("User %r has non-integer payment_terms %r; defaulting to 30 days.", getattr(current_user, 'id', '?'), terms_days, exc_info=True)
+            logging.warning("User %r has non-integer payment_terms %r; defaulting to 30 days.", current_user.id, terms_days, exc_info=True)
             terms_days = 30
 
     # 2. Get all payments for this user
-    user_payments = await payment_repository.findAll({"userId": current_user.id})
+    user_payments = await payment_repository.findAll(user_id=current_user.id)
     unpaid_credit_bills = []
 
     for p in user_payments:
         # Check if it is a credit payment
         if p.payment_method == "credit":
             # Calculate verified amount paid
-            entries: List[PaymentEntry] = [
-                entry if isinstance(entry, PaymentEntry) else PaymentEntry.model_validate(entry, from_attributes=True)
-                for entry in (p.payment_entries or [])
-            ]
+            entries: List[PaymentEntry] = p.payment_entries or []
             verified_paid = sum(
                 (entry.amount or 0.0) for entry in entries if entry.verified
             )
@@ -106,7 +103,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         # Parse orderDate as naive UTC datetime
         order_date_raw = bill.order_date or bill.created_at
         if order_date_raw:
-            if isinstance(order_date_raw, str):
+            if type(order_date_raw) is str:
                 try:
                     order_date = (
                         datetime.fromisoformat(order_date_raw.replace("Z", "+00:00"))
@@ -114,7 +111,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
                         .replace(tzinfo=None)
                     )
                 except (ValueError, TypeError, AttributeError):
-                    logging.warning("Credit bill %r has unparseable order_date %r; defaulting to now for due-date calculation.", getattr(bill, 'id', '?'), order_date_raw, exc_info=True)
+                    logging.warning("Credit bill %r has unparseable order_date %r; defaulting to now for due-date calculation.", bill.id, order_date_raw, exc_info=True)
                     order_date = now
             else:
                 # It's already a datetime object
@@ -225,17 +222,12 @@ async def get_payments(
     """Get all payments (Super Admin only)"""
     from app.repositories.order_repository import order_repository
 
-    query = {}
-    if orderId:
-        query["orderId"] = orderId
-    if userId:
-        query["userId"] = userId
-    if startDate:
-        query["startDate"] = startDate
-    if endDate:
-        query["endDate"] = endDate
-
-    payments = await payment_repository.findAll(query or None)
+    payments = await payment_repository.findAll(
+        order_id=orderId,
+        user_id=userId,
+        start_date=startDate,
+        end_date=endDate,
+    )
 
     # Bulk-fetch all referenced orders in one query to avoid N+1 DB calls
     order_ids = list({p.order_id for p in payments if p.order_id})
@@ -275,8 +267,9 @@ async def verify_payment_entry(
     payment_id: str, entry_id: int, verify_data: VerifyEntryRequest, current_user: User = Depends(require_super_admin)
 ):
     """Verify a payment entry (Super Admin only)"""
+    from app.models.daos import PaymentEntryInternal
     try:
-        payment = await payment_repository.updatePaymentEntry(payment_id, entry_id, {"verified": verify_data.verified})
+        payment = await payment_repository.updatePaymentEntry(payment_id, entry_id, PaymentEntryInternal(verified=verify_data.verified))
         return payment
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -291,6 +284,7 @@ async def submit_credit_settlement(
 ):
     """Submit a credit settlement payment (Wholesaler only)"""
     from app.repositories.order_repository import order_repository
+    from app.models.daos import PaymentEntryInternal
 
     try:
         # Find the order
@@ -355,14 +349,10 @@ async def submit_credit_settlement(
         try:
             super_admin = await user_repository.findOne({"role": "super_admin"})
             if super_admin:
-                p_model = (
-                    updated_payment
-                    if isinstance(updated_payment, Payment)
-                    else Payment.model_validate(updated_payment, from_attributes=True)
-                )
-                payment_id = p_model.payment_id or p_model.id
+                payment_id = updated_payment.payment_id or updated_payment.id
                 import uuid
                 from app.models.daos import NotificationInternalCreate
+                from app.models.schemas import NotificationMetadata
                 await notification_repository.create(
                     NotificationInternalCreate(
                         _id=str(uuid.uuid4()),
@@ -370,14 +360,14 @@ async def submit_credit_settlement(
                         type="new_payment",
                         title="New Payment Received",
                         message=f'New payment "{payment_id}" worth ₹{settlement_data.amount:.2f} received',
-                        metadata={
-                            "paymentId": p_model.id,
-                            "paymentIdFormatted": payment_id,
-                            "orderId": p_model.order_id,
-                            "amount": settlement_data.amount,
-                            "paymentMethod": "upi",
-                            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
-                        },
+                        metadata=NotificationMetadata(
+                            payment_id=updated_payment.id,
+                            payment_id_formatted=payment_id,
+                            order_id=updated_payment.order_id,
+                            amount=settlement_data.amount,
+                            payment_method="upi",
+                            created_at=datetime.now(timezone.utc).isoformat() + "Z",
+                        ),
                     )
                 )
         except Exception as e:

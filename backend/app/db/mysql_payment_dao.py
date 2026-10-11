@@ -6,8 +6,7 @@ Assembles paymentEntries from child table; create/update write entries as separa
 
 import secrets
 from datetime import datetime, date
-from typing import Dict
-from app.models.payment import Payment, List, Optional
+from app.models.payment import Payment, PaymentEntry, List, Optional
 
 from sqlalchemy import bindparam, text
 from app.models.daos import PaymentInternalCreate, PaymentInternalUpdate, PaymentEntryInternal
@@ -20,7 +19,7 @@ from app.db.db_utils import now_utc
 def _to_ts(val):
     if val is None:
         return None
-    if isinstance(val, (datetime, date)):
+    if type(val) in (datetime, date):
         return val
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
@@ -29,18 +28,16 @@ def _to_ts(val):
         return None
 
 
-from app.models.payment import PaymentEntry
-
-def _entry__map_to_schema(entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) -> PaymentEntry:
+def _entry__map_to_schema(er) -> PaymentEntry:
     return PaymentEntry(
-        entryId=entry_id,
-        amount=float(amount) if amount is not None else 0,
-        paymentMethod=payment_method,
-        paidAt=paid_at.isoformat() if isinstance(paid_at, (datetime, date)) and paid_at else None,
-        image=image,
-        notes=notes,
-        verified=bool(verified) if verified is not None else False,
-        createdAt=created_at.isoformat() if isinstance(created_at, (datetime, date)) and created_at else None,
+        entryId=er.entry_id,
+        amount=float(er.amount) if er.amount is not None else 0,
+        paymentMethod=er.payment_method,
+        paidAt=er.paid_at.isoformat() if er.paid_at and type(er.paid_at) in (datetime, date) else (str(er.paid_at) if er.paid_at else None),
+        image=er.image,
+        notes=er.notes,
+        verified=bool(er.verified) if er.verified is not None else False,
+        createdAt=er.created_at.isoformat() if er.created_at and type(er.created_at) in (datetime, date) else (str(er.created_at) if er.created_at else None),
     )
 
 
@@ -75,56 +72,50 @@ class MySQLPaymentDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def _get_entries_for_payment_ids(self, session, payment_ids: List[int]) -> Dict[int, List[Dict]]:
+    async def _get_entries_for_payment_ids(self, session, payment_ids: List[int]) -> list:
         if not payment_ids:
-            return {}
+            return []
         stmt = text(
             f"SELECT payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at "
             f"FROM {self.ENTRIES_TABLE} WHERE payment_id IN :ids ORDER BY payment_id, entry_id"
         ).bindparams(bindparam("ids", expanding=True))
         result = await session.execute(stmt, {"ids": list(payment_ids)})
-        rows = result.fetchall()
-        by_payment = {}
-        for r in rows:
-            pid = r[0]
-            if pid not in by_payment:
-                by_payment[pid] = []
-            by_payment[pid].append(_entry__map_to_schema(r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]))
-        return by_payment
+        return result.fetchall()
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Payment]:
+    async def findAll(
+        self,
+        order_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        allowed_order_ids: Optional[List[str]] = None,
+    ) -> List[Payment]:
         factory = self._factory()
         if not factory:
             return []
 
         where_clauses = []
         params = {}
-        if query:
-            oid = query["orderId"] if "orderId" in query else (query["order_id"] if "order_id" in query else None)
-            if oid:
-                where_clauses.append("order_id = :order_id")
-                params["order_id"] = oid
-            uid = query["userId"] if "userId" in query else (query["user_id"] if "user_id" in query else None)
-            if uid:
-                where_clauses.append("user_id = :user_id")
-                params["user_id"] = uid
-            if "allowed_order_ids" in query:
-                allowed_order_ids = query["allowed_order_ids"]
-                if not allowed_order_ids:
-                    where_clauses.append("1=0")
-                else:
-                    chunks = [allowed_order_ids[i : i + 999] for i in range(0, len(allowed_order_ids), 999)]
-                    chunk_sqls = []
-                    for chunk_idx, chunk in enumerate(chunks):
-                        id_params = {f"aoid_{chunk_idx}_{i}": oid for i, oid in enumerate(chunk)}
-                        params.update(id_params)
-                        id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
-                        chunk_sqls.append(f"order_id IN ({id_placeholders})")
+        if order_id is not None:
+            where_clauses.append("order_id = :order_id")
+            params["order_id"] = order_id
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        if allowed_order_ids is not None:
+            if not allowed_order_ids:
+                where_clauses.append("1=0")
+            else:
+                chunks = [allowed_order_ids[i : i + 999] for i in range(0, len(allowed_order_ids), 999)]
+                chunk_sqls = []
+                for chunk_idx, chunk in enumerate(chunks):
+                    id_params = {f"aoid_{chunk_idx}_{i}": oid for i, oid in enumerate(chunk)}
+                    params.update(id_params)
+                    id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
+                    chunk_sqls.append(f"order_id IN ({id_placeholders})")
 
-                    if len(chunk_sqls) == 1:
-                        where_clauses.append(chunk_sqls[0])
-                    else:
-                        where_clauses.append("(" + " OR ".join(chunk_sqls) + ")")
+                if len(chunk_sqls) == 1:
+                    where_clauses.append(chunk_sqls[0])
+                else:
+                    where_clauses.append("(" + " OR ".join(chunk_sqls) + ")")
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
@@ -142,45 +133,18 @@ class MySQLPaymentDAO:
             rows = result.fetchall()
         if not rows:
             return []
-        ids = [r[0] for r in rows]
+        ids = [r.id for r in rows]
         async with factory() as session:
-            entries_by_payment = await self._get_entries_for_payment_ids(session, ids)
-        Cols = type("Cols", (), {})
-        docs = []
+            entry_rows = await self._get_entries_for_payment_ids(session, ids)
+        records = []
         for r in rows:
-            (
-                id_,
-                ext,
-                order_id,
-                user_id,
-                user_id_fmt,
-                customer_name,
-                order_date,
-                payment_method,
-                amount_paid,
-                amount_remaining,
-                total_amount,
-                payment_id,
-                created_at,
-                updated_at,
-            ) = r
-            row = Cols()
-            row.id = id_
-            row.order_id = order_id
-            row.user_id = user_id
-            row.user_id_formatted = user_id_fmt
-            row.customer_name = customer_name
-            row.order_date = order_date
-            row.payment_method = payment_method
-            row.amount_paid = amount_paid
-            row.amount_remaining = amount_remaining
-            row.total_amount = total_amount
-            row.payment_id = payment_id
-            row.created_at = created_at
-            row.updated_at = updated_at
-            entries = entries_by_payment[id_] if id_ in entries_by_payment else []
-            docs.append(_payment__map_to_schema(row, entries))
-        return docs
+            entries = [
+                _entry__map_to_schema(er)
+                for er in entry_rows
+                if er.payment_id == r.id
+            ]
+            records.append(_payment__map_to_schema(r, entries))
+        return records
 
     async def findById(self, id: str) -> Optional[Payment]:
         factory = self._factory()
@@ -199,44 +163,22 @@ class MySQLPaymentDAO:
             row = result.fetchone()
         if not row:
             return None
-        (
-            id_,
-            order_id,
-            user_id,
-            user_id_fmt,
-            customer_name,
-            order_date,
-            payment_method,
-            amount_paid,
-            amount_remaining,
-            total_amount,
-            payment_id,
-            created_at,
-            updated_at,
-        ) = row
-        Cols = type("Cols", (), {})
-        r = Cols()
-        r.id = id_
-        r.order_id = order_id
-        r.user_id = user_id
-        r.user_id_formatted = user_id_fmt
-        r.customer_name = customer_name
-        r.order_date = order_date
-        r.payment_method = payment_method
-        r.amount_paid = amount_paid
-        r.amount_remaining = amount_remaining
-        r.total_amount = total_amount
-        r.payment_id = payment_id
-        r.created_at = created_at
-        r.updated_at = updated_at
         async with factory() as session:
-            entries_by_payment = await self._get_entries_for_payment_ids(session, [pid])
-        entries = entries_by_payment[pid] if pid in entries_by_payment else []
-        return _payment__map_to_schema(r, entries)
+            entry_rows = await self._get_entries_for_payment_ids(session, [pid])
+        entries = [
+            _entry__map_to_schema(er)
+            for er in entry_rows
+            if er.payment_id == pid
+        ]
+        return _payment__map_to_schema(row, entries)
 
-    async def findOne(self, query: Dict) -> Optional[Payment]:
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
+    async def findOne(
+        self,
+        order_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Optional[Payment]:
+        records = await self.findAll(order_id=order_id, user_id=user_id)
+        return records[0] if records else None
 
     async def create(self, data: PaymentInternalCreate) -> Payment:
         factory = self._factory()
@@ -308,20 +250,16 @@ class MySQLPaymentDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        # Since existing is a Dict and update_data is a PaymentInternalUpdate, we merge by accessing update_data fields
-        # falling back to existing.
-        merged = {
-            "order_id": update_data.order_id if update_data.order_id is not None else existing.order_id,
-            "user_id": update_data.user_id if update_data.user_id is not None else existing.user_id,
-            "user_id_formatted": update_data.user_id_formatted if update_data.user_id_formatted is not None else existing.user_id_formatted,
-            "customer_name": update_data.customer_name if update_data.customer_name is not None else existing.customer_name,
-            "order_date": update_data.order_date if update_data.order_date is not None else existing.order_date,
-            "payment_method": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
-            "amount_paid": update_data.amount_paid if update_data.amount_paid is not None else existing.amount_paid,
-            "amount_remaining": update_data.amount_remaining if update_data.amount_remaining is not None else existing.amount_remaining,
-            "total_amount": update_data.total_amount if update_data.total_amount is not None else existing.total_amount,
-            "payment_id": update_data.payment_id if update_data.payment_id is not None else existing.payment_id,
-        }
+        resolved_order_id = update_data.order_id if update_data.order_id is not None else existing.order_id
+        resolved_user_id = update_data.user_id if update_data.user_id is not None else existing.user_id
+        resolved_user_id_fmt = update_data.user_id_formatted if update_data.user_id_formatted is not None else existing.user_id_formatted
+        resolved_customer_name = update_data.customer_name if update_data.customer_name is not None else existing.customer_name
+        resolved_order_date = update_data.order_date if update_data.order_date is not None else existing.order_date
+        resolved_payment_method = update_data.payment_method if update_data.payment_method is not None else existing.payment_method
+        resolved_amount_paid = update_data.amount_paid if update_data.amount_paid is not None else existing.amount_paid
+        resolved_amount_remaining = update_data.amount_remaining if update_data.amount_remaining is not None else existing.amount_remaining
+        resolved_total_amount = update_data.total_amount if update_data.total_amount is not None else existing.total_amount
+        resolved_payment_id = update_data.payment_id if update_data.payment_id is not None else existing.payment_id
 
         factory = self._factory()
         if not factory:
@@ -337,16 +275,16 @@ class MySQLPaymentDAO:
                     f"payment_id=:payment_id, updated_at=:updated_at WHERE id=:id"
                 ),
                 {
-                    "order_id": merged["order_id"],
-                    "user_id": merged["user_id"],
-                    "user_id_formatted": merged["user_id_formatted"],
-                    "customer_name": merged["customer_name"],
-                    "order_date": _to_ts(merged["order_date"]),
-                    "payment_method": merged["payment_method"],
-                    "amount_paid": merged["amount_paid"],
-                    "amount_remaining": merged["amount_remaining"],
-                    "total_amount": merged["total_amount"],
-                    "payment_id": merged["payment_id"],
+                    "order_id": resolved_order_id,
+                    "user_id": resolved_user_id,
+                    "user_id_formatted": resolved_user_id_fmt,
+                    "customer_name": resolved_customer_name,
+                    "order_date": _to_ts(resolved_order_date),
+                    "payment_method": resolved_payment_method,
+                    "amount_paid": resolved_amount_paid,
+                    "amount_remaining": resolved_amount_remaining,
+                    "total_amount": resolved_total_amount,
+                    "payment_id": resolved_payment_id,
                     "updated_at": now,
                     "id": pid,
                 },
@@ -367,7 +305,7 @@ class MySQLPaymentDAO:
                             "payment_id": pid,
                             "entry_id": entry_id,
                             "amount": (entry.amount if entry.amount is not None else 0),
-                            "payment_method": entry.payment_method or merged["payment_method"],
+                            "payment_method": entry.payment_method or resolved_payment_method,
                             "paid_at": paid_at,
                             "image": entry.image,
                             "notes": (entry.notes if entry.notes is not None else ""),
@@ -389,16 +327,24 @@ class MySQLPaymentDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Payment:
-        docs = await self.findAll(query)
+    async def deleteMany(
+        self,
+        order_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> int:
+        records = await self.findAll(order_id=order_id, user_id=user_id)
         deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
+        for r in records:
+            if await self.delete(r.id):
                 deleted += 1
-        return {"deletedCount": deleted}
+        return deleted
 
-    async def count(self, query: Optional[Dict] = None) -> int:
-        return len(await self.findAll(query))
+    async def count(
+        self,
+        order_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> int:
+        return len(await self.findAll(order_id=order_id, user_id=user_id))
 
     find_all = findAll
     find_by_id = findById

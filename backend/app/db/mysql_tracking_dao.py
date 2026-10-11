@@ -15,6 +15,7 @@ from app.models.tracking import (
     ZeroResultSearchItem,
     MostViewedItem,
     MostAbandonedProductItem,
+    ReturningUserItem,
 )
 from app.models.schemas import ItemSnippet
 
@@ -292,7 +293,7 @@ class MySQLTrackingDAO:
                 "search_term IS NOT NULL",
                 "TRIM(search_term) != ''",
             ]
-            params = dict(u_params)
+            params = {k: v for k, v in u_params.items()}
             params["limit"] = int(limit)
             if last_cleared:
                 where_clauses.append("event_timestamp > :last_cleared")
@@ -413,7 +414,7 @@ class MySQLTrackingDAO:
         items: List[DropOffPointItem] = []
         for r in rows:
             reasons_val = r.reasons_json
-            if isinstance(reasons_val, str):
+            if type(reasons_val) is str:
                 try:
                     reasons_val = json.loads(reasons_val)
                 except Exception:
@@ -624,10 +625,10 @@ class MySQLTrackingDAO:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-    ) -> tuple[List[str], dict[str, str]]:
+    ) -> List[ReturningUserItem]:
         factory = self._factory()
         if not factory:
-            return [], {}
+            return []
         where_clauses = ["user_id IS NOT NULL", "user_id != ''"]
         params = {}
         if start_date:
@@ -648,12 +649,15 @@ class MySQLTrackingDAO:
                     params,
                 )
             ).fetchall()
-        user_ids = [str(r.user_id) for r in rows]
-        last_seen_map = {
-            str(r.user_id): r.last_seen.isoformat() if r.last_seen and hasattr(r.last_seen, "isoformat") else str(r.last_seen or "")
+        return [
+            ReturningUserItem(
+                user_id=str(r.user_id),
+                name="",
+                email="",
+                last_seen=r.last_seen.isoformat() if r.last_seen and type(r.last_seen) is not str else str(r.last_seen or ""),
+            )
             for r in rows
-        }
-        return user_ids, last_seen_map
+        ]
 
     async def findOne(
         self,
@@ -662,8 +666,8 @@ class MySQLTrackingDAO:
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> Optional['Tracking']:
-        docs = await self.findAll(id=id, event_type=event_type, user_id=user_id, session_id=session_id, limit=1)
-        return docs[0] if docs else None
+        records = await self.findAll(id=id, event_type=event_type, user_id=user_id, session_id=session_id, limit=1)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional['Tracking']:
         return await self.findOne(id=id)
@@ -690,7 +694,7 @@ class MySQLTrackingDAO:
         add_col("session_id", "session_id", data.session_id)
         
         ts = data.timestamp
-        if ts is not None and isinstance(ts, str):
+        if ts is not None and type(ts) is str:
             try:
                 from datetime import datetime
                 ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -739,12 +743,10 @@ class MySQLTrackingDAO:
         return await self.findById(str(new_id))
 
     async def update(self, id: str, data: 'AnalyticsEventUpdate') -> Optional['AnalyticsEvent']:
-        # Pydantic update pattern strictly without dicts
         existing = await self.findById(id)
         if not existing:
             return None
         
-        # We don't support updating Analytics events strictly, returning None or existing
         return existing
 
     async def delete(self, id: str) -> bool:

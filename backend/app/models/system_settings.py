@@ -1,18 +1,16 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional
 from pydantic import Field
-from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
-class SystemSettings(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    maintenance_mode: Optional[str] = Field(default=None, alias='maintenanceMode')
-    allow_signups: Optional[str] = Field(default=None, alias='allowSignups')
-    max_upload_size_mb: int = Field(default=0, alias='maxUploadSizeMb')
-    default_currency: Optional[str] = Field(default=None, alias='defaultCurrency')
-    timezone: Optional[str] = Field(default=None, alias='timezone')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class SystemSettings(CamelBaseModel):
+    id: Optional[str] = Field(default=None, alias='_id')
+    external_id: Optional[str] = None
+    maintenance_mode: bool = False
+    allow_signups: bool = False
+    max_upload_size_mb: Optional[int] = 0
+    max_concurrent_orders: Optional[int] = 1
+    default_currency: Optional[str] = None
+    timezone: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

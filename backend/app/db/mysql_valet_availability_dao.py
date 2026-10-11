@@ -21,9 +21,10 @@ from app.models.valet_availability import ValetAvailability
 def _format_date(d: Optional[date | datetime | str]) -> Optional[str]:
     if d is None:
         return None
-    if isinstance(d, (datetime, date)):
+    try:
         return d.strftime("%Y-%m-%d")
-    return str(d)
+    except AttributeError:
+        return str(d)
 
 
 def _map_row(r, children_slots: list[str], children_zones: list[str]) -> ValetAvailability:
@@ -56,7 +57,7 @@ class MySQLValetAvailabilityDAO:
             return []
 
         where_clauses: list[str] = []
-        params: dict[str, object] = {}
+        params = {}
 
         if filters is not None:
             if filters.id is not None:
@@ -98,11 +99,8 @@ class MySQLValetAvailabilityDAO:
                 return []
 
             ids = [r.id for r in rows]
-            slots_map: dict[int, list[str]] = {cid: [] for cid in ids}
-            zones_map: dict[int, list[str]] = {cid: [] for cid in ids}
-
             id_phs = [f":bid_{i}" for i in range(len(ids))]
-            id_params: dict[str, object] = {f"bid_{i}": cid for i, cid in enumerate(ids)}
+            id_params = {f"bid_{i}": cid for i, cid in enumerate(ids)}
 
             slots_res = await session.execute(
                 text(
@@ -110,9 +108,7 @@ class MySQLValetAvailabilityDAO:
                 ),
                 id_params,
             )
-            for sr in slots_res.fetchall():
-                if sr.availability_id in slots_map:
-                    slots_map[sr.availability_id].append(sr.slot)
+            slots_rows = slots_res.fetchall()
 
             zones_res = await session.execute(
                 text(
@@ -120,20 +116,22 @@ class MySQLValetAvailabilityDAO:
                 ),
                 id_params,
             )
-            for zr in zones_res.fetchall():
-                if zr.availability_id in zones_map:
-                    zones_map[zr.availability_id].append(zr.zone)
+            zones_rows = zones_res.fetchall()
 
             return [
-                _map_row(r, slots_map.get(r.id, []), zones_map.get(r.id, []))
+                _map_row(
+                    r,
+                    [sr.slot for sr in slots_rows if sr.availability_id == r.id],
+                    [zr.zone for zr in zones_rows if zr.availability_id == r.id],
+                )
                 for r in rows
             ]
 
     async def findOne(
         self, filters: Optional[ValetAvailabilityFilter] = None
     ) -> Optional[ValetAvailability]:
-        docs = await self.findAll(filters=filters)
-        return docs[0] if docs else None
+        records = await self.findAll(filters=filters)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[ValetAvailability]:
         return await self.findOne(ValetAvailabilityFilter(id=id))
@@ -146,7 +144,7 @@ class MySQLValetAvailabilityDAO:
             return 0
 
         where_clauses: list[str] = []
-        params: dict[str, object] = {}
+        params = {}
 
         if filters is not None:
             if filters.id is not None:
@@ -240,7 +238,7 @@ class MySQLValetAvailabilityDAO:
 
         now = now_utc()
         set_clauses: list[str] = ["updated_at = :up"]
-        params: dict[str, object] = {"id": pk, "up": now}
+        params = {"id": pk, "up": now}
 
         if update_data.valet_id is not None:
             set_clauses.append("valet_id = :valet_id")

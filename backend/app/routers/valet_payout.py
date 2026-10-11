@@ -120,7 +120,7 @@ async def get_my_valet_earnings(
     valet_id = str(current_user.id)
     settings = await _get_settings()
     orders = await order_repository.findAll(OrderFilter(assigned_valet=valet_id))
-    returns = await return_request_repository.findAll({"valetId": valet_id})
+    returns = await return_request_repository.findAll(valet_id=valet_id)
 
     return await _compute_valet_earnings(valet_id, settings, orders, returns)
 
@@ -136,7 +136,7 @@ async def get_valet_earnings_by_id(
 
     settings = await _get_settings()
     orders = await order_repository.findAll(OrderFilter(assigned_valet=valet_id))
-    returns = await return_request_repository.findAll({"valetId": valet_id})
+    returns = await return_request_repository.findAll(valet_id=valet_id)
 
     result = await _compute_valet_earnings(valet_id, settings, orders, returns)
     return result
@@ -183,10 +183,7 @@ async def list_valet_payouts(
     valet_id: Optional[str] = Query(None),
     current_user: User = Depends(require_super_admin)
 ):
-    query = {}
-    if valet_id:
-        query["valetId"] = valet_id
-    records = await valet_payout_dao.findAll(query)
+    records = await valet_payout_dao.findAll(valet_id=valet_id)
     for r in records:
         await _enrich_with_valet(r)
     return records
@@ -198,7 +195,7 @@ async def list_my_valet_payouts(
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
         
-    records = await valet_payout_dao.findAll({"valetId": str(current_user.id)})
+    records = await valet_payout_dao.findAll(valet_id=str(current_user.id))
     for r in records:
         await _enrich_with_valet(r)
     return records

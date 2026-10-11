@@ -1,7 +1,17 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import List, Optional, Union
 from pydantic import ConfigDict, Field
 from app.models.base import CamelBaseModel
+
+
+class DivisionCategoryTag(CamelBaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    id: Union[int, str]
+    external_id: Optional[str] = Field(None, alias="externalId")
+    mongo_id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: bool = Field(True, alias="isActive")
 
 
 class Division(CamelBaseModel):
@@ -13,7 +23,7 @@ class Division(CamelBaseModel):
     display_order: int = Field(default=0)
     is_active: bool = Field(default=True)
     category_tag_ids: List[int] = Field(default_factory=list)
-    category_tags: List[Dict[str, Any]] = Field(default_factory=list)
+    category_tags: List[DivisionCategoryTag] = Field(default_factory=list)
     category_count: int = Field(default=0)
     created_at: Optional[datetime] = Field(default=None)
     updated_at: Optional[datetime] = Field(default=None)
@@ -50,7 +60,7 @@ class DivisionResponse(CamelBaseModel):
     display_order: int = 0
     is_active: bool = True
     category_tag_ids: List[int] = Field(default_factory=list)
-    category_tags: List[Dict[str, Any]] = Field(default_factory=list)
+    category_tags: List[DivisionCategoryTag] = Field(default_factory=list)
     category_tag_names: List[str] = Field(default_factory=list)
     category_count: int = 0
     created_at: Optional[datetime] = None
@@ -67,7 +77,7 @@ class DivisionInternal(CamelBaseModel):
     display_order: int = 0
     is_active: bool = True
     category_tag_ids: List[int] = Field(default_factory=list)
-    category_tags: List[Dict[str, Any]] = Field(default_factory=list)
+    category_tags: List[DivisionCategoryTag] = Field(default_factory=list)
     category_tag_names: List[str] = Field(default_factory=list)
     category_count: int = 0
     created_at: Optional[datetime] = None

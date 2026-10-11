@@ -33,7 +33,7 @@ class MySQLCommissionSettingsDAO:
             )
             rows = result.fetchall()
 
-            children_map = {str(r.id): [] for r in rows}
+            all_tier_rows = []
             if rows:
                 ids = [r.id for r in rows]
                 chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -46,24 +46,26 @@ class MySQLCommissionSettingsDAO:
                         ),
                         chunk_params,
                     )
-                    for tr in t_res.fetchall():
-                        children_map[str(tr.setting_id)].append(
-                            CommissionTierInternal(
-                                min=float(tr.min_val) if tr.min_val is not None else None,
-                                max=float(tr.max_val) if tr.max_val is not None else None,
-                                pct=float(tr.commission_pct) if tr.commission_pct is not None else 0.0,
-                            )
-                        )
+                    all_tier_rows.extend(t_res.fetchall())
 
         out = []
         for r in rows:
+            rid = int(r.id)
             out.append(CommissionSettings(
                 id=str(r.id),
                 external_id=r.external_id,
                 default_commission_pct=float(r.default_commission_pct) if r.default_commission_pct is not None else 5.0,
                 created_at=r.created_at,
                 updated_at=r.updated_at,
-                tiers=children_map[str(r.id)]
+                tiers=[
+                    CommissionTierInternal(
+                        min=float(tr.min_val) if tr.min_val is not None else None,
+                        max=float(tr.max_val) if tr.max_val is not None else None,
+                        pct=float(tr.commission_pct) if tr.commission_pct is not None else 0.0,
+                    )
+                    for tr in all_tier_rows
+                    if int(tr.setting_id) == rid
+                ]
             ))
         return out
 
