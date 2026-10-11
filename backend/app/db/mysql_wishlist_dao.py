@@ -166,17 +166,25 @@ class MySQLWishlistDAO:
 
     async def deleteMany(self, user: Optional[Union[int, str]] = None) -> int:
         factory = self._factory()
-        records = await self.findAll(user=user)
-        if not records:
+        if not factory:
             return 0
-        wids = [int(r.id) for r in records if str(r.id or "").isdigit()]
-        if not wids:
-            return 0
+        where_clauses = []
+        params = {}
+        if user is not None:
+            where_clauses.append("user_id = COALESCE(:uid_int, (SELECT id FROM sj_users WHERE external_id = :uid_str))")
+            params["uid_int"] = int(user) if str(user).isdigit() else None
+            params["uid_str"] = str(user)
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
-            for wid in wids:
-                await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
-                await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :wid"), {"wid": wid})
+            await session.execute(
+                text(f"DELETE FROM sj_wishlist_items WHERE wishlist_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
+                params,
+            )
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"),
+                params,
+            )
             await session.commit()
-        return len(wids)
+            return result.rowcount or 0
 
 

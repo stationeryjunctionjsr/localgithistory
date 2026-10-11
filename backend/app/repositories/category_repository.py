@@ -27,6 +27,9 @@ class CategoryRepository:
         categories = await self.storage.findAll(name=name)
         return categories[0] if categories else None
 
+    async def findByCategoryTag(self, category_tag: str) -> List[Category]:
+        return await self.storage.findAll(category_tag=category_tag)
+
     async def create(self, category_data: "CategoryInternalCreate") -> Category:
         return await self.storage.create(category_data)
 

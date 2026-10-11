@@ -40,22 +40,42 @@ class StockReservationRepository:
 
     async def get_reserved_quantity(self, product_id: str, exclude_user_id: Optional[str] = None) -> int:
         """Returns the total active, non-expired reserved quantity for a product."""
-        await self.ensure_table_exists()
-        # Find all active reservations
-        all_res = await self.storage.findAll({"productId": str(product_id), "status": "active"})
+        bulk_map = await self.get_reserved_quantities_bulk([product_id], exclude_user_id=exclude_user_id)
+        return bulk_map.get(str(product_id), 0)
 
-        total = 0
+    async def get_reserved_quantities_bulk(
+        self, product_ids: List[str], exclude_user_id: Optional[str] = None
+    ) -> dict[str, int]:
+        """Returns the total active, non-expired reserved quantity for each product_id in batch."""
+        if not product_ids:
+            return {}
+        await self.ensure_table_exists()
+        from sqlalchemy import text
+        factory = self.storage._factory()
         now = datetime.now(timezone.utc)
 
-        for res in all_res:
-            if exclude_user_id and str(res.user_id) == str(exclude_user_id):
-                continue
+        placeholders = [f":pid_{i}" for i in range(len(product_ids))]
+        params = {f"pid_{i}": str(pid) for i, pid in enumerate(product_ids)}
+        params["status"] = "active"
+        params["now"] = now
 
-            # Check expiry
-            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
-                total += int(res.quantity)
+        user_clause = ""
+        if exclude_user_id:
+            user_clause = "AND (user_id IS NULL OR user_id != :exclude_uid)"
+            params["exclude_uid"] = str(exclude_user_id)
 
-        return total
+        sql = f"""
+            SELECT product_id, SUM(quantity) as total_reserved
+            FROM {self.storage.TABLE}
+            WHERE status = :status
+              AND expires_at > :now
+              AND product_id IN ({', '.join(placeholders)})
+              {user_clause}
+            GROUP BY product_id
+        """
+        async with factory() as session:
+            rows = (await session.execute(text(sql), params)).fetchall()
+            return {str(r.product_id): int(r.total_reserved or 0) for r in rows}
 
     async def get_user_reservations(self, user_id: str) -> List['StockReservationInternal']:
         """Returns all active, non-expired reservations for a user."""

@@ -275,3 +275,32 @@ def test_section_1b_repository_typed_methods():
     assert hasattr(user_repository, "findSuperAdmin"), "user_repository must have findSuperAdmin"
     assert hasattr(user_repository, "findByReferralCode"), "user_repository must have findByReferralCode"
 
+
+def test_section_3_in_memory_pushdowns():
+    from app.repositories.stock_reservation_repository import stock_reservation_repository
+    from app.repositories.product_repository import product_repository
+    from app.repositories.category_repository import category_repository
+    import app.routers.products as products_router_mod
+    import app.db.mysql_cart_dao as cart_dao_mod
+    import app.db.mysql_wishlist_dao as wishlist_dao_mod
+    import inspect
+    import ast
+
+    # 1. Methods exist
+    assert hasattr(stock_reservation_repository, "get_reserved_quantities_bulk"), "stock_reservation_repository must have get_reserved_quantities_bulk"
+    assert hasattr(product_repository, "findByName"), "product_repository must have findByName"
+    assert hasattr(category_repository, "findByCategoryTag"), "category_repository must have findByCategoryTag"
+
+    # 2. CartDAO.deleteMany AST has no for-loops (set-based pushdown)
+    cart_source = inspect.getsource(cart_dao_mod.MySQLCartDAO.deleteMany)
+    assert "for r in records" not in cart_source, "MySQLCartDAO.deleteMany must not loop over records in Python"
+
+    # 3. WishlistDAO.deleteMany AST has no for-loops (set-based pushdown)
+    wishlist_source = inspect.getsource(wishlist_dao_mod.MySQLWishlistDAO.deleteMany)
+    assert "for wid in wids" not in wishlist_source, "MySQLWishlistDAO.deleteMany must not loop over wids in Python"
+
+    # 4. products router create_product does not call findAll()
+    create_prod_source = inspect.getsource(products_router_mod.create_product)
+    assert "product_repository.findAll()" not in create_prod_source, "create_product must not call findAll() for duplicate checks"
+
+

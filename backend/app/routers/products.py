@@ -1093,19 +1093,21 @@ async def get_product(product_id: str, current_user: User = Depends(get_current_
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(product_data: ProductCreate, current_user: User = Depends(require_super_admin)):
     try:
-        # Check for duplicate name or SKU
-        existing_products = await product_repository.findAll()
-        name_lower = product_data.name.strip().lower()
-        sku_lower = (product_data.sku or "").strip().lower()
-        
-        for p in existing_products:
-            if (p.name or "").strip().lower() == name_lower:
-                raise HTTPException(status_code=400, detail=f"Product with name '{product_data.name}' already exists")
-            if (p.sku or "").strip().lower() == sku_lower:
+        # Check for duplicate SKU
+        sku_val = (product_data.sku or "").strip()
+        if sku_val:
+            existing_sku = await product_repository.findBySku(sku_val)
+            if existing_sku:
                 raise HTTPException(status_code=400, detail=f"Product with SKU '{product_data.sku}' already exists")
+
+        # Check for duplicate name
+        name_val = product_data.name.strip()
+        existing_name = await product_repository.findByName(name_val)
+        if existing_name:
+            raise HTTPException(status_code=400, detail=f"Product with name '{product_data.name}' already exists")
                 
         internal_create = ProductInternalCreate.model_validate(product_data.model_dump(by_alias=True))
-        if product_data.mrp is not None and getattr(internal_create, "price", None) in (None, 0.0):
+        if product_data.mrp is not None and internal_create.price in (None, 0.0):
             internal_create.price = product_data.mrp
         product = await product_repository.create(internal_create)
         _invalidate_product_caches()

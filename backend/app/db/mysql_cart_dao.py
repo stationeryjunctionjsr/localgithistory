@@ -347,12 +347,27 @@ class MySQLCartDAO:
             return result.rowcount > 0
 
     async def deleteMany(self, user: Optional[str] = None) -> int:
-        records = await self.findAll(user=user)
-        deleted = 0
-        for r in records:
-            if r.id and await self.delete(r.id):
-                deleted += 1
-        return deleted
+        factory = self._factory()
+        if not factory:
+            return 0
+        where_clauses = []
+        params = {}
+        if user is not None:
+            where_clauses.append("user_id = COALESCE(:user_id_int, (SELECT id FROM sj_users WHERE external_id = :user_id_str))")
+            params["user_id_int"] = int(user) if str(user).isdigit() else None
+            params["user_id_str"] = str(user)
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async with factory() as session:
+            await session.execute(
+                text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id IN (SELECT external_id FROM {self.TABLE} WHERE {where_sql})"),
+                params,
+            )
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"),
+                params,
+            )
+            await session.commit()
+            return result.rowcount or 0
 
     async def count(self, id: Optional[Union[int, str]] = None, user: Optional[str] = None) -> int:
         factory = self._factory()

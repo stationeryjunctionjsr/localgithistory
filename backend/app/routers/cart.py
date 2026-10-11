@@ -53,12 +53,17 @@ async def get_cart(
         role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
         user_id = current_user.id
 
-        # Bulk load products
+        # Bulk load products and active reservations
         product_ids = [item.product for item in cart.items if item.product]
         products_map = {}
+        reserved_map = {}
         if product_ids:
             products = await product_repository.findByIds(product_ids)
             products_map = {str(p.id): p for p in products}
+            from app.repositories.stock_reservation_repository import stock_reservation_repository
+            reserved_map = await stock_reservation_repository.get_reserved_quantities_bulk(
+                product_ids, exclude_user_id=current_user.id
+            )
 
         cart_items = []
         for item in cart.items:
@@ -74,11 +79,7 @@ async def get_cart(
                 raise ValueError(f"Data Integrity Error: Subtotal calculation failed for product {product.id}")
             price = (subtotal / quantity) if quantity else 0  # effective price per unit for display
 
-            from app.repositories.stock_reservation_repository import stock_reservation_repository
-
-            reserved = await stock_reservation_repository.get_reserved_quantity(
-                product.id, exclude_user_id=current_user.id
-            )
+            reserved = reserved_map.get(str(product.id), 0)
             if product.stock is None:
                 raise ValueError(f"Data Integrity Error: Product {product.id} is missing stock information")
             available_stock = max(0, int(product.stock) - reserved)

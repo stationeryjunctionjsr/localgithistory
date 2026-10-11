@@ -568,8 +568,8 @@ class ProductRepository:
             target_tag = query["categoryTag"].lower()
             from app.repositories.category_repository import category_repository
 
-            categories = await category_repository.findAll()
-            matching_cats = [c.name for c in categories if (c.categoryTag or "").lower() == target_tag]
+            categories = await category_repository.findByCategoryTag(target_tag)
+            matching_cats = [c.name for c in categories]
 
             if matching_cats:
                 # Merge into existing categories filter if any
@@ -943,6 +943,12 @@ class ProductRepository:
 
     async def findBySku(self, sku: str):
         p = await self.storage.findOne({"sku": sku})
+        if p:
+            p = (await self._attach_category_gst([p]))[0]
+        return p
+
+    async def findByName(self, name: str):
+        p = await self.storage.findOne({"name": name})
         if p:
             p = (await self._attach_category_gst([p]))[0]
         return p
