@@ -387,8 +387,6 @@ class TrackingRepository:
     ) -> List[DropOffPointItem]:
         return await self.storage.get_drop_offs(limit=limit, start_date=start_date, end_date=end_date)
 
-    getDropOffPoints = getDropOffs
-
     async def getCartAbandonments(
         self, limit: int = 100, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[Tracking]:

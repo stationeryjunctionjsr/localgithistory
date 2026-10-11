@@ -48,14 +48,14 @@ def test_order_properties_and_decline_history():
             ValetDeclineHistoryEntry(valetId="valet1", reason="timeout")
         ],
     )
-    assert order.orderNumber == "ORD-101"
-    assert order.valetCascadeCount == 2
-    assert len(order.valetDeclineHistory) == 1
-    assert order.valetDeclineHistory[0].valet_id == "valet1"
-    assert order.valetAssignedAt is not None
+    assert order.order_number == "ORD-101"
+    assert order.valet_cascade_count == 2
+    assert len(order.valet_decline_history) == 1
+    assert order.valet_decline_history[0].valet_id == "valet1"
+    assert order.valet_assigned_at is not None
 
 def test_return_request_properties_and_decline_history():
-    """Verify ReturnRequestInternal exposes properties for cascade/revert workflows."""
+    """Verify ReturnRequestInternal native fields for cascade/revert workflows."""
     ret = ReturnRequestInternal(
         id="1",
         return_id="RET-202",
@@ -66,24 +66,24 @@ def test_return_request_properties_and_decline_history():
             ReturnRequestValetDeclineInternal(valet_id="v2", reason="timeout")
         ],
     )
-    assert ret.returnId == "RET-202"
-    assert ret.userId == "u456"
-    assert ret.valetCascadeCount == 1
-    assert ret.valetAssignedAt == "2026-10-12T00:00:00Z"
-    assert len(ret.valetDeclineHistory) == 1
-    assert ret.valetDeclineHistory[0].valet_id == "v2"
+    assert ret.return_id == "RET-202"
+    assert ret.user_id == "u456"
+    assert ret.valet_cascade_count == 1
+    assert ret.valet_assigned_at == "2026-10-12T00:00:00Z"
+    assert len(ret.valet_decline_history) == 1
+    assert ret.valet_decline_history[0].valet_id == "v2"
 
 def test_return_request_create_properties():
-    """Verify ReturnRequestInternalCreate allows setting returnId, cascade count and history."""
+    """Verify ReturnRequestInternalCreate allows setting return_id, cascade count and history."""
     ret_create = ReturnRequestInternalCreate()
-    ret_create.returnId = "RET-999"
-    ret_create.valetCascadeCount = 0
-    ret_create.valetDeclineHistory = []
+    ret_create.return_id = "RET-999"
+    ret_create.valet_cascade_count = 0
+    ret_create.valet_decline_history = []
     assert ret_create.return_id == "RET-999"
     assert ret_create.valet_cascade_count == 0
     assert ret_create.valet_decline_history == []
 
-def test_tracking_repository_get_drop_off_points_alias():
-    """Verify getDropOffPoints alias exists on tracking_repository."""
-    assert hasattr(tracking_repository, "getDropOffPoints")
-    assert tracking_repository.getDropOffPoints == tracking_repository.getDropOffs
+def test_tracking_repository_get_drop_offs():
+    """Verify getDropOffs exists and is callable on tracking_repository."""
+    assert hasattr(tracking_repository, "getDropOffs")
+    assert callable(tracking_repository.getDropOffs)

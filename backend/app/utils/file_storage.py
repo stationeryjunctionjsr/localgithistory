@@ -75,61 +75,61 @@ class FileStorage:
             mtime = 0
 
         data = self.file_path.read_text(encoding="utf-8")
-        documents = json.loads(data or "[]")
+        records = json.loads(data or "[]")
 
-        _FILE_CACHE[self.collection_name] = (documents, now + _FILE_CACHE_TTL, mtime)
-        return documents
+        _FILE_CACHE[self.collection_name] = (records, now + _FILE_CACHE_TTL, mtime)
+        return records
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
-        """Read all documents with optional query filters"""
-        documents = self._read_file()
+        """Read all records with optional query filters"""
+        records = self._read_file()
 
         if query:
             filtered = []
-            for doc in documents:
+            for record in records:
                 match = True
                 for key, value in query.items():
                     if key in ["_id", "id"]:
-                        if (doc["_id"] if "_id" in doc else None) != value and (doc["id"] if "id" in doc else None) != value:
+                        if (record["_id"] if "_id" in record else None) != value and (record["id"] if "id" in record else None) != value:
                             match = False
                             break
                     elif key == "name":
-                        if ((doc["name"] if "name" in doc else None) or "").lower() != str(value).lower():
+                        if ((record["name"] if "name" in record else None) or "").lower() != str(value).lower():
                             match = False
                             break
                     elif key == "allowed_ids":
                         allowed_ids_strs = [str(aid) for aid in value]
-                        if str((doc["_id"] if "_id" in doc else None)) not in allowed_ids_strs and str((doc["id"] if "id" in doc else None)) not in allowed_ids_strs:
+                        if str((record["_id"] if "_id" in record else None)) not in allowed_ids_strs and str((record["id"] if "id" in record else None)) not in allowed_ids_strs:
                             match = False
                             break
-                    elif (doc[key] if key in doc else None) != value:
+                    elif (record[key] if key in record else None) != value:
                         match = False
                         break
                 if match:
-                    filtered.append(doc)
+                    filtered.append(record)
             return filtered
 
-        return documents
+        return records
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
-        """Find one document matching query"""
-        documents = await self.findAll(query)
-        return documents[0] if documents else None
+        """Find one record matching query"""
+        records = await self.findAll(query)
+        return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Dict]:
-        """Find document by ID"""
-        return await self.findOne({"_id": id})
+        """Find record by ID"""
+        return await self.findOne({"id": id}) or await self.findOne({"_id": id})
 
     # Aliases for repositories that use find_all / find_by_id / find_one
     find_all = findAll
     find_by_id = findById
     find_one = findOne
 
-    def _get_next_id(self, documents: List[Dict]) -> str:
-        """Find max numeric ID and increment by 1. Returns "1" if empty."""
+    def _get_next_id(self, records: List[Dict]) -> str:
+        """Find max numeric ID and increment by 1. Returns '1' if empty."""
         max_id = 0
-        for doc in documents:
-            id_val = (doc["_id"] if "_id" in doc else None)
+        for record in records:
+            id_val = record.get("id") or record.get("_id")
             if id_val:
                 try:
                     # Try to parse as int (handles "123" and 123)
@@ -141,70 +141,71 @@ class FileStorage:
         return str(max_id + 1)
 
     async def create(self, data: Dict) -> Dict:
-        """Create new document. Preserves any '_id' already in data; falls back to auto-increment."""
+        """Create new record. Preserves any 'id' or '_id' already in data; falls back to auto-increment."""
         self._initialize()
-        documents = await self.findAll()
+        records = await self.findAll()
 
-        # Preserve caller-supplied _id (e.g. seeded system segments), otherwise auto-increment
-        supplied_id = (data["_id"] if "_id" in data else None)
+        # Preserve caller-supplied id (e.g. seeded system segments), otherwise auto-increment
+        supplied_id = data.get("id") or data.get("_id")
         if not supplied_id:
-            supplied_id = self._get_next_id(documents)
+            supplied_id = self._get_next_id(records)
 
-        # Strip _id from data so the explicit assignment below is authoritative
-        data_without_id = {k: v for k, v in data.items() if k != "_id"}
+        # Strip id and _id from data so the explicit assignment below is authoritative
+        data_without_id = {k: v for k, v in data.items() if k not in ("_id", "id")}
 
-        new_doc = dict(data_without_id)
-        new_doc["_id"] = supplied_id
-        new_doc["createdAt"] = (data["createdAt"] if "createdAt" in data else datetime.now(timezone.utc).isoformat())
-        new_doc["updatedAt"] = (data["updatedAt"] if "updatedAt" in data else datetime.now(timezone.utc).isoformat())
+        new_record = dict(data_without_id)
+        new_record["id"] = supplied_id
+        new_record["_id"] = supplied_id
+        new_record["createdAt"] = (data["createdAt"] if "createdAt" in data else datetime.now(timezone.utc).isoformat())
+        new_record["updatedAt"] = (data["updatedAt"] if "updatedAt" in data else datetime.now(timezone.utc).isoformat())
 
-        documents.append(new_doc)
-        self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
+        records.append(new_record)
+        self.file_path.write_text(json.dumps(records, indent=2, default=str), encoding="utf-8")
         self._invalidate_cache()
-        return new_doc
+        return new_record
 
     async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
-        """Update document"""
+        """Update record"""
         self._initialize()
-        documents = await self.findAll()
+        records = await self.findAll()
 
-        index = next((i for i, doc in enumerate(documents) if (doc["_id"] if "_id" in doc else None) == id), None)
+        index = next((i for i, r in enumerate(records) if (r.get("id") == id or r.get("_id") == id)), None)
         if index is None:
             return None
 
-        updated_doc = dict(documents[index])
-        updated_doc.update(update_data)
-        updated_doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
-        documents[index] = updated_doc
+        updated_record = dict(records[index])
+        updated_record.update(update_data)
+        updated_record["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        records[index] = updated_record
 
-        self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
+        self.file_path.write_text(json.dumps(records, indent=2, default=str), encoding="utf-8")
         self._invalidate_cache()
-        return documents[index]
+        return records[index]
 
     async def delete(self, id: str) -> bool:
-        """Delete document"""
+        """Delete record"""
         self._initialize()
-        documents = await self.findAll()
-        original_count = len(documents)
+        records = await self.findAll()
+        original_count = len(records)
 
-        documents = [doc for doc in documents if (doc["_id"] if "_id" in doc else None) != id]
+        records = [r for r in records if r.get("id") != id and r.get("_id") != id]
 
-        if len(documents) == original_count:
+        if len(records) == original_count:
             return False
 
-        self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
+        self.file_path.write_text(json.dumps(records, indent=2, default=str), encoding="utf-8")
         self._invalidate_cache()
         return True
 
     async def deleteMany(self, query: Dict) -> Dict:
-        """Delete many documents matching query"""
+        """Delete many records matching query"""
         self._initialize()
-        documents = await self.findAll()
-        original_count = len(documents)
+        records = await self.findAll()
+        original_count = len(records)
 
         filtered = [
-            doc for doc in documents
-            if not all((doc[key] if key in doc else None) == value for key, value in query.items())
+            r for r in records
+            if not all(r.get(key) == value for key, value in query.items())
         ]
 
         deleted_count = original_count - len(filtered)
@@ -213,36 +214,36 @@ class FileStorage:
         return {"deletedCount": deleted_count}
 
     async def updateMany(self, query: Dict, update_data: Dict) -> int:
-        """Update many documents matching query. Returns count of updated documents."""
+        """Update many records matching query. Returns count of updated records."""
         self._initialize()
-        documents = await self.findAll()
+        records = await self.findAll()
 
         count = 0
         now_str = datetime.now(timezone.utc).isoformat()
 
-        for doc in documents:
+        for record in records:
             match = True
             if query:
                 for key, value in query.items():
                     if key in ["_id", "id"]:
-                        if (doc["_id"] if "_id" in doc else None) != value and (doc["id"] if "id" in doc else None) != value:
+                        if record.get("_id") != value and record.get("id") != value:
                             match = False
                             break
-                    elif (doc[key] if key in doc else None) != value:
+                    elif record.get(key) != value:
                         match = False
                         break
             if match:
-                doc.update(update_data)
-                doc["updatedAt"] = now_str
+                record.update(update_data)
+                record["updatedAt"] = now_str
                 count += 1
 
         if count > 0:
-            self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
+            self.file_path.write_text(json.dumps(records, indent=2, default=str), encoding="utf-8")
             self._invalidate_cache()
 
         return count
 
     async def count(self, query: Optional[Dict] = None) -> int:
-        """Count documents matching query"""
-        documents = await self.findAll(query)
-        return len(documents)
+        """Count records matching query"""
+        records = await self.findAll(query)
+        return len(records)

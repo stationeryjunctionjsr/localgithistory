@@ -1119,45 +1119,6 @@ class ReturnRequestInternal(FlatCamelBaseModel):
     items: Optional[List[ReturnRequestItemInternal]] = None
     valet_decline_history: Optional[List[ReturnRequestValetDeclineInternal]] = None
 
-    @property
-    def returnId(self) -> Optional[str]:
-        return self.return_id
-
-    @returnId.setter
-    def returnId(self, value: Optional[str]):
-        self.return_id = value
-
-    @property
-    def userId(self) -> Optional[str]:
-        return self.user_id
-
-    @userId.setter
-    def userId(self, value: Optional[str]):
-        self.user_id = value
-
-    @property
-    def valetCascadeCount(self) -> int:
-        return self.valet_cascade_count or 0
-
-    @valetCascadeCount.setter
-    def valetCascadeCount(self, value: int):
-        self.valet_cascade_count = value
-
-    @property
-    def valetDeclineHistory(self) -> List[ReturnRequestValetDeclineInternal]:
-        return self.valet_decline_history or []
-
-    @valetDeclineHistory.setter
-    def valetDeclineHistory(self, value: List[ReturnRequestValetDeclineInternal]):
-        self.valet_decline_history = value
-
-    @property
-    def valetAssignedAt(self) -> Optional[str]:
-        return self.valet_assigned_at
-
-    @valetAssignedAt.setter
-    def valetAssignedAt(self, value: Optional[str]):
-        self.valet_assigned_at = value
 
 class ReturnRequestInternalCreate(FlatCamelBaseModel):
     id: Optional[str] = None
@@ -1180,29 +1141,6 @@ class ReturnRequestInternalCreate(FlatCamelBaseModel):
     items: Optional[List[ReturnRequestItemInternal]] = None
     valet_decline_history: Optional[List[ReturnRequestValetDeclineInternal]] = None
 
-    @property
-    def returnId(self) -> Optional[str]:
-        return self.return_id
-
-    @returnId.setter
-    def returnId(self, value: Optional[str]):
-        self.return_id = value
-
-    @property
-    def valetCascadeCount(self) -> Optional[int]:
-        return self.valet_cascade_count
-
-    @valetCascadeCount.setter
-    def valetCascadeCount(self, value: Optional[int]):
-        self.valet_cascade_count = value
-
-    @property
-    def valetDeclineHistory(self) -> Optional[List[ReturnRequestValetDeclineInternal]]:
-        return self.valet_decline_history
-
-    @valetDeclineHistory.setter
-    def valetDeclineHistory(self, value: Optional[List[ReturnRequestValetDeclineInternal]]):
-        self.valet_decline_history = value
 
 class ReturnRequestInternalUpdate(FlatCamelBaseModel):
     status: Optional[str] = None

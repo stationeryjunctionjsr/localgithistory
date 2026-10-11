@@ -151,30 +151,32 @@ class PushNotificationRepository:
             )
             return await self.device_storage.create(create)
 
-    async def getAllDeviceSubscriptions(self) -> List['DeviceSubscriptionsInternal']:
+    async def getAllDeviceSubscriptions(self) -> List[dict]:
         """Get all device subscriptions"""
         devices = await self.device_storage.findAll()
         # Return subscriptions including expoToken for mobile devices
         return [
             {
-                "userId": d.userId,
+                "userId": d.user_id,
                 "endpoint": d.endpoint,
-                "keys": (d.keys if d.keys is not None else {}),
-                "expoToken": d.expoToken,
-                "_id": d._id,
+                "keys": {k.key: k.value for k in (d.keys or [])} if isinstance(d.keys, list) else (d.keys or {}),
+                "expoToken": d.expo_token,
+                "id": str(d.id) if d.id is not None else "",
+                "_id": str(d.id) if d.id is not None else "",
             }
             for d in devices
         ]
 
-    async def getDeviceSubscriptionsByUser(self, userId: str) -> List['DeviceSubscriptionsInternal']:
+    async def getDeviceSubscriptionsByUser(self, userId: str) -> List[dict]:
         """Get device subscriptions for a specific user"""
-        user_devices = await self.device_storage.findAll({"userId": userId})
+        user_devices = await self.device_storage.findAll(user_id=userId)
         return [
             {
                 "endpoint": d.endpoint,
-                "keys": (d.keys if d.keys is not None else {}),
-                "expoToken": d.expoToken,
-                "_id": d._id,
+                "keys": {k.key: k.value for k in (d.keys or [])} if isinstance(d.keys, list) else (d.keys or {}),
+                "expoToken": d.expo_token,
+                "id": str(d.id) if d.id is not None else "",
+                "_id": str(d.id) if d.id is not None else "",
             }
             for d in user_devices
         ]

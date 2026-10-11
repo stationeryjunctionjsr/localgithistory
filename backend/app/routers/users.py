@@ -386,7 +386,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
     if user_data.email is not None and user_data.email:
         new_email = user_data.email.lower()
         existing_with_email = await user_repository.findByEmail(new_email)
-        if existing_with_email and str(existing_with_email.id or existing_with_email._id) != user_id:
+        if existing_with_email and str(existing_with_email.id) != user_id:
             raise HTTPException(status_code=400, detail="Email already in use by another account.")
         if not existing_user or existing_user.email != new_email:
             user_data.is_email_verified = False

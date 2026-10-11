@@ -74,7 +74,7 @@ class CartRepository:
         Uses a DB-level FOR UPDATE lock so concurrent removals cannot race.
         """
         def _merge(current_items):
-            return [it for it in current_items if it._id != item_id]
+            return [it for it in current_items if it.id != item_id and it.product != item_id]
 
         return await self.storage.update_items_atomic(user_id, _merge)
 

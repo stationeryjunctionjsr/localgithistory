@@ -46,9 +46,7 @@ async def update_settings(data: SystemSettingsUpdate, current_user: User = Depen
     """Update global system settings"""
     settings = await storage.findById("1")
     if not settings:
-        new_doc = data
-        await storage.create(new_doc)
-        return new_doc
+        return await storage.create(data)
 
     updated = await storage.update("1", data)
     return updated

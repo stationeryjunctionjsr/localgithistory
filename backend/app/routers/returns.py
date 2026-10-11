@@ -300,7 +300,7 @@ async def auto_assign_return(request_id: str, current_user: User = Depends(requi
             status=ReturnRequestStatus.PENDING_VALET.value,
             pendingValetId=valet_id,
             valetAssignedAt=now_iso,
-            valetCascadeCount=(req.valetCascadeCount or 0) + 1,
+            valetCascadeCount=(req.valet_cascade_count or 0) + 1,
             valetDeclineHistory=[],
         ),
     )

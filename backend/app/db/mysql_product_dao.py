@@ -695,7 +695,7 @@ class MySQLProductDAO:
         records = await self.findAll(query)
         deleted = 0
         for r in records:
-            if await self.delete(r._id):
+            if await self.delete(r.id):
                 deleted += 1
         return {"deletedCount": deleted}
 

@@ -55,7 +55,7 @@ class MySQLBannerDAO:
                     visibility_rules.append(VisibilityRuleSnippet(page_type=str(rule)))
 
         return BannerResponse(
-            id=str(r._id),
+            id=str(r.id),
             external_id=r.external_id,
             title=r.title,
             description=r.description,
@@ -104,7 +104,7 @@ class MySQLBannerDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT b.id AS _id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
+                    f"SELECT b.id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
                     f"b.display_order, b.start_date, b.end_date, b.is_active, b.is_published, "
                     f"b.target_audience, b.position, b.created_at, b.updated_at, b.zone_ids, "
                     f"COALESCE((SELECT JSON_ARRAYAGG(s.segment) FROM sj_banner_user_segments s WHERE s.banner_id = b.id), JSON_ARRAY()) AS user_segments_json, "
@@ -145,7 +145,7 @@ class MySQLBannerDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT b.id AS _id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
+                    f"SELECT b.id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
                     f"b.display_order, b.start_date, b.end_date, b.is_active, b.is_published, "
                     f"b.target_audience, b.position, b.created_at, b.updated_at, b.zone_ids, "
                     f"COALESCE((SELECT JSON_ARRAYAGG(s.segment) FROM sj_banner_user_segments s WHERE s.banner_id = b.id), JSON_ARRAY()) AS user_segments_json, "

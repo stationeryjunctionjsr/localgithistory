@@ -1206,7 +1206,7 @@ class AnalyticsRepository:
             result.append(
                 {
                     "orderId": order.id,
-                    "orderNumber": order.orderNumber,
+                    "orderNumber": order.order_number,
                     "userName": user.name,
                     "status": status,
                     "fulfillmentHours": delta_hours,
@@ -1985,7 +1985,7 @@ class AnalyticsRepository:
             result.append(
                 {
                     "orderId": order.id,
-                    "orderNumber": order.orderNumber,
+                    "orderNumber": order.order_number,
                     "customerName": user.name,
                     "grossSales": round(subtotal, 2),
                     "discount": round(discount, 2),
@@ -2174,7 +2174,7 @@ class AnalyticsRepository:
             result.append(
                 {
                     "orderId": order.id,
-                    "orderNumber": order.orderNumber,
+                    "orderNumber": order.order_number,
                     "customerName": user.name,
                     "couponCode": order.coupon_code or "—",
                     "discountType": coupon_info.discountType,

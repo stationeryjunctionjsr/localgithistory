@@ -100,7 +100,7 @@ async def test_mysql_banner_dao_sql_pushdown_and_hydration():
     dao = banner_dao_mod.MySQLBannerDAO()
 
     mock_row = MagicMock()
-    mock_row._id = 1
+    mock_row.id = 1
     mock_row.external_id = "ext_1"
     mock_row.title = "Welcome Banner"
     mock_row.description = "Discount on stationeries"
@@ -153,7 +153,7 @@ async def test_banner_repository_find_active_zone_filtering():
     repo = repo_mod.banner_repository
 
     banner1 = BannerResponse(
-        _id="1",
+        id="1",
         imageUrl="https://img.example.com/1.jpg",
         displayOrder=1,
         isActive=True,
@@ -164,7 +164,7 @@ async def test_banner_repository_find_active_zone_filtering():
         updatedAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
     )
     banner2 = BannerResponse(
-        _id="2",
+        id="2",
         imageUrl="https://img.example.com/2.jpg",
         displayOrder=2,
         isActive=True,
@@ -189,7 +189,7 @@ async def test_banner_repository_create_and_update():
     repo = repo_mod.banner_repository
 
     created_banner = BannerResponse(
-        _id="10",
+        id="10",
         title="Promo",
         imageUrl="https://img.example.com/promo.jpg",
         displayOrder=1,
