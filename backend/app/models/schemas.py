@@ -197,10 +197,21 @@ class VariantAttributes(BaseModel):
 
 class NotificationMetadata(CamelBaseModel):
     order_id: Optional[str] = None
+    order_number: Optional[str] = None
     product_id: Optional[str] = None
     url: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
+    amount: Optional[float] = None
+    user_id: Optional[str] = None
+    created_at: Optional[str] = None
+    payment_id: Optional[str] = None
+    payment_id_formatted: Optional[str] = None
+    payment_method: Optional[str] = None
+    sub_order_id: Optional[str] = None
+    sub_order_number: Optional[str] = None
+    parent_order_id: Optional[str] = None
+    courier_partner: Optional[str] = None
 
 class ProductDetails(BaseModel):
     material: Optional[str] = None

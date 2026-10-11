@@ -1,8 +1,8 @@
-import json
 from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import CollectionInternal, CollectionInternalCreate, CollectionInternalUpdate
+from app.models.schemas import VisibilityRuleSnippet
 
 
 class CollectionRepository:
@@ -44,19 +44,17 @@ class CollectionRepository:
                 rules = col.visibility_rules or []
                 for rule_str in rules:
                     try:
-                        rule = json.loads(rule_str)
-                    except:
+                        rule = VisibilityRuleSnippet.model_validate_json(rule_str)
+                    except Exception:
                         continue
 
-                    rule_pg = rule.get("pageType", "")
+                    rule_pg = rule.page_type or ""
                     if (
                         rule_pg == target_page_type
-                        or (target_page_type == "Category" and rule_pg == "all_categories")
-                        or (target_page_type == "Brand" and rule_pg == "all_brands")
-                        or (target_page_type == "category" and rule_pg == "all_categories")
-                        or (target_page_type == "brand" and rule_pg == "all_brands")
+                        or (target_page_type in ("Category", "category") and rule_pg == "all_categories")
+                        or (target_page_type in ("Brand", "brand") and rule_pg == "all_brands")
                     ):
-                        page_ids = rule.get("pageIds", [])
+                        page_ids = rule.page_ids or []
                         if not page_ids or target_page_id in page_ids:
                             is_visible_rules = True
                             break

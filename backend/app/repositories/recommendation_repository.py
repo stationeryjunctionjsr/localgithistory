@@ -3,7 +3,6 @@ from operator import itemgetter
 from app.models.daos import OrderFilter
 from app.models.schemas import SkinnyProductResponse, RecommendationResponse
 import asyncio
-import json
 import random
 import time
 from datetime import datetime, timedelta, timezone
@@ -158,8 +157,9 @@ def _read_trending_cache() -> TrendingCacheResult:
         return _trending_cache_store
     try:
         if _TRENDING_CACHE_PATH.exists():
-            data = json.loads(_TRENDING_CACHE_PATH.read_text(encoding="utf-8"))
-            _trending_cache_store = TrendingCacheResult.model_validate(data)
+            _trending_cache_store = TrendingCacheResult.model_validate_json(
+                _TRENDING_CACHE_PATH.read_text(encoding="utf-8")
+            )
             _trending_cache_ts = now
             return _trending_cache_store
     except Exception:
@@ -182,8 +182,9 @@ def _read_customer_favourites_cache() -> Optional[FavouritesCacheResult]:
         return _CF_CACHE_STORE
     try:
         if _CUSTOMER_FAVOURITES_CACHE_PATH.exists():
-            data = json.loads(_CUSTOMER_FAVOURITES_CACHE_PATH.read_text(encoding="utf-8"))
-            _CF_CACHE_STORE = FavouritesCacheResult.model_validate(data)
+            _CF_CACHE_STORE = FavouritesCacheResult.model_validate_json(
+                _CUSTOMER_FAVOURITES_CACHE_PATH.read_text(encoding="utf-8")
+            )
             _CF_CACHE_TS = now
             return _CF_CACHE_STORE
     except Exception:
@@ -205,8 +206,9 @@ def _read_business_favourites_cache() -> Optional[FavouritesCacheResult]:
         return _BF_CACHE_STORE
     try:
         if _BUSINESS_FAVOURITES_CACHE_PATH.exists():
-            data = json.loads(_BUSINESS_FAVOURITES_CACHE_PATH.read_text(encoding="utf-8"))
-            _BF_CACHE_STORE = FavouritesCacheResult.model_validate(data)
+            _BF_CACHE_STORE = FavouritesCacheResult.model_validate_json(
+                _BUSINESS_FAVOURITES_CACHE_PATH.read_text(encoding="utf-8")
+            )
             _BF_CACHE_TS = now
             return _BF_CACHE_STORE
     except Exception:

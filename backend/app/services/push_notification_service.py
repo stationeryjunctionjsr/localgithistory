@@ -39,8 +39,9 @@ class PushNotificationService:
         if not expo_tokens or not HTTP_AVAILABLE:
             return 0
 
-        messages = [
-            {
+        messages = []
+        for token in expo_tokens:
+            msg = {
                 "to": token,
                 "title": notification.title or "",
                 "body": notification.message or "",
@@ -50,10 +51,10 @@ class PushNotificationService:
                 },
                 "sound": "default",
                 "channelId": "default",
-                **({"image": notification.image} if notification.image else {}),
             }
-            for token in expo_tokens
-        ]
+            if notification.image:
+                msg["image"] = notification.image
+            messages.append(msg)
 
         delivered = 0
         # Expo recommends batches of ≤ 100

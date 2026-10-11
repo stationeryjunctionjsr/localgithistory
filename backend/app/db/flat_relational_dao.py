@@ -97,7 +97,7 @@ class FlatRelationalDAO:
                 out["updatedAt"] = r.updated_at.isoformat()
         except AttributeError:
             pass
-        return self.schema_cls(**out) if self.schema_cls else out
+        return self.schema_cls.model_validate(out) if self.schema_cls else out
 
     def _doc_to_params(self, data: Dict, now: datetime) -> Dict:
         params = {"created_at": now, "updated_at": now}
@@ -216,13 +216,13 @@ class FlatRelationalDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_data = existing.model_dump(by_alias=True) if isinstance(existing, BaseModel) else existing
-        merged = {**existing_data, **update_data}
+        existing_data = existing.model_dump(by_alias=True) if isinstance(existing, BaseModel) else dict(existing)
+        existing_data.update(update_data)
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
-        params = self._doc_to_params(merged, now)
+        params = self._doc_to_params(existing_data, now)
         params["id"] = int(id) if str(id).isdigit() else None
         params["updated_at"] = now
 

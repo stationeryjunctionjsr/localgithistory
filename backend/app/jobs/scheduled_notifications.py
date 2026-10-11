@@ -6,6 +6,7 @@ Runs every minute to check for notifications that should be sent
 import asyncio
 from datetime import datetime, timezone
 
+from app.models.daos_flat import PushNotificationsInternalUpdate
 from app.repositories.push_notification_repository import push_notification_repository
 from app.services.push_notification_service import push_notification_service
 from app.utils.logger import logger
@@ -18,22 +19,17 @@ async def check_scheduled_notifications():
 
         # Find all scheduled notifications
         all_notifications = await push_notification_repository.findAll()
-        scheduled_notifications = [n for n in all_notifications if (n["status"] if "status" in n else None) == "scheduled"]
+        scheduled_notifications = [n for n in all_notifications if n.status == "scheduled"]
 
         notifications_to_send = []
         for notification in scheduled_notifications:
-            scheduled_for = notification["scheduledFor"] if "scheduledFor" in notification else None
+            scheduled_for = notification.scheduled_for
             if scheduled_for:
                 try:
-                    # Parse the scheduled date
-                    if isinstance(scheduled_for, str):
-                        # Handle ISO format strings
-                        scheduled_str = scheduled_for.replace("Z", "+00:00")
-                        scheduled_date = datetime.fromisoformat(scheduled_str)
-                        if scheduled_date.tzinfo is None:
-                            scheduled_date = scheduled_date.replace(tzinfo=timezone.utc)
-                    else:
-                        continue
+                    scheduled_str = str(scheduled_for).replace("Z", "+00:00")
+                    scheduled_date = datetime.fromisoformat(scheduled_str)
+                    if scheduled_date.tzinfo is None:
+                        scheduled_date = scheduled_date.replace(tzinfo=timezone.utc)
 
                     # Send if scheduled time has passed
                     if scheduled_date <= now:
@@ -41,7 +37,7 @@ async def check_scheduled_notifications():
                 except Exception as e:
                     logger.warning(
                         "Error parsing scheduled date for notification %s: %s",
-                        notification["_id"] if "_id" in notification else None,
+                        notification.id,
                         str(e),
                     )
                     continue
@@ -51,21 +47,23 @@ async def check_scheduled_notifications():
             try:
                 logger.info(
                     "Sending scheduled notification: %s - %s",
-                    notification["_id"] if "_id" in notification else None,
-                    notification["title"] if "title" in notification else None,
+                    notification.id,
+                    notification.title,
                 )
 
                 # Send the notification
                 await push_notification_service.send_to_all_devices(notification)
 
                 # Update status to published
-                await push_notification_repository.update(notification["_id"], {"status": "published"})
+                await push_notification_repository.update(
+                    notification.id, PushNotificationsInternalUpdate(status="published")
+                )
 
-                logger.info("Successfully sent scheduled notification: %s", notification["_id"] if "_id" in notification else None)
+                logger.info("Successfully sent scheduled notification: %s", notification.id)
             except Exception as error:
                 logger.error(
                     "Error sending scheduled notification %s: %s",
-                    notification["_id"] if "_id" in notification else None,
+                    notification.id,
                     str(error),
                     exc_info=True,
                 )

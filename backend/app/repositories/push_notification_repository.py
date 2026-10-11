@@ -1,5 +1,4 @@
 from app.models.schemas import PushSubscription
-import json
 from typing import TYPE_CHECKING
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -109,24 +108,38 @@ class PushNotificationRepository:
         self, userId: Optional[str], subscription: Optional['PushSubscription'], expoToken: Optional[str] = None
     ):
         """Register a device for push notifications (web subscription or Expo push token)"""
-        from app.models.daos_flat import DeviceSubscriptionInternalUpdate, DeviceSubscriptionInternalCreate
+        from app.models.daos_flat import (
+            DeviceSubscriptionInternalUpdate,
+            DeviceSubscriptionInternalCreate,
+            DeviceKeyInternal,
+        )
         # Look up only the matching device
         if expoToken:
-            matches = await self.device_storage.findAll({"expoToken": expoToken})
+            matches = await self.device_storage.findAll(expo_token=expoToken)
             existing_device = matches[0] if matches else None
         elif subscription and subscription.endpoint:
-            matches = await self.device_storage.findAll({"endpoint": subscription.endpoint})
+            matches = await self.device_storage.findAll(endpoint=subscription.endpoint)
             existing_device = matches[0] if matches else None
         else:
             existing_device = None
 
+        device_keys = (
+            [
+                DeviceKeyInternal(key="p256dh", value=subscription.keys.p256dh),
+                DeviceKeyInternal(key="auth", value=subscription.keys.auth),
+            ]
+            if subscription and subscription.keys
+            else None
+        )
+
         if existing_device:
             # Update existing device
-            update = DeviceSubscriptionInternalUpdate(user_id=userId, expo_token=expoToken)
-            if subscription:
-                update.endpoint = subscription.endpoint
-                update.keys = (subscription.keys if subscription.keys is not None else {})
-                update.subscription = json.loads(subscription.model_dump_json())
+            update = DeviceSubscriptionInternalUpdate(
+                user_id=userId,
+                expo_token=expoToken,
+                endpoint=subscription.endpoint if subscription else None,
+                keys=device_keys,
+            )
             return await self.device_storage.update(existing_device.id, update)
         else:
             # Create new device
@@ -134,8 +147,7 @@ class PushNotificationRepository:
                 user_id=userId,
                 expo_token=expoToken,
                 endpoint=subscription.endpoint if subscription else None,
-                keys=(subscription.keys if subscription.keys is not None else {}) if subscription else {},
-                subscription=json.loads(subscription.model_dump_json()) if subscription else {}
+                keys=device_keys,
             )
             return await self.device_storage.create(create)
 

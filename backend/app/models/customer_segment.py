@@ -1,17 +1,25 @@
-from typing import Optional, List, Any, Dict
-from pydantic import BaseModel, Field
+from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, Field
+from app.models.base import CamelBaseModel
 
-class CustomerSegmentFilters(BaseModel):
-    minAverageOrderValue: Optional[float] = None
-    maxAverageOrderValue: Optional[float] = None
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
-    minOrderFrequency: Optional[int] = None
-    maxOrderFrequency: Optional[int] = None
+class CustomerSegmentFilters(CamelBaseModel):
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
+    min_average_order_value: Optional[float] = None
+    max_average_order_value: Optional[float] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    min_order_frequency: Optional[int] = None
+    max_order_frequency: Optional[int] = None
     state: Optional[str] = None
     district: Optional[str] = None
-    appUser: Optional[bool] = None
+    app_user: Optional[bool] = None
     behavior: Optional[str] = None
+    role: Optional[str] = None
+    min_order_count: Optional[int] = None
+    max_order_count: Optional[int] = None
+    min_order_value: Optional[float] = None
+    max_order_value: Optional[float] = None
+    city: Optional[str] = None
 
 class CustomerSegmentInternalCreate(BaseModel):
     id: str = Field(alias="_id", default="")

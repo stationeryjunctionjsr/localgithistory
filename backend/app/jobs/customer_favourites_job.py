@@ -21,13 +21,13 @@ async def run_customer_favourites_job():
         cf_days = config.segments.guest.customer_favourites_days or 60
         cf_data = await recommendation_repository.compute_customer_favourites_for_cache(days=cf_days)
         _write_customer_favourites_cache(cf_data)
-        logger.info("[Customer Favourites job] Updated: %s products", len(cf_data["product_ids"] if "product_ids" in cf_data else []))
+        logger.info("[Customer Favourites job] Updated: %s products", len(cf_data.product_ids))
 
         wh_seg = config.segments.wholesaler
         bf_days = wh_seg.business_favourites_days or wh_seg.wholesaler_favourites_days or 60
         bf_data = await recommendation_repository.compute_business_favourites_for_cache(days=bf_days)
         _write_business_favourites_cache(bf_data)
-        logger.info("[Business Favourites job] Updated: %s products", len(bf_data["product_ids"] if "product_ids" in bf_data else []))
+        logger.info("[Business Favourites job] Updated: %s products", len(bf_data.product_ids))
     except Exception as e:
         logger.error("[Favourites job] Error: %s", str(e), exc_info=True)
         raise

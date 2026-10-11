@@ -324,6 +324,7 @@ async def run_abandoned_cart_job():
 
         # ── 2. In-app notification + Push ─────────────────────────────────────
         try:
+            from app.models.schemas import NotificationMetadata
             from app.utils.notify import notify_user
             await notify_user(
                 user_id    = str(user_ext_id),
@@ -331,7 +332,7 @@ async def run_abandoned_cart_job():
                 title      = "Your cart is waiting 🛒",
                 message    = push_message,
                 link       = cart_url,
-                metadata   = {"status": "reminder_sent"},
+                metadata   = NotificationMetadata(status="reminder_sent"),
             )
             channels_sent.append("push")
             logger.info("[AbandonedCart] In-app + push sent → user %s", user_ext_id)

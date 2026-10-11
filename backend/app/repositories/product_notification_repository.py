@@ -97,6 +97,7 @@ class ProductNotificationRepository:
                 notif_user_id = notif.user_id
                 if notif_user_id:
                     try:
+                        from app.models.schemas import NotificationMetadata
                         from app.utils.notify import notify_user
                         await notify_user(
                             user_id    = str(notif_user_id),
@@ -104,7 +105,7 @@ class ProductNotificationRepository:
                             title      = "Back in stock! 🎉",
                             message    = f"{product_name} is available again. Grab yours before it sells out!",
                             link       = f"/customer/products/product/{product_id}",
-                            metadata   = {"product_id": str(product_id), "status": "restocked"},
+                            metadata   = NotificationMetadata(product_id=str(product_id), status="restocked"),
                         )
                     except Exception as push_err:
                         logger.warning("Restock push/in-app failed for user %s product %s: %s", notif_user_id, product_id, push_err)

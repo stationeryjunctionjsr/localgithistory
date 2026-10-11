@@ -3,7 +3,7 @@ MySQL DAO for sj_banners. Implements FileStorage-like interface for 'banners'.
 Fully relational with child tables for user_segments and visibility_rules.
 """
 
-from app.models.schemas import BannerResponse
+from app.models.schemas import BannerResponse, VisibilityRuleSnippet
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate, BannerChildrenData
 import secrets
 from typing import List, Optional, Union
@@ -35,7 +35,7 @@ class MySQLBannerDAO:
                 zone_ids = None
 
         user_segments_raw = json_loads(r.user_segments_json) if r.user_segments_json else []
-        user_segments = [str(s) for s in user_segments_raw if s] if isinstance(user_segments_raw, list) else []
+        user_segments = [str(s) for s in (user_segments_raw or []) if s]
         if not user_segments and r.target_audience:
             user_segments = [r.target_audience]
         if not user_segments:
@@ -43,19 +43,16 @@ class MySQLBannerDAO:
 
         rules_raw = json_loads(r.visibility_rules_json) if r.visibility_rules_json else []
         visibility_rules = []
-        if isinstance(rules_raw, list):
-            for rule in rules_raw:
-                if not rule:
-                    continue
-                if isinstance(rule, str) and (rule.startswith("{") or rule.startswith("[")):
-                    try:
-                        visibility_rules.append(json_loads(rule))
-                    except Exception:
-                        visibility_rules.append({"pageType": rule})
-                elif isinstance(rule, str):
-                    visibility_rules.append({"pageType": rule})
-                else:
-                    visibility_rules.append(rule)
+        for rule in rules_raw or []:
+            if not rule:
+                continue
+            try:
+                visibility_rules.append(VisibilityRuleSnippet.model_validate_json(rule))
+            except Exception:
+                try:
+                    visibility_rules.append(VisibilityRuleSnippet.model_validate(rule))
+                except Exception:
+                    visibility_rules.append(VisibilityRuleSnippet(page_type=str(rule)))
 
         return BannerResponse(
             id=str(r._id),

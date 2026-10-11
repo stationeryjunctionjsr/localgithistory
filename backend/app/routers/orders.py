@@ -261,6 +261,7 @@ async def dispatch_courier_order(
 
     # Notify customer
     try:
+        from app.models.schemas import NotificationMetadata
         from app.utils.notify import notify_user
         order_num = updated_order.order_number or order_id
         await notify_user(
@@ -269,7 +270,7 @@ async def dispatch_courier_order(
             title="Order Dispatched 📦",
             message=f"Your order #{order_num} has been dispatched via {dispatch_data.courier_partner}. Tracking/AWB: {dispatch_data.awb_code or dispatch_data.tracking_id or 'Available'}",
             link=f"/customer/orders/{order_id}",
-            metadata={"order_id": str(order_id), "status": "dispatched", "courier_partner": dispatch_data.courier_partner},
+            metadata=NotificationMetadata(order_id=str(order_id), status="dispatched", courier_partner=dispatch_data.courier_partner),
         )
     except Exception as _ne:
         logger.warning("Dispatch notification failed for order %s: %s", order_id, _ne)
@@ -314,6 +315,7 @@ async def update_order_tracking(
 
     # Notify customer — in-app notification + push
     try:
+        from app.models.schemas import NotificationMetadata
         from app.utils.notify import notify_user
         order_num = order.order_number if order.order_number is not None else order_id
         await notify_user(
@@ -322,7 +324,7 @@ async def update_order_tracking(
             title      = "Order Shipped 📦",
             message    = f"Your order #{order_num} has been shipped. Tracking ID: {data.tracking_id}",
             link       = f"/customer/orders/{order_id}",
-            metadata   = {"order_id": str(order_id), "status": "shipped"},
+            metadata   = NotificationMetadata(order_id=str(order_id), status="shipped"),
         )
     except Exception as _ne:
         logger.warning(
@@ -1327,6 +1329,7 @@ async def confirm_sub_order_pickup(
         )
         # Notify the customer — in-app notification + push
         try:
+            from app.models.schemas import NotificationMetadata
             from app.utils.notify import notify_user
             order_num = order.order_number if order.order_number is not None else order_id
             await notify_user(
@@ -1338,7 +1341,7 @@ async def confirm_sub_order_pickup(
                     "from all sellers and is now heading to you."
                 ),
                 link       = f"/customer/orders/{order_id}",
-                metadata   = {"order_id": str(order_id), "status": "out_for_delivery"},
+                metadata   = NotificationMetadata(order_id=str(order_id), status="out_for_delivery"),
             )
         except Exception as e:
             logger.warning(

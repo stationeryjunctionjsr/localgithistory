@@ -28,6 +28,7 @@ from app.models.schemas import (
     PopulatedOrderItemResponse,
     VariantAttributes,
     CouponResponse,
+    NotificationMetadata,
 )
 from app.repositories.cart_repository import cart_repository
 from app.repositories.category_repository import category_repository
@@ -171,20 +172,20 @@ async def create_order_notification(order) -> None:
             return
 
         await notification_repository.create(
-            NotificationInternalCreate(**{
-                "_id": str(uuid.uuid4()),
-                "userId": super_admin.id,
-                "type": "new_order",
-                "title": "New Order Received",
-                "message": f'New order "{(order.order_number if order.order_number is not None else order.id)}" worth ₹{(order.total if order.total is not None else 0):.2f} received',
-                "metadata": {
-                    "orderId": order.id,
-                    "orderNumber": (order.order_number if order.order_number is not None else order.id),
-                    "amount": (order.total if order.total is not None else 0),
-                    "userId": order.user,
-                    "createdAt": order.created_at.isoformat() if order.created_at else None,
-                }
-            })
+            NotificationInternalCreate(
+                id=str(uuid.uuid4()),
+                user_id=super_admin.id,
+                type="new_order",
+                title="New Order Received",
+                message=f'New order "{(order.order_number if order.order_number is not None else order.id)}" worth ₹{(order.total if order.total is not None else 0):.2f} received',
+                metadata=NotificationMetadata(
+                    order_id=order.id,
+                    order_number=(order.order_number if order.order_number is not None else order.id),
+                    amount=(order.total if order.total is not None else 0),
+                    user_id=order.user,
+                    created_at=order.created_at.isoformat() if order.created_at else None,
+                ),
+            )
         )
     except Exception as e:
         logger.error("Error creating order notification for order %s: %s",
@@ -200,21 +201,21 @@ async def create_payment_notification(payment) -> None:
 
         payment_id = payment.payment_id or payment.id
         await notification_repository.create(
-            NotificationInternalCreate(**{
-                "_id": str(uuid.uuid4()),
-                "userId": super_admin.id,
-                "type": "new_payment",
-                "title": "New Payment Received",
-                "message": f'New payment "{payment_id}" worth ₹{(payment.total_amount if payment.total_amount is not None else 0):.2f} received',
-                "metadata": {
-                    "paymentId": payment.id,
-                    "paymentIdFormatted": payment_id,
-                    "orderId": payment.order_id,
-                    "amount": (payment.total_amount if payment.total_amount is not None else 0),
-                    "paymentMethod": payment.payment_method,
-                    "createdAt": payment.created_at or datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
-                }
-            })
+            NotificationInternalCreate(
+                id=str(uuid.uuid4()),
+                user_id=super_admin.id,
+                type="new_payment",
+                title="New Payment Received",
+                message=f'New payment "{payment_id}" worth ₹{(payment.total_amount if payment.total_amount is not None else 0):.2f} received',
+                metadata=NotificationMetadata(
+                    payment_id=payment.id,
+                    payment_id_formatted=payment_id,
+                    order_id=payment.order_id,
+                    amount=(payment.total_amount if payment.total_amount is not None else 0),
+                    payment_method=payment.payment_method,
+                    created_at=payment.created_at or datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
+                ),
+            )
         )
     except Exception as e:
         logger.error(
@@ -1975,19 +1976,19 @@ async def create_order_service(
                 if seller_id:
                     try:
                         await notification_repository.create(
-                            NotificationInternalCreate(**{
-                                "_id": str(uuid.uuid4()),
-                                "userId": seller_id,
-                                "type": "new_sub_order",
-                                "title": "New Order Received",
-                                "message": f'New sub-order "{sub_number}" worth ₹{grp_total:.2f} received',
-                                "metadata": {
-                                    "subOrderId": str(sub.id),
-                                    "subOrderNumber": sub_number,
-                                    "parentOrderId": str(order.id),
-                                    "amount": grp_total,
-                                }
-                            })
+                            NotificationInternalCreate(
+                                id=str(uuid.uuid4()),
+                                user_id=seller_id,
+                                type="new_sub_order",
+                                title="New Order Received",
+                                message=f'New sub-order "{sub_number}" worth ₹{grp_total:.2f} received',
+                                metadata=NotificationMetadata(
+                                    sub_order_id=str(sub.id),
+                                    sub_order_number=sub_number,
+                                    parent_order_id=str(order.id),
+                                    amount=grp_total,
+                                ),
+                            )
                         )
                     except Exception as notif_err:
                         logger.error("Error notifying seller %s: %s",

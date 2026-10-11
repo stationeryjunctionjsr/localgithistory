@@ -180,10 +180,11 @@ async def mark_payout_paid(
 
     # Notify seller — in-app notification + push
     try:
+        from app.models.schemas import NotificationMetadata
         from app.utils.notify import notify_user
-        seller_id = str(existing.seller_id) if getattr(existing, "seller_id", None) else None
+        seller_id = str(existing.seller_id) if existing.seller_id else None
         if seller_id:
-            amount = getattr(existing, "payout_amount", None) or getattr(existing, "amount", None)
+            amount = existing.amount
             amount_str = f"₹{float(amount):,.2f}" if amount else "your payout"
             await notify_user(
                 user_id    = seller_id,
@@ -191,7 +192,7 @@ async def mark_payout_paid(
                 title      = "Payout processed 💰",
                 message    = f"{amount_str} has been transferred to your account via {data.payment_method or 'bank transfer'}.",
                 link       = "/seller/payouts",
-                metadata   = {"status": "admin_paid"},
+                metadata   = NotificationMetadata(status="admin_paid"),
             )
     except Exception as e:
         from app.utils.logger import logger

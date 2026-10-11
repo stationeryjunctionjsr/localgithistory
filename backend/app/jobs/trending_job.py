@@ -6,6 +6,7 @@ and write to trending_cache.json. Run at 12 PM and 12 AM IST.
 import asyncio
 from datetime import datetime, timezone
 
+from app.models.recommendation_config import FavouritesCacheResult, TrendingCacheResult
 from app.repositories.recommendation_repository import (
     _write_trending_cache,
     recommendation_repository,
@@ -33,10 +34,10 @@ async def run_trending_job():
         )
         updated_at = now.isoformat()
         _write_trending_cache(
-            {
-                "customer": {"product_ids": customer_ids, "updated_at": updated_at},
-                "wholesaler": {"product_ids": wholesaler_ids, "updated_at": updated_at},
-            }
+            TrendingCacheResult(
+                customer=FavouritesCacheResult(product_ids=customer_ids, updated_at=updated_at),
+                wholesaler=FavouritesCacheResult(product_ids=wholesaler_ids, updated_at=updated_at),
+            )
         )
         logger.info(
             "[Trending job] Updated at %s: customer=%s, wholesaler=%s",

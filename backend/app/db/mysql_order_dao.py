@@ -770,10 +770,10 @@ class MySQLOrderDAO:
             GROUP BY product_id, subcat
             ORDER BY sales DESC
         """
-        params = {"start_date": start_date, **sc_params}
+        sc_params["start_date"] = start_date
 
         async with factory() as session:
-            result = await session.execute(text(sql), params)
+            result = await session.execute(text(sql), sc_params)
             return [(str(row.product_id), str(row.subcat), int(row.sales)) for row in result.fetchall()]
 
     async def get_user_purchased_product_ids(

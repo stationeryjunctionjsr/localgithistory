@@ -629,14 +629,7 @@ class ReturnRequestInternal(CamelBaseModel):
 
 from app.models.schemas import ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
-class CustomerSegmentFilters(CamelBaseModel):
-    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    minOrderCount: Optional[int] = None
-    maxOrderCount: Optional[int] = None
-    minOrderValue: Optional[float] = None
-    maxOrderValue: Optional[float] = None
-    city: Optional[str] = None
-    role: Optional[str] = None
+from app.models.customer_segment import CustomerSegmentFilters
 
 class CustomerSegmentInternalCreate(CamelBaseModel):
     id: Optional[str] = None

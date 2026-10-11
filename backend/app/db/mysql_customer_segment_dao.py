@@ -1,9 +1,10 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 import datetime
 import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import CustomerSegmentInternal, CustomerSegmentInternalCreate, CustomerSegmentInternalUpdate
+from app.models.customer_segment import CustomerSegmentFilters
 from app.db.db_utils import now_utc
 
 class MySQLCustomerSegmentDAO:
@@ -14,22 +15,31 @@ class MySQLCustomerSegmentDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, r, user_ids: List[str]) -> CustomerSegmentInternal:
-        c = CustomerSegmentInternal.model_validate(r)
-        c.user_ids = user_ids
-        c.filters = {
-            "min_average_order_value": getattr(r, "min_avg_order_value", None),
-            "max_average_order_value": getattr(r, "max_avg_order_value", None),
-            "start_date": getattr(r, "start_date", None),
-            "end_date": getattr(r, "end_date", None),
-            "min_order_frequency": getattr(r, "min_order_freq", None),
-            "max_order_frequency": getattr(r, "max_order_freq", None),
-            "state": getattr(r, "state", None),
-            "district": getattr(r, "district", None),
-            "app_user": getattr(r, "app_user", None),
-            "behavior": getattr(r, "behavior", None),
-            "role": getattr(r, "role", None),
-        }
-        return c
+        return CustomerSegmentInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            type=r.type,
+            name=r.name,
+            description=r.description,
+            is_active=bool(r.is_active) if r.is_active is not None else True,
+            is_system=bool(r.is_system) if r.is_system is not None else False,
+            user_ids=user_ids,
+            filters=CustomerSegmentFilters(
+                min_average_order_value=float(r.min_avg_order_value) if r.min_avg_order_value is not None else None,
+                max_average_order_value=float(r.max_avg_order_value) if r.max_avg_order_value is not None else None,
+                start_date=str(r.start_date) if r.start_date is not None else None,
+                end_date=str(r.end_date) if r.end_date is not None else None,
+                min_order_frequency=int(r.min_order_freq) if r.min_order_freq is not None else None,
+                max_order_frequency=int(r.max_order_freq) if r.max_order_freq is not None else None,
+                state=r.state,
+                district=r.district,
+                app_user=bool(r.app_user) if r.app_user is not None else None,
+                behavior=r.behavior,
+                role=r.role,
+            ),
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
     async def _fetch_user_ids(self, segment_id: str) -> List[str]:
         SessionLocal = self._factory()
@@ -67,7 +77,7 @@ class MySQLCustomerSegmentDAO:
             user_ids = await self._fetch_user_ids(row.external_id)
             return self._map_to_schema(row, user_ids)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[CustomerSegmentInternal]:
+    async def findAll(self, query: Optional[object] = None) -> List[CustomerSegmentInternal]:
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             result = await session.execute(text("SELECT * FROM sj_customer_segments"))
@@ -119,7 +129,7 @@ class MySQLCustomerSegmentDAO:
         await self._save_user_ids(external_id, user_ids)
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: CustomerSegmentInternalUpdate) -> CustomerSegmentInternal:
+    async def update(self, id: str, update_data: CustomerSegmentInternalUpdate) -> Optional[CustomerSegmentInternal]:
         pk = int(id) if str(id).isdigit() else None
         if pk is None: return None
         
@@ -129,24 +139,22 @@ class MySQLCustomerSegmentDAO:
         updates = ["updated_at = :u"]
         params = {"id": pk, "u": now_utc()}
         
-        if data.type is not None: updates.append("type = :type"); params["type"] = data.type
-        if data.name is not None: updates.append("name = :name"); params["name"] = data.name
-        if data.description is not None: updates.append("description = :description"); params["description"] = data.description
-        if data.is_active is not None: updates.append("is_active = :isActive"); params["isActive"] = data.is_active
-        if data.is_system is not None: updates.append("is_system = :isSystem"); params["isSystem"] = data.is_system
+        if update_data.name is not None: updates.append("name = :name"); params["name"] = update_data.name
+        if update_data.description is not None: updates.append("description = :description"); params["description"] = update_data.description
+        if update_data.is_active is not None: updates.append("is_active = :isActive"); params["isActive"] = update_data.is_active
         
-        if data.filters is not None:
-            if data.filters.min_average_order_value is not None: updates.append("min_avg_order_value = :f1"); params["f1"] = data.filters.min_average_order_value
-            if data.filters.max_average_order_value is not None: updates.append("max_avg_order_value = :f2"); params["f2"] = data.filters.max_average_order_value
-            if data.filters.start_date is not None: updates.append("start_date = :f3"); params["f3"] = data.filters.start_date
-            if data.filters.end_date is not None: updates.append("end_date = :f4"); params["f4"] = data.filters.end_date
-            if data.filters.min_order_frequency is not None: updates.append("min_order_freq = :f5"); params["f5"] = data.filters.min_order_frequency
-            if data.filters.max_order_frequency is not None: updates.append("max_order_freq = :f6"); params["f6"] = data.filters.max_order_frequency
-            if data.filters.state is not None: updates.append("state = :f7"); params["f7"] = data.filters.state
-            if data.filters.district is not None: updates.append("district = :f8"); params["f8"] = data.filters.district
-            if data.filters.app_user is not None: updates.append("app_user = :f9"); params["f9"] = data.filters.app_user
-            if data.filters.behavior is not None: updates.append("behavior = :f10"); params["f10"] = data.filters.behavior
-            if data.filters.role is not None: updates.append("role = :f11"); params["f11"] = data.filters.role
+        if update_data.filters is not None:
+            if update_data.filters.min_average_order_value is not None: updates.append("min_avg_order_value = :f1"); params["f1"] = update_data.filters.min_average_order_value
+            if update_data.filters.max_average_order_value is not None: updates.append("max_avg_order_value = :f2"); params["f2"] = update_data.filters.max_average_order_value
+            if update_data.filters.start_date is not None: updates.append("start_date = :f3"); params["f3"] = update_data.filters.start_date
+            if update_data.filters.end_date is not None: updates.append("end_date = :f4"); params["f4"] = update_data.filters.end_date
+            if update_data.filters.min_order_frequency is not None: updates.append("min_order_freq = :f5"); params["f5"] = update_data.filters.min_order_frequency
+            if update_data.filters.max_order_frequency is not None: updates.append("max_order_freq = :f6"); params["f6"] = update_data.filters.max_order_frequency
+            if update_data.filters.state is not None: updates.append("state = :f7"); params["f7"] = update_data.filters.state
+            if update_data.filters.district is not None: updates.append("district = :f8"); params["f8"] = update_data.filters.district
+            if update_data.filters.app_user is not None: updates.append("app_user = :f9"); params["f9"] = update_data.filters.app_user
+            if update_data.filters.behavior is not None: updates.append("behavior = :f10"); params["f10"] = update_data.filters.behavior
+            if update_data.filters.role is not None: updates.append("role = :f11"); params["f11"] = update_data.filters.role
             
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -155,8 +163,8 @@ class MySQLCustomerSegmentDAO:
                 await session.execute(text(f"UPDATE sj_customer_segments SET {upd_sql} WHERE id = :id"), params)
                 await session.commit()
                 
-        if data.user_ids is not None:
-            await self._save_user_ids(doc.external_id, data.user_ids)
+        if update_data.user_ids is not None:
+            await self._save_user_ids(doc.external_id, update_data.user_ids)
             
         return await self.findById(id)
 
@@ -168,7 +176,4 @@ class MySQLCustomerSegmentDAO:
             res = await session.execute(text("DELETE FROM sj_customer_segments WHERE id = :id"), {"id": pk})
             await session.commit()
             return res.rowcount > 0
-
-    async def deleteMany(self, query: Dict) -> 'CustomerSegmentInternal':
-        return {"deletedCount": 0}
 

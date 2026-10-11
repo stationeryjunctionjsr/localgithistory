@@ -21,9 +21,10 @@ class ActivityRepository:
         is_guest: bool = False,
     ):
         from app.models.daos_flat import ActivityInternalCreate, ActivityMetaInternal
-        import json
-        meta_dict = json.loads(meta.model_dump_json(exclude_unset=True, exclude_none=True)) if meta else {}
-        meta_list = [ActivityMetaInternal(key=k, value=str(v)) for k, v in meta_dict.items()]
+        meta_list = [
+            ActivityMetaInternal(key=k, value=str(v))
+            for k, v in (meta.model_dump(mode="json", exclude_unset=True, exclude_none=True).items() if meta else ())
+        ]
         payload = ActivityInternalCreate(
             user_id=user_id,
             session_id=session_id,
@@ -42,7 +43,7 @@ class ActivityRepository:
 
     async def promote_guest_activities(self, session_id: str, user_id: str) -> object:
         from app.models.daos_flat import ActivityInternalUpdate
-        activities = await self.storage.findAll({"sessionId": session_id})
+        activities = await self.storage.findAll(session_id=session_id)
         updated = 0
         for act in activities:
             if act.userId is None:

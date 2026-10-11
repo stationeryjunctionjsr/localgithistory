@@ -1,33 +1,30 @@
 import asyncio
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional
 from pydantic import BaseModel, Field
+from app.models.base import CamelBaseModel
+from app.models.schemas import AnalyticsEventCreate
 from app.utils.logger import logger
 from app.db.storage_factory import get_storage
 from app.repositories.tracking_repository import tracking_repository
 
-class RawEventPayload(BaseModel):
+class RawEventPayload(CamelBaseModel):
     returning: Optional[bool] = False
-    productId: Optional[str] = None
-    productName: Optional[str] = "Unknown"
+    product_id: Optional[str] = None
+    product_name: Optional[str] = "Unknown"
     source: Optional[str] = "mobile_app"
     quantity: Optional[int] = 1
     query: Optional[str] = ""
-    resultsCount: Optional[int] = 0
+    results_count: Optional[int] = 0
     reason: Optional[str] = "unknown"
 
-class RawEvent(BaseModel):
+class RawEvent(CamelBaseModel):
     type: Optional[str] = None
-    sessionId: Optional[str] = None
-    userId: Optional[str] = None
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None
     timestamp: Optional[str] = None
     payload: RawEventPayload = Field(default_factory=RawEventPayload)
     page: Optional[str] = "/"
-
-class TrackingEventDoc(BaseModel):
-    type: Optional[str] = None
-    sessionId: Optional[str] = None
-    timestamp: Optional[str] = None
 
 async def run_events_sync_job_async():
     logger.info("Starting daily events synchronization job...")
@@ -37,11 +34,7 @@ async def run_events_sync_job_async():
 
         events = await events_store.findAll()
         existing_tracking = await tracking_store.findAll()
-        existing_keys = set()
-        
-        for t_dict in existing_tracking:
-            t = TrackingEventDoc.model_validate(t_dict)
-            existing_keys.add((t.type, t.session_id, t.timestamp))
+        existing_keys = {(t.type, t.session_id, t.timestamp) for t in existing_tracking}
 
         migrated_count = 0
         for e in events:
@@ -49,15 +42,30 @@ async def run_events_sync_job_async():
             session_id = None
             user_id = None
             timestamp = e.created_at.isoformat() if e.created_at else None
-            payload_dict = {}
+            payload = RawEventPayload()
             for item in (e.payload or []):
-                if item.key == 'sessionId': session_id = item.value
-                elif item.key == 'userId': user_id = item.value
-                elif item.key == 'timestamp': timestamp = item.value
-                else: payload_dict[item.key] = item.value
-            
-            # Use RawEventPayload constructor explicitly
-            payload = RawEventPayload(**payload_dict)
+                if item.key == "sessionId":
+                    session_id = item.value
+                elif item.key == "userId":
+                    user_id = item.value
+                elif item.key == "timestamp":
+                    timestamp = item.value
+                elif item.key == "returning":
+                    payload.returning = str(item.value).lower() in ("true", "1")
+                elif item.key == "productId":
+                    payload.product_id = item.value
+                elif item.key == "productName":
+                    payload.product_name = item.value
+                elif item.key == "source":
+                    payload.source = item.value
+                elif item.key == "quantity":
+                    payload.quantity = int(item.value) if item.value is not None else 1
+                elif item.key == "query":
+                    payload.query = item.value
+                elif item.key == "resultsCount":
+                    payload.results_count = int(item.value) if item.value is not None else 0
+                elif item.key == "reason":
+                    payload.reason = item.value
 
             # Translate event_type to tracking type
             tracking_type = None
@@ -89,44 +97,44 @@ async def run_events_sync_job_async():
             if key in existing_keys:
                 continue
 
-            # Build tracking document
-            doc = {
-                "type": tracking_type,
-                "userId": user_id,
-                "sessionId": session_id,
-                "timestamp": timestamp,
-            }
+            # Build typed tracking event model
+            doc = AnalyticsEventCreate(
+                type=tracking_type,
+                user_id=user_id,
+                session_id=session_id,
+                timestamp=timestamp,
+            )
 
             if event_type == "session_start":
-                doc["isReturning"] = payload.returning
-                doc["pageViews"] = 1
+                doc.is_returning = payload.returning
+                doc.page_views = 1
             elif event_type == "page_view":
-                doc["page"] = e.page
+                doc.page = e.page
             elif event_type == "product_view":
-                doc["productId"] = payload.product_id
-                doc["productName"] = payload.product_name
+                doc.product_id = payload.product_id
+                doc.product_name = payload.product_name
             elif event_type == "product_click":
-                doc["productId"] = payload.product_id
-                doc["productName"] = payload.product_name
-                doc["source"] = payload.source
+                doc.product_id = payload.product_id
+                doc.product_name = payload.product_name
+                doc.source = payload.source
             elif event_type == "add_to_cart":
-                doc["productId"] = payload.product_id
-                doc["quantity"] = payload.quantity
+                doc.product_id = payload.product_id
+                doc.quantity = payload.quantity
             elif event_type == "remove_from_cart":
-                doc["productId"] = payload.product_id
-                doc["quantity"] = payload.quantity
+                doc.product_id = payload.product_id
+                doc.quantity = payload.quantity
             elif event_type == "search":
-                doc["searchTerm"] = payload.query
-                doc["resultsCount"] = payload.results_count
-                doc["segment"] = "customer"
+                doc.search_term = payload.query
+                doc.results_count = payload.results_count
+                doc.segment = "customer"
             elif event_type == "add_to_wishlist":
-                doc["productId"] = payload.product_id
+                doc.product_id = payload.product_id
             elif event_type == "begin_checkout":
-                doc["page"] = "/checkout/step1"
+                doc.page = "/checkout/step1"
             elif event_type == "purchase":
-                doc["page"] = "/checkout/complete"
+                doc.page = "/checkout/complete"
             elif event_type == "session_end":
-                doc["reason"] = payload.reason
+                doc.reason = payload.reason
 
             await tracking_repository.create(doc)
             migrated_count += 1

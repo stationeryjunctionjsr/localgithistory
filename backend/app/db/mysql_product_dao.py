@@ -336,7 +336,6 @@ class MySQLProductDAO:
             sort_sql = "ORDER BY p.name ASC"
         elif sort == "name_desc":
             sort_sql = "ORDER BY p.name DESC"
-        params_with_pagination = {**params, "skip": skip, "limit": limit}
 
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
@@ -350,7 +349,9 @@ class MySQLProductDAO:
             total_count = (await session.execute(text(count_sql), params)).scalar() or 0
             if total_count == 0:
                 return [], 0
-            rows = (await session.execute(text(query_sql), params_with_pagination)).fetchall()
+            params["skip"] = skip
+            params["limit"] = limit
+            rows = (await session.execute(text(query_sql), params)).fetchall()
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
 
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows], total_count

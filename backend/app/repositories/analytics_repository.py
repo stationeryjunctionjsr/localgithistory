@@ -481,8 +481,10 @@ class AnalyticsRepository:
         step1_sessions = min(cart_sessions, step1_sessions)
         completed_sessions = min(step3_sessions, completed_sessions)
 
-        def make_stage(count, total):
+        def make_stage(count, total, drop_percentage=None):
             pct = (count / total * 100) if total > 0 else 0
+            if drop_percentage is not None:
+                return {"count": count, "percentage": pct, "drop_percentage": drop_percentage}
             return {"count": count, "percentage": pct}
 
         drop_cart_to_step1 = ((cart_sessions - step1_sessions) / cart_sessions * 100) if cart_sessions > 0 else 0
@@ -494,10 +496,10 @@ class AnalyticsRepository:
 
         return {
             "cart": make_stage(cart_sessions, cart_sessions),
-            "shipping": {**make_stage(step1_sessions, cart_sessions), "drop_percentage": drop_cart_to_step1},
-            "review": {**make_stage(step2_sessions, cart_sessions), "drop_percentage": drop_step1_to_step2},
-            "payment": {**make_stage(step3_sessions, cart_sessions), "drop_percentage": drop_step2_to_step3},
-            "completed": {**make_stage(completed_sessions, cart_sessions), "drop_percentage": drop_step3_to_complete},
+            "shipping": make_stage(step1_sessions, cart_sessions, drop_cart_to_step1),
+            "review": make_stage(step2_sessions, cart_sessions, drop_step1_to_step2),
+            "payment": make_stage(step3_sessions, cart_sessions, drop_step2_to_step3),
+            "completed": make_stage(completed_sessions, cart_sessions, drop_step3_to_complete),
             "overall_checkout_conversion": (completed_sessions / cart_sessions * 100) if cart_sessions > 0 else 0,
         }
 

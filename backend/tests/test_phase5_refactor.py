@@ -124,3 +124,28 @@ async def test_wishlist_dao_direct_row_hydration():
     assert w.id == "5"
     assert len(w.items) == 1
     assert w.items[0].product == "item_9"
+
+
+def test_no_dict_unpacking_in_jobs_and_daos():
+    """Verify no **dict unpacking exists in jobs, DAOs, repositories, or services."""
+    import app.jobs.customer_segments_job as cs_job
+    import app.jobs.events_sync_job as es_job
+    import app.jobs.trending_job as tr_job
+    import app.jobs.customer_favourites_job as cf_job
+    import app.jobs.scheduled_notifications as sn_job
+    import app.db.flat_relational_dao as flat_dao
+    import app.db.mysql_payment_dao as pay_dao
+    import app.db.mysql_customer_segment_dao as cs_dao
+    import app.repositories.analytics_repository as an_repo
+
+    for mod in (cs_job, es_job, tr_job, cf_job, sn_job, flat_dao, pay_dao, cs_dao, an_repo):
+        source = inspect.getsource(mod)
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                for kw in node.keywords:
+                    assert kw.arg is not None, f"Found **kwargs unpacking in {mod.__name__} at line {node.lineno}"
+            elif isinstance(node, ast.Dict):
+                for key in node.keys:
+                    assert key is not None, f"Found **dict literal unpacking in {mod.__name__} at line {node.lineno}"
+

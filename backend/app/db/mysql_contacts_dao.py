@@ -1,7 +1,6 @@
 from typing import Optional, List, Union, Tuple, Any
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import ContactInternal, ContactInternalCreate, ContactInternalUpdate, SocialMedia
@@ -129,7 +128,7 @@ class MySQLContactsDAO:
         if data.social_media is not None:
             cols.append("social_media")
             val_placeholders.append(":social_media")
-            params["social_media"] = json.dumps(data.social_media.model_dump())
+            params["social_media"] = data.social_media.model_dump_json()
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
@@ -169,7 +168,7 @@ class MySQLContactsDAO:
 
         if update_data.social_media is not None:
             updates.append("social_media = :social_media")
-            params["social_media"] = json.dumps(update_data.social_media.model_dump())
+            params["social_media"] = update_data.social_media.model_dump_json()
 
         upd_sql = ", ".join(updates)
         async with factory() as session:
@@ -229,12 +228,7 @@ class MySQLContactsDAO:
         social = None
         if r.social_media:
             try:
-                if isinstance(r.social_media, str):
-                    social = SocialMedia.model_validate_json(r.social_media)
-                elif isinstance(r.social_media, SocialMedia):
-                    social = r.social_media
-                else:
-                    social = SocialMedia.model_validate(r.social_media)
+                social = SocialMedia.model_validate_json(r.social_media)
             except Exception:
                 social = None
 

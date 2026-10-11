@@ -167,16 +167,21 @@ def upload_object(key: str, data: bytes, content_type: Optional[str] = None) -> 
     client = _get_client()
     if not client:
         raise RuntimeError("OCI client could not be initialized (check config)")
-    put_headers = {}
     if content_type:
-        put_headers["Content-Type"] = content_type
-    client.put_object(
-        namespace_name=OCI_NAMESPACE,
-        bucket_name=OCI_BUCKET_NAME,
-        object_name=key,
-        put_object_body=data,
-        **({"headers": put_headers} if put_headers else {}),
-    )
+        client.put_object(
+            namespace_name=OCI_NAMESPACE,
+            bucket_name=OCI_BUCKET_NAME,
+            object_name=key,
+            put_object_body=data,
+            headers={"Content-Type": content_type},
+        )
+    else:
+        client.put_object(
+            namespace_name=OCI_NAMESPACE,
+            bucket_name=OCI_BUCKET_NAME,
+            object_name=key,
+            put_object_body=data,
+        )
     return key
 
 

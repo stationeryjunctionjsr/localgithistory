@@ -17,7 +17,7 @@ Usage
         title      = "Return processed ✅",
         message    = "Your return has been collected. Refund incoming.",
         link       = "/customer/orders",
-        metadata   = {"order_id": "ORD-123"},   # optional
+        metadata   = NotificationMetadata(order_id="ORD-123"),   # optional
     )
 """
 
@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import uuid
 from typing import Optional
+
+from app.models.schemas import NotificationMetadata
 
 
 async def notify_user(
@@ -35,7 +37,7 @@ async def notify_user(
     message: str,
     link: str = "/",
     image: Optional[str] = None,
-    metadata: Optional[dict] = None,
+    metadata: Optional[NotificationMetadata] = None,
 ) -> None:
     """
     Fire-and-forget: create in-app notification AND send push.
@@ -49,37 +51,49 @@ async def notify_user(
     message    : str   — body text
     link       : str   — relative URL the user is taken to on tap/click
     image      : str | None — optional image URL for push banner
-    metadata   : dict | None — extra key-value pairs stored on the in-app record
+    metadata   : NotificationMetadata | None — extra metadata stored on the in-app record
     """
     from app.utils.logger import logger
 
     # ── 1. In-app notification ────────────────────────────────────────────────
     try:
         from app.models.daos import NotificationInternalCreate
-        from app.models.schemas import NotificationMetadata
         from app.repositories.notification_repository import notification_repository
 
         meta = None
-        if metadata or link:
-            meta_data = metadata or {}
+        if metadata is not None:
+            meta = NotificationMetadata(
+                url=metadata.url or link,
+                type=metadata.type or notif_type,
+                order_id=metadata.order_id,
+                order_number=metadata.order_number,
+                product_id=metadata.product_id,
+                status=metadata.status,
+                amount=metadata.amount,
+                user_id=metadata.user_id,
+                created_at=metadata.created_at,
+                payment_id=metadata.payment_id,
+                payment_id_formatted=metadata.payment_id_formatted,
+                payment_method=metadata.payment_method,
+                sub_order_id=metadata.sub_order_id,
+                sub_order_number=metadata.sub_order_number,
+                parent_order_id=metadata.parent_order_id,
+                courier_partner=metadata.courier_partner,
+            )
+        elif link:
             meta = NotificationMetadata(
                 url=link,
                 type=notif_type,
-                order_id=meta_data.get("order_id"),
-                product_id=meta_data.get("product_id"),
-                status=meta_data.get("status"),
             )
 
         await notification_repository.create(
             NotificationInternalCreate(
-                **{
-                    "_id":     str(uuid.uuid4()),
-                    "user_id": str(user_id),
-                    "type":    notif_type,
-                    "title":   title,
-                    "message": message,
-                    "metadata": meta,
-                }
+                id=str(uuid.uuid4()),
+                user_id=str(user_id),
+                type=notif_type,
+                title=title,
+                message=message,
+                metadata=meta,
             )
         )
     except Exception as exc:
@@ -93,13 +107,13 @@ async def notify_user(
 
         await push_notification_service.send_to_user(
             str(user_id),
-            PushNotifications(**{
-                "_id":     f"{notif_type}_{user_id}_{uuid.uuid4().hex[:8]}",
-                "title":   title,
-                "message": message,
-                "link":    link,
-                "image":   image,
-            }),
+            PushNotifications(
+                id=f"{notif_type}_{user_id}_{uuid.uuid4().hex[:8]}",
+                title=title,
+                message=message,
+                link=link,
+                image=image,
+            ),
         )
     except Exception as exc:
         from app.utils.logger import logger as _log

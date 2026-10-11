@@ -174,17 +174,21 @@ async def update_ticket_status(
 
     # Notify customer — in-app notification + push
     try:
+        from app.models.schemas import NotificationMetadata
         from app.utils.notify import notify_user
         from app.utils.logger import logger
         customer_id = str(ticket.user) if ticket.user else None
         new_status = status_data.status or ""
-        status_labels = {
-            "open": "reopened 🔓",
-            "in_progress": "in progress 🔧",
-            "resolved": "resolved ✅",
-            "closed": "closed 🔒",
-        }
-        label = status_labels[new_status] if new_status in status_labels else f"updated to {new_status}"
+        if new_status == "open":
+            label = "reopened 🔓"
+        elif new_status == "in_progress":
+            label = "in progress 🔧"
+        elif new_status == "resolved":
+            label = "resolved ✅"
+        elif new_status == "closed":
+            label = "closed 🔒"
+        else:
+            label = f"updated to {new_status}"
         if customer_id and new_status:
             await notify_user(
                 user_id    = customer_id,
@@ -192,7 +196,7 @@ async def update_ticket_status(
                 title      = f"Support ticket {label}",
                 message    = f"Your support ticket has been {label}. Tap to view details.",
                 link       = "/customer/support",
-                metadata   = {"status": new_status},
+                metadata   = NotificationMetadata(status=new_status),
             )
     except Exception as e:
         from app.utils.logger import logger
@@ -228,6 +232,7 @@ async def add_ticket_response(
     # Notify customer when admin replies — in-app notification + push
     if is_admin_response:
         try:
+            from app.models.schemas import NotificationMetadata
             from app.utils.notify import notify_user
             customer_id = str(ticket.user) if ticket.user else None
             if customer_id:
@@ -238,7 +243,7 @@ async def add_ticket_response(
                     title      = "New reply on your support ticket 💬",
                     message    = preview or "Support has responded to your ticket. Tap to read.",
                     link       = "/customer/support",
-                    metadata   = {"status": "replied"},
+                    metadata   = NotificationMetadata(status="replied"),
                 )
         except Exception as e:
             from app.utils.logger import logger

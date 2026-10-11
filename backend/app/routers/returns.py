@@ -396,6 +396,7 @@ async def complete_return(
 
     # Notify customer — in-app notification + push
     try:
+        from app.models.schemas import NotificationMetadata
         from app.utils.notify import notify_user
         customer_id = str(req.user_id) if req.user_id else None
         if customer_id:
@@ -405,7 +406,7 @@ async def complete_return(
                 title      = "Return processed ✅",
                 message    = "Your return has been collected and processed. Refund will be initiated shortly.",
                 link       = "/customer/orders",
-                metadata   = {"order_id": str(req.order_id) if req.order_id else None, "status": "returned"},
+                metadata   = NotificationMetadata(order_id=str(req.order_id) if req.order_id else None, status="returned"),
             )
     except Exception as e:
         logger.warning("Notification failed for return completion %s: %s", request_id, str(e))
@@ -428,6 +429,7 @@ async def reject_return(
 
     # Notify customer — in-app notification + push
     try:
+        from app.models.schemas import NotificationMetadata
         from app.utils.notify import notify_user
         customer_id = str(req.user_id) if req.user_id else None
         if customer_id:
@@ -443,7 +445,7 @@ async def reject_return(
                 title      = "Return request rejected ❌",
                 message    = msg,
                 link       = "/customer/orders",
-                metadata   = {"order_id": str(req.order_id) if req.order_id else None, "status": "rejected"},
+                metadata   = NotificationMetadata(order_id=str(req.order_id) if req.order_id else None, status="rejected"),
             )
     except Exception as e:
         logger.warning("Notification failed for return rejection %s: %s", request_id, str(e))
