@@ -1,10 +1,11 @@
 from app.models.base import CamelBaseModel
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Union
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.schemas import (
     VisibilityRuleSnippet, ProductDetails, VariantAttributes,
     TicketResponseItem, NotificationMetadata, ProductSellerEntry, VariantOption
 )
+from app.models.seller_request import SellerRequestResponseItem
 from datetime import datetime
 
 class CartItemInternal(CamelBaseModel):
@@ -351,7 +352,7 @@ class SellerRequestInternalCreate(CamelBaseModel):
     priority: Optional[str] = "medium"
     status: str = "open"
     attachments: Optional[List[str]] = None
-    responses: Optional[List['TicketResponseItem']] = None
+    responses: Optional[List[Union[SellerRequestResponseItem, TicketResponseItem]]] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -368,7 +369,7 @@ class SellerRequestInternalUpdate(CamelBaseModel):
     priority: Optional[str] = None
     status: Optional[str] = None
     attachments: Optional[List[str]] = None
-    responses: Optional[List['TicketResponseItem']] = None
+    responses: Optional[List[Union[SellerRequestResponseItem, TicketResponseItem]]] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
     created_at: Optional[datetime] = None
