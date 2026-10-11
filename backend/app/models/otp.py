@@ -2,7 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 class Bundle(BaseModel):
-    id: str = Field(default="", alias="_id")
+    id: str = ""
 
 class EmailOtp(BaseModel):
     id: Optional[int] = None

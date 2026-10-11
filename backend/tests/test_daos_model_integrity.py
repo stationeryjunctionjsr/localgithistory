@@ -48,6 +48,36 @@ def test_zero_alias_id_in_daos_flat_models():
     assert len(alias_nodes) == 0, f"Found legacy aliases in daos_flat.py: {alias_nodes}"
 
 
+def test_zero_alias_id_in_auxiliary_models():
+    import app.models.bundle as bundle_mod
+    import app.models.customer_segment as customer_segment_mod
+    import app.models.division as division_mod
+    import app.models.email_otp as email_otp_mod
+    import app.models.faq_section as faq_section_mod
+    import app.models.otp as otp_mod
+    import app.models.valet_availability as valet_availability_mod
+
+    modules = [
+        bundle_mod,
+        customer_segment_mod,
+        division_mod,
+        email_otp_mod,
+        faq_section_mod,
+        otp_mod,
+        valet_availability_mod,
+    ]
+
+    for mod in modules:
+        source = inspect.getsource(mod)
+        tree = ast.parse(source)
+        alias_nodes = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.keyword) and node.arg == "alias":
+                if isinstance(node.value, ast.Constant) and node.value.value in ("_id", "externalId"):
+                    alias_nodes.append((node.value.value, getattr(node, "lineno", None)))
+        assert len(alias_nodes) == 0, f"Found legacy aliases in {mod.__name__}: {alias_nodes}"
+
+
 def test_product_internal_create_forbids_extra_fields():
     # Verify extra='forbid'
     assert daos_mod.ProductInternalCreate.model_config.get("extra") == "forbid"

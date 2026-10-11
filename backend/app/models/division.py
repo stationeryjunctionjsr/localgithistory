@@ -7,8 +7,8 @@ from app.models.base import CamelBaseModel
 class DivisionCategoryTag(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
     id: Union[int, str]
-    external_id: Optional[str] = Field(None, alias="externalId")
-    mongo_id: Optional[str] = Field(None, alias="_id")
+    external_id: Optional[str] = None
+    mongo_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: bool = Field(True, alias="isActive")
@@ -52,7 +52,7 @@ class DivisionUpdate(CamelBaseModel):
 
 
 class DivisionResponse(CamelBaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     external_id: Optional[str] = None
     name: str
     description: Optional[str] = None
@@ -69,8 +69,8 @@ class DivisionResponse(CamelBaseModel):
 
 class DivisionInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
-    id: Optional[str] = Field(None, alias="_id")
-    external_id: Optional[str] = Field(None, alias="externalId")
+    id: Optional[str] = None
+    external_id: Optional[str] = None
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None

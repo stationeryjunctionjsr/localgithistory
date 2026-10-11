@@ -7,7 +7,7 @@ class BundleItem(CamelBaseModel):
     quantity: Optional[int] = 1
 
 class Bundle(CamelBaseModel):
-    id: str = Field(default="", alias="_id")
+    id: str = ""
     name: str = ""
     description: Optional[str] = None
     price: float = 0.0

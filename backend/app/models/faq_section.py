@@ -8,7 +8,7 @@ class FaqItem(BaseModel):
     answer: Optional[str] = None
 
 class Bundle(BaseModel):
-    id: str = Field(default="", alias="_id")
+    id: str = ""
 
 class EmailOtp(BaseModel):
     pass
@@ -31,7 +31,7 @@ class FaqSectionInternalUpdate(BaseModel):
     items: Optional[List[FaqItem]] = None
 
 class FaqSectionResponse(BaseModel):
-    id: Optional[str] = Field(default="", alias="_id")
+    id: Optional[str] = ""
     externalId: Optional[str] = None
     title: str = ""
     orderIndex: Optional[int] = 0

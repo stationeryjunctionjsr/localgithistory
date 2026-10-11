@@ -5,7 +5,7 @@ from app.models.base import CamelBaseModel
 
 
 class ValetAvailability(CamelBaseModel):
-    id: Optional[str] = Field(default=None, alias="_id")
+    id: Optional[str] = None
     external_id: Optional[str] = None
     valet_id: Optional[str] = None
     date: Optional[str] = None
