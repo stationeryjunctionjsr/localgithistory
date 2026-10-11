@@ -35,6 +35,54 @@ class SegmentConfig(CamelBaseModel):
     explore_available: bool = False
 
 
+class SegmentsConfig(CamelBaseModel):
+    guest: SegmentConfig = Field(default_factory=SegmentConfig)
+    retail: SegmentConfig = Field(default_factory=SegmentConfig)
+    wholesaler: SegmentConfig = Field(default_factory=SegmentConfig)
+
+    def for_segment(self, segment: str) -> SegmentConfig:
+        if segment == "guest":
+            return self.guest
+        if segment == "retail":
+            return self.retail
+        if segment == "wholesaler":
+            return self.wholesaler
+        return SegmentConfig()
+
+
+class SectionWiseWeights(CamelBaseModel):
+    customer_favourites: EngagementWeights = Field(default_factory=EngagementWeights)
+    trending_now: EngagementWeights = Field(default_factory=EngagementWeights)
+    explore: EngagementWeights = Field(default_factory=EngagementWeights)
+    wholesaler_customer_favourites: EngagementWeights = Field(default_factory=EngagementWeights)
+    wholesaler_trending_now: EngagementWeights = Field(default_factory=EngagementWeights)
+    wholesaler_explore: EngagementWeights = Field(default_factory=EngagementWeights)
+    wholesaler_favourites: EngagementWeights = Field(default_factory=EngagementWeights)
+    quick_picks: EngagementWeights = Field(default_factory=EngagementWeights)
+    business_favourites: EngagementWeights = Field(default_factory=EngagementWeights)
+
+    def for_slot(self, slot: str, default: EngagementWeights) -> EngagementWeights:
+        if slot == "customer_favourites":
+            return self.customer_favourites
+        if slot == "trending_now":
+            return self.trending_now
+        if slot == "explore":
+            return self.explore
+        if slot == "wholesaler_customer_favourites":
+            return self.wholesaler_customer_favourites
+        if slot == "wholesaler_trending_now":
+            return self.wholesaler_trending_now
+        if slot == "wholesaler_explore":
+            return self.wholesaler_explore
+        if slot == "wholesaler_favourites":
+            return self.wholesaler_favourites
+        if slot == "quick_picks":
+            return self.quick_picks
+        if slot == "business_favourites":
+            return self.business_favourites
+        return default
+
+
 class RecommendationConfig(CamelBaseModel):
     engagement_days: int = 30
     engagement_weights: EngagementWeights = Field(default_factory=EngagementWeights)
@@ -43,8 +91,8 @@ class RecommendationConfig(CamelBaseModel):
     bandit: BanditConfig = Field(default_factory=BanditConfig)
     customer_favourites_weights: FavouriteWeights = Field(default_factory=FavouriteWeights)
     business_favourites_weights: FavouriteWeights = Field(default_factory=FavouriteWeights)
-    segments: dict[str, SegmentConfig] = Field(default_factory=dict)
-    section_wise_weights: dict[str, EngagementWeights] = Field(default_factory=dict)
+    segments: SegmentsConfig = Field(default_factory=SegmentsConfig)
+    section_wise_weights: SectionWiseWeights = Field(default_factory=SectionWiseWeights)
 
 
 class FavouritesCacheResult(CamelBaseModel):

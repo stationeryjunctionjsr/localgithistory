@@ -374,9 +374,7 @@ async def track_recommendation_event(
         strategy = body.strategy or body.slot
         if strategy in BANDIT_STRATEGIES:
             config = get_recommendation_config()
-            section_wise = config.section_wise_weights
-            engagement = config.engagement_weights
-            section_weights = section_wise[body.slot] if body.slot in section_wise else engagement
+            section_weights = config.section_wise_weights.for_slot(body.slot, config.engagement_weights)
             
             if body.eventType == "add_to_cart":
                 weight = section_weights.add_to_cart

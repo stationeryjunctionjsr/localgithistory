@@ -93,7 +93,7 @@ def _load_config() -> RecommendationConfig:
 
 def _segment_config(segment: str) -> SegmentConfig:
     config = _load_config()
-    return config.segments[segment] if segment in config.segments else SegmentConfig()
+    return config.segments.for_segment(segment)
 
 
 def _get_favourites_weights(kind: str) -> Tuple[float, float]:
