@@ -14,7 +14,8 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
-from app.db.db_utils import now_utc
+import json
+from app.db.db_utils import now_utc, json_loads
 
 
 class MySQLBannerDAO:
@@ -24,6 +25,48 @@ class MySQLBannerDAO:
 
     def _factory(self):
         return get_async_session_factory()
+
+    async def _hydrate_banner_rows(self, session, rows) -> List[BannerResponse]:
+        if not rows:
+            return []
+
+        bids = [int(r._mapping["_id"]) for r in rows]
+        bids_csv = ", ".join(str(b) for b in bids)
+
+        seg_res = await session.execute(
+            text(f"SELECT banner_id, segment FROM sj_banner_user_segments WHERE banner_id IN ({bids_csv})")
+        )
+        seg_map = {}
+        for s_row in seg_res.fetchall():
+            seg_map.setdefault(int(s_row.banner_id), []).append(s_row.segment)
+
+        rules_res = await session.execute(
+            text(f"SELECT banner_id, rule FROM sj_banner_visibility_rules WHERE banner_id IN ({bids_csv})")
+        )
+        rules_map = {}
+        for r_row in rules_res.fetchall():
+            try:
+                rule_obj = json_loads(r_row.rule)
+            except Exception:
+                rule_obj = {"pageType": r_row.rule}
+            rules_map.setdefault(int(r_row.banner_id), []).append(rule_obj)
+
+        banners = []
+        for r in rows:
+            mapping = dict(r._mapping)
+            bid = int(mapping["_id"])
+            if mapping.get("zone_ids"):
+                try:
+                    mapping["zone_ids"] = json_loads(mapping["zone_ids"])
+                except Exception:
+                    mapping["zone_ids"] = None
+            else:
+                mapping["zone_ids"] = None
+
+            mapping["user_segments"] = seg_map.get(bid) or ([mapping.get("target_audience")] if mapping.get("target_audience") else ["all"])
+            mapping["visibility_rules"] = rules_map.get(bid) or []
+            banners.append(BannerResponse.model_validate(mapping))
+        return banners
 
     async def findAll(
         self,
@@ -56,14 +99,52 @@ class MySQLBannerDAO:
                 text(
                     f"SELECT id AS _id, external_id, title, description, image_url, link_url, "
                     f"display_order, start_date, end_date, is_active, is_published, "
-                    f"target_audience, position, created_at, updated_at "
-                    f"FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
+                    f"target_audience, position, created_at, updated_at, zone_ids "
+                    f"FROM {self.TABLE} WHERE {where_sql} ORDER BY display_order ASC, id ASC"
                 ),
                 params,
             )
             rows = result.fetchall()
-            
-        return [BannerResponse.model_validate(r) for r in rows]
+            return await self._hydrate_banner_rows(session, rows)
+
+    async def find_active_banners(
+        self,
+        current_time: Optional[datetime] = None,
+        position: Optional[str] = None,
+        target_audience: Optional[str] = None,
+    ) -> List[BannerResponse]:
+        factory = self._factory()
+        if not factory:
+            return []
+        now_dt = current_time or now_utc()
+        now_str = now_dt.isoformat()
+        where_clauses = [
+            "is_active = 1",
+            "is_published = 1",
+            "(start_date IS NULL OR start_date <= :now_str)",
+            "(end_date IS NULL OR end_date >= :now_str)",
+        ]
+        params = {"now_str": now_str}
+        if position:
+            where_clauses.append("position = :position")
+            params["position"] = position
+        if target_audience and target_audience != "all":
+            where_clauses.append("(target_audience = :target_audience OR target_audience = 'all' OR target_audience IS NULL)")
+            params["target_audience"] = target_audience
+
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            result = await session.execute(
+                text(
+                    f"SELECT id AS _id, external_id, title, description, image_url, link_url, "
+                    f"display_order, start_date, end_date, is_active, is_published, "
+                    f"target_audience, position, created_at, updated_at, zone_ids "
+                    f"FROM {self.TABLE} WHERE {where_sql} ORDER BY display_order ASC, id ASC"
+                ),
+                params,
+            )
+            rows = result.fetchall()
+            return await self._hydrate_banner_rows(session, rows)
 
     async def findOne(
         self,
@@ -90,12 +171,12 @@ class MySQLBannerDAO:
                         external_id, title, description, image_url, link_url,
                         display_order, start_date, end_date,
                         is_active, is_published, target_audience, position,
-                        created_at, updated_at
+                        zone_ids, created_at, updated_at
                     ) VALUES (
                         :external_id, :title, :description, :image_url, :link_url,
                         :display_order, :start_date, :end_date,
                         :is_active, :is_published, :target_audience, :position,
-                        :created_at, :updated_at
+                        :zone_ids, :created_at, :updated_at
                     )
                     """
                 ),
@@ -112,7 +193,7 @@ class MySQLBannerDAO:
                     "is_published": int(bool((data.isPublished if data.isPublished is not None else False))),
                     "target_audience": data.targetAudience,
                     "position": data.position,
-                    
+                    "zone_ids": json.dumps(data.zoneIds) if data.zoneIds else None,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -168,6 +249,7 @@ class MySQLBannerDAO:
                         is_published = :is_published,
                         target_audience = :target_audience,
                         position = :position,
+                        zone_ids = :zone_ids,
                         updated_at = :updated_at
                     WHERE id = :id
                     """
@@ -185,7 +267,7 @@ class MySQLBannerDAO:
                     "is_published": int(bool(merged["isPublished"] if "isPublished" in merged else False)),
                     "target_audience": merged["targetAudience"],
                     "position": merged["position"],
-                    
+                    "zone_ids": json.dumps(merged["zoneIds"]) if merged.get("zoneIds") else None,
                     "updated_at": now,
                 },
             )

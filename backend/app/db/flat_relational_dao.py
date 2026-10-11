@@ -1,12 +1,4 @@
-from typing import Any
 import logging
-"""
-Generic Oracle DAO for parent-only tables: fixed columns + JSON columns for arrays/arbitrary dicts.
-No child tables. Implements same interface as FileStorage/OracleDocStore.
-Config: scalar_map (API key -> db column), clob_map (API key -> db column; stored as JSON type).
-Table must have: id (IDENTITY), external_id, created_at, updated_at, plus configured columns.
-"""
-
 import secrets
 from datetime import datetime
 from typing import Dict, List, Optional, Set
@@ -18,15 +10,11 @@ from app.db.db_utils import now_utc
 
 
 def _q(col: str) -> str:
-    if col.lower() == "date":
-        return '"DATE"'
-    return col
+    return f"`{col}`"
 
 
 def _param(col: str) -> str:
-    if col.lower() == "date":
-        return "p_date"
-    return col
+    return f"p_{col}" if col.lower() == "date" else col
 
 
 def _to_ts(val) -> Optional[datetime]:
@@ -145,8 +133,11 @@ class FlatRelationalDAO:
         # Use dict.fromkeys for uniqueness, then quote
         return [_q(c) for c in dict.fromkeys(cols)]
 
-    def _build_where(self, query: Optional[Dict]) -> tuple[str, Dict]:
-        """Build WHERE clause and params from a query dict — same logic used by findAll and count."""
+    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+        factory = self._factory()
+        if not factory:
+            return []
+
         where_clauses = []
         params: Dict = {}
         if query:
@@ -158,20 +149,9 @@ class FlatRelationalDAO:
                     col = self.scalar_map[k]
                     p = _param(col)
                     where_clauses.append(f"{_q(col)} = :{p}")
-                    if k in self.bool_api_keys:
-                        params[p] = 1 if v else 0
-                    else:
-                        params[p] = v
-                # Note: CLOB filtering not supported here (requires JSON_VALUE/JSON_EXISTS)
+                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
+
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        return where_sql, params
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
-        factory = self._factory()
-        if not factory:
-            return []
-
-        where_sql, params = self._build_where(query)
         cols = ", ".join(self._all_columns())
 
         async with factory() as session:
@@ -242,7 +222,8 @@ class FlatRelationalDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        existing_data = existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing
+        merged = {**existing_data, **update_data}
         factory = self._factory()
         if not factory:
             return None
@@ -286,7 +267,20 @@ class FlatRelationalDAO:
         if not factory:
             return {"deletedCount": 0}
 
-        where_sql, params = self._build_where(query)
+        where_clauses = []
+        params: Dict = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else None
+                elif k in self.scalar_map:
+                    col = self.scalar_map[k]
+                    p = _param(col)
+                    where_clauses.append(f"{_q(col)} = :{p}")
+                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.table_name} WHERE {where_sql}"),
@@ -300,7 +294,19 @@ class FlatRelationalDAO:
         if not factory:
             return 0
 
-        where_sql, params = self._build_where(query)
+        where_clauses = []
+        params: Dict = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else None
+                elif k in self.scalar_map:
+                    col = self.scalar_map[k]
+                    p = _param(col)
+                    where_clauses.append(f"{_q(col)} = :{p}")
+                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
         now = now_utc()
         set_parts = ["updated_at = :updated_at"]
@@ -334,17 +340,26 @@ class FlatRelationalDAO:
         factory = self._factory()
         if not factory:
             return 0
-        where_sql, params = self._build_where(query)
+        where_clauses = []
+        params: Dict = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else None
+                elif k in self.scalar_map:
+                    col = self.scalar_map[k]
+                    p = _param(col)
+                    where_clauses.append(f"{_q(col)} = :{p}")
+                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
         async with factory() as session:
             result = await session.execute(
                 text(f"SELECT COUNT(*) FROM {self.table_name} WHERE {where_sql}"),
                 params,
             )
             return int(result.scalar() or 0)
-
-    find_all = findAll
-    find_by_id = findById
-    find_one = findOne
 
 
 

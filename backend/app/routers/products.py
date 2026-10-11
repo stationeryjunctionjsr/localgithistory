@@ -678,8 +678,7 @@ async def _get_public_products_cached(
     sort: Optional[str],
     includeFacets: bool,
     skinny: bool,
-    zone_id: Optional[str] = None,  # kept for backward-compat; use scope_key instead
-    scope_key: Optional[str] = None,  # "pan_india" | zone_id str | None (no filter)
+    scope_key: Optional[str] = None,
 ):
     """Internal cached function. Cache key includes scope_key — all pincodes in the same
     zone share one cache entry (zone_id), pan-india users share 'pan_india', guests with
@@ -720,23 +719,20 @@ async def _get_public_products_cached(
         query["sort"] = sort
     query["role"] = role
 
-    # Determine effective scope (prefer scope_key; fall back to legacy zone_id param)
-    _scope = scope_key or zone_id
-
     # Zone-based seller filter applied by scope.
-    if _scope == "pan_india":
+    if scope_key == "pan_india":
         # Pan-India: only Super Admin (1P) products are visible via 3PL courier
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
             query["allowed_seller_ids"] = [sa_id]
-    elif _scope:
+    elif scope_key:
         # Hyperlocal zone: sellers declared for this zone
         from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
-        seller_id_set = await get_seller_ids_for_zone_id(_scope)
+        seller_id_set = await get_seller_ids_for_zone_id(scope_key)
         if seller_id_set is not None:
             query["allowed_seller_ids"] = list(seller_id_set)
-    # else: _scope is None → no pincode provided, no seller filter (show all)
+    # else: scope_key is None → no pincode provided, no seller filter (show all)
 
     if page > 1:
         includeFacets = False
@@ -811,24 +807,20 @@ async def get_public_products(
     myProducts: bool = False,
     pincode: Optional[str] = None,
 ):
-    """Get products filtered by zone/scope. Requires pincode for product visibility."""
-    # Guests without a pincode get an empty result set (zone is required for product visibility)
-    if not pincode:
-        return {
-            "products": [],
-            "totalCount": 0,
-            "brands": [],
-            "categories": [],
-            "subCategories": [],
-            "collections": [],
-            "usedFuzzy": False,
-            "suggestedQuery": None,
-        }
+    """Get products filtered by zone/scope.
 
+    Pincode is optional here — the frontend enforces pincode entry via its modal
+    gate and disables add-to-cart / checkout until a valid pincode is confirmed.
+    The backend always returns products so the UI is never blank:
+
+      No pincode yet              → Super Admin (pan-india) catalog  [add-to-cart disabled by FE]
+      Pincode in hyperlocal zone  → Zone sellers catalog
+      Pincode not in any zone     → Super Admin (pan-india) catalog  [3PL shipping]
+    """
     # Resolve pincode → scope_key.
-    #   Hyperlocal zone  → scope_key = zone_id   (cache shared across same zone)
-    #   Pan-India        → scope_key = "pan_india" (all unzoned pincodes share one cache entry)
-    # subtract_unavailable=False here: product listing shows greyed-out items;
+    #   Hyperlocal zone → scope_key = zone_id   (cache shared across same zone)
+    #   Pan-India / no pincode → scope_key = "pan_india" (SA catalog, one shared cache entry)
+    # subtract_unavailable=False: product listing shows greyed-out items;
     # recommendations use True (unavailable items are hidden entirely).
     from app.repositories.zone_seller_cache import get_retail_seller_set
     _, scope_key = await get_retail_seller_set(pincode, subtract_unavailable=False)

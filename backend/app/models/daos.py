@@ -142,6 +142,17 @@ class BannerChildrenData(CamelBaseModel):
     user_segments: Optional[List[str]] = None
     visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
 
+class BannerFilter(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    is_active: Optional[bool] = None
+    is_published: Optional[bool] = None
+    position: Optional[str] = None
+    target_audience: Optional[str] = None
+    page_type: Optional[str] = None
+    page_id: Optional[str] = None
+    user_role: Optional[str] = None
+    zone_id: Optional[str] = None
+
 class SellerPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')

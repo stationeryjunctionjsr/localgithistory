@@ -11,12 +11,16 @@ Seller visibility rules
 -----------------------
   Hyperlocal retail  (pincode in a delivery zone):
       seller_id_set = sellers declared for that zone
-  Pan-India retail   (pincode provided but NOT in any zone):
-      seller_id_set = {super_admin_id}   (3PL courier, SA products only)
+  Pan-India / no-pincode retail:
+      seller_id_set = {super_admin_id}   (SA catalog; add-to-cart gated by FE)
   Wholesale:
       seller_id_set = {super_admin_id}   (always SA only)
-  No pincode / unauthenticated guest:
-      seller_id_set = None               (no filter — show all)
+
+  The backend NEVER returns an empty product list due to missing pincode.
+  The frontend is responsible for:
+    - Enforcing pincode entry via the modal gate
+    - Disabling add-to-cart / checkout until pincode is confirmed
+    - Showing a "not serviceable" banner when needed
 
 Cache behaviour
 ---------------
@@ -26,7 +30,7 @@ Cache behaviour
     (zone_id, set())    -> zone found but no sellers declared
     (zone_id, set(ids)) -> zone found with sellers
 - get_retail_seller_set() is the recommended high-level entry point; it
-  applies the hyperlocal / pan-india decision automatically.
+  applies the hyperlocal / pan-india / no-pincode decision automatically.
 """
 
 import time
@@ -238,11 +242,17 @@ async def get_retail_seller_set(
     Decision tree
     -------------
     pincode is None / empty
-        -> (None, "all")          no filter — show all products (guest, no pincode)
+        -> ({super_admin_id}, "pan_india")
+           No pincode yet — show SA catalog as the default.
+           The frontend enforces the pincode gate (modal) and disables
+           add-to-cart / checkout until a valid pincode is entered.
     pincode resolves to a hyperlocal zone
-        -> (zone_sellers, zone_id)  hyperlocal — only sellers in that zone
+        -> (zone_sellers, zone_id)   hyperlocal — only sellers in that zone
     pincode provided but NOT in any zone
         -> ({super_admin_id}, "pan_india")  pan-india — SA products only (3PL)
+
+    In every non-hyperlocal case, the customer sees the Super Admin (1P)
+    catalog. Transactional actions are gated by the frontend.
 
     Parameters
     ----------
@@ -255,13 +265,15 @@ async def get_retail_seller_set(
     Returns
     -------
     (seller_id_set, location_key)
-        seller_id_set : None means no filter; set() means nothing available.
+        seller_id_set : always a set (never None — no-filter case is gone).
         location_key  : stable string suitable for use in cache keys.
     """
-    if not pincode:
-        return None, "all"
-
-    zone_id, seller_id_set = await get_zone_id_and_seller_ids_for_pincode(pincode)
+    if zone_id_and_sellers := (
+        await get_zone_id_and_seller_ids_for_pincode(pincode) if pincode else (None, None)
+    ):
+        zone_id, seller_id_set = zone_id_and_sellers
+    else:
+        zone_id, seller_id_set = None, None
 
     if zone_id is not None:
         # ── Hyperlocal zone found ──────────────────────────────────────────
@@ -275,7 +287,10 @@ async def get_retail_seller_set(
                 logger.warning("get_retail_seller_set: could not subtract unavailable sellers: %s", exc)
         return seller_id_set, zone_id
 
-    # ── Pincode not in any hyperlocal zone → Pan-India (SA only) ──────────
+    # ── No pincode, unzoned pincode, or unserviceable pincode → SA only ───
+    # All these cases show the Super Admin (pan-india) catalog.
+    # The frontend is responsible for disabling add-to-cart when pincode
+    # is absent or when the zone is not active.
     sa_id = await get_super_admin_seller_id()
     pan_india_set: Set[str] = {sa_id} if sa_id else set()
     return pan_india_set, "pan_india"

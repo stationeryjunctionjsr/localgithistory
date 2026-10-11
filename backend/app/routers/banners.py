@@ -5,6 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.models.schemas import BannerCreate, BannerResponse, BannerUpdate
+from app.models.daos import BannerFilter
 from app.repositories.banner_repository import banner_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
@@ -22,41 +23,17 @@ async def _get_public_banners_cached(
     userRole: str,
     zone_id: Optional[str],
 ) -> List[BannerResponse]:
-    banners = await banner_repository.findActive(
-        {
-            "isActive": True,
-            "isPublished": True,
-            "position": position,
-            "targetAudience": targetAudience,
-            "pageType": pageType,
-            "pageId": pageId,
-            "userRole": userRole,
-        },
+    filter_params = BannerFilter(
+        is_active=True,
+        is_published=True,
+        position=position,
+        target_audience=targetAudience,
+        page_type=pageType,
+        page_id=pageId,
+        user_role=userRole,
         zone_id=zone_id,
     )
-
-    # Enhanced position filtering to support sub-positions and legacy platform-agnostic ones
-    if position:
-        pos_lower = position.lower()
-        target_positions = [pos_lower, "all"]
-
-        # Homepage mapping
-        homepage_variants = ["homepage", "home", "homepage_web", "homepage_mobile", "homeweb", "homemobile"]
-        if pos_lower in homepage_variants or "home" in pos_lower:
-            target_positions.extend(homepage_variants)
-
-        # Sub-page mapping
-        if "category" in pos_lower:
-            target_positions.append("category")
-        if "brand" in pos_lower:
-            target_positions.append("brand")
-
-        banners = [b for b in banners if str((b.position or "")).lower() in target_positions]
-
-    if targetAudience:
-        banners = [b for b in banners if b.target_audience == targetAudience or b.target_audience == "all"]
-
-    return banners
+    return await banner_repository.findActive(filter_params, zone_id=zone_id)
 
 
 @router.get("/public", response_model=List[BannerResponse])
@@ -86,14 +63,11 @@ async def get_banners(
     isPublished: Optional[bool] = None,
     current_user: User = Depends(require_super_admin),
 ):
-    query = {}
-    if isActive is not None:
-        query["isActive"] = isActive
-    if isPublished is not None:
-        query["isPublished"] = isPublished
-
-    banners = await banner_repository.findAll(query)
-    return banners
+    filter_params = BannerFilter(
+        is_active=isActive,
+        is_published=isPublished,
+    )
+    return await banner_repository.findAll(filter_params)
 
 
 @router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=ImageUploadResponse)
