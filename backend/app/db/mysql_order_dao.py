@@ -1,5 +1,5 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
-from typing import Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 import logging
 """
 MySQL DAO for sj_orders (+ sj_order_items).
@@ -723,6 +723,363 @@ class MySQLOrderDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
+    async def get_user_purchased_subcategories(
+        self, user_id: str, start_date: datetime
+    ) -> List[Tuple[str, int]]:
+        """
+        Aggregate total purchased quantity grouped by subcategory (falling back to category)
+        for a specific user since start_date, sorted by quantity ascending.
+        """
+        factory = self._factory()
+        if not factory:
+            return []
+
+        uid = int(user_id) if str(user_id).isdigit() else None
+        user_cond = (
+            "(o.user_id = :uid OR o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
+            if uid is not None
+            else "o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
+        )
+
+        sql = f"""
+            SELECT COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) AS subcat,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            JOIN sj_products p ON (p.id = oi.product_id OR p.external_id = CAST(oi.product_id AS CHAR))
+            WHERE {user_cond}
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+              AND COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) IS NOT NULL
+            GROUP BY subcat
+            ORDER BY total_qty ASC
+        """
+        params: Dict[str, Any] = {"start_date": start_date, "user_id_str": str(user_id)}
+        if uid is not None:
+            params["uid"] = uid
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            return [(str(row.subcat), int(row.total_qty)) for row in result.fetchall() if row.subcat]
+
+    async def get_bestsellers_in_subcategories(
+        self, subcategories: List[str], start_date: datetime
+    ) -> List[Tuple[str, str, int]]:
+        """
+        Fetch top products and their sales quantities within the specified subcategories
+        since start_date, sorted by sales descending.
+        Returns: List[Tuple[product_id, subcategory, total_sales]]
+        """
+        if not subcategories:
+            return []
+        factory = self._factory()
+        if not factory:
+            return []
+
+        sc_params = {f"sc_{i}": sc for i, sc in enumerate(subcategories)}
+        sc_placeholders = ", ".join(f":{k}" for k in sc_params)
+
+        sql = f"""
+            SELECT CAST(oi.product_id AS CHAR) AS product_id,
+                   COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) AS subcat,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS sales
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            JOIN sj_products p ON (p.id = oi.product_id OR p.external_id = CAST(oi.product_id AS CHAR))
+            WHERE o.created_at >= :start_date
+              AND o.status != 'cancelled'
+              AND p.is_active = 1
+              AND COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) IN ({sc_placeholders})
+            GROUP BY product_id, subcat
+            ORDER BY sales DESC
+        """
+        params: Dict[str, Any] = {"start_date": start_date, **sc_params}
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            return [(str(row.product_id), str(row.subcat), int(row.sales)) for row in result.fetchall()]
+
+    async def get_user_purchased_product_ids(
+        self, user_id: str, start_date: Optional[datetime] = None
+    ) -> Set[str]:
+        """
+        Return the set of distinct product IDs purchased by a user.
+        Optionally filtered by orders created on or after start_date.
+        """
+        factory = self._factory()
+        if not factory:
+            return set()
+
+        uid = int(user_id) if str(user_id).isdigit() else None
+        user_cond = (
+            "(o.user_id = :uid OR o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
+            if uid is not None
+            else "o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
+        )
+        date_cond = "AND o.created_at >= :start_date" if start_date else ""
+
+        sql = f"""
+            SELECT DISTINCT CAST(oi.product_id AS CHAR) AS pid
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            WHERE {user_cond}
+              AND o.status != 'cancelled'
+              {date_cond}
+        """
+        params: Dict[str, Any] = {"user_id_str": str(user_id)}
+        if uid is not None:
+            params["uid"] = uid
+        if start_date:
+            params["start_date"] = start_date
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            return {str(row.pid) for row in result.fetchall() if row.pid}
+
+    async def get_retail_bestsellers(
+        self, start_date: datetime, limit: int = 10, exclude_product_ids: Optional[Set[str]] = None
+    ) -> List[str]:
+        """
+        Top bestsellers from retail customer orders (ORDER-RT-) only since start_date.
+        """
+        factory = self._factory()
+        if not factory:
+            return []
+
+        sql = f"""
+            SELECT CAST(oi.product_id AS CHAR) AS pid,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            JOIN sj_users u ON u.id = o.user_id
+            WHERE u.role = 'customer'
+              AND o.order_number LIKE 'ORDER-RT-%'
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+            GROUP BY pid
+            ORDER BY total_qty DESC
+        """
+        params: Dict[str, Any] = {"start_date": start_date}
+
+        exclude = exclude_product_ids or set()
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            out: List[str] = []
+            for row in result.fetchall():
+                pid = str(row.pid)
+                if pid and pid not in exclude:
+                    out.append(pid)
+                    if len(out) >= limit:
+                        break
+            return out
+
+    async def get_most_bought_by_wholesalers(
+        self, user_id: str, start_date: datetime, limit: int = 10
+    ) -> List[str]:
+        """
+        Products most frequently bought by other wholesalers since start_date.
+        """
+        factory = self._factory()
+        if not factory:
+            return []
+
+        uid = int(user_id) if str(user_id).isdigit() else None
+        user_cond = (
+            "(o.user_id != :uid AND o.user_id NOT IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
+            if uid is not None
+            else "o.user_id NOT IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
+        )
+
+        sql = f"""
+            SELECT CAST(oi.product_id AS CHAR) AS pid,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            JOIN sj_users u ON u.id = o.user_id
+            WHERE u.role = 'wholesaler'
+              AND {user_cond}
+              AND o.order_number LIKE 'ORDER-WH-%'
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+            GROUP BY pid
+            ORDER BY total_qty DESC
+            LIMIT :limit
+        """
+        params: Dict[str, Any] = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
+        if uid is not None:
+            params["uid"] = uid
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            return [str(row.pid) for row in result.fetchall() if row.pid]
+
+    async def get_most_bought_by_user(
+        self, user_id: str, start_date: datetime, limit: int = 5
+    ) -> List[str]:
+        """
+        Top products bought by specific user since start_date.
+        """
+        factory = self._factory()
+        if not factory:
+            return []
+
+        uid = int(user_id) if str(user_id).isdigit() else None
+        user_cond = (
+            "(o.user_id = :uid OR o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
+            if uid is not None
+            else "o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
+        )
+
+        sql = f"""
+            SELECT CAST(oi.product_id AS CHAR) AS pid,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            WHERE {user_cond}
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+            GROUP BY pid
+            ORDER BY total_qty DESC
+            LIMIT :limit
+        """
+        params: Dict[str, Any] = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
+        if uid is not None:
+            params["uid"] = uid
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            return [str(row.pid) for row in result.fetchall() if row.pid]
+
+    async def get_favourites_by_subcategory(
+        self,
+        kind: str,
+        start_date: datetime,
+        city: Optional[str] = None,
+    ) -> List[Tuple[str, str, int, int]]:
+        """
+        Aggregate order count and total quantity per product and subcategory for favourites.
+        kind: 'customer' (retail ORDER-RT-, role customer) | 'business' (wholesaler ORDER-WH-)
+        Returns: List[Tuple[product_id, subcategory, order_count, total_quantity]]
+        """
+        factory = self._factory()
+        if not factory:
+            return []
+
+        prefix = "ORDER-RT-%" if kind == "customer" else "ORDER-WH-%"
+        user_join = "JOIN sj_users u ON u.id = o.user_id" if kind == "customer" else ""
+        user_filter = "AND u.role = 'customer'" if kind == "customer" else ""
+
+        city_cond = ""
+        params: Dict[str, Any] = {"prefix": prefix, "start_date": start_date}
+
+        if city and city.strip():
+            city_cond = "AND LOWER(TRIM(o.ship_city)) = :city"
+            params["city"] = city.strip().lower()
+
+        sql = f"""
+            SELECT CAST(oi.product_id AS CHAR) AS pid,
+                   COALESCE(NULLIF(p.sub_category, ''), 'None') AS subcat,
+                   COUNT(DISTINCT o.id) AS order_count,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            JOIN sj_products p ON (p.id = oi.product_id OR p.external_id = CAST(oi.product_id AS CHAR))
+            {user_join}
+            WHERE o.order_number LIKE :prefix
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+              AND p.is_active = 1
+              {user_filter}
+              {city_cond}
+            GROUP BY pid, subcat
+            HAVING total_qty > 1
+        """
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            return [
+                (str(row.pid), str(row.subcat), int(row.order_count), int(row.total_qty))
+                for row in result.fetchall()
+            ]
+
+    async def get_favourites_ranked_data(
+        self,
+        kind: str,
+        start_date: datetime,
+        state: Optional[str] = None,
+        city: Optional[str] = None,
+    ) -> Tuple[List[Tuple[str, int, int]], List[str], List[str]]:
+        """
+        Fetch ranked product sales stats plus distinct states and cities from matching orders.
+        kind: 'customer' (retail ORDER-RT-, role customer) | 'business' (wholesaler ORDER-WH-)
+        Returns: (product_stats, distinct_states, distinct_cities)
+        where product_stats is [(product_id, order_count, total_quantity), ...]
+        """
+        factory = self._factory()
+        if not factory:
+            return [], [], []
+
+        prefix = "ORDER-RT-%" if kind == "customer" else "ORDER-WH-%"
+        user_join = "JOIN sj_users u ON u.id = o.user_id" if kind == "customer" else ""
+        user_filter = "AND u.role = 'customer'" if kind == "customer" else ""
+
+        geo_params: Dict[str, Any] = {"prefix": prefix, "start_date": start_date}
+
+        geo_sql = f"""
+            SELECT DISTINCT TRIM(o.ship_state) AS state, TRIM(o.ship_city) AS city
+            FROM {self.TABLE} o
+            {user_join}
+            WHERE o.order_number LIKE :prefix
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+              {user_filter}
+        """
+
+        state_cond = ""
+        city_cond = ""
+        stats_params = dict(geo_params)
+        if state and state.strip():
+            state_cond = "AND LOWER(TRIM(o.ship_state)) = :state"
+            stats_params["state"] = state.strip().lower()
+        if city and city.strip():
+            city_cond = "AND LOWER(TRIM(o.ship_city)) = :city"
+            stats_params["city"] = city.strip().lower()
+
+        stats_sql = f"""
+            SELECT CAST(oi.product_id AS CHAR) AS pid,
+                   COUNT(DISTINCT o.id) AS order_count,
+                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            {user_join}
+            WHERE o.order_number LIKE :prefix
+              AND o.created_at >= :start_date
+              AND o.status != 'cancelled'
+              {user_filter}
+              {state_cond}
+              {city_cond}
+            GROUP BY pid
+        """
+
+        async with factory() as session:
+            geo_res = await session.execute(text(geo_sql), geo_params)
+            states = set()
+            cities = set()
+            for r in geo_res.fetchall():
+                if r.state:
+                    states.add(str(r.state))
+                if r.city:
+                    cities.add(str(r.city))
+
+            stats_res = await session.execute(text(stats_sql), stats_params)
+            product_stats = [
+                (str(r.pid), int(r.order_count), int(r.total_qty))
+                for r in stats_res.fetchall()
+                if r.pid
+            ]
+
+        return product_stats, sorted(states), sorted(cities)
 
 
 

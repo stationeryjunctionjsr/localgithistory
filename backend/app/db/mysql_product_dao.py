@@ -7,7 +7,8 @@ from app.models.schemas import ProductSellerEntry, VariantOption
 import json
 import secrets
 
-from typing import Any, List, Optional
+from datetime import datetime
+from typing import Any, List, Optional, Set
 
 from sqlalchemy import text
 
@@ -704,3 +705,33 @@ class MySQLProductDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
+    async def get_new_arrival_ids(
+        self, cutoff: datetime, exclude_product_ids: Optional[Set[str]] = None, limit: int = 10
+    ) -> List[str]:
+        """
+        Fetch active products created on or after cutoff, ordered by created_at DESC.
+        """
+        factory = self._factory()
+        if not factory:
+            return []
+
+        sql = f"""
+            SELECT id FROM {self.TABLE}
+            WHERE is_active = 1
+              AND created_at >= :cutoff
+            ORDER BY created_at DESC
+        """
+        params = {"cutoff": cutoff}
+        exclude = exclude_product_ids or set()
+
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
+            out: List[str] = []
+            for row in result.fetchall():
+                pid = str(row.id)
+                if pid not in exclude:
+                    out.append(pid)
+                    if len(out) >= limit:
+                        break
+            return out
