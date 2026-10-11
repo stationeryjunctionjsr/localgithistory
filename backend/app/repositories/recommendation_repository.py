@@ -1,5 +1,6 @@
 import logging
 from operator import itemgetter
+from app.models.daos import OrderFilter
 from app.models.schemas import SkinnyProductResponse, RecommendationResponse
 import asyncio
 import json
@@ -220,19 +221,25 @@ def _write_business_favourites_cache(data: FavouritesCacheResult) -> None:
     _BF_CACHE_TS = time.monotonic()
 
 
+def _pick_top_per_subcategory(
+    candidates: List[Tuple[str, str, int, int]], w_freq: float, w_qty: float
+) -> List[str]:
+    """Find single highest-scoring product per subcategory, ordered by score descending."""
+    best = {}
+    for pid, subcat, order_count, total_qty in candidates:
+        score = w_freq * order_count + w_qty * total_qty
+        if subcat not in best or score > best[subcat][1]:
+            best[subcat] = (pid, score)
+    return [pid for pid, _ in sorted(best.values(), key=itemgetter(1), reverse=True)]
+
+
 class RecommendationRepository:
     def __init__(self):
         self.order_storage = get_storage("orders")
         self.product_storage = get_storage("products")
         self.tracking_storage = get_storage("tracking")
-        self.user_storage = get_storage("users")
         self.cart_storage = get_storage("carts")
         self._rewards_lock = asyncio.Lock()
-
-    async def _get_retail_customer_ids(self) -> set:
-        """User IDs with role customer (retail)."""
-        users = await self.user_storage.findAll({"role": "customer"})
-        return {u.id for u in users if u.id}
 
     async def _get_user_purchased_product_ids(self, user_id: str, days: int) -> set:
         """Products the user purchased in the last `days` days."""
@@ -315,10 +322,9 @@ class RecommendationRepository:
         searches = await tracking_repository.get_searches_with_products(days, segment)
 
         # Orders in last `days` days for this segment — filtered at DB level
-        orders = await self.order_storage.findAll({
-            "orderNumber_prefix": prefix,
-            "startDate": cutoff.isoformat(),
-        })
+        orders = await self.order_storage.findAll(
+            OrderFilter(order_number_prefix=prefix, start_date=cutoff)
+        )
         converted_sales_count: dict[str, int] = {}
         for order in orders:
             order_dt = _parse_order_date(order.created_at)
@@ -326,14 +332,14 @@ class RecommendationRepository:
                 continue
             if order.status == "cancelled":
                 continue
-            order_user = order.user
+            order_user = str(order.user_id) if order.user_id is not None else None
             order_session = order.session_id
             order_start = order_dt - timedelta(days=days)
             pids_in_order = set()
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
+                pid = item.product_id
                 if pid:
-                    pids_in_order.add(pid)
+                    pids_in_order.add(str(pid))
             for pid in pids_in_order:
                 # Count only if this order is linked to a search for P within 7 days before order
                 linked = False
@@ -414,76 +420,10 @@ class RecommendationRepository:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         city_filter = city.strip() if city and city.strip() else None
 
-        if hasattr(self.order_storage, "get_favourites_by_subcategory"):
-            candidates = await self.order_storage.get_favourites_by_subcategory(
-                kind="customer", start_date=cutoff, city=city_filter
-            )
-            by_subcat: dict[str, list[Tuple[str, float]]] = {}
-            for pid, subcat, order_count, total_qty in candidates:
-                score = w_freq * order_count + w_qty * total_qty
-                by_subcat.setdefault(subcat, []).append((pid, score))
-
-            top_per_subcat = [max(items, key=itemgetter(1)) for items in by_subcat.values()]
-            top_per_subcat.sort(key=itemgetter(1), reverse=True)
-            return [pid for pid, _ in top_per_subcat]
-
-        retail_ids = await self._get_retail_customer_ids()
-        if not retail_ids:
-            return []
-        city_lower = city_filter.lower() if city_filter else None
-        orders, all_products = await asyncio.gather(
-            self.order_storage.findAll({
-                "orderNumber_prefix": "ORDER-RT-",
-                "startDate": cutoff.isoformat(),
-            }),
-            self.product_storage.findAll({"isActive": True}),
+        candidates = await self.order_storage.get_favourites_by_subcategory(
+            kind="customer", start_date=cutoff, city=city_filter
         )
-        pid_to_subcat: dict[str, str] = {
-            p.id: (p.sub_category or "None") for p in all_products if p.id
-        }
-        segment_order_count: dict[str, dict[str, int]] = {}
-        segment_quantity: dict[str, dict[str, int]] = {}
-        for order in orders:
-            if order.user not in retail_ids:
-                continue
-            if order.status == "cancelled":
-                continue
-            # City filter: match against the order's delivery city (shippingAddress.city)
-            if city_lower:
-                order_city = order.shipping_address.city if order.shipping_address is not None and order.shipping_address.city is not None else ""
-                if not order_city or order_city.strip().lower() != city_lower:
-                    continue
-            pids_in_order = set()
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if not pid:
-                    continue
-                subcat = pid_to_subcat.get(pid, "None")
-                if subcat not in segment_order_count:
-                    segment_order_count[subcat] = {}
-                    segment_quantity[subcat] = {}
-                segment_quantity[subcat][pid] = segment_quantity[subcat].get(pid, 0) + (item.quantity if item.quantity is not None else 1)
-                pids_in_order.add((subcat, pid))
-            for subcat, pid in pids_in_order:
-                segment_order_count[subcat][pid] = segment_order_count[subcat].get(pid, 0) + 1
-        # Top 1 per subcategory by weighted score; then sort by score descending
-        top_per_subcat: List[Tuple[str, float]] = []  # (pid, score)
-        for subcat in segment_order_count:
-            candidates = [
-                (pid, segment_order_count[subcat][pid], segment_quantity[subcat].get(pid, 0))
-                for pid in segment_order_count[subcat]
-                if segment_quantity[subcat].get(pid, 0) > 1
-            ]
-            if not candidates:
-                continue
-
-            def _score_candidate(x: Tuple[str, int, int]) -> float:
-                return w_freq * x[1] + w_qty * x[2]
-
-            top = max(candidates, key=_score_candidate)
-            top_per_subcat.append((top[0], _score_candidate(top)))
-        top_per_subcat.sort(key=itemgetter(1), reverse=True)
-        return [pid for pid, _ in top_per_subcat]
+        return _pick_top_per_subcategory(candidates, w_freq, w_qty)
 
     async def get_customer_favourites_product_ids(self) -> Set[str]:
         """Set of product IDs that are Customer Favourites (top 1 per subcategory, retail, 60d). For tagging in catalog. Reads cache when present."""
@@ -514,70 +454,10 @@ class RecommendationRepository:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         city_filter = city.strip() if city and city.strip() else None
 
-        if hasattr(self.order_storage, "get_favourites_by_subcategory"):
-            candidates = await self.order_storage.get_favourites_by_subcategory(
-                kind="business", start_date=cutoff, city=city_filter
-            )
-            by_subcat: dict[str, list[Tuple[str, float]]] = {}
-            for pid, subcat, order_count, total_qty in candidates:
-                score = w_freq * order_count + w_qty * total_qty
-                by_subcat.setdefault(subcat, []).append((pid, score))
-
-            top_per_subcat = [max(items, key=itemgetter(1)) for items in by_subcat.values()]
-            top_per_subcat.sort(key=itemgetter(1), reverse=True)
-            return [pid for pid, _ in top_per_subcat]
-
-        city_lower = city_filter.lower() if city_filter else None
-        orders, all_products = await asyncio.gather(
-            self.order_storage.findAll({
-                "orderNumber_prefix": "ORDER-WH-",
-                "startDate": cutoff.isoformat(),
-            }),
-            self.product_storage.findAll({"isActive": True}),
+        candidates = await self.order_storage.get_favourites_by_subcategory(
+            kind="business", start_date=cutoff, city=city_filter
         )
-        pid_to_subcat: dict[str, str] = {
-            p.id: (p.sub_category or "None") for p in all_products if p.id
-        }
-        segment_order_count: dict[str, dict[str, int]] = {}
-        segment_quantity: dict[str, dict[str, int]] = {}
-        for order in orders:
-            if order.status == "cancelled":
-                continue
-            # City filter: match against the order's delivery city (shippingAddress.city)
-            if city_lower:
-                order_city = order.shipping_address.city if order.shipping_address is not None and order.shipping_address.city is not None else ""
-                if not order_city or order_city.strip().lower() != city_lower:
-                    continue
-            pids_in_order = set()
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if not pid:
-                    continue
-                subcat = pid_to_subcat.get(pid, "None")
-                if subcat not in segment_order_count:
-                    segment_order_count[subcat] = {}
-                    segment_quantity[subcat] = {}
-                segment_quantity[subcat][pid] = segment_quantity[subcat].get(pid, 0) + (item.quantity if item.quantity is not None else 1)
-                pids_in_order.add((subcat, pid))
-            for subcat, pid in pids_in_order:
-                segment_order_count[subcat][pid] = segment_order_count[subcat].get(pid, 0) + 1
-        top_per_subcat: List[Tuple[str, float]] = []
-        for subcat in segment_order_count:
-            candidates = [
-                (pid, segment_order_count[subcat][pid], segment_quantity[subcat].get(pid, 0))
-                for pid in segment_order_count[subcat]
-                if segment_quantity[subcat].get(pid, 0) > 1
-            ]
-            if not candidates:
-                continue
-
-            def _score_business_candidate(x: Tuple[str, int, int]) -> float:
-                return w_freq * x[1] + w_qty * x[2]
-
-            top = max(candidates, key=_score_business_candidate)
-            top_per_subcat.append((top[0], _score_business_candidate(top)))
-        top_per_subcat.sort(key=itemgetter(1), reverse=True)
-        return [pid for pid, _ in top_per_subcat]
+        return _pick_top_per_subcategory(candidates, w_freq, w_qty)
 
     async def get_business_favourites_product_ids(self) -> Set[str]:
         """Set of product IDs that are Business Favourites (for tagging). Reads cache when present."""
@@ -624,78 +504,18 @@ class RecommendationRepository:
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-        if hasattr(self.order_storage, "get_favourites_ranked_data"):
-            product_stats, states, cities = await self.order_storage.get_favourites_ranked_data(
-                kind=kind, start_date=cutoff, state=state, city=city
-            )
-            ranked = [
-                (pid, w_freq * order_count + w_qty * total_qty)
-                for pid, order_count, total_qty in product_stats
-            ]
-            ranked.sort(key=itemgetter(1), reverse=True)
-            return FavouritesRankedResult(
-                ranked_ids=ranked,
-                states=states,
-                cities=cities,
-            )
-
-        retail_ids = await self._get_retail_customer_ids() if kind == "customer" else None
-        state_filter = state.strip().lower() if state and state.strip() else None
-        city_filter = city.strip().lower() if city and city.strip() else None
-
-        order_count: dict[str, int] = {}
-        quantity_map: dict[str, int] = {}
-        states_seen: set = set()
-        cities_seen: set = set()
-
-        prefix = "ORDER-RT-" if kind == "customer" else "ORDER-WH-"
-        orders = await self.order_storage.findAll({
-            "orderNumber_prefix": prefix,
-            "startDate": cutoff.isoformat(),
-        })
-        for order in orders:
-            if kind == "customer" and retail_ids and order.user not in retail_ids:
-                continue
-            if order.status == "cancelled":
-                continue
-
-            shipping = order.shipping_address
-            order_state = (shipping.state if shipping and shipping.state is not None else "").strip()
-            order_city = (shipping.city if shipping and shipping.city is not None else "").strip()
-
-            # State / city filter
-            if state_filter and order_state.lower() != state_filter:
-                continue
-            if city_filter and order_city.lower() != city_filter:
-                continue
-
-            # Collect geo values for filter options
-            if order_state:
-                states_seen.add(order_state)
-            if order_city:
-                cities_seen.add(order_city)
-
-            pids_in_order: set = set()
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if not pid:
-                    continue
-                quantity_map[pid] = quantity_map.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
-                pids_in_order.add(pid)
-            for pid in pids_in_order:
-                order_count[pid] = order_count.get(pid, 0) + 1
-
-        # Score and rank
-        ranked = sorted(
-            [(pid, w_freq * order_count[pid] + w_qty * quantity_map.get(pid, 0)) for pid in order_count],
-            key=itemgetter(1),
-            reverse=True,
+        product_stats, states, cities = await self.order_storage.get_favourites_ranked_data(
+            kind=kind, start_date=cutoff, state=state, city=city
         )
-
+        ranked = [
+            (pid, w_freq * order_count + w_qty * total_qty)
+            for pid, order_count, total_qty in product_stats
+        ]
+        ranked.sort(key=itemgetter(1), reverse=True)
         return FavouritesRankedResult(
             ranked_ids=ranked,
-            states=sorted(states_seen),
-            cities=sorted(cities_seen),
+            states=states,
+            cities=cities,
         )
 
     async def get_new_arrivals(self, user_id: Optional[str], role: Optional[str], limit: int = 10) -> List[str]:
@@ -705,36 +525,11 @@ class RecommendationRepository:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days_new)
         user_ordered: Set[str] = set()
         if user_id:
-            if hasattr(self.order_storage, "get_user_purchased_product_ids"):
-                user_ordered = await self.order_storage.get_user_purchased_product_ids(user_id)
-            else:
-                orders = await self.order_storage.findAll({"user": user_id})
-                for o in orders:
-                    for item in (o.items if o.items is not None else []):
-                        pid = item.product or item.product_id
-                        if pid:
-                            user_ordered.add(pid)
+            user_ordered = await self.order_storage.get_user_purchased_product_ids(user_id)
 
-        if hasattr(self.product_storage, "get_new_arrival_ids"):
-            return await self.product_storage.get_new_arrival_ids(
-                cutoff=cutoff, exclude_product_ids=user_ordered, limit=limit
-            )
-
-        all_products = await self.product_storage.findAll({"isActive": True})
-        candidates: List[Tuple[str, Optional[datetime]]] = []
-        for p in all_products:
-            pid = p.id
-            if not pid or pid in user_ordered:
-                continue
-            created = _parse_order_date(p.created_at) if p.created_at else None
-            if created and created >= cutoff:
-                candidates.append((pid, created))
-
-        def _candidate_date_key(item: Tuple[str, Optional[datetime]]) -> datetime:
-            return item[1] or datetime.min.replace(tzinfo=timezone.utc)
-
-        candidates.sort(key=_candidate_date_key, reverse=True)
-        return [pid for pid, _ in candidates[:limit]]
+        return await self.product_storage.get_new_arrival_ids(
+            cutoff=cutoff, exclude_product_ids=user_ordered, limit=limit
+        )
 
     def _load_rewards(self) -> dict[str, Any]:
         return {"global": {s: [] for s in BANDIT_STRATEGIES}, "users": {}}
@@ -827,45 +622,16 @@ class RecommendationRepository:
     async def get_most_bought_by_wholesalers(self, user_id: str, limit: int = 10, days: int = 5) -> List[str]:
         """Products most frequently bought by other wholesalers. Used only when caller is wholesaler."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        if hasattr(self.order_storage, "get_most_bought_by_wholesalers"):
-            return await self.order_storage.get_most_bought_by_wholesalers(
-                user_id=user_id, start_date=cutoff, limit=limit
-            )
-        users = await self.user_storage.findAll({"role": "wholesaler"})
-        wholesaler_ids = {u.id for u in users if u.id and u.id != user_id}
-        if not wholesaler_ids:
-            return []
-        orders = await self.order_storage.findAll({
-            "orderNumber_prefix": "ORDER-WH-",
-            "startDate": cutoff.isoformat(),
-        })
-        product_counts: dict[str, int] = {}
-        for order in orders:
-            if order.user not in wholesaler_ids:
-                continue
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if pid:
-                    product_counts[pid] = product_counts.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
-        sorted_products = sorted(product_counts.items(), key=itemgetter(1), reverse=True)[:limit]
-        return [pid for pid, _ in sorted_products]
+        return await self.order_storage.get_most_bought_by_wholesalers(
+            user_id=user_id, start_date=cutoff, limit=limit
+        )
 
     async def get_most_bought_by_user(self, user_id: str, limit: int = 5, days: int = 60) -> List[str]:
         """Top products bought by same user in last `days` days (for wholesaler 'your favourites')."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        if hasattr(self.order_storage, "get_most_bought_by_user"):
-            return await self.order_storage.get_most_bought_by_user(
-                user_id=user_id, start_date=cutoff, limit=limit
-            )
-        orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
-        product_counts: dict[str, int] = {}
-        for order in orders:
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if pid:
-                    product_counts[pid] = product_counts.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
-        sorted_products = sorted(product_counts.items(), key=itemgetter(1), reverse=True)[:limit]
-        return [pid for pid, _ in sorted_products]
+        return await self.order_storage.get_most_bought_by_user(
+            user_id=user_id, start_date=cutoff, limit=limit
+        )
 
     async def get_best_selling_from_least_bought_categories(
         self, user_id: str, limit: int = 24, days: int = 60, exclude_product_ids: Optional[Set[str]] = None
@@ -881,63 +647,20 @@ class RecommendationRepository:
         products_per_subcat = max(1, round(limit / neglected_count))
         bestseller_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
 
-        if hasattr(self.order_storage, "get_bestsellers_in_subcategories"):
-            bestsellers = await self.order_storage.get_bestsellers_in_subcategories(
-                subcategories=neglected_subcats, start_date=bestseller_cutoff
-            )
-            # Group bestsellers by subcategory
-            by_subcat: dict[str, List[Tuple[str, int]]] = {}
-            for pid, subcat, sales in bestsellers:
-                by_subcat.setdefault(subcat, []).append((pid, sales))
+        bestsellers = await self.order_storage.get_bestsellers_in_subcategories(
+            subcategories=neglected_subcats, start_date=bestseller_cutoff
+        )
+        by_subcat = {}
+        for pid, subcat, _ in bestsellers:
+            if pid not in exclude:
+                items = by_subcat.setdefault(subcat, [])
+                if len(items) < products_per_subcat:
+                    items.append(pid)
 
-            recommended_product_ids: List[str] = []
-            for subcat in neglected_subcats:
-                items = by_subcat.get(subcat, [])
-                # Items are already sorted by sales DESC from SQL
-                added = 0
-                for pid, _ in items:
-                    if pid not in exclude:
-                        recommended_product_ids.append(pid)
-                        added += 1
-                        if added >= products_per_subcat:
-                            break
-            return recommended_product_ids[:limit]
-
-        # Fallback if DAO lacks pushdown
-        products = await self.product_storage.findAll({"isActive": True})
-        product_by_id = {p.id: p for p in products if p.id}
-        neglected_set = set(neglected_subcats)
-
-        all_orders = await self.order_storage.findAll({"startDate": bestseller_cutoff.isoformat()})
-        subcat_product_sales: dict[str, dict[str, int]] = {}
-        for order in all_orders:
-            for item in (order.items if order.items is not None else []):
-                pid = item.product or item.product_id
-                if not pid:
-                    continue
-                p = product_by_id.get(pid)
-                if not p:
-                    continue
-                subcat = p.sub_category or p.category
-                if subcat in neglected_set:
-                    quantity = (item.quantity if item.quantity is not None else 1)
-                    if subcat not in subcat_product_sales:
-                        subcat_product_sales[subcat] = {}
-                    subcat_product_sales[subcat][pid] = subcat_product_sales[subcat].get(pid, 0) + quantity
-
-        recommended_product_ids = []
-        for subcat in neglected_set:
-            sales = subcat_product_sales.get(subcat, {})
-            top_products = sorted(sales.items(), key=itemgetter(1), reverse=True)
-            added = 0
-            for pid, _ in top_products:
-                if pid not in exclude:
-                    recommended_product_ids.append(pid)
-                    added += 1
-                    if added >= products_per_subcat:
-                        break
-
-        return recommended_product_ids[:limit]
+        recommended: List[str] = []
+        for subcat in neglected_subcats:
+            recommended.extend(by_subcat.get(subcat, []))
+        return recommended[:limit]
 
 
     async def _get_engagement_scores(self, product_ids: List[str]) -> dict[str, float]:
@@ -1004,41 +727,14 @@ class RecommendationRepository:
         whether a bundle's subCategory falls inside the neglected set.
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        if hasattr(self.order_storage, "get_user_purchased_subcategories"):
-            subcats_with_qty = await self.order_storage.get_user_purchased_subcategories(
-                user_id=user_id, start_date=cutoff
-            )
-            n = len(subcats_with_qty)
-            if n == 0:
-                return []
-            neglected_count = max(1, round(n / 3))
-            return [sc for sc, _ in subcats_with_qty[:neglected_count]]
-
-        orders, products = await asyncio.gather(
-            self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()}),
-            self.product_storage.findAll({"isActive": True}),
+        subcats_with_qty = await self.order_storage.get_user_purchased_subcategories(
+            user_id=user_id, start_date=cutoff
         )
-        product_by_id = {p.id: p for p in products if p.id}
-
-        subcat_counts: dict[str, int] = {}
-        for o in orders:
-            for item in (o.items if o.items is not None else []):
-                pid = item.product or item.product_id
-                if not pid:
-                    continue
-                p = product_by_id.get(pid)
-                if not p:
-                    continue
-                subcat = p.sub_category or p.category
-                if subcat:
-                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + (item.quantity if item.quantity is not None else 1)
-
-        n = len(subcat_counts)
+        n = len(subcats_with_qty)
         if n == 0:
             return []
         neglected_count = max(1, round(n / 3))
-        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=itemgetter(1))]
-        return sorted_subcats[:neglected_count]
+        return [sc for sc, _ in subcats_with_qty[:neglected_count]]
 
     async def _get_bundles_as_items(self, product_map=None) -> List[BundleRecommendationItem]:
         """Fetch and enrich active bundles to be treated as products in recommendation lists."""

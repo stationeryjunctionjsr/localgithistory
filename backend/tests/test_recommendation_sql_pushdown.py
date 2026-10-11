@@ -172,3 +172,24 @@ async def test_recommendation_repository_favourites_ranked_pushdown():
     # P1 score > P2 score
     assert result.ranked_ids[0][0] == "P1"
     assert result.ranked_ids[1][0] == "P2"
+
+
+@pytest.mark.asyncio
+async def test_recommendation_repository_favourites_by_subcat_clean_ranking():
+    repo = RecommendationRepository()
+    mock_order_dao = AsyncMock()
+    # SubcatA has P1 (score: 0.7*10 + 0.3*20 = 13.0) and P2 (score: 0.7*5 + 0.3*10 = 6.5) -> P1 wins SubcatA
+    # SubcatB has P3 (score: 0.7*20 + 0.3*50 = 29.0) -> P3 wins SubcatB
+    mock_order_dao.get_favourites_by_subcategory.return_value = [
+        ("P1", "SubcatA", 10, 20),
+        ("P2", "SubcatA", 5, 10),
+        ("P3", "SubcatB", 20, 50),
+    ]
+    repo.order_storage = mock_order_dao
+
+    res = await repo.get_customer_favourites_by_subcategory(days=60)
+    # P3 score (29.0) > P1 score (13.0)
+    assert res == ["P3", "P1"]
+    mock_order_dao.get_favourites_by_subcategory.assert_called_once_with(
+        kind="customer", start_date=mock_order_dao.get_favourites_by_subcategory.call_args[1]["start_date"], city=None
+    )
