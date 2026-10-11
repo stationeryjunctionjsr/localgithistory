@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -9,7 +9,6 @@ from app.models.schemas import (
     SellerRequestResponse,
     SellerRequestResponseCreate,
     TicketResponseItem,
-    TicketResponseItemInternal,
     UserSnippet,
 )
 from app.models.seller_request import SellerRequest, SellerRequestResponseItem
@@ -25,67 +24,49 @@ class StatusUpdate(CamelBaseModel):
     status: str
 
 
-async def _populate_response_item(
-    response: Union[SellerRequestResponseItem, TicketResponseItem, TicketResponseItemInternal],
+def _populate_response_item(
+    response: SellerRequestResponseItem,
+    admin_user: Optional[UserSnippet] = None,
 ) -> TicketResponseItem:
-    if isinstance(response, SellerRequestResponseItem):
-        admin_id = response.admin_id
-        message = response.response
-        created_at = response.created_at
-        attachments: List[str] = []
-    elif isinstance(response, TicketResponseItemInternal):
-        admin_id = response.user
-        message = response.message
-        created_at = response.created_at
-        attachments = response.attachments if response.attachments is not None else []
-    elif isinstance(response, TicketResponseItem):
-        admin_id = response.user.id if response.user is not None else None
-        message = response.message
-        created_at = response.created_at
-        attachments = response.attachments if response.attachments is not None else []
-    else:
-        return response
-
-    response_user = await user_repository.findById(admin_id) if admin_id is not None else None
-    user_snippet = (
-        UserSnippet(
-            id=response_user.id,
-            name=response_user.name if response_user.name is not None else "Unknown",
-            email=response_user.email if response_user.email is not None else "Unknown",
-            role=response_user.role if response_user.role is not None else "unknown",
-        )
-        if response_user is not None
-        else None
-    )
-
     return TicketResponseItem(
-        user=user_snippet,
-        message=message,
-        attachments=attachments,
-        created_at=created_at,
+        user=admin_user,
+        message=response.response or "",
+        attachments=[],
+        created_at=response.created_at,
     )
 
 
-async def populate_request(request: SellerRequest) -> SellerRequestResponse:
-    """Populate request with user data"""
-    user = await user_repository.findById(request.user) if request.user is not None else None
+async def _build_user_map(requests: List[SellerRequest]) -> dict[str, UserSnippet]:
+    user_ids: set[str] = set()
+    for req in requests:
+        if req.user:
+            user_ids.add(str(req.user))
+        for resp in (req.responses or []):
+            if resp.admin_id:
+                user_ids.add(str(resp.admin_id))
 
-    user_snippet = (
-        UserSnippet(
-            id=user.id,
-            name=user.name if user.name is not None else "Unknown",
-            email=user.email if user.email is not None else "Unknown",
-            role=user.role if user.role is not None else "unknown",
+    if not user_ids:
+        return {}
+
+    users = await user_repository.findByIds(list(user_ids))
+    return {
+        str(u.id): UserSnippet(
+            id=u.id,
+            name=u.name or "Unknown",
+            email=u.email or "Unknown",
+            role=u.role or "unknown",
         )
-        if user is not None
-        else None
-    )
+        for u in users
+        if u.id
+    }
 
+
+def _map_request(request: SellerRequest, user_map: dict[str, UserSnippet]) -> SellerRequestResponse:
+    user_snippet = user_map.get(str(request.user)) if request.user else None
     populated_responses: List[TicketResponseItem] = [
-        await _populate_response_item(resp)
-        for resp in (request.responses if request.responses is not None else [])
+        _populate_response_item(resp, user_map.get(str(resp.admin_id)) if resp.admin_id else None)
+        for resp in (request.responses or [])
     ]
-
     return SellerRequestResponse(
         id=request.id if request.id is not None else request.external_id,
         subject=request.subject,
@@ -101,6 +82,12 @@ async def populate_request(request: SellerRequest) -> SellerRequestResponse:
     )
 
 
+async def populate_request(request: SellerRequest) -> SellerRequestResponse:
+    """Populate single request with user data"""
+    user_map = await _build_user_map([request])
+    return _map_request(request, user_map)
+
+
 @router.get("", response_model=List[SellerRequestResponse])
 @router.get("/", response_model=List[SellerRequestResponse])
 async def get_seller_requests(
@@ -108,7 +95,8 @@ async def get_seller_requests(
 ) -> List[SellerRequestResponse]:
     user_filter = current_user.id if current_user.role != "super_admin" else None
     requests = await seller_request_repository.findAll(user=user_filter, status=status, priority=priority)
-    return [await populate_request(req) for req in requests]
+    user_map = await _build_user_map(requests)
+    return [_map_request(req, user_map) for req in requests]
 
 
 @router.get("/{request_id}", response_model=SellerRequestResponse)

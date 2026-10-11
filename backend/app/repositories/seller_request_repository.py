@@ -1,12 +1,12 @@
 import secrets
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
 
 from app.models.schemas import TicketResponseItemInternal
-from app.models.seller_request import SellerRequestResponseItem
+from app.models.seller_request import SellerRequest, SellerRequestResponseItem
 
 
 class SellerRequestRepository:

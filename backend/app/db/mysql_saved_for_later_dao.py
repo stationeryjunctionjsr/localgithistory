@@ -196,7 +196,3 @@ class MySQLSavedForLaterDAO:
             else:
                 result = await session.execute(text(f"SELECT COUNT(DISTINCT user_id) FROM {self.TABLE}"))
             return int(result.scalar() or 0)
-
-    find_all = findAll
-    find_by_id = findById
-    find_one = findOne
