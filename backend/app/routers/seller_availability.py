@@ -19,14 +19,19 @@ Endpoints:
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin
 from app.models.seller_availability import SellerAvailability
+from app.models.daos_flat import (
+    SellerAvailabilityFilter,
+    SellerAvailabilityInternalCreate,
+    SellerAvailabilityInternalUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,24 +63,38 @@ class SellerAvailabilityItem(BaseModel):
 class SellerAvailabilityResponse(BaseModel):
     id: str = Field(alias="_id")
     sellerId: str
-    startAt: str
-    endAt: str
+    startAt: Optional[str] = None
+    endAt: Optional[str] = None
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
     reason: Optional[str] = None
     status: str
+    sellerName: Optional[str] = None
+    sellerEmail: Optional[str] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class TickResponse(BaseModel):
-    processed: int
-    expired: int
-    activated: int
+    updated: int = 0
+    checked: int = 0
+    processed: Optional[int] = 0
+    expired: Optional[int] = 0
+    activated: Optional[int] = 0
+
+
+def _availability_sort_key(item: Union[SellerAvailabilityItem, SellerAvailabilityResponse]) -> str:
+    return getattr(item, "startAt", None) or getattr(item, "startDate", None) or ""
 
 class SellerAvailabilityCreate(BaseModel):
     startAt: str  # ISO 8601 datetime, e.g. "2026-08-17T14:00:00"
     endAt: str  # ISO 8601 datetime, e.g. "2026-08-17T18:00:00"
     reason: Optional[str] = None
 
-    @validator("startAt", "endAt")
+    @field_validator("startAt", "endAt")
+    @classmethod
     def validate_datetime_format(cls, v):
         try:
             datetime.fromisoformat(v.replace("Z", ""))
@@ -100,12 +119,11 @@ async def is_seller_currently_unavailable(seller_id: str) -> bool:
     Called by products.py when resolving the winning seller for a pincode.
     """
     now = datetime.now(timezone.utc)
-    now.isoformat() + "Z"
     records = await storage.findAll(
-        {
-            "sellerId": seller_id,
-            "status": {"$in": ["scheduled", "active"]},
-        }
+        SellerAvailabilityFilter(
+            seller_id=seller_id,
+            statuses=["scheduled", "active"],
+        )
     )
     for record in records:
         try:
@@ -127,7 +145,9 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
     if _unavailable_cache["expires"] > now and _unavailable_cache["data"] is not None:
         return _unavailable_cache["data"]
 
-    all_records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+    all_records = await storage.findAll(
+        SellerAvailabilityFilter(statuses=["scheduled", "active"])
+    )
 
     unavailable_sellers = set()
     current_utc = datetime.now(timezone.utc)
@@ -167,7 +187,9 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
     latest_end: Optional[datetime] = None
 
     try:
-        all_records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+        all_records = await storage.findAll(
+            SellerAvailabilityFilter(statuses=["scheduled", "active"])
+        )
         for record in all_records:
             if str(record.seller_id) not in seller_ids:
                 continue
@@ -260,7 +282,9 @@ async def get_zone_seller_availability_status(pincode: Optional[str] = None):
     result: Dict[str, str] = {}
     current_utc = datetime.now(timezone.utc)
     try:
-        all_records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+        all_records = await storage.findAll(
+            SellerAvailabilityFilter(statuses=["scheduled", "active"])
+        )
         for record in all_records:
             sid = str(record.seller_id or "")
             if sid not in unavailable_ids:
@@ -320,7 +344,6 @@ async def schedule_unavailability(
         raise HTTPException(status_code=400, detail="Cannot schedule unavailability in the past.")
 
     seller_id = str(current_user.id)
-    from app.models.daos_flat import SellerAvailabilityInternalCreate
     created = await storage.create(SellerAvailabilityInternalCreate(
         seller_id=seller_id,
         start_at=data.startAt,
@@ -346,13 +369,13 @@ async def get_my_availability_windows(
     """Return own upcoming and recent availability windows."""
     _require_seller(current_user)
     seller_id = str(current_user.id)
-    records = await storage.findAll({"seller_id": seller_id})
+    records = await storage.findAll(SellerAvailabilityFilter(seller_id=seller_id))
     # Sort by startAt descending (most recent first)
     parsed_docs = [
         d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
         for d in records
     ]
-    parsed_docs.sort(key=lambda d: (d.startAt or d.start_date or ""), reverse=True)
+    parsed_docs.sort(key=_availability_sort_key, reverse=True)
     return parsed_docs
 
 
@@ -364,14 +387,10 @@ async def get_all_seller_availability(
     current_user: User = Depends(require_super_admin),
 ):
     """Admin: view all sellers' availability windows."""
-    query: dict = {}
-    if sellerId:
-        query["seller_id"] = sellerId
-    if status:
-        query["status"] = status
-    records = await storage.findAll(query)
+    filters = SellerAvailabilityFilter(seller_id=sellerId, status=status)
+    records = await storage.findAll(filters)
     enriched = await _enrich_with_seller_name(records)
-    enriched.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
+    enriched.sort(key=_availability_sort_key, reverse=True)
     return enriched
 
 
@@ -398,7 +417,10 @@ async def cancel_availability_window(
     if record.status in ("ended", "cancelled"):
         raise HTTPException(status_code=400, detail="This window has already ended or been cancelled.")
 
-    await storage.update(window_id, {"status": "cancelled"})
+    await storage.update(
+        window_id,
+        SellerAvailabilityInternalUpdate(status="cancelled"),
+    )
     # Invalidate unavailability cache
     _unavailable_cache["expires"] = 0.0
     # Also invalidate product listing cache so pincode-filtered results refresh
@@ -420,7 +442,9 @@ async def tick_availability_statuses(
     active -> ended (if endAt has passed)
     """
     now = datetime.now(timezone.utc)
-    records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+    records = await storage.findAll(
+        SellerAvailabilityFilter(statuses=["scheduled", "active"])
+    )
     updated = 0
     for record in records:
         try:
@@ -428,10 +452,16 @@ async def tick_availability_statuses(
             end_dt = datetime.fromisoformat(record.endAt.replace("Z", ""))
             doc_id = str(record.id)
             if record.status == "scheduled" and now >= start_dt:
-                await storage.update(doc_id, {"status": "active"})
+                await storage.update(
+                    doc_id,
+                    SellerAvailabilityInternalUpdate(status="active"),
+                )
                 updated += 1
             elif record.status == "active" and now >= end_dt:
-                await storage.update(doc_id, {"status": "ended"})
+                await storage.update(
+                    doc_id,
+                    SellerAvailabilityInternalUpdate(status="ended"),
+                )
                 updated += 1
         except Exception:
             logger.warning("tick: failed to process seller availability record %r; skipping.", record.id or "?", exc_info=True)

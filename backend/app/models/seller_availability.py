@@ -17,3 +17,23 @@ class SellerAvailability(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     row_id: Optional[str] = None
+
+    @property
+    def startAt(self) -> Optional[str]:
+        return self.start_at.isoformat() if self.start_at else None
+
+    @property
+    def endAt(self) -> Optional[str]:
+        return self.end_at.isoformat() if self.end_at else None
+
+    @property
+    def startDate(self) -> Optional[str]:
+        return self.start_at.isoformat() if self.start_at else None
+
+    @property
+    def endDate(self) -> Optional[str]:
+        return self.end_at.isoformat() if self.end_at else None
+
+    @property
+    def sellerId(self) -> Optional[str]:
+        return self.seller_id

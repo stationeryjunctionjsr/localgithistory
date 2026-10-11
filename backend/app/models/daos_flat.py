@@ -1,6 +1,6 @@
 from app.models.base import CamelBaseModel
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Union
 from datetime import datetime
 from app.models.schemas import TicketResponseItemInternal, SocialMedia
 from app.models.daos import CustomerSegmentFilters
@@ -1233,12 +1233,35 @@ class ReturnRequestInternalUpdate(CamelBaseModel):
 
 
 class SellerAvailabilityInternalCreate(CamelBaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     seller_id: Optional[str] = None
     status: Optional[str] = None
     start_at: Optional[str] = None
     end_at: Optional[str] = None
+    reason: Optional[str] = None
+    created_by: Optional[str] = None
+    cancelled_at: Optional[str] = None
     is_full_day: Optional[bool] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: Optional[Union[datetime, str]] = None
+    updated_at: Optional[Union[datetime, str]] = None
+
+
+class SellerAvailabilityInternalUpdate(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    seller_id: Optional[str] = None
+    status: Optional[str] = None
+    start_at: Optional[str] = None
+    end_at: Optional[str] = None
+    reason: Optional[str] = None
+    created_by: Optional[str] = None
+    cancelled_at: Optional[str] = None
+    updated_at: Optional[Union[datetime, str]] = None
+
+
+class SellerAvailabilityFilter(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    id: Optional[Union[str, int]] = Field(None, alias="_id")
+    seller_id: Optional[str] = Field(None, alias="sellerId")
+    status: Optional[Union[str, List[str], Dict[str, Any]]] = None
+    statuses: Optional[List[str]] = None
 
