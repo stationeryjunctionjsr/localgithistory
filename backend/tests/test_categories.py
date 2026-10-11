@@ -17,7 +17,7 @@ def override_admin():
 @pytest.mark.asyncio
 async def test_category_crud_workflow(client: AsyncClient):
     # Pre-test cleanup: delete category if it already exists
-    existing_all = await category_repository.storage.findAll({"name": "Test Category Returnable"})
+    existing_all = await category_repository.storage.findAll(name="Test Category Returnable")
     for e in existing_all:
         await category_repository.storage.delete(e.id)
 

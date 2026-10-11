@@ -834,7 +834,7 @@ class RecommendationRepository:
             try:
                 from app.db.storage_factory import get_storage as _gs
                 cat_storage = _gs("categories")
-                all_cats = await cat_storage.findAll({"isActive": True})
+                all_cats = await cat_storage.findAll(is_active=True)
                 _tag_category_names = set()
                 for cat in all_cats:
                     # Each category carries category_tag (single str) and category_tags (list[str])

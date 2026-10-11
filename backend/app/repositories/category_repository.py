@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 from app.models.category import Category
 
@@ -24,7 +24,7 @@ class CategoryRepository:
         return await self.storage.findById(id)
 
     async def findByName(self, name: str) -> Optional[Category]:
-        categories = await self.storage.findAll({"name": name})
+        categories = await self.storage.findAll(name=name)
         return categories[0] if categories else None
 
     async def create(self, category_data: "CategoryInternalCreate") -> Category:

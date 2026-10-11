@@ -114,38 +114,14 @@ class MySQLCategoryDAO:
 
     async def findAll(
         self,
-        name: Optional[Union[str, Dict]] = None,
+        name: Optional[str] = None,
         category_tag: Optional[str] = None,
         is_active: Optional[bool] = None,
         is_returnable: Optional[bool] = None,
-        query: Optional[Dict] = None,
     ) -> List[Category]:
         factory = self._factory()
         if not factory:
             return []
-
-        if type(name) is dict:
-            query = name
-            name = None
-
-        if query:
-            if name is None and "name" in query:
-                name = str(query["name"])
-            if category_tag is None:
-                if "category_tag" in query:
-                    category_tag = str(query["category_tag"])
-                elif "categoryTag" in query:
-                    category_tag = str(query["categoryTag"])
-            if is_active is None:
-                if "is_active" in query:
-                    is_active = bool(query["is_active"])
-                elif "isActive" in query:
-                    is_active = bool(query["isActive"])
-            if is_returnable is None:
-                if "is_returnable" in query:
-                    is_returnable = bool(query["is_returnable"])
-                elif "isReturnable" in query:
-                    is_returnable = bool(query["isReturnable"])
 
         where_clauses = []
         params = {}
@@ -175,21 +151,14 @@ class MySQLCategoryDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str, Dict]] = None,
+        id: Optional[Union[int, str]] = None,
         name: Optional[str] = None,
         category_tag: Optional[str] = None,
         is_active: Optional[bool] = None,
-        query: Optional[Dict] = None,
     ) -> Optional[Category]:
-        if type(id) is dict:
-            query = id
-            id = None
         if id:
             return await self.findById(id)
-        if query and ("_id" in query or "id" in query):
-            q_id = query["_id"] if "_id" in query else query["id"]
-            return await self.findById(q_id)
-        records = await self.findAll(name=name, category_tag=category_tag, is_active=is_active, query=query)
+        records = await self.findAll(name=name, category_tag=category_tag, is_active=is_active)
         return records[0] if records else None
 
     async def findById(self, id: Union[int, str]) -> Optional[Category]:
