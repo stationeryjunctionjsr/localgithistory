@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from pydantic import Field
 from app.models.base import CamelBaseModel
+from app.models.schemas import ProductSellerEntry
 
 
 class EngagementWeights(CamelBaseModel):
@@ -120,4 +121,4 @@ class BundleRecommendationItem(CamelBaseModel):
     created_at: Optional[datetime] = None
     is_active: bool = True
     is_bundle: bool = True
-    sellers: List[Any] = Field(default_factory=list)
+    sellers: List[ProductSellerEntry] = Field(default_factory=list)

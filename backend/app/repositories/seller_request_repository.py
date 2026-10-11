@@ -16,21 +16,23 @@ class SellerRequestRepository:
     def generateRequestNumber(self) -> str:
         return f"SRQ-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
 
-    async def findAll(self, user: Optional[str] = None, status: Optional[str] = None, priority: Optional[str] = None, category: Optional[str] = None, subject: Optional[str] = None, request_number: Optional[str] = None):
-        requests = await self.storage.findAll(user=user, status=status, priority=priority)
-
-        # Python-side filter for any remaining keys not yet pushed to storage
-        if category:
-            requests = [r for r in requests if r.category == category]
-        if subject:
-            requests = [r for r in requests if r.subject == subject]
-        if request_number:
-            requests = [r for r in requests if r.request_number == request_number]
-
-        # Sort by creation date (newest first)
-        requests.sort(key=lambda x: x.created_at if x.created_at else "", reverse=True)
-
-        return requests
+    async def findAll(
+        self,
+        user: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        category: Optional[str] = None,
+        subject: Optional[str] = None,
+        request_number: Optional[str] = None,
+    ) -> List[SellerRequest]:
+        return await self.storage.findAll(
+            user=user,
+            status=status,
+            priority=priority,
+            category=category,
+            subject=subject,
+            request_number=request_number,
+        )
 
     async def findById(self, id: str):
         return await self.storage.findById(id)

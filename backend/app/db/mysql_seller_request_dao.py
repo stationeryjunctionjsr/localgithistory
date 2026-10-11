@@ -105,6 +105,9 @@ class MySQLSellerRequestDAO:
         user: Optional[str] = None,
         status: Optional[str] = None,
         priority: Optional[str] = None,
+        category: Optional[str] = None,
+        subject: Optional[str] = None,
+        request_number: Optional[str] = None,
     ) -> List[SellerRequest]:
         factory = self._factory()
         if not factory:
@@ -124,6 +127,15 @@ class MySQLSellerRequestDAO:
         if priority is not None:
             where_clauses.append("priority = :priority")
             params["priority"] = str(priority)
+        if category is not None:
+            where_clauses.append("category = :category")
+            params["category"] = str(category)
+        if subject is not None:
+            where_clauses.append("subject = :subject")
+            params["subject"] = str(subject)
+        if request_number is not None:
+            where_clauses.append("request_number = :request_number")
+            params["request_number"] = str(request_number)
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
@@ -131,7 +143,7 @@ class MySQLSellerRequestDAO:
                 text(f"""
                     SELECT id, external_id, request_number, user_id, subject, description, category,
                            priority, status, resolved_at, closed_at, created_at, updated_at
-                    FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC
+                    FROM {self.TABLE} WHERE {where_sql} ORDER BY created_at DESC, id DESC
                 """),
                 params,
             )

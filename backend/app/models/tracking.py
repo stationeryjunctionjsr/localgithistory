@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List
 from pydantic import Field
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
@@ -35,18 +35,10 @@ class Tracking(CamelBaseModel):
     external_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    product_ids: List[str] = Field(default=[])
     product_ids: Optional[List[str]] = None
     payload: Optional['TrackingPayload'] = None
     product_id: Optional[str] = None
     quantity: int = Field(default=0)
-    tid: Optional[str] = None
-    pid: Optional[str] = None
-    k: Optional[str] = None
-    v: Optional[str] = None
-    eid: Optional[str] = None
-    c: Optional[str] = None
-    u: Optional[str] = None
     timestamp: Optional[str] = None
 
 
@@ -65,6 +57,60 @@ class TrackingPayload(CamelBaseModel):
     page: Optional[str] = None
     label: Optional[str] = None
 
+
+class RecentlyViewedProductItem(CamelBaseModel):
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    display_image: Optional[str] = None
+    price: Optional[float] = None
+
+
+class TopProductItem(CamelBaseModel):
+    product_id: str
+    product_name: str
+    views: int = 0
+
+
+class DropOffPointItem(CamelBaseModel):
+    page: str
+    count: int = 0
+    reasons: dict[str, int] = Field(default_factory=dict)
+
+
+class MostAbandonedProductItem(CamelBaseModel):
+    product_id: str
+    product_name: str
+    category: str
+    abandon_count: int = Field(default=0, alias="abandonCount")
+    quantity_abandoned: int = Field(default=0, alias="quantityAbandoned")
+    value_lost: float = Field(default=0.0, alias="valueLost")
+
+
+class MostSearchedItem(CamelBaseModel):
+    term: str
+    count: int = 0
+    avg_products_found: float = Field(default=0.0, alias="avgProductsFound")
+
+
+class ZeroResultSearchItem(CamelBaseModel):
+    term: str
+    count: int = 0
+
+
+class MostViewedItem(CamelBaseModel):
+    product_id: str
+    product_name: str
+    count: int = 0
+
+
+class ReturningUserItem(CamelBaseModel):
+    user_id: str
+    name: str
+    email: str
+    last_seen: Optional[str] = Field(default=None, alias="lastSeen")
+
+
 Tracking.model_rebuild()
 TrackingPayload.model_rebuild()
+
 

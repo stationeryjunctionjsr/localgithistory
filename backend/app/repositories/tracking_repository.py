@@ -1,8 +1,18 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
-from typing import List, Optional, Any
-from app.models.tracking import Tracking
+from typing import List, Optional
+from app.models.tracking import (
+    Tracking,
+    RecentlyViewedProductItem,
+    TopProductItem,
+    DropOffPointItem,
+    MostAbandonedProductItem,
+    MostSearchedItem,
+    ZeroResultSearchItem,
+    MostViewedItem,
+    ReturningUserItem,
+)
 
 from app.db.storage_factory import get_storage
 from app.models.schemas import AnalyticsEventCreate, AnalyticsSessionCreate
@@ -418,20 +428,22 @@ class TrackingRepository:
                     first_img = imgs[0]
                     display_image = first_img if isinstance(first_img, str) else first_img.url
                 price = product.price
-            result.append({
-                "productId": pid,
-                "productName": v.product_name or (product.name if product else ""),
-                "displayImage": display_image,
-                "price": float(price) if price is not None else None,
-            })
+            result.append(
+                RecentlyViewedProductItem(
+                    product_id=pid,
+                    product_name=v.product_name or (product.name if product else ""),
+                    display_image=display_image,
+                    price=float(price) if price is not None else None,
+                )
+            )
 
         return result
 
     async def getTopProducts(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
+    ) -> List[TopProductItem]:
         views = await self.findAll(event_type="product_view", limit=self._ANALYTICS_LIMIT)
-        product_counts: dict = {}
+        product_counts: dict[str, TopProductItem] = {}
 
         for v in views:
             ts = self._parse_timestamp(v.timestamp)
@@ -444,31 +456,32 @@ class TrackingRepository:
             name = v.product_name if v.product_name is not None else "Unknown"
             if pid:
                 if pid not in product_counts:
-                    product_counts[pid] = {
-                        "productId": pid, "productName": name, "views": 0}
-                product_counts[pid]["views"] += 1
+                    product_counts[pid] = TopProductItem(
+                        product_id=pid, product_name=name, views=0
+                    )
+                product_counts[pid].views += 1
 
-        return sorted(product_counts.values(), key=lambda x: x["views"], reverse=True)[:limit]
+        return sorted(product_counts.values(), key=lambda x: x.views, reverse=True)[:limit]
 
     async def getDropOffs(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
+    ) -> List[DropOffPointItem]:
         drop_offs = await self.storage.find_by_date_range("drop_off", start_date, end_date)
-        drop_off_counts: dict = {}
+        drop_off_counts: dict[str, DropOffPointItem] = {}
 
         for d in drop_offs:
-            page = d.page
+            page = d.page or "unknown"
             if page not in drop_off_counts:
-                drop_off_counts[page] = {"page": page, "count": 0, "reasons": {}}
-            drop_off_counts[page]["count"] += 1
+                drop_off_counts[page] = DropOffPointItem(page=page, count=0, reasons={})
+            drop_off_counts[page].count += 1
 
             reason = d.reason if d.reason is not None else None
             if reason:
-                if reason not in drop_off_counts[page]["reasons"]:
-                    drop_off_counts[page]["reasons"][reason] = 0
-                drop_off_counts[page]["reasons"][reason] += 1
+                if reason not in drop_off_counts[page].reasons:
+                    drop_off_counts[page].reasons[reason] = 0
+                drop_off_counts[page].reasons[reason] += 1
 
-        return sorted(drop_off_counts.values(), key=lambda x: x["count"], reverse=True)[:limit]
+        return sorted(drop_off_counts.values(), key=lambda x: x.count, reverse=True)[:limit]
 
     async def getCartAbandonments(
         self, limit: int = 100, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
@@ -478,7 +491,7 @@ class TrackingRepository:
 
     async def getMostAbandonedProducts(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
+    ) -> List[MostAbandonedProductItem]:
         abandonments = await self.findAll(event_type="cart_abandonment", limit=self._ANALYTICS_LIMIT)
 
         from app.db.storage_factory import get_storage
@@ -521,7 +534,7 @@ class TrackingRepository:
             products = await product_storage.findAll({"allowed_ids": product_ids_seen})
             product_map = {str(p.id): p for p in products}
 
-        result = []
+        result: List[MostAbandonedProductItem] = []
         for pid, stats in abandoned_products.items():
             product = product_map[str(pid)] if str(
                 pid) in product_map else None
@@ -529,17 +542,17 @@ class TrackingRepository:
             product_category = product.category if product else "Uncategorized"
 
             result.append(
-                {
-                    "productId": pid,
-                    "productName": product_name,
-                    "category": product_category,
-                    "abandonCount": stats["abandonCount"],
-                    "quantityAbandoned": stats["quantityAbandoned"],
-                    "valueLost": round(stats["valueLost"], 2),
-                }
+                MostAbandonedProductItem(
+                    product_id=str(pid),
+                    product_name=product_name,
+                    category=product_category,
+                    abandon_count=stats["abandonCount"],
+                    quantity_abandoned=stats["quantityAbandoned"],
+                    value_lost=round(stats["valueLost"], 2),
+                )
             )
 
-        return sorted(result, key=lambda x: x["abandonCount"], reverse=True)[:limit]
+        return sorted(result, key=lambda x: x.abandon_count, reverse=True)[:limit]
 
     async def clearRecentSearches(self, user_id: Optional[str] = None, session_id: Optional[str] = None) -> None:
         if not user_id and not session_id:
@@ -634,7 +647,7 @@ class TrackingRepository:
 
     async def getMostSearched(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
+    ) -> List[MostSearchedItem]:
         all_tracking = await self.storage.find_by_date_range("product_search", start_date, end_date)
 
         search_stats = {}
@@ -648,18 +661,18 @@ class TrackingRepository:
 
         sorted_searches = sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
         return [
-            {
-                "term": term,
-                "count": stats["count"],
-                "avgProductsFound": round(stats["total_results"] / stats["count"], 1) if stats["count"] > 0 else 0,
-            }
+            MostSearchedItem(
+                term=term,
+                count=stats["count"],
+                avg_products_found=round(stats["total_results"] / stats["count"], 1) if stats["count"] > 0 else 0.0,
+            )
             for term, stats in sorted_searches
         ]
 
 
     async def getZeroResultSearches(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
+    ) -> List[ZeroResultSearchItem]:
         all_tracking = await self.storage.find_by_date_range("product_search", start_date, end_date)
 
         search_stats = {}
@@ -672,30 +685,32 @@ class TrackingRepository:
                     search_stats[term]["count"] += 1
 
         return [
-            {"term": term, "count": stats["count"]}
+            ZeroResultSearchItem(term=term, count=stats["count"])
             for term, stats in sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
         ]
 
     async def getMostViewed(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ):
+    ) -> List[MostViewedItem]:
         all_tracking = await self.storage.find_by_date_range("product_view", start_date, end_date)
 
-        view_counts = {}
+        view_counts: dict[str, MostViewedItem] = {}
         for track in all_tracking:
             product_id = track.product_id
             if product_id:
                 if product_id not in view_counts:
-                    view_counts[product_id] = {
-                        "productId": product_id,
-                        "productName": (track.product_name or "Unknown"),
-                        "count": 0,
-                    }
-                view_counts[product_id]["count"] += 1
+                    view_counts[product_id] = MostViewedItem(
+                        product_id=product_id,
+                        product_name=(track.product_name or "Unknown"),
+                        count=0,
+                    )
+                view_counts[product_id].count += 1
 
-        return sorted(view_counts.values(), key=lambda x: x["count"], reverse=True)[:limit]
+        return sorted(view_counts.values(), key=lambda x: x.count, reverse=True)[:limit]
 
-    async def getReturningUsers(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
+    async def getReturningUsers(
+        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+    ) -> List[ReturningUserItem]:
         sessions = await self.findAll(event_type="session")
         returning_user_ids = set()
         user_last_seen = {}
@@ -723,12 +738,12 @@ class TrackingRepository:
         users = await user_repository.findByIds(list(returning_user_ids))
 
         return [
-            {
-                "userId": u.id,
-                "name": u.name or "Unknown",
-                "email": u.email or "Unknown",
-                "lastSeen": user_last_seen[u.id].isoformat() if u.id in user_last_seen else None,
-            }
+            ReturningUserItem(
+                user_id=u.id,
+                name=u.name or "Unknown",
+                email=u.email or "Unknown",
+                last_seen=user_last_seen[u.id].isoformat() if u.id in user_last_seen else None,
+            )
             for u in users
         ]
 

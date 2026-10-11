@@ -2202,32 +2202,67 @@ class MySQLAvailabilityRequestsDAO:
             updatedAt=row.updated_at.isoformat() if row.updated_at else None,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[AvailabilityRequestResponse]:
-        query = query or {}
+    def _build_where(self, query: Dict) -> tuple[list[str], dict]:
         where_clauses = []
         params = {}
-        if "productId" in query:
+        if "productId" in query and query["productId"]:
             where_clauses.append("product_id = :productId")
-            params["productId"] = query["productId"]
-        if "productName" in query:
+            params["productId"] = str(query["productId"]).strip()
+        if "product_id" in query and query["product_id"]:
+            where_clauses.append("product_id = :productId")
+            params["productId"] = str(query["product_id"]).strip()
+        if "productName" in query and query["productName"]:
             where_clauses.append("product_name = :productName")
-            params["productName"] = query["productName"]
-        if "pincode" in query:
+            params["productName"] = str(query["productName"]).strip()
+        if "pincode" in query and query["pincode"]:
             where_clauses.append("pincode = :pincode")
-            params["pincode"] = query["pincode"]
-        if "userName" in query:
+            params["pincode"] = str(query["pincode"]).strip()
+        if "userName" in query and query["userName"]:
             where_clauses.append("user_name = :userName")
-            params["userName"] = query["userName"]
-        if "userEmail" in query:
+            params["userName"] = str(query["userName"]).strip()
+        if "userEmail" in query and query["userEmail"]:
             where_clauses.append("user_email = :userEmail")
-            params["userEmail"] = query["userEmail"]
+            params["userEmail"] = str(query["userEmail"]).strip()
+        return where_clauses, params
 
+    async def count(self, query: Optional[Dict] = None) -> int:
+        query = query or {}
+        where_clauses, params = self._build_where(query)
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        factory = self._factory()
+        async with factory() as session:
+            count = (
+                await session.execute(
+                    text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"),
+                    params,
+                )
+            ).scalar()
+        return int(count or 0)
+
+    async def findAll(
+        self,
+        query: Optional[Dict] = None,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
+        order_by: str = "created_at DESC, id DESC",
+    ) -> List[AvailabilityRequestResponse]:
+        query = query or {}
+        where_clauses, params = self._build_where(query)
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        pagination_sql = ""
+        if limit is not None:
+            pagination_sql += " LIMIT :limit"
+            params["limit"] = int(limit)
+            if skip is not None:
+                pagination_sql += " OFFSET :skip"
+                params["skip"] = int(skip)
+
         factory = self._factory()
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY {order_by}{pagination_sql}"),
                     params,
                 )
             ).fetchall()
@@ -2238,19 +2273,27 @@ class MySQLAvailabilityRequestsDAO:
             return await self.findById(query["_id"])
         if "id" in query:
             return await self.findById(query["id"])
-        docs = await self.findAll(query)
+        docs = await self.findAll(query, limit=1)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional[AvailabilityRequestResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
-            row = (
-                await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": pid},
-                )
-            ).fetchone()
+            if pid is not None:
+                row = (
+                    await session.execute(
+                        text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
+                        {"id": pid},
+                    )
+                ).fetchone()
+            else:
+                row = (
+                    await session.execute(
+                        text(f"SELECT * FROM {self.TABLE} WHERE external_id = :eid"),
+                        {"eid": str(id)},
+                    )
+                ).fetchone()
         return self.__map_to_schema(row) if row else None
 
     async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
@@ -2334,10 +2377,16 @@ class MySQLAvailabilityRequestsDAO:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
-            res = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
-            )
+            if pid is not None:
+                res = await session.execute(
+                    text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                    {"id": pid},
+                )
+            else:
+                res = await session.execute(
+                    text(f"DELETE FROM {self.TABLE} WHERE external_id = :eid"),
+                    {"eid": str(id)},
+                )
             await session.commit()
             return res.rowcount > 0
 

@@ -69,13 +69,25 @@ class MySQLSavedForLaterDAO:
             return [self._map_to_schema(str(user), items)]
 
         async with factory() as session:
-            result = await session.execute(text(f"SELECT DISTINCT user_id FROM {self.TABLE}"))
-            user_ids = [r[0] for r in result.fetchall()]
-        docs = []
-        for uid in user_ids:
-            items = await self._get_items_for_user(str(uid))
-            docs.append(self._map_to_schema(str(uid), items))
-        return docs
+            result = await session.execute(
+                text(f"SELECT user_id, product_id, saved_at FROM {self.TABLE} ORDER BY user_id, saved_at")
+            )
+            rows = result.fetchall()
+
+        user_items: dict[str, list[SavedForLaterItem]] = {}
+        for r in rows:
+            uid = str(r[0])
+            if uid not in user_items:
+                user_items[uid] = []
+            user_items[uid].append(
+                SavedForLaterItem(
+                    product=str(r[1]),
+                    product_id=str(r[1]),
+                    created_at=r[2],
+                    saved_at=r[2],
+                )
+            )
+        return [self._map_to_schema(uid, items) for uid, items in user_items.items()]
 
     async def findOne(self, user: Optional[str] = None, id: Optional[str] = None) -> Optional[SavedForLater]:
         target_uid = user or id
@@ -172,7 +184,18 @@ class MySQLSavedForLaterDAO:
             return result.rowcount > 0
 
     async def count(self, user: Optional[str] = None) -> int:
-        return len(await self.findAll(user=user))
+        factory = self._factory()
+        if not factory:
+            return 0
+        async with factory() as session:
+            if user:
+                result = await session.execute(
+                    text(f"SELECT COUNT(DISTINCT user_id) FROM {self.TABLE} WHERE user_id = :uid"),
+                    {"uid": str(user)},
+                )
+            else:
+                result = await session.execute(text(f"SELECT COUNT(DISTINCT user_id) FROM {self.TABLE}"))
+            return int(result.scalar() or 0)
 
     find_all = findAll
     find_by_id = findById

@@ -76,22 +76,23 @@ async def list_availability_requests(
     current_user: User = Depends(require_super_admin),
 ):
     """List all availability requests. Admin only."""
-    all_requests = await _storage.findAll()
+    if status_filter and status_filter != "pending":
+        return AvailabilityRequestListResponse(requests=[], total=0, page=page, limit=limit)
 
-    # Apply filters
+    query = {}
     if pincode:
-        all_requests = [r for r in all_requests if r.pincode == pincode.strip()]
-    if status_filter:
-        all_requests = [r for r in all_requests if r.status == status_filter]
+        query["pincode"] = pincode.strip()
     if productId:
-        all_requests = [r for r in all_requests if r.product_id == productId]
+        query["productId"] = productId.strip()
 
-    # Sort newest first
-    all_requests.sort(key=lambda r: (str(r.created_at or "")), reverse=True)
-
-    total = len(all_requests)
-    start = (page - 1) * limit
-    paginated = all_requests[start : start + limit]
+    skip = (page - 1) * limit
+    total = await _storage.count(query)
+    paginated = await _storage.findAll(
+        query=query,
+        skip=skip,
+        limit=limit,
+        order_by="created_at DESC, id DESC",
+    )
 
     return AvailabilityRequestListResponse(requests=paginated, total=total, page=page, limit=limit)
 
