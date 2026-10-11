@@ -1,8 +1,8 @@
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
 
+from app.models.base import CamelBaseModel
 from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
 from app.models.schemas import (
     SellerRequestCreate,
@@ -21,8 +21,7 @@ from app.utils.auth import get_current_user, require_super_admin
 router = APIRouter()
 
 
-class StatusUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class StatusUpdate(CamelBaseModel):
     status: str
 
 
