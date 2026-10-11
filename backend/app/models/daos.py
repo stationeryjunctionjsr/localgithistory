@@ -102,41 +102,41 @@ class VisibilityRuleInternal(CamelBaseModel):
 
 class BannerInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    linkUrl: Optional[str] = None
-    displayOrder: Optional[int] = 0
-    startDate: Optional[datetime] = None
-    endDate: Optional[datetime] = None
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    display_order: Optional[int] = 0
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     is_active: Optional[bool] = True
-    isPublished: Optional[bool] = False
-    targetAudience: Optional[str] = None
+    is_published: Optional[bool] = False
+    target_audience: Optional[str] = None
     user_segments: Optional[List[str]] = []
     visibility_rules: Optional[List[VisibilityRuleSnippet]] = []
     position: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    zone_ids: Optional[List[str]] = None
 
 class BannerInternalUpdate(CamelBaseModel):
-    model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    external_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    linkUrl: Optional[str] = None
-    displayOrder: Optional[int] = None
-    startDate: Optional[datetime] = None
-    endDate: Optional[datetime] = None
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+    display_order: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
     updated_at: Optional[datetime] = None
-    isPublished: Optional[bool] = None
-    targetAudience: Optional[str] = None
+    is_published: Optional[bool] = None
+    target_audience: Optional[str] = None
     user_segments: Optional[List[str]] = None
     visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
     position: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    zone_ids: Optional[List[str]] = None
 
 class BannerChildrenData(CamelBaseModel):
     user_segments: Optional[List[str]] = None

@@ -1,7 +1,7 @@
 import logging
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 from sqlalchemy import text
 
@@ -133,23 +133,16 @@ class FlatRelationalDAO:
         # Use dict.fromkeys for uniqueness, then quote
         return [_q(c) for c in dict.fromkeys(cols)]
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, id: Optional[Union[int, str]] = None) -> List[Any]:
         factory = self._factory()
         if not factory:
             return []
 
         where_clauses = []
-        params: Dict = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in self.scalar_map:
-                    col = self.scalar_map[k]
-                    p = _param(col)
-                    where_clauses.append(f"{_q(col)} = :{p}")
-                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
+        params = {}
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         cols = ", ".join(self._all_columns())
@@ -161,8 +154,8 @@ class FlatRelationalDAO:
             rows = result.fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
-        docs = await self.findAll(query)
+    async def findOne(self, id: Optional[Union[int, str]] = None) -> Optional[Any]:
+        docs = await self.findAll(id=id)
         return docs[0] if docs else None
 
     async def findById(self, id: str) -> Optional[Dict]:
@@ -261,97 +254,16 @@ class FlatRelationalDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
-        """Delete all rows matching query in a single SQL statement instead of N+1 deletes."""
-        factory = self._factory()
-        if not factory:
-            return {"deletedCount": 0}
-
-        where_clauses = []
-        params: Dict = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in self.scalar_map:
-                    col = self.scalar_map[k]
-                    p = _param(col)
-                    where_clauses.append(f"{_q(col)} = :{p}")
-                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-
-        async with factory() as session:
-            result = await session.execute(
-                text(f"DELETE FROM {self.table_name} WHERE {where_sql}"),
-                params,
-            )
-            await session.commit()
-        return {"deletedCount": result.rowcount}
-
-    async def updateMany(self, query: Dict, update_data: Dict) -> int:
-        factory = self._factory()
-        if not factory:
-            return 0
-
-        where_clauses = []
-        params: Dict = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in self.scalar_map:
-                    col = self.scalar_map[k]
-                    p = _param(col)
-                    where_clauses.append(f"{_q(col)} = :{p}")
-                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-
-        now = now_utc()
-        set_parts = ["updated_at = :updated_at"]
-        params["updated_at"] = now
-
-        for k, v in update_data.items():
-            if k in self.scalar_map:
-                col = self.scalar_map[k]
-                param_key = f"u_{_param(col)}"
-                set_parts.append(f"{_q(col)} = :{param_key}")
-                if k in self.bool_api_keys:
-                    params[param_key] = 1 if v else None
-                else:
-                    params[param_key] = v
-            elif k in self.clob_map:
-                col = self.clob_map[k]
-                param_key = f"u_{_param(col)}"
-                set_parts.append(f"{_q(col)} = :{param_key}")
-                params[param_key] = v
-
-        async with factory() as session:
-            result = await session.execute(
-                text(f"UPDATE {self.table_name} SET {', '.join(set_parts)} WHERE {where_sql}"),
-                params,
-            )
-            await session.commit()
-            return result.rowcount
-
-    async def count(self, query: Optional[Dict] = None) -> int:
-        """Count rows matching query using SELECT COUNT(*) — never loads row data."""
+    async def count(self, id: Optional[Union[int, str]] = None) -> int:
+        """Count rows matching criteria using SELECT COUNT(*) — never loads row data."""
         factory = self._factory()
         if not factory:
             return 0
         where_clauses = []
-        params: Dict = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in self.scalar_map:
-                    col = self.scalar_map[k]
-                    p = _param(col)
-                    where_clauses.append(f"{_q(col)} = :{p}")
-                    params[p] = (1 if v else 0) if k in self.bool_api_keys else v
+        params = {}
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id) if str(id).isdigit() else None
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
         async with factory() as session:

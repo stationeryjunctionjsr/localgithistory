@@ -101,58 +101,48 @@ class BannerRepository:
 
         return active_banners
 
-    async def create(self, banner_data: Union[BannerCreate, BannerInternalCreate]) -> BannerResponse:
+    async def create(self, banner_data: BannerCreate) -> BannerResponse:
         user_segments = banner_data.user_segments or ["all"]
         visibility_rules = banner_data.visibility_rules or []
-        start_date = getattr(banner_data, "startDate", None) or getattr(banner_data, "start_date", None) or datetime.now(timezone.utc)
-        target_audience = getattr(banner_data, "targetAudience", None) or getattr(banner_data, "target_audience", None) or (user_segments[0] if user_segments else "all")
-        position = getattr(banner_data, "position", None) or ((visibility_rules[0].page_type or "homepage") if visibility_rules else "homepage")
-
-        image_url = getattr(banner_data, "imageUrl", None) or getattr(banner_data, "image_url", None) or ""
-        link_url = getattr(banner_data, "linkUrl", None) or getattr(banner_data, "link_url", None) or ""
-        display_order = getattr(banner_data, "displayOrder", None) if getattr(banner_data, "displayOrder", None) is not None else (banner_data.display_order if banner_data.display_order is not None else 0)
-        end_date = getattr(banner_data, "endDate", None) or getattr(banner_data, "end_date", None)
-        is_published = getattr(banner_data, "isPublished", None) if getattr(banner_data, "isPublished", None) is not None else (banner_data.is_published if banner_data.is_published is not None else False)
-        zone_ids = getattr(banner_data, "zoneIds", None) or getattr(banner_data, "zone_ids", None)
+        start_date = banner_data.start_date or datetime.now(timezone.utc)
+        target_audience = banner_data.target_audience or (user_segments[0] if user_segments else "all")
+        position = banner_data.position or ((visibility_rules[0].page_type or "homepage") if visibility_rules else "homepage")
 
         internal_create = BannerInternalCreate(
             title=banner_data.title or "",
             description=banner_data.description or "",
-            imageUrl=image_url,
-            linkUrl=link_url,
-            displayOrder=display_order,
-            startDate=start_date,
-            endDate=end_date,
-            is_active=banner_data.is_active if banner_data.is_active is not None else True,
-            isPublished=is_published,
-            targetAudience=target_audience,
+            image_url=banner_data.image_url,
+            link_url=banner_data.link_url or "",
+            display_order=banner_data.display_order or 0,
+            start_date=start_date,
+            end_date=banner_data.end_date,
+            is_active=banner_data.is_active,
+            is_published=banner_data.is_published,
+            target_audience=target_audience,
             user_segments=user_segments,
             visibility_rules=visibility_rules,
             position=position,
-            zoneIds=zone_ids,
+            zone_ids=banner_data.zone_ids,
         )
         return await self.storage.create(internal_create)
 
-    async def update(self, id: str, update_data: Union[BannerUpdate, BannerInternalUpdate]) -> Optional[BannerResponse]:
-        if isinstance(update_data, BannerInternalUpdate):
-            internal_update = update_data
-        else:
-            internal_update = BannerInternalUpdate(
-                title=update_data.title,
-                description=update_data.description,
-                imageUrl=update_data.image_url,
-                linkUrl=update_data.link_url,
-                displayOrder=update_data.display_order,
-                startDate=update_data.start_date,
-                endDate=update_data.end_date,
-                is_active=update_data.is_active,
-                isPublished=update_data.is_published,
-                targetAudience=update_data.target_audience,
-                user_segments=update_data.user_segments,
-                visibility_rules=update_data.visibility_rules,
-                position=update_data.position,
-                zoneIds=update_data.zone_ids,
-            )
+    async def update(self, id: str, update_data: BannerUpdate) -> Optional[BannerResponse]:
+        internal_update = BannerInternalUpdate(
+            title=update_data.title,
+            description=update_data.description,
+            image_url=update_data.image_url,
+            link_url=update_data.link_url,
+            display_order=update_data.display_order,
+            start_date=update_data.start_date,
+            end_date=update_data.end_date,
+            is_active=update_data.is_active,
+            is_published=update_data.is_published,
+            target_audience=update_data.target_audience,
+            user_segments=update_data.user_segments,
+            visibility_rules=update_data.visibility_rules,
+            position=update_data.position,
+            zone_ids=update_data.zone_ids,
+        )
         return await self.storage.update(id, internal_update)
 
     async def delete(self, id: str) -> bool:

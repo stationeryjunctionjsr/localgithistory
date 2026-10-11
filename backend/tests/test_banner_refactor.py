@@ -16,7 +16,7 @@ import app.routers.banners as router_mod
 import app.db.flat_relational_dao as flat_dao_mod
 
 
-def test_zero_lambdas_and_zero_build_where():
+def test_zero_lambdas_and_zero_anti_patterns():
     repo_source = inspect.getsource(repo_mod)
     dao_source = inspect.getsource(banner_dao_mod)
     router_source = inspect.getsource(router_mod)
@@ -41,6 +41,12 @@ def test_zero_lambdas_and_zero_build_where():
     assert "_build_where" not in dao_source
     assert "_build_where" not in router_source
     assert "_build_where" not in flat_dao_source
+
+    assert "_mapping" not in dao_source
+    assert "setdefault" not in dao_source
+    assert "getattr(banner_data" not in repo_source
+    assert "isinstance(filters, dict)" not in repo_source
+    assert "query.items()" not in flat_dao_source
 
 
 def test_flat_relational_dao_no_backward_compatibility_aliases():
@@ -69,36 +75,30 @@ async def test_mysql_banner_dao_sql_pushdown_and_hydration():
     dao = banner_dao_mod.MySQLBannerDAO()
 
     mock_row = MagicMock()
-    mock_row._mapping = {
-        "_id": 1,
-        "external_id": "ext_1",
-        "title": "Welcome Banner",
-        "description": "Discount on stationeries",
-        "image_url": "https://img.example.com/b1.jpg",
-        "link_url": "/category/stationery",
-        "display_order": 5,
-        "start_date": "2026-01-01T00:00:00",
-        "end_date": "2026-12-31T23:59:59",
-        "is_active": 1,
-        "is_published": 1,
-        "target_audience": "customer",
-        "position": "homepage",
-        "created_at": datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-        "updated_at": datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-        "zone_ids": '["zone_1", "zone_2"]',
-    }
+    mock_row._id = 1
+    mock_row.external_id = "ext_1"
+    mock_row.title = "Welcome Banner"
+    mock_row.description = "Discount on stationeries"
+    mock_row.image_url = "https://img.example.com/b1.jpg"
+    mock_row.link_url = "/category/stationery"
+    mock_row.display_order = 5
+    mock_row.start_date = "2026-01-01T00:00:00"
+    mock_row.end_date = "2026-12-31T23:59:59"
+    mock_row.is_active = 1
+    mock_row.is_published = 1
+    mock_row.target_audience = "customer"
+    mock_row.position = "homepage"
+    mock_row.created_at = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    mock_row.updated_at = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    mock_row.zone_ids = '["zone_1", "zone_2"]'
+    mock_row.user_segments_json = '["customer"]'
+    mock_row.visibility_rules_json = '[]'
 
     mock_result = MagicMock()
     mock_result.fetchall.return_value = [mock_row]
 
-    mock_seg_result = MagicMock()
-    mock_seg_result.fetchall.return_value = []
-
-    mock_rules_result = MagicMock()
-    mock_rules_result.fetchall.return_value = []
-
     mock_session = AsyncMock()
-    mock_session.execute.side_effect = [mock_result, mock_seg_result, mock_rules_result]
+    mock_session.execute.return_value = mock_result
 
     session_ctx = MagicMock()
     session_ctx.__aenter__.return_value = mock_session
@@ -112,11 +112,15 @@ async def test_mysql_banner_dao_sql_pushdown_and_hydration():
     assert banners[0].title == "Welcome Banner"
     assert banners[0].zone_ids == ["zone_1", "zone_2"]
     assert banners[0].display_order == 5
+    assert banners[0].user_segments == ["customer"]
 
-    first_query = str(mock_session.execute.call_args_list[0][0][0])
-    assert "ORDER BY display_order ASC, id ASC" in first_query
-    assert "is_active = :is_active" in first_query
-    assert "is_published = :is_published" in first_query
+    # Exactly 1 pushdown SQL query executed (zero secondary queries)
+    assert mock_session.execute.call_count == 1
+    sql_executed = str(mock_session.execute.call_args[0][0])
+    assert "JSON_ARRAYAGG" in sql_executed
+    assert "ORDER BY b.display_order ASC, b.id ASC" in sql_executed
+    assert "b.is_active = :is_active" in sql_executed
+    assert "b.is_published = :is_published" in sql_executed
 
 
 @pytest.mark.asyncio
@@ -153,3 +157,47 @@ async def test_banner_repository_find_active_zone_filtering():
         assert len(res) == 1
         assert res[0].id == "1"
         assert res[0].zone_ids == ["zone_a"]
+
+
+@pytest.mark.asyncio
+async def test_banner_repository_create_and_update():
+    repo = repo_mod.banner_repository
+
+    created_banner = BannerResponse(
+        _id="10",
+        title="Promo",
+        imageUrl="https://img.example.com/promo.jpg",
+        displayOrder=1,
+        isActive=True,
+        isPublished=True,
+        position="homepage",
+        updatedAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+
+    with patch.object(repo.storage, "create", new=AsyncMock(return_value=created_banner)) as mock_create, \
+         patch.object(repo.storage, "update", new=AsyncMock(return_value=created_banner)) as mock_update:
+
+        create_in = BannerCreate(
+            title="Promo",
+            imageUrl="https://img.example.com/promo.jpg",
+            displayOrder=1,
+            isActive=True,
+            isPublished=True,
+            position="homepage",
+        )
+        res_create = await repo.create(create_in)
+        assert res_create.id == "10"
+        created_arg: BannerInternalCreate = mock_create.call_args[0][0]
+        assert created_arg.image_url == "https://img.example.com/promo.jpg"
+        assert created_arg.display_order == 1
+
+        update_in = BannerUpdate(
+            title="Promo Updated",
+            imageUrl="https://img.example.com/promo2.jpg",
+            displayOrder=2,
+        )
+        res_update = await repo.update("10", update_in)
+        assert res_update.id == "10"
+        update_arg: BannerInternalUpdate = mock_update.call_args[0][1]
+        assert update_arg.image_url == "https://img.example.com/promo2.jpg"
+        assert update_arg.display_order == 2

@@ -26,47 +26,57 @@ class MySQLBannerDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def _hydrate_banner_rows(self, session, rows) -> List[BannerResponse]:
-        if not rows:
-            return []
-
-        bids = [int(r._mapping["_id"]) for r in rows]
-        bids_csv = ", ".join(str(b) for b in bids)
-
-        seg_res = await session.execute(
-            text(f"SELECT banner_id, segment FROM sj_banner_user_segments WHERE banner_id IN ({bids_csv})")
-        )
-        seg_map = {}
-        for s_row in seg_res.fetchall():
-            seg_map.setdefault(int(s_row.banner_id), []).append(s_row.segment)
-
-        rules_res = await session.execute(
-            text(f"SELECT banner_id, rule FROM sj_banner_visibility_rules WHERE banner_id IN ({bids_csv})")
-        )
-        rules_map = {}
-        for r_row in rules_res.fetchall():
+    def _map_to_schema(self, r) -> BannerResponse:
+        zone_ids = None
+        if r.zone_ids:
             try:
-                rule_obj = json_loads(r_row.rule)
+                zone_ids = json_loads(r.zone_ids)
             except Exception:
-                rule_obj = {"pageType": r_row.rule}
-            rules_map.setdefault(int(r_row.banner_id), []).append(rule_obj)
+                zone_ids = None
 
-        banners = []
-        for r in rows:
-            mapping = dict(r._mapping)
-            bid = int(mapping["_id"])
-            if mapping.get("zone_ids"):
-                try:
-                    mapping["zone_ids"] = json_loads(mapping["zone_ids"])
-                except Exception:
-                    mapping["zone_ids"] = None
-            else:
-                mapping["zone_ids"] = None
+        user_segments_raw = json_loads(r.user_segments_json) if getattr(r, "user_segments_json", None) else []
+        user_segments = [str(s) for s in user_segments_raw if s] if isinstance(user_segments_raw, list) else []
+        if not user_segments and r.target_audience:
+            user_segments = [r.target_audience]
+        if not user_segments:
+            user_segments = ["all"]
 
-            mapping["user_segments"] = seg_map.get(bid) or ([mapping.get("target_audience")] if mapping.get("target_audience") else ["all"])
-            mapping["visibility_rules"] = rules_map.get(bid) or []
-            banners.append(BannerResponse.model_validate(mapping))
-        return banners
+        rules_raw = json_loads(r.visibility_rules_json) if getattr(r, "visibility_rules_json", None) else []
+        visibility_rules = []
+        if isinstance(rules_raw, list):
+            for rule in rules_raw:
+                if not rule:
+                    continue
+                if isinstance(rule, str) and (rule.startswith("{") or rule.startswith("[")):
+                    try:
+                        visibility_rules.append(json_loads(rule))
+                    except Exception:
+                        visibility_rules.append({"pageType": rule})
+                elif isinstance(rule, str):
+                    visibility_rules.append({"pageType": rule})
+                else:
+                    visibility_rules.append(rule)
+
+        return BannerResponse(
+            id=str(r._id),
+            external_id=r.external_id,
+            title=r.title,
+            description=r.description,
+            image_url=r.image_url,
+            link_url=r.link_url,
+            display_order=r.display_order or 0,
+            start_date=r.start_date,
+            end_date=r.end_date,
+            is_active=bool(r.is_active) if r.is_active is not None else True,
+            is_published=bool(r.is_published) if r.is_published is not None else False,
+            target_audience=r.target_audience,
+            position=r.position,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+            zone_ids=zone_ids,
+            user_segments=user_segments,
+            visibility_rules=visibility_rules,
+        )
 
     async def findAll(
         self,
@@ -81,31 +91,33 @@ class MySQLBannerDAO:
         where_clauses = []
         params = {}
         if id is not None:
-            where_clauses.append("id = :id")
+            where_clauses.append("b.id = :id")
             params["id"] = int(id) if str(id).isdigit() else None
         if is_active is not None:
-            where_clauses.append("is_active = :is_active")
+            where_clauses.append("b.is_active = :is_active")
             params["is_active"] = 1 if is_active else 0
         if is_published is not None:
-            where_clauses.append("is_published = :is_published")
+            where_clauses.append("b.is_published = :is_published")
             params["is_published"] = 1 if is_published else 0
         if title is not None:
-            where_clauses.append("title = :title")
+            where_clauses.append("b.title = :title")
             params["title"] = title
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id AS _id, external_id, title, description, image_url, link_url, "
-                    f"display_order, start_date, end_date, is_active, is_published, "
-                    f"target_audience, position, created_at, updated_at, zone_ids "
-                    f"FROM {self.TABLE} WHERE {where_sql} ORDER BY display_order ASC, id ASC"
+                    f"SELECT b.id AS _id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
+                    f"b.display_order, b.start_date, b.end_date, b.is_active, b.is_published, "
+                    f"b.target_audience, b.position, b.created_at, b.updated_at, b.zone_ids, "
+                    f"COALESCE((SELECT JSON_ARRAYAGG(s.segment) FROM sj_banner_user_segments s WHERE s.banner_id = b.id), JSON_ARRAY()) AS user_segments_json, "
+                    f"COALESCE((SELECT JSON_ARRAYAGG(r.rule) FROM sj_banner_visibility_rules r WHERE r.banner_id = b.id), JSON_ARRAY()) AS visibility_rules_json "
+                    f"FROM {self.TABLE} b WHERE {where_sql} ORDER BY b.display_order ASC, b.id ASC"
                 ),
                 params,
             )
             rows = result.fetchall()
-            return await self._hydrate_banner_rows(session, rows)
+            return [self._map_to_schema(r) for r in rows]
 
     async def find_active_banners(
         self,
@@ -119,32 +131,34 @@ class MySQLBannerDAO:
         now_dt = current_time or now_utc()
         now_str = now_dt.isoformat()
         where_clauses = [
-            "is_active = 1",
-            "is_published = 1",
-            "(start_date IS NULL OR start_date <= :now_str)",
-            "(end_date IS NULL OR end_date >= :now_str)",
+            "b.is_active = 1",
+            "b.is_published = 1",
+            "(b.start_date IS NULL OR b.start_date <= :now_str)",
+            "(b.end_date IS NULL OR b.end_date >= :now_str)",
         ]
         params = {"now_str": now_str}
         if position:
-            where_clauses.append("position = :position")
+            where_clauses.append("b.position = :position")
             params["position"] = position
         if target_audience and target_audience != "all":
-            where_clauses.append("(target_audience = :target_audience OR target_audience = 'all' OR target_audience IS NULL)")
+            where_clauses.append("(b.target_audience = :target_audience OR b.target_audience = 'all' OR b.target_audience IS NULL)")
             params["target_audience"] = target_audience
 
         where_sql = " AND ".join(where_clauses)
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id AS _id, external_id, title, description, image_url, link_url, "
-                    f"display_order, start_date, end_date, is_active, is_published, "
-                    f"target_audience, position, created_at, updated_at, zone_ids "
-                    f"FROM {self.TABLE} WHERE {where_sql} ORDER BY display_order ASC, id ASC"
+                    f"SELECT b.id AS _id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
+                    f"b.display_order, b.start_date, b.end_date, b.is_active, b.is_published, "
+                    f"b.target_audience, b.position, b.created_at, b.updated_at, b.zone_ids, "
+                    f"COALESCE((SELECT JSON_ARRAYAGG(s.segment) FROM sj_banner_user_segments s WHERE s.banner_id = b.id), JSON_ARRAY()) AS user_segments_json, "
+                    f"COALESCE((SELECT JSON_ARRAYAGG(r.rule) FROM sj_banner_visibility_rules r WHERE r.banner_id = b.id), JSON_ARRAY()) AS visibility_rules_json "
+                    f"FROM {self.TABLE} b WHERE {where_sql} ORDER BY b.display_order ASC, b.id ASC"
                 ),
                 params,
             )
             rows = result.fetchall()
-            return await self._hydrate_banner_rows(session, rows)
+            return [self._map_to_schema(r) for r in rows]
 
     async def findOne(
         self,
@@ -184,16 +198,16 @@ class MySQLBannerDAO:
                     "external_id": external_id,
                     "title": data.title,
                     "description": data.description,
-                    "image_url": data.imageUrl,
-                    "link_url": data.linkUrl,
-                    "display_order": (data.displayOrder if data.displayOrder is not None else 0),
-                    "start_date": data.startDate,
-                    "end_date": data.endDate,
-                    "is_active": int(bool((data.is_active if data.is_active is not None else True))),
-                    "is_published": int(bool((data.isPublished if data.isPublished is not None else False))),
-                    "target_audience": data.targetAudience,
+                    "image_url": data.image_url,
+                    "link_url": data.link_url,
+                    "display_order": (data.display_order if data.display_order is not None else 0),
+                    "start_date": data.start_date,
+                    "end_date": data.end_date,
+                    "is_active": 1 if (data.is_active if data.is_active is not None else True) else 0,
+                    "is_published": 1 if (data.is_published if data.is_published is not None else False) else 0,
+                    "target_audience": data.target_audience,
                     "position": data.position,
-                    "zone_ids": json.dumps(data.zoneIds) if data.zoneIds else None,
+                    "zone_ids": json.dumps(data.zone_ids) if data.zone_ids else None,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -211,24 +225,19 @@ class MySQLBannerDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-            
-        merged = {}
-        for k in ["title", "description", "imageUrl", "linkUrl", "displayOrder", "startDate", "endDate", "isActive", "isPublished", "targetAudience", "position", "zoneIds"]:
-            val = None
-            match k:
-                case "title": val = update_data.title if update_data.title is not None else existing.title
-                case "description": val = update_data.description if update_data.description is not None else existing.description
-                case "imageUrl": val = update_data.imageUrl if update_data.imageUrl is not None else existing.image_url
-                case "linkUrl": val = update_data.linkUrl if update_data.linkUrl is not None else existing.link_url
-                case "displayOrder": val = update_data.displayOrder if update_data.displayOrder is not None else existing.display_order
-                case "startDate": val = update_data.startDate if update_data.startDate is not None else existing.start_date
-                case "endDate": val = update_data.endDate if update_data.endDate is not None else existing.end_date
-                case "isActive": val = update_data.is_active if update_data.is_active is not None else existing.is_active
-                case "isPublished": val = update_data.isPublished if update_data.isPublished is not None else existing.is_published
-                case "targetAudience": val = update_data.targetAudience if update_data.targetAudience is not None else existing.target_audience
-                case "position": val = update_data.position if update_data.position is not None else existing.position
-                case "zoneIds": val = update_data.zoneIds if update_data.zoneIds is not None else existing.zone_ids
-            merged[k] = val
+
+        title = update_data.title if update_data.title is not None else existing.title
+        description = update_data.description if update_data.description is not None else existing.description
+        image_url = update_data.image_url if update_data.image_url is not None else existing.image_url
+        link_url = update_data.link_url if update_data.link_url is not None else existing.link_url
+        display_order = update_data.display_order if update_data.display_order is not None else (existing.display_order or 0)
+        start_date = update_data.start_date if update_data.start_date is not None else existing.start_date
+        end_date = update_data.end_date if update_data.end_date is not None else existing.end_date
+        is_active = update_data.is_active if update_data.is_active is not None else existing.is_active
+        is_published = update_data.is_published if update_data.is_published is not None else existing.is_published
+        target_audience = update_data.target_audience if update_data.target_audience is not None else existing.target_audience
+        position = update_data.position if update_data.position is not None else existing.position
+        zone_ids = update_data.zone_ids if update_data.zone_ids is not None else existing.zone_ids
 
         factory = self._factory()
         now = now_utc()
@@ -256,26 +265,24 @@ class MySQLBannerDAO:
                 ),
                 {
                     "id": bid,
-                    "title": merged["title"],
-                    "description": merged["description"],
-                    "image_url": merged["imageUrl"],
-                    "link_url": merged["linkUrl"],
-                    "display_order": (merged["displayOrder"] if ("displayOrder" in merged and merged["displayOrder"] is not None) else 0),
-                    "start_date": merged["startDate"],
-                    "end_date": merged["endDate"],
-                    "is_active": int(bool(merged["isActive"] if "isActive" in merged else True)),
-                    "is_published": int(bool(merged["isPublished"] if "isPublished" in merged else False)),
-                    "target_audience": merged["targetAudience"],
-                    "position": merged["position"],
-                    "zone_ids": json.dumps(merged["zoneIds"]) if merged.get("zoneIds") else None,
+                    "title": title,
+                    "description": description,
+                    "image_url": image_url,
+                    "link_url": link_url,
+                    "display_order": display_order,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "is_active": 1 if is_active else 0,
+                    "is_published": 1 if is_published else 0,
+                    "target_audience": target_audience,
+                    "position": position,
+                    "zone_ids": json.dumps(zone_ids) if zone_ids else None,
                     "updated_at": now,
                 },
             )
-            # Need to pass an object with userSegments and visibilityRules for _replace_children
-            from app.models.daos import BannerChildrenData
             dummy_merged = BannerChildrenData(
                 user_segments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
-                visibility_rules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules
+                visibility_rules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules,
             )
             await self._replace_children(session, bid, dummy_merged)
             await session.commit()
