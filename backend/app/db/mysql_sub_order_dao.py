@@ -36,35 +36,6 @@ class MySQLSubOrderDAO:
     Implements same interface as MySQLDocStore for drop-in compatibility.
     """
 
-    _COLUMN_MAP = {
-        "sellerId": "seller_id",
-        "status": "status",
-        "parentOrderId": "parent_order_id",
-        "user": "user_id",
-        "commissionStatus": "commission_status",
-        "paymentStatus": "payment_status",
-        "total": "total",
-        "subOrderNumber": "sub_order_number",
-        "parentOrderNumber": "parent_order_number",
-        "sellerName": "seller_name",
-        "subtotal": "subtotal",
-        "tax": "tax",
-        "shipping": "shipping",
-        "deliveryGst": "delivery_gst",
-        "discount": "discount",
-        "orderType": "order_type",
-        "paymentMethod": "payment_method",
-        "isUrgentDelivery": "is_urgent_delivery",
-        "notes": "notes",
-        "couponCode": "coupon_code",
-        "pickupStatus": "pickup_status",
-        "assignedValet": "assigned_valet",
-        "fulfillmentType": "fulfillment_type",
-        "courierPartner": "courier_partner",
-        "trackingId": "tracking_id",
-        "awbCode": "awb_code",
-    }
-
     @property
     def table_name(self) -> str:
         return "sj_sub_orders"
@@ -427,6 +398,8 @@ class MySQLSubOrderDAO:
         if not factory:
             return False
         async with factory() as session:
-            result = await session.execute(text(f"DELETE FROM {self.table_name} WHERE id = :id"), {"id": int(id)})
+            is_digit = str(id).isdigit()
+            sql = f"DELETE FROM {self.table_name} WHERE id = :id" if is_digit else f"DELETE FROM {self.table_name} WHERE external_id = :id"
+            result = await session.execute(text(sql), {"id": int(id) if is_digit else str(id)})
             await session.commit()
             return result.rowcount > 0
