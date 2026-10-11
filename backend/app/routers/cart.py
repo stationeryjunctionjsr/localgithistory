@@ -1,9 +1,9 @@
 from app.models.daos import CartItemInternal
 from app.models.user import User
-from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse, ItemSnippet
+from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse, ItemSnippet, VariantAttributes
 from app.models.stock_reservation import StockReservationBatch
 from app.models.daos import WishlistItemInternal
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -22,7 +22,7 @@ class CartItemRequest(CamelBaseModel):
     quantity: int  # Always in units (for cases: quantity = cases * quantityPerCase)
     sell_as_case: bool = False  # Business only: price by case (MRP per case)
     session_id: Optional[str] = None
-    variant_attributes: Optional[Dict[str, str]] = None
+    variant_attributes: Optional[VariantAttributes] = None
     fulfillment_type: Optional[str] = "hyperlocal"
 
 
@@ -250,7 +250,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
             current_user.id, item.product_id, item.quantity, item.session_id
         )
 
-        return {"message": "Item added to cart"}
+        return MessageResponse(message="Item added to cart")
     except HTTPException:
         raise
     except Exception as e:
@@ -326,7 +326,7 @@ async def update_cart_item(
 
         await cart_repository.createOrUpdate(current_user.id, items)
 
-        return {"message": "Cart updated"}
+        return MessageResponse(message="Cart updated")
     except HTTPException:
         raise
     except Exception as e:
@@ -365,7 +365,7 @@ async def remove_cart_item(item_id: str, current_user: User = Depends(get_curren
                     await stock_reservation_repository.release_user_reservations(
                         user_id=current_user.id, product_id=product_id
                     )
-        return {"message": "Item removed from cart"}
+        return MessageResponse(message="Item removed from cart")
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
@@ -380,7 +380,7 @@ async def clear_cart(current_user: User = Depends(get_current_user)):
         from app.repositories.stock_reservation_repository import stock_reservation_repository
 
         await stock_reservation_repository.release_user_reservations(current_user.id)
-        return {"message": "Cart cleared"}
+        return MessageResponse(message="Cart cleared")
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
@@ -393,7 +393,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: User = Depe
         from app.repositories.wishlist_repository import wishlist_repository
 
         await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=request.product_id))
-        return {"message": "Item saved for later"}
+        return MessageResponse(message="Item saved for later")
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
