@@ -2,7 +2,6 @@
 MySQL DAO for sj_carts (+ sj_cart_items).
 """
 
-import secrets
 from typing import List, Optional, Any, Union
 from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
@@ -31,7 +30,6 @@ class MySQLCartDAO:
         self,
         id: Optional[Union[int, str]] = None,
         user: Optional[str] = None,
-        external_id: Optional[str] = None,
     ) -> List[Cart]:
         factory = self._factory()
         if not factory:
@@ -43,18 +41,14 @@ class MySQLCartDAO:
             where_clauses.append("id = :id")
             params["id"] = int(id) if str(id).isdigit() else None
         if user is not None:
-            where_clauses.append("user_id = COALESCE(:user_id_int, (SELECT id FROM sj_users WHERE external_id = :user_id_str))")
-            params["user_id_int"] = int(user) if str(user).isdigit() else None
-            params["user_id_str"] = str(user)
-        if external_id is not None:
-            where_clauses.append("external_id = :external_id")
-            params["external_id"] = str(external_id)
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = int(user) if str(user).isdigit() else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id, external_id, user_id, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
+                    f"SELECT id, user_id, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
                 ),
                 params,
             )
@@ -63,7 +57,7 @@ class MySQLCartDAO:
             if not rows:
                 return []
 
-            cart_ids = [str(r.external_id) for r in rows]
+            cart_ids = [str(r.id) for r in rows]
             items_rows = await self._fetch_items(session, cart_ids)
 
         return [self._map_to_schema(r, items_rows) for r in rows]
@@ -92,7 +86,7 @@ class MySQLCartDAO:
             cart.items = [
                 self._row_to_item(ir)
                 for ir in items_rows
-                if ir.cart_id == r.external_id
+                if str(ir.cart_id) == str(r.id)
             ]
         else:
             cart.items = []
@@ -124,18 +118,18 @@ class MySQLCartDAO:
         self,
         id: Optional[Union[int, str]] = None,
         user: Optional[str] = None,
-        external_id: Optional[str] = None,
     ) -> Optional[Cart]:
-        records = await self.findAll(id=id, user=user, external_id=external_id)
+        records = await self.findAll(id=id, user=user)
         return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Cart]:
         return await self.findOne(id=id)
 
-    async def _replace_items(self, session, cart_external_id: str, items: List[CartItemInternal]) -> None:
+    async def _replace_items(self, session, cart_id: Union[int, str], items: List[CartItemInternal]) -> None:
+        cid = int(cart_id) if str(cart_id).isdigit() else cart_id
         await session.execute(
             text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id"),
-            {"cart_id": cart_external_id},
+            {"cart_id": cid},
         )
         for it in items or []:
             pid_raw = it.product
@@ -155,7 +149,7 @@ class MySQLCartDAO:
                     """
                 ),
                 {
-                    "cart_id": cart_external_id,
+                    "cart_id": cid,
                     "product_id": str(pid_raw),
                     "quantity": qty,
                     "sell_as_case": sell_as_case,
@@ -170,37 +164,29 @@ class MySQLCartDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
 
         user_id_raw = data.user
         uid = int(user_id_raw) if user_id_raw and str(user_id_raw).isdigit() else None
 
+        cols = ["created_at", "updated_at"]
+        vals = [":created_at", ":updated_at"]
+        params = {"created_at": now, "updated_at": now}
+        if uid is not None:
+            cols.append("user_id")
+            vals.append(":user_id")
+            params["user_id"] = uid
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join(vals)
+
         async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    INSERT INTO {self.TABLE} (
-                        external_id, user_id, created_at, updated_at
-                    ) VALUES (
-                        :external_id, COALESCE(:user_id, (SELECT id FROM sj_users WHERE external_id = :user_id_raw)), :created_at, :updated_at
-                    )
-                    """
-                ),
-                {
-                    "external_id": external_id,
-                    "user_id": uid, "user_id_raw": user_id_raw,
-                    "created_at": now,
-                    "updated_at": now,
-                },
+            result = await session.execute(
+                text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
+                params,
             )
+            new_id = result.lastrowid
 
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                {"eid": external_id},
-            )
-            new_id = r.scalar()
-
-            await self._replace_items(session, external_id, data.items or [])
+            await self._replace_items(session, new_id, data.items or [])
             await session.commit()
 
         return await self.findById(str(new_id))
@@ -223,12 +209,8 @@ class MySQLCartDAO:
                 {"id": pid, "updated_at": now},
             )
 
-            # Fetch external_id
-            r = await session.execute(text(f"SELECT external_id FROM {self.TABLE} WHERE id = :id"), {"id": pid})
-            eid = r.scalar()
-
             if update_data.items is not None:
-                await self._replace_items(session, eid, update_data.items)
+                await self._replace_items(session, pid, update_data.items)
 
             await session.commit()
 
@@ -256,25 +238,15 @@ class MySQLCartDAO:
         now = now_utc()
 
         async with factory() as session:
-            # Resolve the numeric user PK (supports both numeric and external IDs)
-            uid_int = int(user_id) if user_id and str(user_id).isdigit() else None
-            uid_res = await session.execute(
-                text(
-                    "SELECT id, external_id FROM sj_users "
-                    "WHERE id = COALESCE(:uid_int, 0) OR external_id = :uid_str "
-                    "LIMIT 1"
-                ),
-                {"uid_int": uid_int, "uid_str": str(user_id)},
-            )
-            uid_row = uid_res.fetchone()
-            if not uid_row:
+            # Resolve the numeric user PK
+            if not user_id or not str(user_id).isdigit():
                 return None
-            numeric_uid = uid_row.id
+            numeric_uid = int(user_id)
 
             # Lock the cart row so no other worker can read-modify-write concurrently.
             cart_res = await session.execute(
                 text(
-                    f"SELECT id, external_id FROM {self.TABLE} "
+                    f"SELECT id FROM {self.TABLE} "
                     f"WHERE user_id = :uid FOR UPDATE"
                 ),
                 {"uid": numeric_uid},
@@ -283,23 +255,17 @@ class MySQLCartDAO:
 
             if not cart_row:
                 # No cart yet — create one inside the same transaction.
-                ext_id = secrets.token_hex(16)
-                await session.execute(
+                res = await session.execute(
                     text(
-                        f"INSERT INTO {self.TABLE} (external_id, user_id, created_at, updated_at) "
-                        f"VALUES (:eid, :uid, :now, :now)"
+                        f"INSERT INTO {self.TABLE} (user_id, created_at, updated_at) "
+                        f"VALUES (:uid, :now, :now)"
                     ),
-                    {"eid": ext_id, "uid": numeric_uid, "now": now},
+                    {"uid": numeric_uid, "now": now},
                 )
-                r2 = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                    {"eid": ext_id},
-                )
-                cart_pk = r2.scalar()
+                cart_pk = res.lastrowid
                 current_items: List[CartItemInternal] = []
             else:
                 cart_pk = cart_row.id
-                ext_id = cart_row.external_id
 
                 # Fetch current items while holding the lock
                 items_res = await session.execute(
@@ -307,7 +273,7 @@ class MySQLCartDAO:
                         f"SELECT id, product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes "
                         f"FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id ORDER BY id ASC"
                     ),
-                    {"cart_id": ext_id},
+                    {"cart_id": cart_pk},
                 )
                 current_items = [self._row_to_item(ir) for ir in items_res.fetchall()]
 
@@ -319,7 +285,7 @@ class MySQLCartDAO:
                 text(f"UPDATE {self.TABLE} SET updated_at = :now WHERE id = :id"),
                 {"now": now, "id": cart_pk},
             )
-            await self._replace_items(session, ext_id, new_items)
+            await self._replace_items(session, cart_pk, new_items)
             await session.commit()
 
         return await self.findById(str(cart_pk))
@@ -327,17 +293,16 @@ class MySQLCartDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
         pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return False
         async with factory() as session:
-            r = await session.execute(text(f"SELECT external_id FROM {self.TABLE} WHERE id = :id"), {"id": pid})
-            eid = r.scalar()
-            if eid:
-                await session.execute(
-                    text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id"),
-                    {"cart_id": eid},
-                )
+            await session.execute(
+                text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id"),
+                {"cart_id": pid},
+            )
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -353,13 +318,12 @@ class MySQLCartDAO:
         where_clauses = []
         params = {}
         if user is not None:
-            where_clauses.append("user_id = COALESCE(:user_id_int, (SELECT id FROM sj_users WHERE external_id = :user_id_str))")
-            params["user_id_int"] = int(user) if str(user).isdigit() else None
-            params["user_id_str"] = str(user)
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = int(user) if str(user).isdigit() else None
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
             await session.execute(
-                text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id IN (SELECT external_id FROM {self.TABLE} WHERE {where_sql})"),
+                text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
                 params,
             )
             result = await session.execute(
@@ -377,9 +341,8 @@ class MySQLCartDAO:
             where_clauses.append("id = :id")
             params["id"] = int(id) if str(id).isdigit() else None
         if user is not None:
-            where_clauses.append("user_id = COALESCE(:uid_int, (SELECT id FROM sj_users WHERE external_id = :uid_str))")
-            params["uid_int"] = int(user) if str(user).isdigit() else None
-            params["uid_str"] = str(user)
+            where_clauses.append("user_id = :uid")
+            params["uid"] = int(user) if str(user).isdigit() else None
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:

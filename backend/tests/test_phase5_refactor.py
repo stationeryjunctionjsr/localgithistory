@@ -79,7 +79,6 @@ async def test_cart_dao_direct_row_hydration():
     dao = cart_dao_mod.MySQLCartDAO()
     mock_cart_row = SimpleNamespace(
         id=1,
-        external_id="cart_ext_1",
         user_id=42,
         created_at=None,
         updated_at=None,
@@ -87,7 +86,7 @@ async def test_cart_dao_direct_row_hydration():
 
     mock_item_row = SimpleNamespace(
         id=10,
-        cart_id="cart_ext_1",
+        cart_id=1,
         product_id="p100",
         quantity=3,
         sell_as_case=0,
