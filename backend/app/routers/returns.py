@@ -275,7 +275,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
 
 @router.post("/admin/{request_id}/auto-assign", response_model=ReturnRequestResponse)
-async def auto_assign_return(request_id: str, current_user: User = Depends(require_super_admin)):
+async def auto_assign_return(request_id: int, current_user: User = Depends(require_super_admin)):
     """Super Admin triggers auto-assigning the return pickup to the best available valet."""
     req = await return_request_repository.findById(request_id)
     if not req:
@@ -310,7 +310,7 @@ async def auto_assign_return(request_id: str, current_user: User = Depends(requi
 
 @router.put("/admin/{request_id}/assign", response_model=ReturnRequestResponse)
 async def assign_valet(
-    request_id: str, valet_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
+    request_id: int, valet_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin assigns valet to return request"""
     if not valet_data.valet_id:
@@ -332,7 +332,7 @@ async def assign_valet(
 
 
 @router.put("/valet/{request_id}/collect", response_model=ReturnRequestResponse)
-async def valet_collect(request_id: str, current_user: User = Depends(require_super_admin_or_valet)):
+async def valet_collect(request_id: int, current_user: User = Depends(require_super_admin_or_valet)):
     """Valet marks return as collected"""
     req = await return_request_repository.findById(request_id)
     if not req:
@@ -351,7 +351,7 @@ async def valet_collect(request_id: str, current_user: User = Depends(require_su
 
 @router.put("/admin/{request_id}/complete", response_model=ReturnRequestResponse)
 async def complete_return(
-    request_id: str, background_tasks: BackgroundTasks, current_user: User = Depends(require_super_admin)
+    request_id: int, background_tasks: BackgroundTasks, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin completes returns (marks as RETURNED) and handles stock update"""
     req = await return_request_repository.findById(request_id)
@@ -412,7 +412,7 @@ async def complete_return(
 
 @router.put("/admin/{request_id}/reject", response_model=ReturnRequestResponse)
 async def reject_return(
-    request_id: str, update_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
+    request_id: int, update_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin rejects the return request"""
     req = await return_request_repository.findById(request_id)
@@ -468,7 +468,7 @@ class ValetReturnResponseRequest(BaseModel):
 
 @router.put("/valet/{return_id}/response", response_model=ReturnRequestResponse)
 async def valet_return_response(
-    return_id: str,
+    return_id: int,
     response_data: ValetReturnResponseRequest,
     current_user: User = Depends(get_current_user),
 ):

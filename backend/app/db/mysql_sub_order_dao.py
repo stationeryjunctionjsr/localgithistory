@@ -73,7 +73,7 @@ class MySQLSubOrderDAO:
         if filter_params:
             if filter_params.id:
                 where_clauses.append("id = :q_id")
-                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else None
+                params["q_id"] = filter_params.id
             if filter_params.seller_id:
                 where_clauses.append("seller_id = :seller_id")
                 params["seller_id"] = filter_params.seller_id
@@ -109,16 +109,13 @@ class MySQLSubOrderDAO:
             items_rows = items_res.fetchall()
             return [self._map_to_schema(r, items_rows) for r in rows]
 
-    async def findById(self, id: str) -> Optional[SubOrder]:
+    async def findById(self, id: int) -> Optional[SubOrder]:
         factory = self._get_session_factory()
         if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
-            return None
         async with factory() as session:
             q = text(f"SELECT * FROM {self.table_name} WHERE id = :id")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
@@ -164,7 +161,7 @@ class MySQLSubOrderDAO:
         if filter_params:
             if filter_params.id:
                 where_clauses.append("id = :q_id")
-                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else None
+                params["q_id"] = filter_params.id
             if filter_params.seller_id:
                 where_clauses.append("seller_id = :seller_id")
                 params["seller_id"] = filter_params.seller_id
@@ -329,11 +326,11 @@ class MySQLSubOrderDAO:
         except (ValueError, TypeError):
             return None
 
-    async def update(self, id: str, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
+    async def update(self, id: int, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
         factory = self._get_session_factory()
-        if not factory or not str(id).isdigit():
+        if not factory or not id:
             return None
-        row_id = int(id)
+        row_id = id
         now = datetime.now(timezone.utc)
         set_clauses = ["updated_at = :updated_at"]
         params = {"updated_at": now, "row_id": row_id}
@@ -388,14 +385,14 @@ class MySQLSubOrderDAO:
                 await session.execute(sql, params)
                 await session.commit()
 
-        return await self.findById(str(id))
+        return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._get_session_factory()
-        if not factory or not str(id).isdigit():
+        if not factory or not id:
             return False
         async with factory() as session:
             sql = f"DELETE FROM {self.table_name} WHERE id = :id"
-            result = await session.execute(text(sql), {"id": int(id)})
+            result = await session.execute(text(sql), {"id": id})
             await session.commit()
             return result.rowcount > 0

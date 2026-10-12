@@ -5,7 +5,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 class NotificationResponse(BaseModel):
-    id: str
+    id: int
     userId: str
     type: str
     title: str
@@ -101,7 +101,7 @@ async def mark_all_read(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-async def _get_and_verify_notification(notification_id: str, current_user: User):
+async def _get_and_verify_notification(notification_id: int, current_user: User):
     notification = await notification_repository.findById(notification_id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
@@ -115,7 +115,7 @@ async def _get_and_verify_notification(notification_id: str, current_user: User)
 
 
 @router.put("/{notification_id}/acknowledge", response_model=NotificationResponse)
-async def acknowledge_notification(notification_id: str, current_user: User = Depends(get_current_user)):
+async def acknowledge_notification(notification_id: int, current_user: User = Depends(get_current_user)):
     """Acknowledge a notification"""
     try:
         await _get_and_verify_notification(notification_id, current_user)
@@ -129,7 +129,7 @@ async def acknowledge_notification(notification_id: str, current_user: User = De
 
 
 @router.put("/{notification_id}/read", response_model=NotificationResponse)
-async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
+async def mark_notification_read(notification_id: int, current_user: User = Depends(get_current_user)):
     """Mark notification as read"""
     try:
         await _get_and_verify_notification(notification_id, current_user)
@@ -143,7 +143,7 @@ async def mark_notification_read(notification_id: str, current_user: User = Depe
 
 
 @router.delete("/{notification_id}", response_model=MessageResponse)
-async def delete_notification(notification_id: str, current_user: User = Depends(get_current_user)):
+async def delete_notification(notification_id: int, current_user: User = Depends(get_current_user)):
     """Delete a notification"""
     try:
         await _get_and_verify_notification(notification_id, current_user)

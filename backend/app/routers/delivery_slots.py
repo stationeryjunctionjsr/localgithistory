@@ -309,7 +309,7 @@ async def get_dates_with_slots(
 
 @router.post("/{config_id}/book-slot", response_model=BookSlotResponse)
 async def book_slot(
-    config_id: str,
+    config_id: int,
     slot_id: str = Query(...),
     current_user: User = Depends(require_super_admin),
 ):
@@ -402,7 +402,7 @@ async def create_delivery_slot_config(
 
 @router.put("/{config_id}", response_model=DeliverySlotConfigResponse)
 async def update_delivery_slot_config(
-    config_id: str, config: DeliverySlotConfigBase, current_user: User = Depends(require_super_admin)
+    config_id: int, config: DeliverySlotConfigBase, current_user: User = Depends(require_super_admin)
 ):
     internal_update = DeliverySlotConfigInternalUpdate.model_validate(config, from_attributes=True)
     updated = await storage.update(config_id, internal_update)
@@ -412,7 +412,7 @@ async def update_delivery_slot_config(
 
 
 @router.delete("/{config_id}", response_model=MessageResponse)
-async def delete_delivery_slot_config(config_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_delivery_slot_config(config_id: int, current_user: User = Depends(require_super_admin)):
     result = await storage.delete(config_id)
     if not result:
         raise HTTPException(status_code=404, detail="Configuration not found")

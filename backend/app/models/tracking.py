@@ -31,7 +31,7 @@ class Tracking(CamelBaseModel):
     price: Optional[float] = None
     category: Optional[str] = None
     filter_name: Optional[str] = None
-    id: str = None
+    id: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     product_ids: Optional[List[str]] = None

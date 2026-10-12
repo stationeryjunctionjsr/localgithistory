@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -23,24 +23,22 @@ class MySQLNotificationsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[NotificationInternal]:
+    async def findById(self, id: int) -> Optional[NotificationInternal]:
         if not id:
-            return None
-        if not str(id).isdigit():
             return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": int(id)})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
                 
-            data_rows = await self._fetch_children(session, [int(row.id)])
+            data_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, data_rows)
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         user_id: Optional[str] = None,
         type: Optional[str] = None,
         is_read: Optional[bool] = None,
@@ -111,12 +109,12 @@ class MySQLNotificationsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: NotificationInternalUpdate) -> Optional[NotificationInternal]:
+    async def update(self, id: int, update_data: NotificationInternalUpdate) -> Optional[NotificationInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"u": now_utc()}
+        params = {"u": now_utc(), "pk": id}
 
         if update_data.is_read is not None:
             updates.append("is_read = :s_is_read")
@@ -127,27 +125,19 @@ class MySQLNotificationsDAO:
             params["s_is_acknowledged"] = 1 if update_data.is_acknowledged else 0
 
         upd_sql = ", ".join(updates)
-        if not str(id).isdigit():
-            return None
-        pk = int(id)
-        params["pk"] = pk
-
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
             await session.commit()
 
-        return await self.findById(pk)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        if not str(id).isdigit():
-            return False
-        pk = int(id)
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": pk})
-            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :pk"), {"pk": pk})
+            await session.execute(text("DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": id})
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :pk"), {"pk": id})
             await session.commit()
             return result.rowcount > 0
 
@@ -192,7 +182,7 @@ class MySQLNotificationsDAO:
                 elif k in ("courier_partner", "courierPartner"):
                     meta_obj.courier_partner = v
         return NotificationInternal(
-            id=str(r.id),
+            id=r.id,
             user_id=str(r.user_id),
             type=r.type,
             title=r.title,
@@ -208,7 +198,7 @@ class MySQLNotificationsDAO:
         if not ids:
             return []
             
-        id_list = ",".join(str(int(i)) for i in ids)
+        id_list = ",".join(str(i) for i in ids)
         q_data = text(f"SELECT parent_id, data_key, data_value FROM sj_notification_data WHERE parent_id IN ({id_list})")
         res_data = await session.execute(q_data)
         return res_data.fetchall()

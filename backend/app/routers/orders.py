@@ -1107,10 +1107,9 @@ async def valet_response(
         if sub_orders_for_order:
             notified_sellers: set = set()
             for _so in sub_orders_for_order:
-                _so_id = str(_so.id)
                 # Set assignedValet on each sub-order so sellers can see who's picking up
                 await sub_order_repository.update(
-                    _so_id, SubOrderInternalUpdate(assignedValet=valet_id,
+                    _so.id, SubOrderInternalUpdate(assignedValet=valet_id,
                                                    pickupStatus="pending_pickup",),
                 )
                 _seller_id = _so.seller_id
@@ -1260,7 +1259,7 @@ async def valet_response(
 @router.put("/{order_id}/sub-orders/{sub_order_id}/confirm-pickup")
 async def confirm_sub_order_pickup(
     order_id: str,
-    sub_order_id: str,
+    sub_order_id: int,
     pickup_data: ConfirmPickupRequest,
     current_user: User = Depends(require_super_admin_or_valet),
 ):
@@ -1551,7 +1550,7 @@ async def get_seller_orders(
 
 @router.get("/seller-orders/{sub_order_id}", response_model=SubOrder)
 async def get_seller_order(
-    sub_order_id: str,
+    sub_order_id: int,
     current_user: User = Depends(require_seller_admin),
 ):
     """Get a single sub-order (Seller Admin only — must own the sub-order)."""
@@ -1569,7 +1568,7 @@ class SubOrderStatusUpdate(BaseModel):
 
 @router.put("/seller-orders/{sub_order_id}/status", response_model=SubOrder)
 async def update_seller_order_status(
-    sub_order_id: str,
+    sub_order_id: int,
     status_data: SubOrderStatusUpdate,
     current_user: User = Depends(require_seller_admin),
 ):

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, List, Union
+from typing import TYPE_CHECKING, Optional, List
 from app.models.daos_flat import (
     DeliveryChargeInternal,
     DeliveryChargeDefaultInternal,
@@ -32,7 +32,7 @@ class DeliveryChargeRepository:
     async def findAll(self, is_active: Optional[bool] = None, pincode: Optional[str] = None) -> List[DeliveryChargeInternal]:
         return await self.storage.findAll(is_active=is_active, pincode=pincode)
 
-    async def findById(self, id: str):
+    async def findById(self, id: int) -> Optional[DeliveryChargeInternal]:
         return await self.storage.findById(id)
 
     async def findByLocation(self, state: str, city: str, district: str):
@@ -101,7 +101,7 @@ class DeliveryChargeRepository:
 
     async def getHyperlocalChargeForZone(
         self,
-        zone_id: Union[int, str],
+        zone_id: int,
         order_amount: float,
         user_role: str = "customer",
     ) -> DeliveryFeeCalculationResult:
@@ -466,7 +466,7 @@ class DeliveryChargeRepository:
 
         return await self.storage.create(charge_internal)
 
-    async def update(self, id: str, update_data: DeliveryChargeInternalUpdate) -> DeliveryChargeInternal:
+    async def update(self, id: int, update_data: DeliveryChargeInternalUpdate) -> Optional[DeliveryChargeInternal]:
         if update_data.charge is not None:
             update_data.charge = float(update_data.charge)
         if update_data.min_cart_value is not None:
@@ -479,7 +479,7 @@ class DeliveryChargeRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
     async def findByPinCode(self, zip_code: str):

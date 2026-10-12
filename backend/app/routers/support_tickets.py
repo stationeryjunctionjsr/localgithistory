@@ -110,7 +110,7 @@ async def get_support_tickets(
 
 
 @router.get("/{ticket_id}", response_model=SupportTicketResponse)
-async def get_support_ticket(ticket_id: str, current_user: User = Depends(get_current_user)):
+async def get_support_ticket(ticket_id: int, current_user: User = Depends(get_current_user)):
     ticket = await support_ticket_repository.findById(ticket_id)
 
     if not ticket:
@@ -149,7 +149,7 @@ async def create_support_ticket(
 
 @router.put("/{ticket_id}/status", response_model=SupportTicketResponse)
 async def update_ticket_status(
-    ticket_id: str, status_data: StatusUpdate, current_user: User = Depends(require_super_admin)
+    ticket_id: int, status_data: StatusUpdate, current_user: User = Depends(require_super_admin)
 ):
     ticket = await support_ticket_repository.findById(ticket_id)
     if not ticket:
@@ -198,7 +198,7 @@ async def update_ticket_status(
 
 @router.post("/{ticket_id}/response", response_model=SupportTicketResponse)
 async def add_ticket_response(
-    ticket_id: str, response_data: TicketResponseCreate, current_user: User = Depends(get_current_user)
+    ticket_id: int, response_data: TicketResponseCreate, current_user: User = Depends(get_current_user)
 ):
     ticket = await support_ticket_repository.findById(ticket_id)
     if not ticket:
@@ -245,7 +245,7 @@ async def add_ticket_response(
 
 @router.put("/{ticket_id}/priority", response_model=SupportTicketResponse)
 async def update_ticket_priority(
-    ticket_id: str, priority_data: PriorityUpdate, current_user: User = Depends(require_super_admin)
+    ticket_id: int, priority_data: PriorityUpdate, current_user: User = Depends(require_super_admin)
 ):
     update_data = SupportTicketInternalUpdate(priority=priority_data.priority)
     ticket = await support_ticket_repository.update(ticket_id, update_data)

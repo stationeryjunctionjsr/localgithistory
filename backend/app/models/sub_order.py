@@ -22,7 +22,7 @@ class SubOrderItem(CamelBaseModel):
     price: Optional[float] = None
 
 class SubOrder(CamelBaseModel):
-    id: str = Field(default="")
+    id: Optional[int] = None
     sub_order_number: Optional[str] = Field(default=None)
     parent_order_id: Optional[str] = Field(default=None)
     parent_order_number: Optional[str] = Field(default=None)
@@ -163,7 +163,7 @@ class SubOrderInternalUpdate(CamelBaseModel):
     awb_code: Optional[str] = None
 
 class SubOrderFilter(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     seller_id: Optional[str] = None
     parent_order_id: Optional[str] = None
     status: Optional[str] = None

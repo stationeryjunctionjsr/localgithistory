@@ -54,14 +54,14 @@ def get_password_hash(password: str) -> str:
     return hashed.decode("utf-8")
 
 
-def create_access_token(user_id: str, session_id: str) -> str:
+def create_access_token(user_id: str, session_id: int) -> str:
     """Create short-lived access token tied to session"""
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"userId": user_id, "sessionId": session_id, "exp": expire, "type": "access"}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(user_id: str, session_id: str, refresh_id: str) -> str:
+def create_refresh_token(user_id: str, session_id: int, refresh_id: str) -> str:
     """Create long-lived refresh token with jti"""
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {
@@ -74,6 +74,18 @@ def create_refresh_token(user_id: str, session_id: str, refresh_id: str) -> str:
     return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
 
+class AccessTokenPayload(BaseModel):
+    """Pydantic model for the decoded access JWT payload.
+
+    All fields are required — model_validate() raises ValidationError if any
+    are missing or empty, which is caught and surfaced as a 401.
+    """
+
+    type: str
+    userId: str
+    sessionId: int
+
+
 class RefreshTokenPayload(BaseModel):
     """Pydantic model for the decoded refresh JWT payload.
 
@@ -83,7 +95,7 @@ class RefreshTokenPayload(BaseModel):
 
     type: str
     userId: str
-    sessionId: str
+    sessionId: int
     refreshId: str
 
 
@@ -116,14 +128,13 @@ async def verify_token(token: str) -> 'User':
     )
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if ("type" not in payload) or (payload["type"] != "access"):
+        raw = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = AccessTokenPayload.model_validate(raw)
+        if payload.type != "access":
             raise base_exception
-        user_id: str = payload["userId"] if "userId" in payload else None
-        session_id: str = payload["sessionId"] if "sessionId" in payload else None
-        if user_id is None or session_id is None:
-            raise base_exception
-    except JWTError:
+        user_id: str = payload.userId
+        session_id: int = payload.sessionId
+    except (JWTError, ValidationError):
         raise base_exception
 
     session = await session_repository.find_by_id(session_id)

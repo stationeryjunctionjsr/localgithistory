@@ -90,9 +90,10 @@ async def get_recommendations(
         else:
             # Retail customer or unauthenticated guest.
             # get_retail_seller_set() handles hyperlocal / pan-india / no-pincode internally.
-            seller_id_set, location_key = await get_retail_seller_set(
+            seller_id_set, fulfillment_type, zone_id = await get_retail_seller_set(
                 pincode, subtract_unavailable=True
             )
+            location_key = f"zone_{zone_id}" if fulfillment_type == "hyperlocal" and zone_id is not None else "pan_india"
 
         # Normalise category_tag for consistent cache keying and lookup
         tag_key = (category_tag or "").strip().lower() or None

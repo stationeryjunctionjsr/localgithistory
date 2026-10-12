@@ -36,7 +36,7 @@ class SupportTicketRepository:
 
         return tickets
 
-    async def findById(self, id: str) -> Optional[SupportTicketInternal]:
+    async def findById(self, id: int) -> Optional[SupportTicketInternal]:
         return await self.storage.findById(id)
 
     async def create(self, ticket_data: SupportTicketInternalCreate) -> SupportTicketInternal:
@@ -47,7 +47,7 @@ class SupportTicketRepository:
         
         return await self.storage.create(ticket_data)
 
-    async def update(self, id: str, update_data: SupportTicketInternalUpdate) -> SupportTicketInternal:
+    async def update(self, id: int, update_data: SupportTicketInternalUpdate) -> SupportTicketInternal:
         if update_data.status == "resolved" and update_data.resolvedAt is None:
             update_data.resolvedAt = datetime.now(timezone.utc).isoformat()
         elif update_data.status == "closed" and update_data.closedAt is None:
@@ -55,7 +55,7 @@ class SupportTicketRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, ticket_id: str, user: str, message: str, attachments: list[str], is_admin_response: bool) -> SupportTicketInternal:
+    async def addResponse(self, ticket_id: int, user: str, message: str, attachments: list[str], is_admin_response: bool) -> SupportTicketInternal:
         ticket = await self.findById(ticket_id)
         if not ticket:
             raise ValueError("Ticket not found")
@@ -80,7 +80,7 @@ class SupportTicketRepository:
 
         return await self.update(ticket_id, update_payload)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

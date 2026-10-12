@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -18,21 +18,18 @@ class MySQLReturnSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[ReturnSettingsInternal]:
+    async def findById(self, id: int) -> Optional[ReturnSettingsInternal]:
         if not id:
-            return None
-        pid = int(id) if str(id).isdigit() else None
-        if pid is None:
             return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
             return self._map_to_schema(row)
 
-    async def findOne(self, id: Optional[Union[int, str]] = None) -> Optional[ReturnSettingsInternal]:
+    async def findOne(self, id: Optional[int] = None) -> Optional[ReturnSettingsInternal]:
         if id:
             return await self.findById(id)
         all_settings = await self.findAll()
@@ -66,15 +63,14 @@ class MySQLReturnSettingsDAO:
             new_id = result.lastrowid
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: ReturnSettingsInternalUpdate) -> Optional[ReturnSettingsInternal]:
+    async def update(self, id: int, update_data: ReturnSettingsInternalUpdate) -> Optional[ReturnSettingsInternal]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
+        if not id:
             return None
         updates = ["updated_at = :u"]
-        params = {"u": now_utc(), "id": pid}
+        params = {"u": now_utc(), "id": id}
 
         if update_data.return_days is not None:
             updates.append("return_days = :return_days")
@@ -85,26 +81,23 @@ class MySQLReturnSettingsDAO:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await session.commit()
                 
-        return await self.findById(pid)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
-            return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
             return False
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
 
     def _map_to_schema(self, r) -> ReturnSettingsInternal:
         return ReturnSettingsInternal(
-            id=str(r.id),
+            id=r.id,
             return_days=int(r.return_days) if r.return_days is not None else None,
             created_at=r.created_at,
             updated_at=r.updated_at,

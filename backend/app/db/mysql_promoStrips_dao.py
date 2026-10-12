@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 import json
 from sqlalchemy import text
@@ -19,16 +19,13 @@ class MySQLPromoStripsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[PromoStripsInternal]:
+    async def findById(self, id: int) -> Optional[PromoStripsInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
-        if pid is None:
-            return None
         async with factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
@@ -36,7 +33,7 @@ class MySQLPromoStripsDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         is_active: Optional[bool] = None,
         text_filter: Optional[str] = None,
     ) -> Optional[PromoStripsInternal]:
@@ -104,17 +101,14 @@ class MySQLPromoStripsDAO:
             new_id = result.lastrowid
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: PromoStripsInternalUpdate) -> Optional[PromoStripsInternal]:
+    async def update(self, id: int, update_data: PromoStripsInternalUpdate) -> Optional[PromoStripsInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
-            return None
         updates = ["updated_at = :u"]
-        params = {"u": now_utc(), "id": pid}
+        params = {"u": now_utc(), "id": id}
 
         if update_data.text is not None:
             updates.append("text = :s_text")
@@ -136,34 +130,22 @@ class MySQLPromoStripsDAO:
                 
         return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
-            return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
             return False
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
 
     def _map_to_schema(self, r) -> PromoStripsInternal:
-        zone_ids = None
-        raw_zone = r.zone_ids
-        if raw_zone:
-            try:
-                zone_ids = json.loads(raw_zone)
-            except TypeError:
-                zone_ids = raw_zone
-            except Exception:
-                zone_ids = []
-
+        zone_ids = json.loads(r.zone_ids) if r.zone_ids else None
         return PromoStripsInternal(
-            id=str(r.id),
+            id=r.id,
             is_active=bool(r.is_active) if r.is_active is not None else None,
             text=r.text,
             zone_ids=zone_ids,

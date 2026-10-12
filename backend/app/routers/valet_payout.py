@@ -202,7 +202,7 @@ async def list_my_valet_payouts(
 
 @router.post("/payouts/{payout_id}/mark-paid", response_model=ValetPayoutDetailResponse)
 async def mark_valet_payout_paid(
-    payout_id: str,
+    payout_id: int,
     data: MarkPaidRequest,
     current_user: User = Depends(require_super_admin)
 ):
@@ -227,7 +227,7 @@ async def mark_valet_payout_paid(
 
 @router.post("/payouts/{payout_id}/mark-received", response_model=ValetPayoutDetailResponse)
 async def mark_valet_payout_received(
-    payout_id: str,
+    payout_id: int,
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role != "valet":

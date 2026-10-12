@@ -34,7 +34,7 @@ class SellerRequestRepository:
             request_number=request_number,
         )
 
-    async def findById(self, id: str):
+    async def findById(self, id: int):
         return await self.storage.findById(id)
 
     async def create(self, request_data: SellerRequestInternalCreate):
@@ -53,7 +53,7 @@ class SellerRequestRepository:
             
         return await self.storage.create(request_data)
 
-    async def update(self, id: str, update_data: SellerRequestInternalUpdate):
+    async def update(self, id: int, update_data: SellerRequestInternalUpdate):
         if update_data.status == "resolved" and update_data.resolved_at is None:
             update_data.resolved_at = datetime.now(timezone.utc).isoformat()
         elif update_data.status == "closed" and update_data.closed_at is None:
@@ -61,7 +61,7 @@ class SellerRequestRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, request_id: str, response_data: TicketResponseItemInternal):
+    async def addResponse(self, request_id: int, response_data: TicketResponseItemInternal):
         request = await self.findById(request_id)
         if not request:
             raise ValueError("Request not found")
@@ -86,7 +86,7 @@ class SellerRequestRepository:
 
         return await self.update(request_id, update_payload)
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         return await self.storage.delete(id)
 
 

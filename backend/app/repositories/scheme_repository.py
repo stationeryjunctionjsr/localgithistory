@@ -11,7 +11,7 @@ class SchemeRepository:
 
     async def findAll(
         self,
-        id: Optional[str] = None,
+        id: Optional[int] = None,
         name: Optional[str] = None,
         is_active: Optional[bool] = None,
         code: Optional[str] = None
@@ -24,7 +24,7 @@ class SchemeRepository:
             schemes = [s for s in schemes if s.name == name]
         return schemes
 
-    async def findById(self, id: str) -> Optional[SchemeInternal]:
+    async def findById(self, id: int) -> Optional[SchemeInternal]:
         return await self.storage.findById(id)
 
     async def findActiveForBusiness(self) -> List[SchemeInternal]:
@@ -33,7 +33,7 @@ class SchemeRepository:
 
     async def findOne(
         self,
-        id: Optional[str] = None,
+        id: Optional[int] = None,
         name: Optional[str] = None,
         is_active: Optional[bool] = None,
         code: Optional[str] = None

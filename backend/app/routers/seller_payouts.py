@@ -35,7 +35,7 @@ class SellerPayoutCreate(CamelBaseModel):
     period_end: Optional[str] = None
     status: Optional[str] = 'pending_payment'
     notes: Optional[str] = None
-    sub_order_ids: Optional[List[str]] = Field(default=[], description="Sub-order IDs included in this payout")
+    sub_order_ids: Optional[List[int]] = Field(default=[], description="Sub-order IDs included in this payout")
 
 class SellerPayoutSummaryResponse(BaseModel):
     seller_id: str
@@ -129,7 +129,7 @@ async def settle_all_seller_payouts(
         raise HTTPException(status_code=400, detail="No realized sub-orders found to settle")
 
     total_amount = sum(float(so.total) - float(so.commission_amount) for so in sub_orders)
-    sub_order_ids = [str(so.id) for so in sub_orders]
+    sub_order_ids = [so.id for so in sub_orders if so.id is not None]
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
     storage = _payout_storage()
@@ -155,7 +155,7 @@ async def settle_all_seller_payouts(
 
 @router.post("/{payout_id}/mark-paid", response_model=SellerPayoutDetailResponse)
 async def mark_payout_paid(
-    payout_id: str,
+    payout_id: int,
     data: MarkPaidRequest,
     current_user: User = Depends(require_super_admin)):
     storage = _payout_storage()
@@ -202,7 +202,7 @@ async def mark_payout_paid(
 
 @router.post("/{payout_id}/mark-received", response_model=SellerPayoutDetailResponse)
 async def mark_payout_received(
-    payout_id: str,
+    payout_id: int,
     current_user: User = Depends(require_super_admin_or_seller)):
     storage = _payout_storage()
     existing = await storage.findById(payout_id)

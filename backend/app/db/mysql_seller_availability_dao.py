@@ -58,7 +58,7 @@ class MySQLSellerAvailabilityDAO:
         if filters is not None:
             if filters.id is not None:
                 where_clauses.append("id = :q_id")
-                params["q_id"] = int(filters.id) if str(filters.id).isdigit() else str(filters.id)
+                params["q_id"] = filters.id
 
             if filters.seller_id is not None:
                 where_clauses.append("seller_id = :seller_id")
@@ -90,7 +90,7 @@ class MySQLSellerAvailabilityDAO:
         records = await self.findAll(filters=filters)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[SellerAvailability]:
+    async def findById(self, id: int) -> Optional[SellerAvailability]:
         return await self.findOne(SellerAvailabilityFilter(id=id))
 
     async def count(
@@ -107,7 +107,7 @@ class MySQLSellerAvailabilityDAO:
         if filters is not None:
             if filters.id is not None:
                 where_clauses.append("id = :q_id")
-                params["q_id"] = int(filters.id) if str(filters.id).isdigit() else str(filters.id)
+                params["q_id"] = filters.id
 
             if filters.seller_id is not None:
                 where_clauses.append("seller_id = :seller_id")
@@ -156,18 +156,17 @@ class MySQLSellerAvailabilityDAO:
             result = await session.execute(sql, params)
             await session.commit()
             new_id = result.lastrowid
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
     async def update(
-        self, id: str, update_data: SellerAvailabilityInternalUpdate
+        self, id: int, update_data: SellerAvailabilityInternalUpdate
     ) -> Optional[SellerAvailability]:
         factory = self._get_session_factory()
-        if not factory:
+        if not factory or not id:
             return None
         now = datetime.now(timezone.utc)
-        row_id = int(id) if str(id).isdigit() else id
         set_clauses: list[str] = ["updated_at = :updated_at"]
-        params = {"updated_at": now, "row_id": row_id}
+        params = {"updated_at": now, "row_id": id}
 
         if update_data.status is not None:
             set_clauses.append("status = :status")
@@ -195,14 +194,14 @@ class MySQLSellerAvailabilityDAO:
         async with factory() as session:
             await session.execute(sql, params)
             await session.commit()
-        return await self.findById(str(id))
+        return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._get_session_factory()
-        if not factory:
+        if not factory or not id:
             return False
         async with factory() as session:
-            result = await session.execute(text(f"DELETE FROM {self.table_name} WHERE id = :id"), {"id": int(id)})
+            result = await session.execute(text(f"DELETE FROM {self.table_name} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
 
@@ -351,7 +350,7 @@ class MySQLSellerAvailabilityDAO:
         if filters is not None:
             if filters.id is not None:
                 where_clauses.append("sa.id = :q_id")
-                params["q_id"] = int(filters.id) if str(filters.id).isdigit() else str(filters.id)
+                params["q_id"] = filters.id
 
             if filters.seller_id is not None:
                 where_clauses.append("sa.seller_id = :seller_id")

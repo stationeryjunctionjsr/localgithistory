@@ -74,14 +74,14 @@ async def _get_storage():
 
 async def _check_pincode_conflicts(
     pincodes: List[str],
-    exclude_zone_id: Optional[str] = None,
+    exclude_zone_id: Optional[int] = None,
 ) -> List[str]:
     """Return list of pincodes that already belong to another zone."""
     storage = get_storage("deliveryZones")
-    all_zones = await storage.findAll({})
+    all_zones = await storage.findAll()
     taken_pincodes = []
     for z in all_zones:
-        if exclude_zone_id and str(z.id) == str(exclude_zone_id):
+        if exclude_zone_id is not None and z.id == exclude_zone_id:
             continue
         taken_pincodes.extend(z.pincodes or [])
     return [pc for pc in pincodes if pc in taken_pincodes]
@@ -165,7 +165,7 @@ async def create_zone(
 
 
 @router.get("/{zone_id}", response_model=DeliveryZoneResponse)
-async def get_zone(zone_id: str, current_user: User = Depends(require_super_admin)):
+async def get_zone(zone_id: int, current_user: User = Depends(require_super_admin)):
     """Get a single delivery zone by ID."""
     storage = get_storage("deliveryZones")
     zone = await storage.findById(zone_id)
@@ -176,7 +176,7 @@ async def get_zone(zone_id: str, current_user: User = Depends(require_super_admi
 
 @router.put("/{zone_id}", response_model=DeliveryZoneResponse)
 async def update_zone(
-    zone_id: str,
+    zone_id: int,
     zone: ZoneUpdate,
     current_user: User = Depends(require_super_admin),
 ):
@@ -207,7 +207,7 @@ async def update_zone(
 
 @router.delete("/{zone_id}", response_model=MessageResponse)
 async def delete_zone(
-    zone_id: str,
+    zone_id: int,
     current_user: User = Depends(require_super_admin),
 ):
     """Delete a delivery zone."""

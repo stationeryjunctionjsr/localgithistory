@@ -264,7 +264,7 @@ async def _cascade_or_revert_return(return_req):
     Cascade return pickup offer to the next best valet or revert to 'pending'
     and notify Super Admin / Seller.
     """
-    req_id = str(return_req.id)
+    req_id = return_req.id
     declined_history = list(return_req.valet_decline_history or [])
     next_valet = await _find_next_available_valet_for_return(return_req, declined_history)
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -337,7 +337,7 @@ async def run_valet_timeout_job():
                     continue
                 deadline = assigned_at + timedelta(minutes=NORMAL_TIMEOUT_MINUTES)
                 if now >= deadline:
-                    req_id = str(ret.id)
+                    req_id = ret.id
                     pending_valet_id = ret.pending_valet_id
                     if pending_valet_id:
                         history = list(ret.valet_decline_history or [])

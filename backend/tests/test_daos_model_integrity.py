@@ -159,12 +159,12 @@ def test_session_internal_models_cleaned():
 
 
 def test_return_request_models_purged():
-    ret_create = ReturnRequestInternalCreate(id="ret-1", order_id="ord-1")
-    assert ret_create.id == "ret-1"
+    ret_create = ReturnRequestInternalCreate(id=1, order_id="ord-1")
+    assert ret_create.id == 1
     assert ret_create.order_id == "ord-1"
 
-    ret_int = ReturnRequestInternal(id="ret-2", order_id="ord-2")
-    assert ret_int.id == "ret-2"
+    ret_int = ReturnRequestInternal(id=2, order_id="ord-2")
+    assert ret_int.id == 2
 
 
 def test_customer_segment_and_notification_purged():
@@ -172,14 +172,14 @@ def test_customer_segment_and_notification_purged():
     assert seg.id == "seg-1"
 
     notif_create = NotificationInternalCreate(
-        id="notif-1", user_id="u1", type="order", title="Shipped", message="Your order shipped"
+        id=1, user_id="u1", type="order", title="Shipped", message="Your order shipped"
     )
-    assert notif_create.id == "notif-1"
+    assert notif_create.id == 1
 
     notif = NotificationInternal(
-        id="notif-2", user_id="u1", type="order", title="Delivered", message="Order delivered", is_read=False, is_acknowledged=False
+        id=2, user_id="u1", type="order", title="Delivered", message="Order delivered", is_read=False, is_acknowledged=False
     )
-    assert notif.id == "notif-2"
+    assert notif.id == 2
 
 
 def test_order_filter_model():

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.models.base import CamelBaseModel
 
 class SellerPayout(CamelBaseModel):
-    id: str = None
+    id: Optional[int] = None
     seller_id: Optional[str] = None
     amount: float = Field(default=0.0)
     period_start: Optional[str] = None

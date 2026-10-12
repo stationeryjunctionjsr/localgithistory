@@ -54,14 +54,15 @@ class MySQLValetPayoutDAO:
         records = await self.findAll(valet_id=valet_id, status=status)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutDetailResponse]:
+    async def findById(self, id: int) -> Optional[ValetPayoutDetailResponse]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
+        if not factory or not id:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": pid},
+                    {"id": id},
                 )
             ).fetchone()
         
@@ -140,15 +141,18 @@ class MySQLValetPayoutDAO:
             new_id = result.lastrowid
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: ValetPayoutInternalUpdate) -> Optional[ValetPayoutDetailResponse]:
+    async def update(self, id: int, update_data: ValetPayoutInternalUpdate) -> Optional[ValetPayoutDetailResponse]:
+        factory = self._factory()
+        if not factory or not id:
+            return None
         existing = await self.findById(id)
         if not existing:
             return None
         
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
+        pid = id
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -177,7 +181,6 @@ class MySQLValetPayoutDAO:
         _handle_field("notes", "notes", update_data.notes, existing.notes)
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
@@ -186,13 +189,14 @@ class MySQLValetPayoutDAO:
             await session.commit()
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
+        if not factory or not id:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

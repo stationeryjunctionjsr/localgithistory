@@ -90,8 +90,11 @@ class ReturnRequestRepository:
             requests.sort(key=lambda x: x.created_at or "", reverse=True)
         return requests
 
-    async def findById(self, id: str) -> Optional[ReturnRequestInternal]:
+    async def findById(self, id: int) -> Optional[ReturnRequestInternal]:
         return await self.storage.findById(id)
+
+    async def findByReturnId(self, return_id: str) -> Optional[ReturnRequestInternal]:
+        return await self.storage.findByReturnId(return_id)
 
     async def findByOrderId(self, order_id: str) -> List[ReturnRequestInternal]:
         return await self.findAll(order_id=order_id)
@@ -110,10 +113,10 @@ class ReturnRequestRepository:
 
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: ReturnRequestInternalUpdate) -> ReturnRequestInternal:
+    async def update(self, id: int, update_data: ReturnRequestInternalUpdate) -> ReturnRequestInternal:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

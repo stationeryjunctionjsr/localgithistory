@@ -102,7 +102,7 @@ async def get_seller_requests(
 
 @router.get("/{request_id}", response_model=SellerRequestResponse)
 async def get_seller_request(
-    request_id: str, current_user: User = Depends(get_current_user)
+    request_id: int, current_user: User = Depends(get_current_user)
 ) -> SellerRequestResponse:
     request = await seller_request_repository.findById(request_id)
 
@@ -134,7 +134,7 @@ async def create_seller_request(
 
 @router.put("/{request_id}/status", response_model=SellerRequestResponse)
 async def update_request_status(
-    request_id: str, status_data: StatusUpdate, current_user: User = Depends(require_super_admin)
+    request_id: int, status_data: StatusUpdate, current_user: User = Depends(require_super_admin)
 ) -> SellerRequestResponse:
     request = await seller_request_repository.findById(request_id)
     if not request:
@@ -147,7 +147,7 @@ async def update_request_status(
 
 @router.post("/{request_id}/response", response_model=SellerRequestResponse)
 async def add_request_response(
-    request_id: str, response_data: SellerRequestResponseCreate, current_user: User = Depends(get_current_user)
+    request_id: int, response_data: SellerRequestResponseCreate, current_user: User = Depends(get_current_user)
 ) -> SellerRequestResponse:
     request = await seller_request_repository.findById(request_id)
     if not request:

@@ -11,12 +11,12 @@ def _parse_tier_row(r) -> DeliveryChargeTierInternal:
     max_val = (
         float('inf')
         if str(r.max_order_value).lower() in ("infinity", "inf")
-        else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
+        else (float(r.max_order_value) if r.max_order_value is not None else float('inf'))
     )
     return DeliveryChargeTierInternal(
-        min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
+        min=float(r.min_order_value) if r.min_order_value is not None else 0.0,
         max=max_val,
-        charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
+        charge=float(r.charge) if r.charge is not None else 0.0,
     )
 
 class MySQLDeliveryZonesDAO:
@@ -30,20 +30,18 @@ class MySQLDeliveryZonesDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[DeliveryZoneInternal]:
+    async def findById(self, id: int) -> Optional[DeliveryZoneInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
+            params = {"id": id}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-            pincodes, tiers = await self._fetch_zone_children(session, int(row.id))
+            pincodes, tiers = await self._fetch_zone_children(session, row.id)
             return self._map_to_schema(
                 row,
                 pincodes=pincodes,
@@ -65,7 +63,7 @@ class MySQLDeliveryZonesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            pincodes, tiers = await self._fetch_zone_children(session, int(row.id))
+            pincodes, tiers = await self._fetch_zone_children(session, row.id)
             return self._map_to_schema(
                 row,
                 pincodes=pincodes,
@@ -89,7 +87,7 @@ class MySQLDeliveryZonesDAO:
             if not rows:
                 return []
                 
-            parent_ids = [int(r.id) for r in rows]
+            parent_ids = [r.id for r in rows]
             id_list = ",".join(str(i) for i in parent_ids)
             pins_res = await session.execute(
                 text(f"SELECT parent_id, pincode FROM sj_delivery_zone_pincodes WHERE parent_id IN ({id_list}) ORDER BY id ASC")
@@ -174,12 +172,12 @@ class MySQLDeliveryZonesDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: DeliveryZoneInternalUpdate) -> Optional[DeliveryZoneInternal]:
+    async def update(self, id: int, update_data: DeliveryZoneInternalUpdate) -> Optional[DeliveryZoneInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"pk": id, "u": now_utc()}
         data = update_data
 
         if data.name is not None:
@@ -223,33 +221,25 @@ class MySQLDeliveryZonesDAO:
             params["s_apply_default_charge"] = 1 if data.apply_default_charge else 0
 
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
-            pk = int(id)
             upd_where = "id = :pk"
-            params["pk"] = pk
 
             if len(updates) > 1:
                 upd_sql = ", ".join(updates)
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
             
-            await self._replace_children(session, pk, data)
+            await self._replace_children(session, id, data)
             await session.commit()
                 
-        return await self.findById(str(pk))
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            if not str(id).isdigit():
-                return False
-            pk = int(id)
-
-            await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": pk})
-            await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": pk})
-            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": id})
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
 
@@ -260,7 +250,7 @@ class MySQLDeliveryZonesDAO:
         tiers: List[DeliveryChargeTierInternal],
     ) -> DeliveryZoneInternal:
         return DeliveryZoneInternal(
-            id=str(r.id),
+            id=r.id,
             name=r.name,
             description=r.description,
             default_capacity=r.default_capacity,

@@ -36,25 +36,23 @@ class MySQLDeliverySlotsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[DeliverySlotConfigInternal]:
+    async def findById(self, id: int) -> Optional[DeliverySlotConfigInternal]:
         if not id:
             return None
         async with self._factory()() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
+            params = {"id": id}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
                 
-            slots = await self._fetch_slots(session, int(row.id))
+            slots = await self._fetch_slots(session, row.id)
             return self._map_to_schema(row, slots)
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         date: Optional[str] = None,
         zone_id: Optional[str] = None,
         segment: Optional[str] = None,
@@ -96,7 +94,7 @@ class MySQLDeliverySlotsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            parent_ids = [int(r.id) for r in rows]
+            parent_ids = [r.id for r in rows]
             id_list = ",".join(str(i) for i in parent_ids)
             slots_res = await session.execute(
                 text(f"SELECT parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours FROM {self.CHILD_TABLE} WHERE parent_id IN ({id_list}) ORDER BY id ASC")
@@ -151,12 +149,12 @@ class MySQLDeliverySlotsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: DeliverySlotConfigInternalUpdate) -> Optional[DeliverySlotConfigInternal]:
+    async def update(self, id: int, update_data: DeliverySlotConfigInternalUpdate) -> Optional[DeliverySlotConfigInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"u": now_utc()}
+        params = {"pk": id, "u": now_utc()}
 
         if update_data.segment is not None:
             updates.append("segment = :segment")
@@ -176,37 +174,29 @@ class MySQLDeliverySlotsDAO:
 
         upd_sql = ", ".join(updates)
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
-            pk = int(id)
             upd_where = "id = :pk"
-            params["pk"] = pk
 
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
-            await self._replace_children(session, pk, update_data)
+            await self._replace_children(session, id, update_data)
             await session.commit()
                 
-        return await self.findById(pk)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            if not str(id).isdigit():
-                return False
-            pk = int(id)
-            del_where = "id = :pk"
-            params = {"pk": pk}
+            params = {"id": id}
 
-            await session.execute(text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"), {"id": pk})
-            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {del_where}"), params)
+            await session.execute(text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"), params)
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), params)
             await session.commit()
             return result.rowcount > 0
 
     def _map_to_schema(self, r, slots: Optional[List[DeliverySlotInternal]] = None) -> DeliverySlotConfigInternal:
         return DeliverySlotConfigInternal(
-            id=str(r.id),
+            id=r.id,
             segment=r.segment,
             date=r.date,
             zone_id=r.zone_id,

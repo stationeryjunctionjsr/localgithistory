@@ -96,7 +96,7 @@ async def test_cart_dao_direct_row_hydration():
     )
 
     cart = dao._map_to_schema(mock_cart_row, [mock_item_row])
-    assert cart.id == "1"
+    assert cart.id == 1
     assert len(cart.items) == 1
     assert cart.items[0].product == "p100"
     assert cart.items[0].quantity == 3
@@ -119,7 +119,7 @@ async def test_wishlist_dao_direct_row_hydration():
     )
 
     w = dao._map_to_schema(mock_wishlist_row, [mock_item])
-    assert w.id == "5"
+    assert w.id == 5
     assert len(w.items) == 1
     assert w.items[0].product == "item_9"
 

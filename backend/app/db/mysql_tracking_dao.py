@@ -145,7 +145,7 @@ class MySQLTrackingDAO:
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
         product_id: Optional[str] = None,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
     ) -> List['Tracking']:
@@ -157,7 +157,7 @@ class MySQLTrackingDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else -1
+            params["id"] = id
         if event_type is not None:
             where_clauses.append("event_type = :event_type")
             params["event_type"] = event_type
@@ -660,7 +660,7 @@ class MySQLTrackingDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         event_type: Optional[str] = None,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
@@ -668,7 +668,7 @@ class MySQLTrackingDAO:
         records = await self.findAll(id=id, event_type=event_type, user_id=user_id, session_id=session_id, limit=1)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional['Tracking']:
+    async def findById(self, id: int) -> Optional['Tracking']:
         return await self.findOne(id=id)
 
     async def create(self, data: 'AnalyticsEventCreate') -> 'AnalyticsEvent':
@@ -734,20 +734,22 @@ class MySQLTrackingDAO:
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, data: 'AnalyticsEventUpdate') -> Optional['AnalyticsEvent']:
+    async def update(self, id: int, data: 'AnalyticsEventUpdate') -> Optional['AnalyticsEvent']:
         existing = await self.findById(id)
         if not existing:
             return None
         
         return existing
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
+        if not factory or not id:
+            return False
         async with factory() as session:
             res = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )
             await session.commit()
             return res.rowcount > 0

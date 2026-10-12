@@ -10,7 +10,7 @@ class OrderFeedbackRepository:
     async def findAll(self) -> List[OrderFeedbackInternal]:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional[OrderFeedbackInternal]:
+    async def findById(self, id: int) -> Optional[OrderFeedbackInternal]:
         return await self.storage.findById(id)
 
     async def findByOrder(self, order_id: str) -> Optional[OrderFeedbackInternal]:
@@ -34,7 +34,7 @@ class OrderFeedbackRepository:
 
         return await self.storage.create(feedback_data)
 
-    async def update(self, id: str, update_data: OrderFeedbackInternalUpdate) -> OrderFeedbackInternal:
+    async def update(self, id: int, update_data: OrderFeedbackInternalUpdate) -> OrderFeedbackInternal:
         if update_data.rating is not None:
             update_data.rating = int(update_data.rating)
         if update_data.delivery_rating is not None:
@@ -42,7 +42,7 @@ class OrderFeedbackRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

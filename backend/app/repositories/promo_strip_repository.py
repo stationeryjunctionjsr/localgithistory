@@ -16,16 +16,16 @@ class PromoStripRepository:
     async def findAll(self) -> List[PromoStripsInternal]:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional[PromoStripsInternal]:
+    async def findById(self, id: int) -> Optional[PromoStripsInternal]:
         return await self.storage.findById(id)
 
-    async def findActive(self, zone_id: Optional[str] = None) -> List[PromoStripsInternal]:
+    async def findActive(self, zone_id: Optional[int] = None) -> List[PromoStripsInternal]:
         """
         Return active promo strips, optionally filtered by zone.
 
-        zone_id = None  -> wholesaler / no pincode: show strips that have no zone
+        zone_id = None -> wholesaler / no pincode: show strips that have no zone
                           restriction (zoneIds is None/empty = global strips).
-        zone_id = "42" -> retail with pincode: show strips that either have no
+        zone_id = 42   -> retail with pincode: show strips that either have no
                           zone restriction OR explicitly include this zone.
         """
         strips = await self.storage.findAll()
@@ -33,7 +33,7 @@ class PromoStripRepository:
         for s in strips:
             if not (s.is_active if s.is_active is not None else True):
                 continue
-            if zone_id:
+            if zone_id is not None:
                 # zone_id given: show global strips (no zoneIds) OR zone-matched strips
                 if s.zone_ids and zone_id not in s.zone_ids:
                     continue
@@ -49,10 +49,10 @@ class PromoStripRepository:
             data.is_active = True
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: PromoStripsInternalUpdate) -> PromoStripsInternal:
+    async def update(self, id: int, update_data: PromoStripsInternalUpdate) -> PromoStripsInternal:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

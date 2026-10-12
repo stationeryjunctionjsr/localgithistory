@@ -141,7 +141,7 @@ class SellerPayoutInternalCreate(CamelBaseModel):
     admin_paid_by: Optional[str] = None
     seller_received_at: Optional[str] = None
     notes: Optional[str] = None
-    sub_order_ids: Optional[List[str]] = []
+    sub_order_ids: Optional[List[int]] = []
 
 class SellerPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -156,7 +156,7 @@ class SellerPayoutInternalUpdate(CamelBaseModel):
     admin_paid_by: Optional[str] = None
     seller_received_at: Optional[str] = None
     notes: Optional[str] = None
-    sub_order_ids: Optional[List[str]] = None
+    sub_order_ids: Optional[List[int]] = None
 
 class ValetPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -233,9 +233,9 @@ class DeviceSnippet(CamelBaseModel):
 
 class SessionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     user: Optional[str] = None
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     device_info: Optional[DeviceSnippet] = None
     ip_address: Optional[str] = None
     refresh_token_id: Optional[str] = None
@@ -251,9 +251,9 @@ class SessionInternalCreate(CamelBaseModel):
 
 class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     user: Optional[str] = None
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     device_info: Optional[DeviceSnippet] = None
     ip_address: Optional[str] = None
     is_active: Optional[bool] = None
@@ -518,7 +518,7 @@ class BundleInternalUpdate(CamelBaseModel):
 
 class ReturnRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -569,7 +569,7 @@ class ReturnRequestInternalUpdate(CamelBaseModel):
 
 class ReturnRequestInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -619,7 +619,7 @@ class CustomerSegmentInternalUpdate(CamelBaseModel):
     lastRefreshedAt: Optional[str] = None
 
 class NotificationInternalCreate(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     user_id: str
     type: str
     title: str
@@ -644,7 +644,7 @@ class NotificationFilter(CamelBaseModel):
     endDate: Optional[str] = None
 
 class NotificationInternal(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     user_id: str
     type: str
     title: str

@@ -676,16 +676,14 @@ async def _get_public_products_cached(
     sort: Optional[str],
     includeFacets: bool,
     skinny: bool,
-    scope_key: Optional[str] = None,
+    fulfillment_type: str = "pan_india",
+    zone_id: Optional[int] = None,
 ):
-    """Internal cached function. Cache key includes scope_key — all pincodes in the same
-    zone share one cache entry (zone_id), pan-india users share 'pan_india', guests with
-    no pincode share None.
+    """Internal cached function. Cache key includes fulfillment_type and zone_id.
 
     Seller visibility:
-      scope_key == "pan_india"  → Super Admin products only (3PL courier)
-      scope_key is a zone id    → sellers declared for that zone (hyperlocal)
-      scope_key is None         → no seller filter (no-pincode guest, show all)
+      fulfillment_type == "hyperlocal" and zone_id is not None → sellers declared for that zone
+      fulfillment_type == "pan_india"                         → Super Admin products only (3PL courier)
     """
     role = "customer"  # public endpoint is always customer role
     query: dict = {}
@@ -717,20 +715,19 @@ async def _get_public_products_cached(
         query["sort"] = sort
     query["role"] = role
 
-    # Zone-based seller filter applied by scope.
-    if scope_key == "pan_india":
-        # Pan-India: only Super Admin (1P) products are visible via 3PL courier
+    # Seller filter based on fulfillment_type
+    if fulfillment_type == "hyperlocal" and zone_id is not None:
+        # Hyperlocal zone: sellers declared for this zone
+        from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
+        seller_id_set = await get_seller_ids_for_zone_id(zone_id)
+        if seller_id_set is not None:
+            query["allowed_seller_ids"] = list(seller_id_set)
+    else:
+        # Pan-India / unzoned: only Super Admin (1P) products are visible via 3PL courier
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
             query["allowed_seller_ids"] = [sa_id]
-    elif scope_key:
-        # Hyperlocal zone: sellers declared for this zone
-        from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
-        seller_id_set = await get_seller_ids_for_zone_id(scope_key)
-        if seller_id_set is not None:
-            query["allowed_seller_ids"] = list(seller_id_set)
-    # else: scope_key is None → no pincode provided, no seller filter (show all)
 
     if page > 1:
         includeFacets = False
@@ -821,12 +818,13 @@ async def get_public_products(
     # subtract_unavailable=False: product listing shows greyed-out items;
     # recommendations use True (unavailable items are hidden entirely).
     from app.repositories.zone_seller_cache import get_retail_seller_set
-    _, scope_key = await get_retail_seller_set(pincode, subtract_unavailable=False)
+    _, fulfillment_type, zone_id = await get_retail_seller_set(pincode, subtract_unavailable=False)
 
     return await _get_public_products_cached(
         response, category, categories, subCategory, search, brand, collection,
         popularity, minDiscount, minPrice, maxPrice, availability,
-        page, limit, categoryTag, sort, includeFacets, skinny, scope_key=scope_key,
+        page, limit, categoryTag, sort, includeFacets, skinny,
+        fulfillment_type=fulfillment_type, zone_id=zone_id,
     )
 
 
@@ -951,7 +949,7 @@ async def _get_products_cached(
         #   - hyperlocal zone found → zone sellers
         #   - no zone (pan-india)   → super admin only
         from app.repositories.zone_seller_cache import get_retail_seller_set
-        seller_id_set, _ = await get_retail_seller_set(pincode, subtract_unavailable=False)
+        seller_id_set, _mode, _zone_id = await get_retail_seller_set(pincode, subtract_unavailable=False)
         if seller_id_set is not None:
             query["allowed_seller_ids"] = list(seller_id_set)
 

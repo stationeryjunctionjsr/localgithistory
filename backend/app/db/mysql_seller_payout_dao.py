@@ -17,17 +17,18 @@ class MySQLSellerPayoutDAO:
     def _map_row(self, row) -> SellerPayoutDetailResponse:
         return SellerPayoutDetailResponse.model_validate(row)
 
-    async def _fetch_sub_orders(self, payout_id: str) -> List[str]:
+    async def _fetch_sub_orders(self, payout_id: int) -> List[int]:
         factory = self._factory()
-        pid = int(payout_id) if str(payout_id).isdigit() else None
+        if not factory or not payout_id:
+            return []
         async with factory() as session:
             rows = (await session.execute(
-                text("SELECT sub_order_id FROM sj_seller_payout_sub_orders WHERE payout_id = :id"),
-                {"id": pid}
+                text("SELECT CAST(sub_order_id AS SIGNED) AS sub_order_id FROM sj_seller_payout_sub_orders WHERE payout_id = :id"),
+                {"id": payout_id}
             )).fetchall()
-        return [r.sub_order_id for r in rows]
+        return [r.sub_order_id for r in rows if r.sub_order_id is not None]
 
-    async def _save_sub_orders(self, session, payout_id: int, sub_order_ids: List[str]):
+    async def _save_sub_orders(self, session, payout_id: int, sub_order_ids: List[int]):
         await session.execute(
             text("DELETE FROM sj_seller_payout_sub_orders WHERE payout_id = :id"),
             {"id": payout_id}
@@ -63,7 +64,7 @@ class MySQLSellerPayoutDAO:
 
     async def findOne(
         self,
-        id: Optional[str] = None,
+        id: Optional[int] = None,
         seller_id: Optional[str] = None,
     ) -> Optional[SellerPayoutDetailResponse]:
         if id is not None:
@@ -71,14 +72,15 @@ class MySQLSellerPayoutDAO:
         records = await self.findAll(seller_id=seller_id)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[SellerPayoutDetailResponse]:
+    async def findById(self, id: int) -> Optional[SellerPayoutDetailResponse]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
+        if not factory or not id:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": pid},
+                    {"id": id},
                 )
             ).fetchone()
         
@@ -134,18 +136,18 @@ class MySQLSellerPayoutDAO:
             await self._save_sub_orders(session, new_id, sub_orders)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: SellerPayoutInternalUpdate) -> Optional[SellerPayoutDetailResponse]:
+    async def update(self, id: int, update_data: SellerPayoutInternalUpdate) -> Optional[SellerPayoutDetailResponse]:
+        if not id:
+            return None
         existing = await self.findById(id)
         if not existing:
             return None
         
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
-        
         updates = ["updated_at = :u"]
-        params = {"id": pid, "u": now}
+        params = {"id": id, "u": now}
 
         def _handle_field(api_k, db_k, new_val, existing_val, is_date=False):
             if new_val is not None:
@@ -178,17 +180,18 @@ class MySQLSellerPayoutDAO:
                 params,
             )
             if sub_orders is not None:
-                await self._save_sub_orders(session, pid, sub_orders)
+                await self._save_sub_orders(session, id, sub_orders)
             await session.commit()
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
+        if not factory or not id:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

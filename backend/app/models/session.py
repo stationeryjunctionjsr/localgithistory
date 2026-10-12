@@ -6,9 +6,9 @@ from app.models.base import CamelBaseModel
 from app.models.daos import DeviceSnippet
 
 class Session(CamelBaseModel):
-    id: str = None
+    id: Optional[int] = None
     user: Optional[str] = None
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
     last_active_at: Optional[datetime] = None

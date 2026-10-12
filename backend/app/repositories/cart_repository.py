@@ -15,7 +15,7 @@ class CartRepository:
     async def create(self, cart_data: 'CartInternalCreate'):
         return await self.storage.create(cart_data)
 
-    async def update(self, id: str, update_data: 'CartInternalUpdate'):
+    async def update(self, id: int, update_data: 'CartInternalUpdate'):
         return await self.storage.update(id, update_data)
 
     async def clearCart(self, user_id: str):

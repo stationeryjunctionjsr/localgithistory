@@ -28,7 +28,7 @@ def _format_date(d: Optional[date | datetime | str]) -> Optional[str]:
 
 def _map_row(r, children_slots: list[str], children_zones: list[str]) -> ValetAvailability:
     return ValetAvailability(
-        id=str(r.id),
+        id=int(r.id),
         valet_id=r.valet_id,
         date=_format_date(r.date),
         availability_type=r.availability_type,
@@ -60,7 +60,7 @@ class MySQLValetAvailabilityDAO:
         if filters is not None:
             if filters.id is not None:
                 where_clauses.append("id = :id")
-                params["id"] = int(filters.id) if str(filters.id).isdigit() else str(filters.id)
+                params["id"] = filters.id
             if filters.valet_id is not None:
                 where_clauses.append("valet_id = :valet_id")
                 params["valet_id"] = str(filters.valet_id)
@@ -131,7 +131,7 @@ class MySQLValetAvailabilityDAO:
         records = await self.findAll(filters=filters)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[ValetAvailability]:
+    async def findById(self, id: int) -> Optional[ValetAvailability]:
         return await self.findOne(ValetAvailabilityFilter(id=id))
 
     async def count(
@@ -147,7 +147,7 @@ class MySQLValetAvailabilityDAO:
         if filters is not None:
             if filters.id is not None:
                 where_clauses.append("id = :id")
-                params["id"] = int(filters.id) if str(filters.id).isdigit() else str(filters.id)
+                params["id"] = filters.id
             if filters.valet_id is not None:
                 where_clauses.append("valet_id = :valet_id")
                 params["valet_id"] = str(filters.valet_id)
@@ -217,20 +217,18 @@ class MySQLValetAvailabilityDAO:
 
             await session.commit()
 
-        created = await self.findById(str(new_id))
+        created = await self.findById(new_id)
         if not created:
             raise RuntimeError(f"Failed to load newly created availability record {new_id}")
         return created
 
     async def update(
-        self, id: str, update_data: ValetAvailabilityInternalUpdate
+        self, id: int, update_data: ValetAvailabilityInternalUpdate
     ) -> Optional[ValetAvailability]:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return None
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
-            return None
+        pk = id
 
         now = now_utc()
         set_clauses: list[str] = ["updated_at = :up"]
@@ -276,15 +274,13 @@ class MySQLValetAvailabilityDAO:
 
             await session.commit()
 
-        return await self.findById(str(pk))
+        return await self.findById(pk)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
-            return False
+        pk = id
         async with factory() as session:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
             await session.commit()

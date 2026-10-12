@@ -77,7 +77,7 @@ async def test_mysql_seller_request_dao_delete_cascades_children():
     # Case 1: Numeric ID
     with patch.object(dao, "_factory", return_value=mock_factory):
         mock_session.execute.return_value = MagicMock(rowcount=1)
-        res = await dao.delete("123")
+        res = await dao.delete(123)
         assert res is True
 
         # Verify SQL statements executed
@@ -86,8 +86,8 @@ async def test_mysql_seller_request_dao_delete_cascades_children():
         assert any("DELETE FROM sj_seller_request_responses WHERE request_id = :rid" in c for c in calls)
         assert any("DELETE FROM sj_seller_requests WHERE id = :rid" in c for c in calls)
 
-    # Case 2: Non-numeric ID returns False directly
-    res = await dao.delete("abc-non-numeric")
+    # Case 2: Invalid/falsy ID returns False directly
+    res = await dao.delete(0)
     assert res is False
 
 

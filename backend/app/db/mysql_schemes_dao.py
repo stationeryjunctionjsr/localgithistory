@@ -1,4 +1,4 @@
-from typing import Optional, List, Any, Union
+from typing import Optional, List, Any
 from datetime import datetime, timezone
 import json
 from sqlalchemy import text
@@ -21,20 +21,17 @@ class MySQLSchemesDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['SchemeInternal']:
+    async def findById(self, id: int) -> Optional['SchemeInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
-        if pid is None:
-            return None
         async with factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
-            roles_rows = await self._fetch_roles(session, [int(row.id)])
+            roles_rows = await self._fetch_roles(session, [row.id])
             return self._map_to_schema(row, roles_rows)
 
     async def findByCode(self, code: str) -> Optional['SchemeInternal']:
@@ -47,14 +44,14 @@ class MySQLSchemesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            roles_rows = await self._fetch_roles(session, [int(row.id)])
+            roles_rows = await self._fetch_roles(session, [row.id])
             return self._map_to_schema(row, roles_rows)
 
     async def findOne(
         self,
         code: Optional[str] = None,
         is_active: Optional[bool] = None,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
     ) -> Optional['SchemeInternal']:
         if code:
             return await self.findByCode(code)
@@ -201,20 +198,17 @@ class MySQLSchemesDAO:
                 await self._replace_children(session, pid, data)
                 await session.commit()
                 
-        return await self.findById(str(pid))
+        return await self.findById(pid)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
-            return False
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": pid})
+            await session.execute(text("DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": id})
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
@@ -227,7 +221,7 @@ class MySQLSchemesDAO:
             else None
         )
         return SchemeInternal(
-            id=str(r.id),
+            id=r.id,
             name=r.name,
             description=r.description,
             discount_type=r.discount_type,

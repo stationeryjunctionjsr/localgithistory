@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.models.base import CamelBaseModel
 
 class Wishlist(CamelBaseModel):
-    id: str = None
+    id: Optional[int] = None
     user: Optional[str] = None
     items: List[WishlistItemInternal] = Field(default=[])
     created_at: Optional[datetime] = None
@@ -17,5 +17,5 @@ class Wishlist(CamelBaseModel):
     u: Optional[str] = None
 
     @property
-    def _id(self) -> Optional[str]:
+    def _id(self) -> Optional[int]:
         return self.id

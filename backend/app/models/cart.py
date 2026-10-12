@@ -8,12 +8,12 @@ class CartItem(CartItemInternal):
     pass
 
 class Cart(CamelBaseModel):
-    id: Optional[str] = Field(default=None)
+    id: Optional[int] = Field(default=None)
     user: str = Field(alias="user_id")
     items: List[CartItemInternal] = []
     created_at: Optional[datetime] = Field(default=None)
     updated_at: Optional[datetime] = Field(default=None)
 
     @property
-    def _id(self) -> Optional[str]:
+    def _id(self) -> Optional[int]:
         return self.id

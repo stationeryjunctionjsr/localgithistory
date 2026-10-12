@@ -24,35 +24,43 @@ class MySQLReturnRequestsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['ReturnRequestInternal']:
+    async def findById(self, id: int) -> Optional['ReturnRequestInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE return_id = :id LIMIT 1")
-                params = {"id": str(id)}
-            result = await session.execute(q, params)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
-            child_rows = await self._fetch_children(session, [int(row.id)])
+            child_rows = await self._fetch_children(session, [row.id])
+            return self._map_to_schema(row, child_rows)
+
+    async def findByReturnId(self, return_id: str) -> Optional['ReturnRequestInternal']:
+        factory = self._factory()
+        if not factory or not return_id:
+            return None
+        async with factory() as session:
+            q = text(f"SELECT * FROM {self.TABLE} WHERE return_id = :return_id LIMIT 1")
+            result = await session.execute(q, {"return_id": return_id})
+            row = result.fetchone()
+            if not row:
+                return None
+            child_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, child_rows)
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         return_id: Optional[str] = None,
         order_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> Optional['ReturnRequestInternal']:
-        if return_id:
-            return await self.findById(return_id)
         if id is not None:
             return await self.findById(id)
+        if return_id:
+            return await self.findByReturnId(return_id)
         results = await self.findAll(order_id=order_id, user_id=user_id)
         return results[0] if results else None
 
@@ -180,16 +188,14 @@ class MySQLReturnRequestsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'ReturnRequestInternalUpdate') -> Optional['ReturnRequestInternal']:
-        existing = await self.findById(id)
-        if not existing:
-            return None
+    async def update(self, id: int, update_data: 'ReturnRequestInternalUpdate') -> Optional['ReturnRequestInternal']:
         factory = self._factory()
-        pk = int(existing.id)
+        if not factory or not id:
+            return None
         updates = ["updated_at = :u"]
-        params = {"id": pk, "u": now_utc()}
+        params = {"id": id, "u": now_utc()}
         
         if update_data.status is not None:
             updates.append("status = :s_status")
@@ -213,32 +219,22 @@ class MySQLReturnRequestsDAO:
         upd_sql = ", ".join(updates)
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-            await self._replace_children(session, pk, update_data)
+            await self._replace_children(session, id, update_data)
             await session.commit()
                 
-        return await self.findById(str(pk))
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            if str(id).isdigit():
-                pk = int(id)
-            else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE return_id = :rid"), {"rid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
-
-            await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": pk})
-            await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": id})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
@@ -260,7 +256,7 @@ class MySQLReturnRequestsDAO:
             items = []
             valet_decline_history = []
         return ReturnRequestInternal(
-            id=str(r.id),
+            id=r.id,
             return_id=r.return_id,
             order_id=r.order_id,
             user_id=r.user_id,

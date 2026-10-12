@@ -42,7 +42,7 @@ from app.utils.logger import logger
 ZONE_CACHE_TTL_S = 300  # 5 minutes
 
 # { zone_id: (frozenset[seller_id_str], expiry_monotonic) }
-_zone_seller_cache: Dict[str, Tuple[frozenset, float]] = {}
+_zone_seller_cache: Dict[int, Tuple[frozenset, float]] = {}
 
 _super_admin_id_cache: Optional[str] = None
 _super_admin_cache_expiry: float = 0.0
@@ -74,10 +74,10 @@ def _cache_zone(zone) -> frozenset:
 async def _fetch_all_zones() -> list:
     """Fetch all active zones from storage."""
     storage = get_storage("deliveryZones")
-    return await storage.findAll({"is_active": True})
+    return await storage.findAll(is_active=True)
 
 
-async def _get_sellers_for_zone(zone_id: str) -> frozenset:
+async def _get_sellers_for_zone(zone_id: int) -> frozenset:
     """
     Return frozenset of seller user_id strings who declared this zone.
     Queries sj_seller_zones WHERE zone_id = :zid.
@@ -93,10 +93,9 @@ async def _get_sellers_for_zone(zone_id: str) -> frozenset:
 
         factory = get_async_session_factory()
         async with factory() as session:
-            zid_param = int(zone_id) if str(zone_id).isdigit() else zone_id
             res = await session.execute(
                 text("SELECT user_id FROM sj_seller_zones WHERE zone_id = :zid"),
-                {"zid": zid_param},
+                {"zid": zone_id},
             )
             rows = res.fetchall()
 
@@ -108,7 +107,7 @@ async def _get_sellers_for_zone(zone_id: str) -> frozenset:
         return frozenset()
 
 
-async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional[str], Optional[Set[str]]]:
+async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional[int], Optional[Set[str]]]:
     """
     Resolve a pincode to its zone ID and the FULL set of seller IDs for its zone.
     Unavailable sellers are intentionally included so their products can be shown
@@ -129,17 +128,15 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
             if pincode not in pincodes:
                 continue
 
-            # Use the MySQL id (as string) as the zone identifier.
-            zone_str_id = str(zone.id) if zone.id is not None else ""
-            if not zone_str_id:
+            if zone.id is None:
                 logger.warning("zone_seller_cache: zone has no id: %s", zone)
                 return None, None
 
             # Return the full seller set — unavailable sellers are NOT subtracted here.
             # Use get_unavailable_seller_ids_for_pincode() to find the unavailable subset
             # for UI tagging purposes.
-            seller_ids = set(await _get_sellers_for_zone(zone_str_id))
-            return zone_str_id, seller_ids
+            seller_ids = set(await _get_sellers_for_zone(zone.id))
+            return zone.id, seller_ids
 
         return None, None
     except Exception as exc:
@@ -163,7 +160,7 @@ async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
     return seller_ids
 
 
-async def get_seller_ids_for_zone_id(zone_id: str) -> Optional[Set[str]]:
+async def get_seller_ids_for_zone_id(zone_id: int) -> Optional[Set[str]]:
     """
     Get the FULL set of seller IDs for a known zone_id directly —
     no pincode resolution needed. Use this inside cached functions
@@ -219,14 +216,14 @@ async def get_zone_for_pincode(pincode: str) -> Optional[DeliveryZoneInternal]:
         return None
 
 
-def invalidate_zone_cache(zone_id: Optional[str] = None) -> None:
+def invalidate_zone_cache(zone_id: Optional[int] = None) -> None:
     """
     Invalidate cache entries.
     Pass a zone_id to evict a specific zone, or None to clear everything.
     Call this from zone create/update/delete routes and when a seller updates their zones.
     """
-    if zone_id:
-        _zone_seller_cache.pop(str(zone_id), None)
+    if zone_id is not None:
+        _zone_seller_cache.pop(zone_id, None)
     else:
         _zone_seller_cache.clear()
 
@@ -234,7 +231,7 @@ def invalidate_zone_cache(zone_id: Optional[str] = None) -> None:
 async def get_retail_seller_set(
     pincode: Optional[str],
     subtract_unavailable: bool = False,
-) -> Tuple[Optional[Set[str]], str]:
+) -> Tuple[Set[str], str, Optional[int]]:
     """
     Single authoritative entry point for resolving which sellers a RETAIL
     customer can see, given their pincode.
@@ -242,14 +239,14 @@ async def get_retail_seller_set(
     Decision tree
     -------------
     pincode is None / empty
-        -> ({super_admin_id}, "pan_india")
+        -> ({super_admin_id}, "pan_india", None)
            No pincode yet — show SA catalog as the default.
            The frontend enforces the pincode gate (modal) and disables
            add-to-cart / checkout until a valid pincode is entered.
     pincode resolves to a hyperlocal zone
-        -> (zone_sellers, zone_id)   hyperlocal — only sellers in that zone
+        -> (zone_sellers, "hyperlocal", zone_id)   hyperlocal — only sellers in that zone
     pincode provided but NOT in any zone
-        -> ({super_admin_id}, "pan_india")  pan-india — SA products only (3PL)
+        -> ({super_admin_id}, "pan_india", None)  pan-india — SA products only (3PL)
 
     In every non-hyperlocal case, the customer sees the Super Admin (1P)
     catalog. Transactional actions are gated by the frontend.
@@ -264,9 +261,10 @@ async def get_retail_seller_set(
 
     Returns
     -------
-    (seller_id_set, location_key)
-        seller_id_set : always a set (never None — no-filter case is gone).
-        location_key  : stable string suitable for use in cache keys.
+    (seller_id_set, fulfillment_type, zone_id)
+        seller_id_set   : set of allowed seller ID strings.
+        fulfillment_type: "hyperlocal" or "pan_india".
+        zone_id         : int ID if in a hyperlocal zone, None for pan-india / unzoned.
     """
     if zone_id_and_sellers := (
         await get_zone_id_and_seller_ids_for_pincode(pincode) if pincode else (None, None)
@@ -285,7 +283,7 @@ async def get_retail_seller_set(
                     seller_id_set = seller_id_set - unavailable
             except Exception as exc:
                 logger.warning("get_retail_seller_set: could not subtract unavailable sellers: %s", exc)
-        return seller_id_set, zone_id
+        return seller_id_set, "hyperlocal", zone_id
 
     # ── No pincode, unzoned pincode, or unserviceable pincode → SA only ───
     # All these cases show the Super Admin (pan-india) catalog.
@@ -293,5 +291,5 @@ async def get_retail_seller_set(
     # is absent or when the zone is not active.
     sa_id = await get_super_admin_seller_id()
     pan_india_set: Set[str] = {sa_id} if sa_id else set()
-    return pan_india_set, "pan_india"
+    return pan_india_set, "pan_india", None
 

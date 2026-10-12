@@ -4,7 +4,7 @@ from app.models.base import CamelBaseModel
 
 
 class SellerAvailability(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     seller_id: Optional[str] = None
     status: Optional[str] = None
     start_at: Optional[datetime] = None
@@ -14,7 +14,7 @@ class SellerAvailability(CamelBaseModel):
     cancelled_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    row_id: Optional[str] = None
+    row_id: Optional[int] = None
 
 
 class SellerAvailabilityEnriched(SellerAvailability):

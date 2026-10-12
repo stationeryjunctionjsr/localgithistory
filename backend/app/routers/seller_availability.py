@@ -43,7 +43,7 @@ storage = get_storage("sellerAvailability")
 
 
 class SellerAvailabilityResponse(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     seller_id: str
     status: str
     start_at: Optional[datetime] = None
@@ -231,7 +231,7 @@ async def get_all_seller_availability(
 
 @router.delete("/{window_id}", response_model=MessageResponse)
 async def cancel_availability_window(
-    window_id: str,
+    window_id: int,
     current_user: User = Depends(get_current_user),
 ):
     """Cancel a scheduled availability window. Only allowed before it becomes active."""

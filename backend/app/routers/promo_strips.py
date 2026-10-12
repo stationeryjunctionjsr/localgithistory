@@ -36,7 +36,7 @@ async def get_promo_strips():
 
 
 @cache.ttl_cache(ttl=300.0)
-async def _get_active_promo_strips_cached(zone_id: Optional[str]) -> List[PromoStripResponse]:
+async def _get_active_promo_strips_cached(zone_id: Optional[int]) -> List[PromoStripResponse]:
     """Internal cached function. zone_id = None means wholesaler/no-pincode (show only global strips)."""
     return await promo_strip_repository.findActive(zone_id=zone_id)
 
@@ -51,7 +51,7 @@ async def get_active_promo_strips(
     - Wholesaler / no pincode: global strips only (zoneIds is None/empty).
     - Retail with pincode: global strips + strips targeting this zone.
     """
-    zone_id: Optional[str] = None
+    zone_id: Optional[int] = None
     if userRole != "wholesaler" and pincode:
         from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
         zone_id_result, _ = await get_zone_id_and_seller_ids_for_pincode(pincode)
@@ -74,7 +74,7 @@ async def create_promo_strip(data: PromoStripCreate, user: User = Depends(requir
 
 
 @router.patch("/{id}/toggle", response_model=PromoStripResponse)
-async def toggle_promo_strip(id: str, user: User = Depends(require_super_admin)):
+async def toggle_promo_strip(id: int, user: User = Depends(require_super_admin)):
     """Admin endpoint to toggle active status"""
     strip = await promo_strip_repository.findById(id)
     if not strip:
@@ -87,7 +87,7 @@ async def toggle_promo_strip(id: str, user: User = Depends(require_super_admin))
 
 
 @router.put("/{id}", response_model=PromoStripResponse)
-async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depends(require_super_admin)):
+async def update_promo_strip(id: int, data: PromoStripUpdate, user: User = Depends(require_super_admin)):
     """Admin endpoint to update promo strip"""
     strip = await promo_strip_repository.findById(id)
     if not strip:
@@ -104,7 +104,7 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depen
 
 
 @router.delete("/{id}", response_model=MessageResponse)
-async def delete_promo_strip(id: str, user: User = Depends(require_super_admin)):
+async def delete_promo_strip(id: int, user: User = Depends(require_super_admin)):
     """Admin endpoint to permanently delete a promo strip"""
     strip = await promo_strip_repository.findById(id)
     if not strip:

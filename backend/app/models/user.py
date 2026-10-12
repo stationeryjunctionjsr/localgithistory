@@ -48,7 +48,7 @@ class User(CamelBaseModel):
     commission_override_pct: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    session_id: Optional[str] = None
+    session_id: Optional[int] = None
     effective_role: Optional[str] = None
     upi_id: Optional[str] = None
     qr_code_url: Optional[str] = None

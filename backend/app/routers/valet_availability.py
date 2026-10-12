@@ -212,7 +212,7 @@ async def get_all_availability(
 
 @router.delete("/{record_id}", response_model=MessageResponse)
 async def delete_availability(
-    record_id: str,
+    record_id: int,
     current_user: User = Depends(get_current_user),
 ):
     """Remove an availability entry. Valets can only delete their own entries."""

@@ -55,7 +55,7 @@ class NotificationRepository:
         sorted_notifs = sorted(notifications, key=lambda x: x.created_at or "", reverse=True)
         return [NotificationInternal.model_validate(n, from_attributes=True) for n in sorted_notifs]
 
-    async def findById(self, id: str) -> Optional[NotificationInternal]:
+    async def findById(self, id: int) -> Optional[NotificationInternal]:
         result = await self.storage.findById(id)
         if not result: return None
         return NotificationInternal.model_validate(result, from_attributes=True)
@@ -69,16 +69,16 @@ class NotificationRepository:
         result = await self.storage.create(notification_data)
         return NotificationInternal.model_validate(result, from_attributes=True)
 
-    async def update(self, id: str, update_data: 'NotificationInternalUpdate') -> NotificationInternal:
+    async def update(self, id: int, update_data: 'NotificationInternalUpdate') -> NotificationInternal:
         update_data.updated_at = self._get_timestamp()
         result = await self.storage.update(id, update_data)
         return NotificationInternal.model_validate(result, from_attributes=True)
 
-    async def acknowledge(self, id: str) -> NotificationInternal:
+    async def acknowledge(self, id: int) -> NotificationInternal:
         from app.models.daos import NotificationInternalUpdate
         return await self.update(id, NotificationInternalUpdate(is_acknowledged=True))
 
-    async def markAsRead(self, id: str) -> NotificationInternal:
+    async def markAsRead(self, id: int) -> NotificationInternal:
         from app.models.daos import NotificationInternalUpdate
         return await self.update(id, NotificationInternalUpdate(is_read=True))
 
@@ -101,7 +101,7 @@ class NotificationRepository:
                 
         return count1 + count2
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
     def _generate_id(self) -> str:

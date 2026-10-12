@@ -40,8 +40,8 @@ class MySQLSessionDAO:
 
     async def findAll(
         self,
-        id: Optional[Union[int, str]] = None,
-        user_id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
+        user_id: Optional[int] = None,
         refresh_token_id: Optional[str] = None,
         status: Optional[str] = None,
         is_guest: Optional[bool] = None,
@@ -53,10 +53,10 @@ class MySQLSessionDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if user_id is not None:
             where_clauses.append("user_id = :user_id")
-            params["user_id"] = int(user_id) if str(user_id).isdigit() else None
+            params["user_id"] = user_id
         if refresh_token_id is not None:
             where_clauses.append("refresh_token_id = :refresh_token_id")
             params["refresh_token_id"] = str(refresh_token_id)
@@ -84,19 +84,18 @@ class MySQLSessionDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
-        user_id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
+        user_id: Optional[int] = None,
         refresh_token_id: Optional[str] = None,
         status: Optional[str] = None,
     ) -> Optional[Session]:
         records = await self.findAll(id=id, user_id=user_id, refresh_token_id=refresh_token_id, status=status)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional['Session']:
+    async def findById(self, id: int) -> Optional['Session']:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return None
-        sid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -106,7 +105,7 @@ class MySQLSessionDAO:
                     FROM {self.TABLE} WHERE id = :id
                     """
                 ),
-                {"id": sid},
+                {"id": id},
             )
             row = result.fetchone()
         return self._map_to_schema(row) if row else None
@@ -116,10 +115,7 @@ class MySQLSessionDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        user_id_raw = data.user_id
-        user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
-        if user_id is None and data.user_id is not None:
-            raise ValueError("Session user must be numeric id when using MySQL")
+        user_id = data.user_id
 
         async with factory() as session:
             result = await session.execute(
@@ -149,9 +145,11 @@ class MySQLSessionDAO:
             )
             await session.commit()
             new_id = result.lastrowid
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional['Session']:
+    async def update(self, id: int, update_data: 'SessionInternalUpdate') -> Optional['Session']:
+        if not id:
+            return None
         existing = await self.findById(id)
         if not existing:
             return None
@@ -163,7 +161,6 @@ class MySQLSessionDAO:
             return None
         
         now = now_utc()
-        sid = int(id) if str(id).isdigit() else None
         
         # Extract fields from existing
         # existing is a Session object, which has user_id
@@ -175,10 +172,7 @@ class MySQLSessionDAO:
         final_revoked_reason = update_data.revoked_reason if update_data.revoked_reason is not None else existing.revoked_reason
         final_is_guest = update_data.is_guest if update_data.is_guest is not None else existing.is_guest
         final_comments = update_data.comment if update_data.comment is not None else existing.comments
-
-        user_id = int(final_user_id) if str(final_user_id or "").isdigit() else None
-        if user_id is None and final_user_id is not None:
-            return None
+        user_id = final_user_id
 
         async with factory() as session:
             await session.execute(
@@ -198,7 +192,7 @@ class MySQLSessionDAO:
                     """
                 ),
                 {
-                    "id": sid,
+                    "id": id,
                     "user_id": user_id,
                     "refresh_token_id": final_refresh_token_id,
                     "status": final_status,
@@ -213,13 +207,10 @@ class MySQLSessionDAO:
             await session.commit()
         return await self.findById(id)
 
-    async def touch(self, session_id: str, device: Optional[DeviceSnippet] = None) -> None:
+    async def touch(self, session_id: int, device: Optional[DeviceSnippet] = None) -> None:
         """Lightweight session touch — single UPDATE with SQL-level 60s debounce. Fire-and-forget."""
         factory = self._factory()
-        if not factory:
-            return
-        sid = int(session_id) if str(session_id).isdigit() else None
-        if not sid:
+        if not factory or not session_id:
             return
         now = now_utc()
         from datetime import timedelta
@@ -235,17 +226,17 @@ class MySQLSessionDAO:
                           AND (last_active_at IS NULL OR last_active_at < :throttle)
                         """
                     ),
-                    {"now": now, "id": sid, "throttle": throttle_time},
+                    {"now": now, "id": session_id, "throttle": throttle_time},
                 )
                 await session.commit()
         except Exception as e:
-            logging.warning("mysql_session_dao.touch: failed for session %s: %s", sid, e, exc_info=e)
+            logging.warning("mysql_session_dao.touch: failed for session %s: %s", session_id, e, exc_info=e)
 
     async def revoke_active_for_user(
         self,
-        user_id: str,
+        user_id: int,
         reason: str,
-        exclude_session_id: Optional[str] = None,
+        exclude_session_id: Optional[int] = None,
     ) -> int:
         """Revoke all active sessions for a user in a single UPDATE.
 
@@ -253,23 +244,18 @@ class MySQLSessionDAO:
         Returns the number of sessions revoked.
         """
         factory = self._factory()
-        if not factory:
-            return 0
-        uid = int(user_id) if str(user_id).isdigit() else None
-        if uid is None:
+        if not factory or user_id is None:
             return 0
         now = now_utc()
         params: dict = {
-            "user_id": uid,
+            "user_id": user_id,
             "reason": reason,
             "now": now,
         }
         exclude_clause = ""
         if exclude_session_id:
-            exc_sid = int(exclude_session_id) if str(exclude_session_id).isdigit() else None
-            if exc_sid:
-                exclude_clause = "AND id != :exclude_id"
-                params["exclude_id"] = exc_sid
+            exclude_clause = "AND id != :exclude_id"
+            params["exclude_id"] = exclude_session_id
         try:
             async with factory() as session:
                 result = await session.execute(
@@ -295,43 +281,39 @@ class MySQLSessionDAO:
             )
             return 0
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        sid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": sid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, user_id: Optional[Union[int, str]] = None) -> int:
+    async def deleteMany(self, user_id: Optional[int] = None) -> int:
         """Delete matching sessions in a single SQL statement instead of N+1 deletes."""
         factory = self._factory()
         if not factory or user_id is None:
             return 0
-        uid = int(user_id) if str(user_id).isdigit() else None
-        if uid is None:
-            return 0
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
-                {"uid": uid},
+                {"uid": user_id},
             )
             await session.commit()
         return result.rowcount
 
-    async def delete_by_user_id(self, user_id: str) -> int:
+    async def delete_by_user_id(self, user_id: int) -> int:
         """Delete all sessions for a user with a single targeted SQL DELETE.
         Used in test teardown to avoid FK constraint violations."""
         return await self.deleteMany(user_id=user_id)
 
     async def count(
         self,
-        user_id: Optional[Union[int, str]] = None,
+        user_id: Optional[int] = None,
         status: Optional[str] = None,
     ) -> int:
         """Count sessions using SELECT COUNT(*) — never loads row data."""
@@ -342,7 +324,7 @@ class MySQLSessionDAO:
         params = {}
         if user_id is not None:
             where_clauses.append("user_id = :user_id")
-            params["user_id"] = int(user_id) if str(user_id).isdigit() else None
+            params["user_id"] = user_id
         if status is not None:
             where_clauses.append("status = :status")
             params["status"] = str(status)

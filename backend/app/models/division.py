@@ -49,7 +49,7 @@ class DivisionUpdate(CamelBaseModel):
 
 
 class DivisionResponse(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -65,7 +65,7 @@ class DivisionResponse(CamelBaseModel):
 
 class DivisionInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None

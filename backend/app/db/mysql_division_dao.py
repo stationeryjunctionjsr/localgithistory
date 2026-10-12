@@ -4,7 +4,7 @@ Fully relational with junction table sj_division_category_tags and foreign key t
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from sqlalchemy import text
 
@@ -63,7 +63,7 @@ class MySQLDivisionDAO:
                 if crow.tag in tag_names_set:
                     category_count += int(crow.cnt)
         return DivisionInternal(
-            id=str(r.id),
+            id=r.id,
             name=r.name,
             description=r.description,
             image_url=r.image_url,
@@ -163,20 +163,17 @@ class MySQLDivisionDAO:
                     {"did": division_id, "tid": int(tid)},
                 )
 
-    async def findById(self, id: Union[int, str]) -> Optional[DivisionInternal]:
+    async def findById(self, id: int) -> Optional[DivisionInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
-            result = await session.execute(q, params)
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
-            junc_rows, direct_rows, count_rows = await self._fetch_children(session, [int(row.id)])
+            junc_rows, direct_rows, count_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, junc_rows, direct_rows, count_rows)
 
     async def findByName(self, name: str) -> Optional[DivisionInternal]:
@@ -266,14 +263,14 @@ class MySQLDivisionDAO:
         return created
 
     async def update(
-        self, id: Union[int, str], item: DivisionInternalUpdate
+        self, id: int, item: DivisionInternalUpdate
     ) -> Optional[DivisionInternal]:
         existing = await self.findById(id)
         if not existing:
             return None
 
         update_fields = []
-        params = {"id": int(existing.id)}
+        params = {"id": existing.id}
         now = now_utc()
 
         if item.name is not None:
@@ -302,13 +299,13 @@ class MySQLDivisionDAO:
                 await session.execute(q, params)
 
             if item.category_tag_ids is not None:
-                await self._sync_junction_tags(session, int(existing.id), item.category_tag_ids)
+                await self._sync_junction_tags(session, existing.id, item.category_tag_ids)
 
             await session.commit()
 
         return await self.findById(existing.id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         existing = await self.findById(id)
         if not existing:
             return False
@@ -317,17 +314,17 @@ class MySQLDivisionDAO:
             # 1. Unlink tags
             await session.execute(
                 text("UPDATE sj_category_tags SET division_id = NULL WHERE division_id = :did"),
-                {"did": int(existing.id)},
+                {"did": existing.id},
             )
             # 2. Delete junction rows
             await session.execute(
                 text("DELETE FROM sj_division_category_tags WHERE division_id = :did"),
-                {"did": int(existing.id)},
+                {"did": existing.id},
             )
             # 3. Delete division
             await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": int(existing.id)},
+                {"id": existing.id},
             )
             await session.commit()
         return True

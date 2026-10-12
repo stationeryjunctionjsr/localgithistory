@@ -167,11 +167,8 @@ class MySQLSellerRequestDAO:
         records = await self.findAll(id=id, user=user, status=status, priority=priority)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[SellerRequest]:
+    async def findById(self, id: int) -> Optional[SellerRequest]:
         if not id:
-            return None
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
             return None
         factory = self._factory()
         if not factory:
@@ -183,7 +180,7 @@ class MySQLSellerRequestDAO:
                            priority, status, resolved_at, closed_at, created_at, updated_at
                     FROM {self.TABLE} WHERE id = :id LIMIT 1
                 """),
-                {"id": pid},
+                {"id": id},
             )
             row = result.fetchone()
             if not row:
@@ -252,9 +249,11 @@ class MySQLSellerRequestDAO:
                 responses=data.responses or [],
             )
             await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'SellerRequestInternalUpdate') -> Optional[SellerRequest]:
+    async def update(self, id: int, update_data: 'SellerRequestInternalUpdate') -> Optional[SellerRequest]:
+        if not id:
+            return None
         existing = await self.findById(id)
         if not existing:
             return None
@@ -271,7 +270,7 @@ class MySQLSellerRequestDAO:
                 logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
-        oid = int(existing.id)
+        oid = id
         updates = ["updated_at = :updated_at"]
         params = {"id": oid, "updated_at": now}
 
@@ -315,27 +314,26 @@ class MySQLSellerRequestDAO:
                     responses=update_data.responses,
                 )
             await session.commit()
-        return await self.findById(str(oid))
+        return await self.findById(oid)
 
-    async def delete(self, id: str) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+    async def delete(self, id: int) -> bool:
+        if not id:
             return False
-        req_id = int(id) if str(id).isdigit() else None
-        if not req_id:
+        factory = self._factory()
+        if not factory:
             return False
         async with factory() as session:
             await session.execute(
                 text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"),
-                {"rid": req_id},
+                {"rid": id},
             )
             await session.execute(
                 text("DELETE FROM sj_seller_request_responses WHERE request_id = :rid"),
-                {"rid": req_id},
+                {"rid": id},
             )
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :rid"),
-                {"rid": req_id},
+                {"rid": id},
             )
             await session.commit()
             return result.rowcount > 0

@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -18,15 +18,12 @@ class MySQLOrderFeedbackDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[OrderFeedbackInternal]:
+    async def findById(self, id: int) -> Optional[OrderFeedbackInternal]:
         if not id:
-            return None
-        pid = int(id) if str(id).isdigit() else None
-        if pid is None:
             return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
@@ -45,7 +42,7 @@ class MySQLOrderFeedbackDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         order_id: Optional[str] = None,
     ) -> Optional[OrderFeedbackInternal]:
         if order_id:
@@ -135,16 +132,15 @@ class MySQLOrderFeedbackDAO:
             new_id = result.lastrowid
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: OrderFeedbackInternalUpdate) -> Optional[OrderFeedbackInternal]:
+    async def update(self, id: int, update_data: OrderFeedbackInternalUpdate) -> Optional[OrderFeedbackInternal]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
+        if not id:
             return None
 
         updates = ["updated_at = :u"]
-        params = {"u": now_utc(), "id": pid}
+        params = {"u": now_utc(), "id": id}
 
         if update_data.rating is not None:
             updates.append("rating = :rating")
@@ -171,26 +167,23 @@ class MySQLOrderFeedbackDAO:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await session.commit()
                 
-        return await self.findById(pid)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
-            return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
             return False
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
 
     def _map_to_schema(self, r) -> OrderFeedbackInternal:
         return OrderFeedbackInternal(
-            id=str(r.id),
+            id=r.id,
             order_id=r.order_id,
             user_id=r.user_id,
             rating=int(r.rating) if r.rating is not None else None,

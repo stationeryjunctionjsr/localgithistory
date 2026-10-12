@@ -79,6 +79,8 @@ class Order(CamelBaseModel):
     turnaround_hours: Optional[float] = None
     items: List['OrderItem'] = []
     sub_orders: Optional[List['SubOrder']] = None
+    has_sub_orders: Optional[bool] = None
+    sub_order_ids: Optional[List[int]] = None
     idempotency_key: Optional[str] = None
     fulfillment_type: str = Field(default="hyperlocal")
     courier_partner: Optional[str] = None
@@ -205,6 +207,8 @@ class OrderInternalCreate(CamelBaseModel):
     awb_code: Optional[str] = None
     shipping_label_url: Optional[str] = None
     estimated_delivery_date: Optional[str] = None
+    has_sub_orders: Optional[bool] = None
+    sub_order_ids: Optional[List[int]] = None
 
 class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
 
@@ -271,7 +275,7 @@ class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
     valet_assigned_at: Optional[str] = None
     cancelled_by: Optional[str] = None
     has_sub_orders: Optional[bool] = None
-    sub_order_ids: Optional[List[str]] = None
+    sub_order_ids: Optional[List[int]] = None
     tracking_id: Optional[str] = None
     courier_partner: Optional[str] = None
     tracking_updated_at: Optional[str] = None

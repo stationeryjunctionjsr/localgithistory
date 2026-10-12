@@ -15,7 +15,7 @@ class FlatCamelBaseModel(CamelBaseModel):
     )
 
 class ReturnSettingsInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     return_days: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -27,7 +27,7 @@ class ReturnSettingsInternalUpdate(FlatCamelBaseModel):
     return_days: Optional[int] = None
 
 class SchemeInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     discount_type: Optional[str] = None
@@ -96,7 +96,7 @@ class ContactInternalUpdate(FlatCamelBaseModel):
     social_media: Optional[SocialMedia] = None
 
 class OrderFeedbackInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     comment: Optional[str] = None
     delivery_comment: Optional[str] = None
     delivery_rating: Optional[int] = None
@@ -126,19 +126,19 @@ class OrderFeedbackInternalUpdate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class PromoStripsInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     is_active: Optional[bool] = None
     text: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    zone_ids: Optional[List[str]] = None
+    zone_ids: Optional[List[int]] = None
 
 class DeviceKeyInternal(FlatCamelBaseModel):
     key: str
     value: str
 
 class DeviceSubscriptionInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     user_id: Optional[str] = None
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
@@ -195,7 +195,7 @@ class CollectionInternalUpdate(FlatCamelBaseModel):
     product_ids: Optional[List[str]] = None
 
 class SearchTagInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
@@ -392,7 +392,7 @@ class DeliveryChargeDefaultInternalUpdate(FlatCamelBaseModel):
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliveryZoneInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     default_capacity: Optional[int] = None
@@ -437,7 +437,7 @@ class DeliveryZoneInternalUpdate(FlatCamelBaseModel):
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliverySlotInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     capacity: Optional[int] = None
@@ -449,7 +449,7 @@ class DeliverySlotInternal(FlatCamelBaseModel):
     is_active: Optional[bool] = True
 
 class DeliverySlotConfigInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     segment: Optional[str] = None
     date: Optional[str] = None
     zone_id: Optional[str] = None
@@ -669,15 +669,15 @@ class CouponInternalUpdate(FlatCamelBaseModel):
 class PromoStripsInternalCreate(FlatCamelBaseModel):
     is_active: Optional[bool] = None
     text: Optional[str] = None
-    zone_ids: Optional[List[str]] = None
+    zone_ids: Optional[List[int]] = None
 
 class PromoStripsInternalUpdate(FlatCamelBaseModel):
     is_active: Optional[bool] = None
     text: Optional[str] = None
-    zone_ids: Optional[List[str]] = None
+    zone_ids: Optional[List[int]] = None
 
 class PushNotificationsInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     title: Optional[str] = None
     message: Optional[str] = None
     link: Optional[str] = None
@@ -1010,7 +1010,7 @@ class ReturnRequestValetDeclineInternal(FlatCamelBaseModel):
     reason: Optional[str] = None
 
 class ReturnRequestInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -1034,7 +1034,7 @@ class ReturnRequestInternal(FlatCamelBaseModel):
 
 
 class ReturnRequestInternalCreate(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None

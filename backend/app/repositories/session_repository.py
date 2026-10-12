@@ -12,7 +12,7 @@ class SessionRepository:
     def __init__(self):
         self.storage = get_storage("sessions")
 
-    async def create_session(self, user_id: Optional[str], device: Any, refresh_token_id: str) -> Session:
+    async def create_session(self, user_id: Optional[int], device: Any, refresh_token_id: str) -> Session:
         dev_snippet = None
         if device is not None:
             if isinstance(device, DeviceSnippet):
@@ -37,10 +37,10 @@ class SessionRepository:
     async def find_by_refresh_id(self, refresh_token_id: str) -> Optional[Session]:
         return await self.storage.findOne(refresh_token_id=refresh_token_id)
 
-    async def find_by_id(self, session_id: str) -> Optional[Session]:
+    async def find_by_id(self, session_id: int) -> Optional[Session]:
         return await self.storage.findById(session_id)
 
-    async def update_session(self, session_id: str, updates: SessionInternalUpdate) -> Optional[Session]:
+    async def update_session(self, session_id: int, updates: SessionInternalUpdate) -> Optional[Session]:
         existing = await self.storage.findById(session_id)
         if not existing:
             return None
@@ -59,12 +59,12 @@ class SessionRepository:
 
         return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing, from_attributes=True))
 
-    async def revoke_session(self, session_id: str, reason: str) -> Optional[Session]:
+    async def revoke_session(self, session_id: int, reason: str) -> Optional[Session]:
         return await self.update_session(
             session_id, SessionInternalUpdate(status="revoked", revoked_reason=reason, revoked_at=datetime.now(timezone.utc).isoformat())
         )
 
-    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Session]:
+    async def revoke_other_sessions(self, user_id: int, exclude_session_id: Optional[int] = None) -> List[Session]:
         """Revoke all active sessions for a user except the given one.
 
         Delegates to the DAO's bulk UPDATE when available (MySQL), which runs a
@@ -83,10 +83,10 @@ class SessionRepository:
                     updated.append(await self.revoke_session(s.id, "single_session"))
             return updated
 
-    async def touch_last_active(self, session_id: str):
+    async def touch_last_active(self, session_id: int):
         await self.update_session(session_id, SessionInternalUpdate(last_active_at=datetime.now(timezone.utc).isoformat()))
 
-    async def touch(self, session_id: str, device: Optional[DeviceSnippet] = None) -> None:
+    async def touch(self, session_id: int, device: Optional[DeviceSnippet] = None) -> None:
         """Lightweight session touch — delegates to DAO's single-UPDATE touch."""
         try:
             await self.storage.touch(session_id, device)
@@ -108,13 +108,13 @@ class SessionRepository:
                 logger.warning("Invalid lastActiveAt for session %s: %s", session.id, str(e))
         return session
 
-    async def delete_all_for_user(self, user_id: str) -> None:
+    async def delete_all_for_user(self, user_id: int) -> None:
         """Delete all sessions belonging to a user. Used in test teardown to avoid FK constraint violations."""
         try:
-            await self.storage.delete_by_user_id(str(user_id))
+            await self.storage.delete_by_user_id(user_id)
         except AttributeError:
             # Fallback for non-Oracle backends
-            all_sessions = await self.storage.findAll(user_id=str(user_id))
+            all_sessions = await self.storage.findAll(user_id=user_id)
             for s in all_sessions:
                 try:
                     await self.storage.delete(s.id)

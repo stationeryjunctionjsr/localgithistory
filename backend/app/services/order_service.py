@@ -1993,7 +1993,7 @@ async def create_order_service(
                     "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
                 sub = await sub_order_repository.create(SubOrderInternalCreate.model_validate(sub_order_data))
-                sub_order_ids.append(str(sub.id))
+                sub_order_ids.append(sub.id)
 
                 # Notify the seller about their new sub-order (if it's a seller admin, not platform)
                 if seller_id:

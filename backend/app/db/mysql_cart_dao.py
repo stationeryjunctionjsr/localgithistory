@@ -2,7 +2,7 @@
 MySQL DAO for sj_carts (+ sj_cart_items).
 """
 
-from typing import List, Optional, Any, Union
+from typing import List, Optional, Any
 from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
@@ -28,7 +28,7 @@ class MySQLCartDAO:
 
     async def findAll(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         user: Optional[str] = None,
     ) -> List[Cart]:
         factory = self._factory()
@@ -39,7 +39,7 @@ class MySQLCartDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if user is not None:
             where_clauses.append("user_id = :user_id")
             params["user_id"] = int(user) if str(user).isdigit() else None
@@ -57,7 +57,7 @@ class MySQLCartDAO:
             if not rows:
                 return []
 
-            cart_ids = [str(r.id) for r in rows]
+            cart_ids = [r.id for r in rows]
             items_rows = await self._fetch_items(session, cart_ids)
 
         return [self._map_to_schema(r, items_rows) for r in rows]
@@ -86,13 +86,13 @@ class MySQLCartDAO:
             cart.items = [
                 self._row_to_item(ir)
                 for ir in items_rows
-                if str(ir.cart_id) == str(r.id)
+                if ir.cart_id == r.id
             ]
         else:
             cart.items = []
         return cart
 
-    async def _fetch_items(self, session, cart_ids: List[str]):
+    async def _fetch_items(self, session, cart_ids: List[int]):
         if not cart_ids:
             return []
         items_rows = []
@@ -116,20 +116,19 @@ class MySQLCartDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         user: Optional[str] = None,
     ) -> Optional[Cart]:
         records = await self.findAll(id=id, user=user)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[Cart]:
+    async def findById(self, id: int) -> Optional[Cart]:
         return await self.findOne(id=id)
 
-    async def _replace_items(self, session, cart_id: Union[int, str], items: List[CartItemInternal]) -> None:
-        cid = int(cart_id) if str(cart_id).isdigit() else cart_id
+    async def _replace_items(self, session, cart_id: int, items: List[CartItemInternal]) -> None:
         await session.execute(
             text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id"),
-            {"cart_id": cid},
+            {"cart_id": cart_id},
         )
         for it in items or []:
             pid_raw = it.product
@@ -149,7 +148,7 @@ class MySQLCartDAO:
                     """
                 ),
                 {
-                    "cart_id": cid,
+                    "cart_id": cart_id,
                     "product_id": str(pid_raw),
                     "quantity": qty,
                     "sell_as_case": sell_as_case,
@@ -189,9 +188,11 @@ class MySQLCartDAO:
             await self._replace_items(session, new_id, data.items or [])
             await session.commit()
 
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: CartInternalUpdate) -> Optional['Cart']:
+    async def update(self, id: int, update_data: CartInternalUpdate) -> Optional['Cart']:
+        if not id:
+            return None
         existing = await self.findById(id)
         if not existing:
             return None
@@ -200,17 +201,16 @@ class MySQLCartDAO:
         if not factory:
             return None
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
 
         # We only really update items for carts
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET updated_at = :updated_at WHERE id = :id"),
-                {"id": pid, "updated_at": now},
+                {"id": id, "updated_at": now},
             )
 
             if update_data.items is not None:
-                await self._replace_items(session, pid, update_data.items)
+                await self._replace_items(session, id, update_data.items)
 
             await session.commit()
 
@@ -288,25 +288,22 @@ class MySQLCartDAO:
             await self._replace_items(session, cart_pk, new_items)
             await session.commit()
 
-        return await self.findById(str(cart_pk))
+        return await self.findById(cart_pk)
 
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
-            return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
             return False
         async with factory() as session:
             await session.execute(
                 text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id"),
-                {"cart_id": pid},
+                {"cart_id": id},
             )
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
@@ -333,13 +330,13 @@ class MySQLCartDAO:
             await session.commit()
             return result.rowcount or 0
 
-    async def count(self, id: Optional[Union[int, str]] = None, user: Optional[str] = None) -> int:
+    async def count(self, id: Optional[int] = None, user: Optional[str] = None) -> int:
         factory = self._factory()
         where_clauses = []
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if user is not None:
             where_clauses.append("user_id = :uid")
             params["uid"] = int(user) if str(user).isdigit() else None

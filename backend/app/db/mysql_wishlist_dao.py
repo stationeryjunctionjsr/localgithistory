@@ -2,7 +2,7 @@
 MySQL DAO for sj_wishlists. Fully relational.
 """
 
-from typing import List, Optional, Union
+from typing import List, Optional
 from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate, WishlistItemInternal
 from app.models.wishlist import Wishlist
 
@@ -61,8 +61,8 @@ class MySQLWishlistDAO:
 
     async def findAll(
         self,
-        id: Optional[Union[int, str]] = None,
-        user: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
+        user: Optional[str] = None,
     ) -> List[Wishlist]:
         factory = self._factory()
         if not factory:
@@ -72,7 +72,7 @@ class MySQLWishlistDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if user is not None:
             where_clauses.append("user_id = :user_id")
             params["user_id"] = int(user) if str(user).isdigit() else None
@@ -88,13 +88,13 @@ class MySQLWishlistDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
-        user: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
+        user: Optional[str] = None,
     ) -> Optional[Wishlist]:
         records = await self.findAll(id=id, user=user)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[Wishlist]:
+    async def findById(self, id: int) -> Optional[Wishlist]:
         return await self.findOne(id=id)
 
     async def create(self, data: 'WishlistInternalCreate') -> Optional[Wishlist]:
@@ -121,37 +121,39 @@ class MySQLWishlistDAO:
             await self._replace_items(session, new_id, items)
             await session.commit()
 
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'WishlistInternalUpdate') -> Optional[Wishlist]:
+    async def update(self, id: int, update_data: 'WishlistInternalUpdate') -> Optional[Wishlist]:
+        if not id:
+            return None
         existing = await self.findById(id)
         if not existing:
             return None
 
         factory = self._factory()
         now = now_utc()
-        wid = int(id) if str(id).isdigit() else None
 
         async with factory() as session:
             await session.execute(
-                text(f"UPDATE {self.TABLE} SET updated_at = :u WHERE id = :id"), {"id": wid, "u": now}
+                text(f"UPDATE {self.TABLE} SET updated_at = :u WHERE id = :id"), {"id": id, "u": now}
             )
             if update_data.items is not None:
-                await self._replace_items(session, wid, update_data.items)
+                await self._replace_items(session, id, update_data.items)
             await session.commit()
 
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        wid = int(id) if str(id).isdigit() else None
+        if not factory or not id:
+            return False
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
-            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": wid})
+            await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": id})
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, user: Optional[Union[int, str]] = None) -> int:
+    async def deleteMany(self, user: Optional[str] = None) -> int:
         factory = self._factory()
         if not factory:
             return 0

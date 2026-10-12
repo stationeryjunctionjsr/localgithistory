@@ -8,7 +8,7 @@ class SellerRequestResponseItem(CamelBaseModel):
     created_at: Optional[datetime] = None
 
 class SellerRequest(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     request_number: Optional[str] = None
     user: Optional[str] = None
     user_id: Optional[str] = None

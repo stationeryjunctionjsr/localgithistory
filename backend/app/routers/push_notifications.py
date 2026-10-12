@@ -101,7 +101,7 @@ async def create_push_notification(
 
 @router.put("/{notification_id}", response_model=PushNotificationResponse)
 async def update_push_notification(
-    notification_id: str,
+    notification_id: int,
     title: Optional[str] = Form(None),
     message: Optional[str] = Form(None),
     link: Optional[str] = Form(None),
@@ -165,7 +165,7 @@ async def update_push_notification(
 
 
 @router.delete("/{notification_id}", response_model=MessageResponse)
-async def delete_push_notification(notification_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_push_notification(notification_id: int, current_user: User = Depends(require_super_admin)):
     """Delete a push notification"""
     try:
         notification = await push_notification_repository.findById(notification_id)
@@ -188,7 +188,7 @@ async def delete_push_notification(notification_id: str, current_user: User = De
 
 
 @router.get("/{notification_id}/analytics", response_model=PushAnalyticsResponse)
-async def get_push_notification_analytics(notification_id: str, current_user: User = Depends(require_super_admin)):
+async def get_push_notification_analytics(notification_id: int, current_user: User = Depends(require_super_admin)):
     """Get analytics for a push notification"""
     try:
         notification = await push_notification_repository.findById(notification_id)
@@ -217,7 +217,7 @@ async def get_notification_inbox():
         # Return only the fields needed by the mobile inbox — omit internal delivery details
         inbox = []
         for n in notifications:
-            nid = str(n.id) if n.id else None
+            nid = n.id
             title = n.title or ""
             msg = n.message or ""
             image = n.image
@@ -225,7 +225,7 @@ async def get_notification_inbox():
             created = n.created_at
 
             inbox.append({
-                "_id": nid,
+                "id": nid,
                 "title": title,
                 "message": msg,
                 "image": image,
@@ -243,7 +243,7 @@ async def get_notification_inbox():
 
 from pydantic import Field
 class PushNotificationResponse(BaseModel):
-    id: str
+    id: int
     title: str
     message: str
     link: Optional[str] = None
@@ -286,7 +286,7 @@ async def get_vapid_public_key():
 
 
 @router.get("/{notification_id}", response_model=PushNotificationResponse)
-async def get_push_notification(notification_id: str, current_user: User = Depends(require_super_admin)):
+async def get_push_notification(notification_id: int, current_user: User = Depends(require_super_admin)):
     """Get push notification by ID"""
     try:
         notification = await push_notification_repository.findById(notification_id)
@@ -341,7 +341,7 @@ async def register_device(
 
 @router.post("/{notification_id}/mark-read", response_model=MessageResponse)
 async def mark_notification_read(
-    notification_id: str,
+    notification_id: int,
     current_user: User = Depends(get_current_user),
 ):
     """Mark notification as read (for analytics). Requires authentication and published status."""

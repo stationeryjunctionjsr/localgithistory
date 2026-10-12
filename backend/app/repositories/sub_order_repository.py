@@ -36,7 +36,7 @@ class SubOrderRepository:
     ) -> List[SubOrder]:
         return await self.storage.findAll(filter_params, skip=skip, limit=limit)
 
-    async def findById(self, id: str) -> Optional[SubOrder]:
+    async def findById(self, id: int) -> Optional[SubOrder]:
         return await self.storage.findById(id)
 
     async def findByParentOrder(self, parent_order_id: str) -> List[SubOrder]:
@@ -54,7 +54,7 @@ class SubOrderRepository:
     async def count(self, filter_params: Optional[SubOrderFilter] = None) -> int:
         return await self.storage.count(filter_params)
 
-    async def update(self, id: str, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
+    async def update(self, id: int, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
         if update_data.status == "out_for_delivery" and update_data.shipped_at is None:
             update_data.shipped_at = datetime.now(timezone.utc).isoformat()
         if update_data.status == "delivered" and update_data.delivered_at is None:
@@ -85,7 +85,7 @@ class SubOrderRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         return await self.storage.delete(id)
 
 

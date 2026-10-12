@@ -46,7 +46,7 @@ class PushNotificationRepository:
 
         return filtered
 
-    async def findById(self, id: str):
+    async def findById(self, id: int):
         """Get a push notification by ID"""
         return await self.storage.findById(id)
 
@@ -69,16 +69,16 @@ class PushNotificationRepository:
         }
         return await self.storage.create(notification)
 
-    async def update(self, id: str, update_data: 'PushNotificationsInternalUpdate'):
+    async def update(self, id: int, update_data: 'PushNotificationsInternalUpdate'):
         """Update a push notification"""
         update_data.updated_at = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         """Delete a push notification"""
         return await self.storage.delete(id)
 
-    async def updateStats(self, id: str, stats: dict, userId: Optional[str] = None):
+    async def updateStats(self, id: int, stats: dict, userId: Optional[str] = None):
         """Update delivery/read statistics for a notification"""
         notification = await self.findById(id)
         if notification:

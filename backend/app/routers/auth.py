@@ -319,7 +319,7 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
         # Create session and tokens
         device = parse_device(request, default_type="web")
         refresh_id = str(uuid4())
-        session = await session_repository.create_session(str(user.user_id), device, refresh_id)
+        session = await session_repository.create_session(user.user_id, device, refresh_id)
 
         access_token = create_access_token(user.id, session.id)
         refresh_token = create_refresh_token(user.id, session.id, refresh_id)
@@ -385,7 +385,7 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     device = parse_device(request, default_type="web")
     refresh_id = str(uuid4())
     # create session
-    session = await session_repository.create_session(str(user.user_id), device, refresh_id)
+    session = await session_repository.create_session(user.user_id, device, refresh_id)
     # revoke other sessions is disabled to allow signing into and remaining active on multiple devices
     # await session_repository.revoke_other_sessions(user.id, exclude_session_id=session.id)
 
@@ -411,7 +411,7 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
 class RefreshTokenClaims(BaseModel):
     model_config = ConfigDict(extra="forbid")
     userId: str
-    sessionId: str
+    sessionId: int
     refreshId: str
     type: Optional[str] = None
     exp: Optional[int] = None
@@ -491,7 +491,7 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
 
 
 class LogoutRequest(BaseModel):
-    sessionId: Optional[str] = None
+    sessionId: Optional[int] = None
 
 
 @router.post("/logout", response_model=MessageResponse)

@@ -63,7 +63,7 @@ async def get_active_divisions():
 
 @router.get("/{division_id}", response_model=DivisionResponse)
 async def get_division(
-    division_id: str, current_user: User = Depends(require_super_admin)
+    division_id: int, current_user: User = Depends(require_super_admin)
 ):
     """Get a division by ID (Super Admin only)"""
     try:
@@ -79,16 +79,14 @@ async def get_division(
 
 
 @router.get("/{division_id}/tags", response_model=List[Dict[str, Any]])
-async def get_category_tags_for_division(division_id: str):
+async def get_category_tags_for_division(division_id: int):
     """Get all category tags under this division"""
     try:
         division = await division_repository.findById(division_id)
         if not division:
-            division = await division_repository.findByName(division_id)
-            if not division:
-                raise HTTPException(status_code=404, detail="Division not found")
+            raise HTTPException(status_code=404, detail="Division not found")
 
-        did = int(division.id) if str(division.id).isdigit() else None
+        did = division.id
         if did is not None:
             tags = await category_tag_repository.findByDivision(did)
             return [
@@ -147,7 +145,7 @@ async def create_division(
 
 @router.put("/{division_id}", response_model=DivisionResponse)
 async def update_division(
-    division_id: str,
+    division_id: int,
     division_update: DivisionUpdate,
     current_user: User = Depends(require_super_admin),
 ):
@@ -163,7 +161,7 @@ async def update_division(
         if division_update.name is not None:
             existing = await division_repository.findByName(division_update.name)
             existing_id = existing.id if existing else None
-            if existing and str(existing_id) != str(division_id):
+            if existing and existing_id != division_id:
                 raise HTTPException(
                     status_code=400, detail="Division with this name already exists"
                 )
@@ -205,7 +203,7 @@ async def update_division(
 
 @router.delete("/{division_id}", response_model=MessageResponse)
 async def delete_division(
-    division_id: str, current_user: User = Depends(require_super_admin)
+    division_id: int, current_user: User = Depends(require_super_admin)
 ):
     """Delete a division (Super Admin only)"""
     try:
@@ -229,7 +227,7 @@ class AssignTagsRequest(CamelBaseModel):
 
 @router.post("/{division_id}/tags", response_model=DivisionResponse)
 async def assign_tags_to_division(
-    division_id: str,
+    division_id: int,
     payload: AssignTagsRequest,
     current_user: User = Depends(require_super_admin),
 ):

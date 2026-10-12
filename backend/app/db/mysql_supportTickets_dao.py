@@ -20,16 +20,13 @@ class MySQLSupportTicketsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['SupportTicketInternal']:
+    async def findById(self, id: int) -> Optional['SupportTicketInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
-            return None
         async with factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
@@ -168,17 +165,16 @@ class MySQLSupportTicketsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'SupportTicketInternalUpdate') -> Optional['SupportTicketInternal']:
+    async def update(self, id: int, update_data: 'SupportTicketInternalUpdate') -> Optional['SupportTicketInternal']:
         existing = await self.findById(id)
         if not existing:
             return None
         data = update_data
         factory = self._factory()
-        pid = int(existing.id)
         updates = ["updated_at = :u"]
-        params = {"id": pid, "u": now_utc()}
+        params = {"id": id, "u": now_utc()}
 
         if data.ticket_number is not None:
             updates.append("ticket_number = :s_ticket_number")
@@ -240,29 +236,26 @@ class MySQLSupportTicketsDAO:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, pid, data)
+                await self._replace_children(session, id, data)
                 await session.commit()
         else:
             async with factory() as session:
-                await self._replace_children(session, pid, data)
+                await self._replace_children(session, id, data)
                 await session.commit()
                 
-        return await self.findById(str(pid))
+        return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
-            return False
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": pid})
-            await session.execute(text("DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pid})
+            await session.execute(text("DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": id})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
@@ -270,14 +263,14 @@ class MySQLSupportTicketsDAO:
     def _map_to_schema(self, r, rows_attachments, rows_responses) -> 'SupportTicketInternal':
         row_id = int(r.id)
         user_val = str(r.user_id) if r.user_id is not None else None
-        attachments = [ra.url for ra in rows_attachments if int(ra.parent_id) == row_id]
+        attachments = [ra.url for ra in rows_attachments if ra.parent_id == row_id]
         responses = [
             TicketResponseItemInternal(user=rr.admin_id, message=rr.message)
             for rr in rows_responses
-            if int(rr.parent_id) == row_id
+            if rr.parent_id == row_id
         ]
         return SupportTicketInternal(
-            id=str(r.id),
+            id=row_id,
             ticket_number=r.ticket_number,
             user=user_val,
             name=r.name,

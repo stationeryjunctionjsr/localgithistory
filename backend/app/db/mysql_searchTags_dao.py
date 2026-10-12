@@ -19,25 +19,22 @@ class MySQLSearchTagsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['SearchTagInternal']:
+    async def findById(self, id: int) -> Optional['SearchTagInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
-        if pid is None:
-            return None
         async with factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": pid})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
-            child_rows = await self._fetch_children(session, [int(row.id)])
+            child_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, child_rows)
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         is_active: Optional[bool] = None,
         tag_id: Optional[str] = None,
         name: Optional[str] = None,
@@ -153,26 +150,23 @@ class MySQLSearchTagsDAO:
                 await self._replace_children(session, pid, update_data)
                 await session.commit()
                 
-        return await self.findById(str(pid))
+        return await self.findById(pid)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
-            return False
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": pid})
-            await session.execute(text("DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": pid})
-            await session.execute(text("DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": pid})
-            await session.execute(text("DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": pid})
-            await session.execute(text("DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": pid})
-            await session.execute(text("DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": pid})
+            await session.execute(text("DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": id})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
@@ -194,7 +188,7 @@ class MySQLSearchTagsDAO:
             product_ids = []
             excluded_product_ids = []
         return SearchTagInternal(
-            id=str(r.id),
+            id=r.id,
             tag_id=r.tag_id,
             name=r.name,
             type=r.type,

@@ -24,7 +24,7 @@ class DivisionRepository:
     ) -> List[DivisionInternal]:
         return await self.storage.findAll(is_active=is_active, name=name)
 
-    async def findById(self, id: str) -> Optional[DivisionInternal]:
+    async def findById(self, id: int) -> Optional[DivisionInternal]:
         return await self.storage.findById(id)
 
     async def findByName(self, name: str) -> Optional[DivisionInternal]:
@@ -35,14 +35,14 @@ class DivisionRepository:
             data.is_active = True
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: DivisionInternalUpdate) -> Optional[DivisionInternal]:
+    async def update(self, id: int, update_data: DivisionInternalUpdate) -> Optional[DivisionInternal]:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> Optional[DivisionInternal]:
+    async def delete(self, id: int) -> Optional[DivisionInternal]:
         # Soft delete - set isActive to false
         return await self.storage.update(id, DivisionInternalUpdate(is_active=False))
 
-    async def hardDelete(self, id: str) -> bool:
+    async def hardDelete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

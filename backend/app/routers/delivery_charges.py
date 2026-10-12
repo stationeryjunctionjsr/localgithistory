@@ -353,7 +353,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
 
 @router.get("/{charge_id}", response_model=DeliveryChargeResponse)
-async def get_delivery_charge(charge_id: str, current_user: User = Depends(require_super_admin)):
+async def get_delivery_charge(charge_id: int, current_user: User = Depends(require_super_admin)):
     charge = await delivery_charge_repository.findById(charge_id)
     if not charge:
         raise HTTPException(status_code=404, detail="Delivery charge not found")
@@ -456,7 +456,7 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
 
 @router.put("/{charge_id}", response_model=DeliveryChargeResponse)
 async def update_delivery_charge(
-    charge_id: str, charge_data: DeliveryChargeUpdate, current_user: User = Depends(require_super_admin)
+    charge_id: int, charge_data: DeliveryChargeUpdate, current_user: User = Depends(require_super_admin)
 ):
     # charge_data is a Pydantic model. The previous code assigned it to update_dict
     # and then checked isinstance(update_dict, dict) which was always False, so
@@ -482,7 +482,7 @@ async def delete_default_charge(current_user: User = Depends(require_super_admin
 
 
 @router.delete("/{charge_id}", response_model=MessageResponse)
-async def delete_delivery_charge(charge_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_delivery_charge(charge_id: int, current_user: User = Depends(require_super_admin)):
     result = await delivery_charge_repository.delete(charge_id)
     if not result:
         raise HTTPException(status_code=404, detail="Delivery charge not found")

@@ -813,7 +813,7 @@ class TicketResponseItem(CamelBaseModel):
 class SupportTicketInternal(SupportTicketBase):
     # We rely on SupportTicketBase which is CamelBaseModel
     model_config = ConfigDict(extra='forbid')
-    id: str
+    id: int
     ticket_number: str
     user: Optional[str] = None
     status: str
@@ -826,7 +826,7 @@ class SupportTicketInternal(SupportTicketBase):
 
 
 class SupportTicketResponse(SupportTicketBase):
-    id: str
+    id: int
     ticketNumber: str
     user: Optional[UserSnippet] = None
     status: str
@@ -948,7 +948,7 @@ class OrderFeedbackCreate(OrderFeedbackBase):
 
 
 class OrderFeedbackResponse(OrderFeedbackBase):
-    id: str
+    id: int
     userId: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -1018,7 +1018,7 @@ class SearchTagUpdate(CamelBaseModel):
 
 
 class SearchTagResponse(SearchTagBase):
-    id: str
+    id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
@@ -1143,7 +1143,7 @@ class ReturnRequestUpdate(CamelBaseModel):
 
 
 class ReturnRequestResponse(CamelBaseModel):
-    id: str
+    id: int
     order_id: str
     user_id: str
     items: List[ItemSnippet]  # populated items
@@ -1713,7 +1713,7 @@ class CouponCreateInternal(CouponBase):
 class PromoStripBase(CamelBaseModel):
     text: str
     is_active: Optional[bool] = True
-    zone_ids: Optional[List[str]] = None
+    zone_ids: Optional[List[int]] = None
 
 class PromoStripCreate(PromoStripBase):
     pass
@@ -1721,10 +1721,10 @@ class PromoStripCreate(PromoStripBase):
 class PromoStripUpdate(CamelBaseModel):
     text: Optional[str] = None
     is_active: Optional[bool] = None
-    zone_ids: Optional[List[str]] = None
+    zone_ids: Optional[List[int]] = None
 
 class PromoStripResponse(PromoStripBase):
-    id: str
+    id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -2136,7 +2136,7 @@ class SellerRequestResponseCreate(BaseModel):
 
 class SellerRequestResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = None
+    id: Optional[int] = None
     subject: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
@@ -2312,7 +2312,7 @@ class PaymentDetailsResponse(CamelBaseModel):
     bank_name: Optional[str] = None
 
 class SellerPayoutDetailResponse(CamelBaseModel):
-    id: str
+    id: int
     seller_id: str
     seller_name: Optional[str] = None
     amount: float
@@ -2322,7 +2322,7 @@ class SellerPayoutDetailResponse(CamelBaseModel):
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    sub_order_ids: List[str] = []
+    sub_order_ids: List[int] = []
     created_by: Optional[str] = None
     admin_paid_at: Optional[str] = None
     admin_paid_by: Optional[str] = None
@@ -2347,7 +2347,7 @@ class ValetPayoutCreate(CamelBaseModel):
     notes: Optional[str] = None
 
 class ValetPayoutDetailResponse(CamelBaseModel):
-    id: str
+    id: int
     valet_id: str
     valet_name: Optional[str] = None
     valet_phone: Optional[str] = None
