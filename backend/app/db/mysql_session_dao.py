@@ -4,7 +4,6 @@ import logging
 MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
 """
 
-import secrets
 from datetime import datetime
 from typing import List, Optional, Union
 from app.models.session import Session
@@ -73,7 +72,7 @@ class MySQLSessionDAO:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, user_id, refresh_token_id, status, last_active_at,
+                    SELECT id, user_id, refresh_token_id, status, last_active_at,
                            revoked_at, revoked_reason, is_guest, comments, created_at, updated_at
                     FROM {self.TABLE} {where_sql}
                     """
@@ -102,7 +101,7 @@ class MySQLSessionDAO:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, user_id, refresh_token_id, status, last_active_at,
+                    SELECT id, user_id, refresh_token_id, status, last_active_at,
                            revoked_at, revoked_reason, is_guest, comments, created_at, updated_at
                     FROM {self.TABLE} WHERE id = :id
                     """
@@ -117,27 +116,25 @@ class MySQLSessionDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
         user_id_raw = data.user_id
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
         if user_id is None and data.user_id is not None:
             raise ValueError("Session user must be numeric id when using MySQL")
 
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, user_id, refresh_token_id, status, last_active_at,
+                        user_id, refresh_token_id, status, last_active_at,
                         revoked_at, revoked_reason, is_guest, comments, created_at, updated_at
                     ) VALUES (
-                        :external_id, :user_id, :refresh_token_id, :status, :last_active_at,
+                        :user_id, :refresh_token_id, :status, :last_active_at,
                         :revoked_at, :revoked_reason, :is_guest, :comments, :created_at, :updated_at
                     )
                     """
                 ),
                 {
-                    "external_id": external_id,
                     "user_id": user_id,
                     "refresh_token_id": data.refresh_token_id,
                     "status": data.status,
@@ -151,11 +148,7 @@ class MySQLSessionDAO:
                 },
             )
             await session.commit()
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                {"eid": external_id},
-            )
-            new_id = r.scalar()
+            new_id = result.lastrowid
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional['Session']:
