@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 import datetime
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -39,25 +39,23 @@ class MySQLCustomerSegmentDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_user_ids(self, segment_id: Union[int, str]) -> List[str]:
-        sid = int(segment_id) if str(segment_id).isdigit() else segment_id
+    async def _fetch_user_ids(self, segment_id: int) -> List[str]:
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             result = await session.execute(
-                text("SELECT user_id FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": sid}
+                text("SELECT user_id FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": segment_id}
             )
             return [str(r.user_id) for r in result.fetchall()]
 
-    async def _save_user_ids(self, segment_id: Union[int, str], user_ids: List[str]):
+    async def _save_user_ids(self, segment_id: int, user_ids: List[str]):
         if user_ids is None: return
-        sid = int(segment_id) if str(segment_id).isdigit() else segment_id
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             await session.execute(
-                text("DELETE FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": sid}
+                text("DELETE FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": segment_id}
             )
             if user_ids:
-                params = [{"sid": sid, "uid": str(uid)} for uid in user_ids]
+                params = [{"sid": segment_id, "uid": str(uid)} for uid in user_ids]
                 await session.execute(
                     text("INSERT INTO sj_customer_segment_users (segment_id, user_id) VALUES (:sid, :uid)"), params
                 )
