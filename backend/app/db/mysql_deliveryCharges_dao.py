@@ -1,6 +1,5 @@
 from typing import Optional, List, Union
 from datetime import datetime, timezone
-import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import DeliveryChargeInternal, DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate, DeliveryChargeTierInternal
@@ -45,12 +44,10 @@ class MySQLDeliveryChargesDAO:
         if not factory or not id:
             return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
-                params = {"id": str(id)}
+            if not str(id).isdigit():
+                return None
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            params = {"id": int(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
@@ -150,10 +147,9 @@ class MySQLDeliveryChargesDAO:
     async def create(self, data: DeliveryChargeInternalCreate) -> DeliveryChargeInternal:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        params = {"eid": external_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        params = {"c": now, "u": now}
 
         if data.location_id is not None:
             cols.append("location_id")
@@ -215,12 +211,8 @@ class MySQLDeliveryChargesDAO:
         val_sql = ", ".join([f":{k}" for k in params.keys()])
         
         async with factory() as session:
-            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
             
@@ -289,18 +281,10 @@ class MySQLDeliveryChargesDAO:
             params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
 
         async with factory() as session:
-            # Resolve numeric PK if external_id was passed
-            if str(id).isdigit():
-                pk = int(id)
-                upd_where = "id = :pk"
-            else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return None
-                upd_where = "id = :pk"
+            if not str(id).isdigit():
+                return None
+            pk = int(id)
+            upd_where = "id = :pk"
             params["pk"] = pk
 
             if len(updates) > 1:
@@ -317,15 +301,9 @@ class MySQLDeliveryChargesDAO:
         if not factory or not id:
             return False
         async with factory() as session:
-            if str(id).isdigit():
-                pk = int(id)
-            else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
+            if not str(id).isdigit():
+                return False
+            pk = int(id)
 
             await session.execute(text("DELETE FROM sj_delivery_charge_tiers WHERE parent_id = :id"), {"id": pk})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
@@ -339,7 +317,6 @@ class MySQLDeliveryChargesDAO:
     ) -> DeliveryChargeInternal:
         return DeliveryChargeInternal(
             id=str(r.id),
-            external_id=r.external_id,
             location_id=r.location_id,
             pincode=r.pincode,
             state=r.state,
