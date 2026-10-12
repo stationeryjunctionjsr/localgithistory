@@ -4,7 +4,6 @@ MySQL DAO for saved-for-later: one row per (user_id, product_id).
 Maps to SavedForLater(id, user, items=[SavedForLaterItem]).
 """
 
-import secrets
 from datetime import datetime
 from typing import List, Optional, Union
 from app.models.saved_for_later import SavedForLater, SavedForLaterItem
@@ -117,8 +116,8 @@ class MySQLSavedForLaterDAO:
                 await session.execute(
                     text(
                         f"""
-                        INSERT INTO {self.TABLE} (external_id, user_id, product_id, saved_at, created_at, updated_at)
-                        VALUES (REPLACE(UUID(), '-', ''), :user_id, :product_id, :saved_at, :created_at, :updated_at)
+                        INSERT INTO {self.TABLE} (user_id, product_id, saved_at, created_at, updated_at)
+                        VALUES (:user_id, :product_id, :saved_at, :created_at, :updated_at)
                         """
                     ),
                     {
@@ -155,12 +154,11 @@ class MySQLSavedForLaterDAO:
                 await session.execute(
                     text(
                         f"""
-                        INSERT INTO {self.TABLE} (external_id, user_id, product_id, saved_at, created_at, updated_at)
-                        VALUES (:external_id, :user_id, :product_id, :saved_at, :created_at, :updated_at)
+                        INSERT INTO {self.TABLE} (user_id, product_id, saved_at, created_at, updated_at)
+                        VALUES (:user_id, :product_id, :saved_at, :created_at, :updated_at)
                         """
                     ),
                     {
-                        "external_id": secrets.token_hex(16),
                         "user_id": user_id,
                         "product_id": str(product_id),
                         "saved_at": saved_at,

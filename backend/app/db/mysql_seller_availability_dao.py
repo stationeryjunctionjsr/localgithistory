@@ -5,7 +5,6 @@ Table: sj_seller_availability
 """
 
 import logging
-import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -78,7 +77,7 @@ class MySQLSellerAvailabilityDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id, external_id, seller_id, status, start_at, end_at, reason, created_by, cancelled_at, created_at, updated_at FROM {self.table_name}{where_sql} ORDER BY start_at DESC"
+                    f"SELECT id, seller_id, status, start_at, end_at, reason, created_by, cancelled_at, created_at, updated_at FROM {self.table_name}{where_sql} ORDER BY start_at DESC"
                 ),
                 params,
             )
@@ -137,7 +136,6 @@ class MySQLSellerAvailabilityDAO:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
         params = {
-            "external_id": secrets.token_hex(16),
             "seller_id": str(data.seller_id or ""),
             "status": (data.status if data.status is not None else "scheduled"),
             "start_at": _to_dt(data.start_at),
@@ -150,9 +148,9 @@ class MySQLSellerAvailabilityDAO:
         }
         sql = text(f"""
             INSERT INTO {self.table_name}
-                (external_id, seller_id, status, start_at, end_at, reason, created_by, cancelled_at, created_at, updated_at)
+                (seller_id, status, start_at, end_at, reason, created_by, cancelled_at, created_at, updated_at)
             VALUES
-                (:external_id, :seller_id, :status, :start_at, :end_at, :reason, :created_by, :cancelled_at, :created_at, :updated_at)
+                (:seller_id, :status, :start_at, :end_at, :reason, :created_by, :cancelled_at, :created_at, :updated_at)
         """)
         async with factory() as session:
             result = await session.execute(sql, params)
@@ -371,11 +369,11 @@ class MySQLSellerAvailabilityDAO:
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         sql = text(f"""
             SELECT 
-                sa.id, sa.external_id, sa.seller_id, sa.status, sa.start_at, sa.end_at, 
+                sa.id, sa.seller_id, sa.status, sa.start_at, sa.end_at, 
                 sa.reason, sa.created_by, sa.cancelled_at, sa.created_at, sa.updated_at,
                 u.name AS seller_name, u.email AS seller_email
             FROM {self.table_name} sa
-            LEFT JOIN sj_users u ON (sa.seller_id = CAST(u.id AS CHAR) OR sa.seller_id = u.external_id)
+            LEFT JOIN sj_users u ON sa.seller_id = CAST(u.id AS CHAR)
             {where_sql}
             ORDER BY sa.start_at DESC
         """)

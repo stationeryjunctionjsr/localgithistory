@@ -1,6 +1,5 @@
 from typing import Optional, List, Union
 from datetime import datetime, timezone
-import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import (
@@ -34,7 +33,7 @@ class MySQLReturnRequestsDAO:
                 q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
                 params = {"id": int(id)}
             else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id OR return_id = :id LIMIT 1")
+                q = text(f"SELECT * FROM {self.TABLE} WHERE return_id = :id LIMIT 1")
                 params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
@@ -46,7 +45,6 @@ class MySQLReturnRequestsDAO:
     async def findOne(
         self,
         id: Optional[Union[int, str]] = None,
-        external_id: Optional[str] = None,
         return_id: Optional[str] = None,
         order_id: Optional[str] = None,
         user_id: Optional[str] = None,
@@ -55,8 +53,6 @@ class MySQLReturnRequestsDAO:
             return await self.findById(return_id)
         if id is not None:
             return await self.findById(id)
-        if external_id is not None:
-            return await self.findById(external_id)
         results = await self.findAll(order_id=order_id, user_id=user_id)
         return results[0] if results else None
 
@@ -107,10 +103,9 @@ class MySQLReturnRequestsDAO:
     async def create(self, data: 'ReturnRequestInternalCreate') -> 'ReturnRequestInternal':
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        params = {"eid": external_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        params = {"c": now, "u": now}
 
         if data.return_id is not None:
             cols.append("return_id")
@@ -177,24 +172,24 @@ class MySQLReturnRequestsDAO:
             params["s_delivery_charge"] = data.delivery_charge
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['return_id', 'order_id', 'user_id', 'payment_method', 'upi_payment_screenshot', 'notes', 'status', 'valet_id', 'seller_id', 'delivery_slot_id', 'delivery_slot_config_id', 'delivery_slot_date', 'pending_valet_id', 'valet_assigned_at', 'valet_cascade_count', 'delivery_charge'] if f"s_{k}" in params])
+        val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['return_id', 'order_id', 'user_id', 'payment_method', 'upi_payment_screenshot', 'notes', 'status', 'valet_id', 'seller_id', 'delivery_slot_id', 'delivery_slot_config_id', 'delivery_slot_date', 'pending_valet_id', 'valet_assigned_at', 'valet_cascade_count', 'delivery_charge'] if f"s_{k}" in params])
         
         async with factory() as session:
-            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
             
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: 'ReturnRequestInternalUpdate') -> Optional['ReturnRequestInternal']:
+        existing = await self.findById(id)
+        if not existing:
+            return None
         factory = self._factory()
+        pk = int(existing.id)
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"id": pk, "u": now_utc()}
         
         if update_data.status is not None:
             updates.append("status = :s_status")
@@ -218,10 +213,10 @@ class MySQLReturnRequestsDAO:
         upd_sql = ", ".join(updates)
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-            await self._replace_children(session, int(id), update_data)
+            await self._replace_children(session, pk, update_data)
             await session.commit()
                 
-        return await self.findById(str(id))
+        return await self.findById(str(pk))
 
     async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
@@ -232,7 +227,7 @@ class MySQLReturnRequestsDAO:
                 pk = int(id)
             else:
                 res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid OR return_id = :eid"), {"eid": str(id)}
+                    text(f"SELECT id FROM {self.TABLE} WHERE return_id = :rid"), {"rid": str(id)}
                 )
                 pk = res.scalar()
                 if not pk:

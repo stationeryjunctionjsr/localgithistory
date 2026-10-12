@@ -1,6 +1,5 @@
 from typing import Optional, List, Union
 from datetime import datetime, timezone
-import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.schemas import SupportTicketInternal, TicketResponseItemInternal
@@ -21,18 +20,16 @@ class MySQLSupportTicketsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['SupportTicketInternal']:
+    async def findById(self, id: str) -> Optional['SupportTicketInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
+        pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
-                params = {"id": str(id)}
-            result = await session.execute(q, params)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            result = await session.execute(q, {"id": pid})
             row = result.fetchone()
             if not row:
                 return None
@@ -102,10 +99,9 @@ class MySQLSupportTicketsDAO:
     async def create(self, data: 'SupportTicketInternalCreate') -> 'SupportTicketInternal':
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        params = {"eid": external_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        params = {"c": now, "u": now}
 
         if data.ticket_number is not None:
             cols.append("ticket_number")
@@ -164,25 +160,25 @@ class MySQLSupportTicketsDAO:
             params["s_closed_at"] = data.closed_at
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['ticket_number', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assigned_to', 'resolved_at', 'closed_at'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['ticket_number', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assigned_to', 'resolved_at', 'closed_at'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
-            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'SupportTicketInternalUpdate') -> 'SupportTicketInternal':
+    async def update(self, id: str, update_data: 'SupportTicketInternalUpdate') -> Optional['SupportTicketInternal']:
+        existing = await self.findById(id)
+        if not existing:
+            return None
         data = update_data
         factory = self._factory()
+        pid = int(existing.id)
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"id": pid, "u": now_utc()}
 
         if data.ticket_number is not None:
             updates.append("ticket_number = :s_ticket_number")
@@ -244,36 +240,29 @@ class MySQLSupportTicketsDAO:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, pid, data)
                 await session.commit()
         else:
             async with factory() as session:
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, pid, data)
                 await session.commit()
                 
-        return await self.findById(id)
+        return await self.findById(str(pid))
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
+        pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return False
         async with factory() as session:
-            if str(id).isdigit():
-                pk = int(id)
-            else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
-
-            await session.execute(text("DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": pk})
-            await session.execute(text("DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": pid})
+            await session.execute(text("DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pid})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
+                {"id": pid},
             )
             await session.commit()
             return result.rowcount > 0
@@ -289,7 +278,6 @@ class MySQLSupportTicketsDAO:
         ]
         return SupportTicketInternal(
             id=str(r.id),
-            external_id=r.external_id,
             ticket_number=r.ticket_number,
             user=user_val,
             name=r.name,

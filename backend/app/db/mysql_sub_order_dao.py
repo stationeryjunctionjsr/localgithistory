@@ -1,5 +1,4 @@
 import logging
-import secrets
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -73,8 +72,8 @@ class MySQLSubOrderDAO:
         params = {}
         if filter_params:
             if filter_params.id:
-                where_clauses.append("id = :q_id" if str(filter_params.id).isdigit() else "external_id = :q_id")
-                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else filter_params.id
+                where_clauses.append("id = :q_id")
+                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else None
             if filter_params.seller_id:
                 where_clauses.append("seller_id = :seller_id")
                 params["seller_id"] = filter_params.seller_id
@@ -114,14 +113,12 @@ class MySQLSubOrderDAO:
         factory = self._get_session_factory()
         if not factory or not id:
             return None
+        pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.table_name} WHERE id = :id")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.table_name} WHERE external_id = :id")
-                params = {"id": str(id)}
-            result = await session.execute(q, params)
+            q = text(f"SELECT * FROM {self.table_name} WHERE id = :id")
+            result = await session.execute(q, {"id": pid})
             row = result.fetchone()
             if not row:
                 return None
@@ -166,8 +163,8 @@ class MySQLSubOrderDAO:
         params = {}
         if filter_params:
             if filter_params.id:
-                where_clauses.append("id = :q_id" if str(filter_params.id).isdigit() else "external_id = :q_id")
-                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else filter_params.id
+                where_clauses.append("id = :q_id")
+                params["q_id"] = int(filter_params.id) if str(filter_params.id).isdigit() else None
             if filter_params.seller_id:
                 where_clauses.append("seller_id = :seller_id")
                 params["seller_id"] = filter_params.seller_id
@@ -222,7 +219,6 @@ class MySQLSubOrderDAO:
         coupon_val = data.coupon_info.discount_value if data.coupon_info else None
 
         params = {
-            "external_id": None,
             "sub_order_number": data.sub_order_number,
             "parent_order_id": int(data.parent_order_id) if str(data.parent_order_id).isdigit() else None,
             "parent_order_number": data.parent_order_number,
@@ -272,7 +268,7 @@ class MySQLSubOrderDAO:
 
         sql = text(f"""
             INSERT INTO {self.table_name}
-                (external_id, sub_order_number, parent_order_id, parent_order_number,
+                (sub_order_number, parent_order_id, parent_order_number,
                  seller_id, seller_name, user_id, subtotal, tax, shipping, delivery_gst,
                  discount, total, order_type, status, payment_method, payment_status,
                  is_urgent_delivery, delivery_slot_config_id, delivery_slot_id, delivery_slot_date,
@@ -283,7 +279,7 @@ class MySQLSubOrderDAO:
                  fulfillment_type, courier_partner, tracking_id, awb_code,
                  created_at, updated_at)
             VALUES
-                (:external_id, :sub_order_number, :parent_order_id, :parent_order_number,
+                (:sub_order_number, :parent_order_id, :parent_order_number,
                  :seller_id, :seller_name, :user_id, :subtotal, :tax, :shipping, :delivery_gst,
                  :discount, :total, :order_type, :status, :payment_method, :payment_status,
                  :is_urgent_delivery, :delivery_slot_config_id, :delivery_slot_id, :delivery_slot_date,
@@ -335,11 +331,12 @@ class MySQLSubOrderDAO:
 
     async def update(self, id: str, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
         factory = self._get_session_factory()
-        if not factory:
+        if not factory or not str(id).isdigit():
             return None
+        row_id = int(id)
         now = datetime.now(timezone.utc)
         set_clauses = ["updated_at = :updated_at"]
-        params = {"updated_at": now, "row_id": int(id) if str(id).isdigit() else id}
+        params = {"updated_at": now, "row_id": row_id}
         data = update_data
 
         if data.status is not None:
@@ -395,11 +392,10 @@ class MySQLSubOrderDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._get_session_factory()
-        if not factory:
+        if not factory or not str(id).isdigit():
             return False
         async with factory() as session:
-            is_digit = str(id).isdigit()
-            sql = f"DELETE FROM {self.table_name} WHERE id = :id" if is_digit else f"DELETE FROM {self.table_name} WHERE external_id = :id"
-            result = await session.execute(text(sql), {"id": int(id) if is_digit else str(id)})
+            sql = f"DELETE FROM {self.table_name} WHERE id = :id"
+            result = await session.execute(text(sql), {"id": int(id)})
             await session.commit()
             return result.rowcount > 0

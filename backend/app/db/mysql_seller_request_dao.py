@@ -132,7 +132,7 @@ class MySQLSellerRequestDAO:
         async with factory() as session:
             result = await session.execute(
                 text(f"""
-                    SELECT id, external_id, request_number, user_id, subject, description, category,
+                    SELECT id, request_number, user_id, subject, description, category,
                            priority, status, resolved_at, closed_at, created_at, updated_at
                     FROM {self.TABLE} WHERE {where_sql} ORDER BY created_at DESC, id DESC
                 """),
@@ -168,19 +168,22 @@ class MySQLSellerRequestDAO:
         return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[SellerRequest]:
-        if str(id).isdigit():
-            return await self.findOne(id=int(id))
+        if not id:
+            return None
+        pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return None
         factory = self._factory()
         if not factory:
             return None
         async with factory() as session:
             result = await session.execute(
                 text(f"""
-                    SELECT id, external_id, request_number, user_id, subject, description, category,
+                    SELECT id, request_number, user_id, subject, description, category,
                            priority, status, resolved_at, closed_at, created_at, updated_at
-                    FROM {self.TABLE} WHERE external_id = :eid ORDER BY id ASC LIMIT 1
+                    FROM {self.TABLE} WHERE id = :id LIMIT 1
                 """),
-                {"eid": str(id)},
+                {"id": pid},
             )
             row = result.fetchone()
             if not row:
@@ -205,7 +208,6 @@ class MySQLSellerRequestDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
         req_number = f"REQ-{now.strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
 
         def to_dt(val):
@@ -218,18 +220,17 @@ class MySQLSellerRequestDAO:
                 return None
 
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, request_number, user_id, subject, description, category, priority, status,
+                        request_number, user_id, subject, description, category, priority, status,
                         resolved_at, closed_at, created_at, updated_at
                     ) VALUES (
-                        :external_id, :request_number, :user_id, :subject, :description, :category, :priority, :status,
+                        :request_number, :user_id, :subject, :description, :category, :priority, :status,
                         :resolved_at, :closed_at, :created_at, :updated_at
                     )
                 """),
                 {
-                    "external_id": external_id,
                     "request_number": req_number,
                     "user_id": data.user,
                     "subject": (data.subject if data.subject is not None else ""),
@@ -243,11 +244,7 @@ class MySQLSellerRequestDAO:
                     "updated_at": now,
                 },
             )
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            new_id = result.lastrowid
             await self._replace_children(
                 session,
                 int(new_id),
@@ -274,7 +271,7 @@ class MySQLSellerRequestDAO:
                 logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
-        oid = int(existing.id) if existing.id and str(existing.id).isdigit() else (int(id) if str(id).isdigit() else None)
+        oid = int(existing.id)
         updates = ["updated_at = :updated_at"]
         params = {"id": oid, "updated_at": now}
 
@@ -318,26 +315,16 @@ class MySQLSellerRequestDAO:
                     responses=update_data.responses,
                 )
             await session.commit()
-        return await self.findById(id)
+        return await self.findById(str(oid))
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        is_digit = str(id).isdigit()
+        req_id = int(id) if str(id).isdigit() else None
+        if not req_id:
+            return False
         async with factory() as session:
-            if is_digit:
-                req_id = int(id)
-            else:
-                find_res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                    {"eid": str(id)},
-                )
-                row = find_res.fetchone()
-                if not row:
-                    return False
-                req_id = int(row.id)
-
             await session.execute(
                 text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"),
                 {"rid": req_id},
