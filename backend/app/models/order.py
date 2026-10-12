@@ -23,7 +23,7 @@ class OrderAddress(CamelBaseModel):
 class Order(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     session_id: Optional[str] = None
-    id: str = Field(default="", validation_alias=AliasChoices("_id", "id"))
+    id: str = Field(default="")
     order_number: Optional[str] = None
     user: Optional[str] = Field(None, alias='user_id')
     status: Optional[str] = None

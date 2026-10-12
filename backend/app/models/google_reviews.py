@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class Google_reviews(BaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     rating: Optional[str] = Field(default=None, alias='rating')
     review_count: int = Field(default=0, alias='reviewCount')
     last_updated: Optional[str] = Field(default=None, alias='lastUpdated')

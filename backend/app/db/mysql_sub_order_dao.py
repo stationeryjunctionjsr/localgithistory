@@ -131,10 +131,11 @@ class MySQLSubOrderDAO:
         if not factory or not parent_order_id:
             return []
         async with factory() as session:
-            if str(parent_order_id).isdigit():
+            try:
+                pid = int(parent_order_id)
                 q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_id = :pid ORDER BY id ASC")
-                params = {"pid": int(parent_order_id)}
-            else:
+                params = {"pid": pid}
+            except (ValueError, TypeError):
                 q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_number = :pid ORDER BY id ASC")
                 params = {"pid": str(parent_order_id)}
             result = await session.execute(q, params)
@@ -217,11 +218,11 @@ class MySQLSubOrderDAO:
 
         params = {
             "sub_order_number": data.sub_order_number,
-            "parent_order_id": int(data.parent_order_id) if str(data.parent_order_id).isdigit() else None,
+            "parent_order_id": data.parent_order_id,
             "parent_order_number": data.parent_order_number,
-            "seller_id": int(data.seller_id) if data.seller_id and str(data.seller_id).isdigit() else None,
+            "seller_id": data.seller_id,
             "seller_name": data.seller_name,
-            "user_id": int(data.user) if data.user and str(data.user).isdigit() else None,
+            "user_id": data.user,
             "subtotal": float(data.subtotal),
             "tax": float(data.tax),
             "shipping": float(data.shipping),

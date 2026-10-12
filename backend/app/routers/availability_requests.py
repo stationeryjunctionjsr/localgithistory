@@ -100,7 +100,7 @@ async def list_availability_requests(
 
 @router.post("/{request_id}/fulfill", response_model=MessageResponse)
 async def fulfill_availability_request(
-    request_id: str,
+    request_id: int,
     current_user: User = Depends(require_super_admin),
 ):
     """Mark a request as fulfilled and notify the user via push + email."""

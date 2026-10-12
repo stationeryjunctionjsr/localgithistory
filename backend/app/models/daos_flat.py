@@ -751,7 +751,7 @@ class CategoryTagsInternalUpdate(FlatCamelBaseModel):
     category_head_id: Optional[int] = None
 
 class Google_reviewsInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None

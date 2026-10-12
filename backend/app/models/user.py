@@ -21,8 +21,8 @@ UserFilter.model_rebuild()
 
 
 class User(CamelBaseModel):
-    id: str = Field(validation_alias=AliasChoices("id", "_id")) 
-    user_id: int = Field(validation_alias=AliasChoices("id", "user_id")) 
+    id: int
+    user_id: Optional[int] = Field(default=None, validation_alias=AliasChoices("id", "user_id")) 
     user_id_formatted: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None

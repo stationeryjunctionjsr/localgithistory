@@ -68,21 +68,26 @@ class MySQLOrderDAO:
 
         if filter:
             if filter.id is not None:
-                if str(filter.id).isdigit():
+                try:
                     where_clauses.append("id = :id")
                     params["id"] = int(filter.id)
-                else:
+                except (ValueError, TypeError):
                     where_clauses.append("1=0")
 
             if filter.user_id is not None:
-                if str(filter.user_id).isdigit():
+                try:
                     where_clauses.append("user_id = :user_id")
                     params["user_id"] = int(filter.user_id)
-                else:
+                except (ValueError, TypeError):
                     where_clauses.append("1=0")
 
             if filter.user_ids:
-                int_uids = [int(u) for u in filter.user_ids if str(u).isdigit()]
+                int_uids = []
+                for u in filter.user_ids:
+                    try:
+                        int_uids.append(int(u))
+                    except (ValueError, TypeError):
+                        continue
                 if int_uids:
                     u_params = {f"u_int_{j}": v for j, v in enumerate(int_uids)}
                     params.update(u_params)
@@ -207,11 +212,14 @@ class MySQLOrderDAO:
         records = await self.findAll(filter)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[Order]:
+    async def findById(self, id: int) -> Optional[Order]:
         factory = self._factory()
-        if not factory or not id or not str(id).isdigit():
+        if not factory or id is None:
             return None
-        pid = int(id)
+        try:
+            pid = int(id)
+        except (ValueError, TypeError):
+            return None
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -234,22 +242,27 @@ class MySQLOrderDAO:
                 return None
             items_res = await session.execute(
                 text(f"SELECT order_id, product_id, quantity, price FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
-                {"order_id": int(row.id)},
+                {"order_id": row.id},
             )
             decl_res = await session.execute(
                 text("SELECT parent_id, valet_id, reason FROM sj_order_valet_declines WHERE parent_id = :order_id"),
-                {"order_id": int(row.id)},
+                {"order_id": row.id},
             )
             return self.__map_to_schema(row, items_res.fetchall(), decl_res.fetchall())
 
-    async def findByIds(self, ids: List[str]) -> List[Order]:
+    async def findByIds(self, ids: List[int]) -> List[Order]:
         if not ids:
             return []
         factory = self._factory()
         if not factory:
             return []
 
-        int_ids = [int(i) for i in ids if str(i).isdigit()]
+        int_ids = []
+        for i in ids:
+            try:
+                int_ids.append(int(i))
+            except (ValueError, TypeError):
+                continue
         if not int_ids:
             return []
 
@@ -319,8 +332,11 @@ class MySQLOrderDAO:
         )
         for it in items or []:
             pid_raw = it.product_id if it.product_id is not None else it.product
-            pid = int(pid_raw) if str(pid_raw).isdigit() else None
-            if pid is None:
+            if pid_raw is None:
+                continue
+            try:
+                pid = int(pid_raw)
+            except (ValueError, TypeError):
                 continue
             qty = (it.quantity if it.quantity is not None else 0) or 0
             price = (it.price if it.price is not None else 0) or 0
@@ -368,7 +384,12 @@ class MySQLOrderDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        uid = int(data.user) if data.user is not None and str(data.user).isdigit() else None
+        uid = None
+        if data.user is not None:
+            try:
+                uid = int(data.user)
+            except (ValueError, TypeError):
+                uid = None
 
         async with factory() as session:
             result = await session.execute(
@@ -463,7 +484,7 @@ class MySQLOrderDAO:
                 new_id = result.lastrowid
                 await self._replace_children(session, new_id, data.items or [], data.valet_decline_history or [])
                 await session.commit()
-                return await self.findById(str(new_id)), True
+                return await self.findById(new_id), True
             else:
                 # Another request already inserted this idempotency key — fetch it
                 await session.rollback()
@@ -472,7 +493,7 @@ class MySQLOrderDAO:
                 )
                 return existing, False
 
-    async def update(self, id: str, update_data: 'OrderInternalUpdate') -> Optional[Order]:
+    async def update(self, id: int, update_data: 'OrderInternalUpdate') -> Optional[Order]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -482,7 +503,12 @@ class MySQLOrderDAO:
         now = now_utc()
         oid = int(existing.id)
         raw_user_id = update_data.user if update_data.user is not None else existing.user
-        uid = int(raw_user_id) if raw_user_id is not None and str(raw_user_id).isdigit() else None
+        uid = None
+        if raw_user_id is not None:
+            try:
+                uid = int(raw_user_id)
+            except (ValueError, TypeError):
+                uid = None
 
         async with factory() as session:
             await session.execute(
@@ -669,7 +695,7 @@ class MySQLOrderDAO:
             return int(result.scalar() or 0)
 
     async def get_user_purchased_subcategories(
-        self, user_id: str, start_date: datetime
+        self, user_id: int, start_date: datetime
     ) -> List[Tuple[str, int]]:
         """
         Aggregate total purchased quantity grouped by subcategory (falling back to category)
@@ -679,9 +705,10 @@ class MySQLOrderDAO:
         if not factory:
             return []
 
-        if not str(user_id).isdigit():
+        try:
+            uid = int(user_id)
+        except (ValueError, TypeError):
             return []
-        uid = int(user_id)
 
         sql = f"""
             SELECT COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) AS subcat,
@@ -740,7 +767,7 @@ class MySQLOrderDAO:
             return [(str(row.product_id), str(row.subcat), int(row.sales)) for row in result.fetchall()]
 
     async def get_user_purchased_product_ids(
-        self, user_id: str, start_date: Optional[datetime] = None
+        self, user_id: int, start_date: Optional[datetime] = None
     ) -> Set[str]:
         """
         Return the set of distinct product IDs purchased by a user.
@@ -750,9 +777,10 @@ class MySQLOrderDAO:
         if not factory:
             return set()
 
-        if not str(user_id).isdigit():
+        try:
+            uid = int(user_id)
+        except (ValueError, TypeError):
             return set()
-        uid = int(user_id)
         date_cond = "AND o.created_at >= :start_date" if start_date else ""
 
         sql = f"""
@@ -809,7 +837,7 @@ class MySQLOrderDAO:
             return out
 
     async def get_most_bought_by_wholesalers(
-        self, user_id: str, start_date: datetime, limit: int = 10
+        self, user_id: int, start_date: datetime, limit: int = 10
     ) -> List[str]:
         """
         Products most frequently bought by other wholesalers since start_date.
@@ -818,7 +846,10 @@ class MySQLOrderDAO:
         if not factory:
             return []
 
-        uid = int(user_id) if str(user_id).isdigit() else 0
+        try:
+            uid = int(user_id)
+        except (ValueError, TypeError):
+            uid = 0
 
         sql = f"""
             SELECT CAST(oi.product_id AS CHAR) AS pid,
@@ -842,7 +873,7 @@ class MySQLOrderDAO:
             return [str(row.pid) for row in result.fetchall() if row.pid]
 
     async def get_most_bought_by_user(
-        self, user_id: str, start_date: datetime, limit: int = 5
+        self, user_id: int, start_date: datetime, limit: int = 5
     ) -> List[str]:
         """
         Top products bought by specific user since start_date.
@@ -851,9 +882,10 @@ class MySQLOrderDAO:
         if not factory:
             return []
 
-        if not str(user_id).isdigit():
+        try:
+            uid = int(user_id)
+        except (ValueError, TypeError):
             return []
-        uid = int(user_id)
 
         sql = f"""
             SELECT CAST(oi.product_id AS CHAR) AS pid,

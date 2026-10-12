@@ -25,8 +25,10 @@ def _map_to_schema(r, children: Dict) -> User:
     
     pt = r.payment_terms
     if pt:
-        pt_str = str(pt).replace("net_", "")
-        u.payment_terms = int(pt_str) if pt_str.isdigit() else None
+        try:
+            u.payment_terms = int(str(pt).replace("net_", ""))
+        except (ValueError, TypeError):
+            u.payment_terms = None
         
     return u
 
@@ -71,7 +73,12 @@ class MySQLUserDAO:
             params['is_active'] = 1 if filter_params.is_active else 0
         if filter_params.allowed_ids is not None:
             allowed_ids = filter_params.allowed_ids
-            id_list = [int(aid) for aid in allowed_ids if str(aid).isdigit()]
+            id_list = []
+            for aid in allowed_ids:
+                try:
+                    id_list.append(int(aid))
+                except (ValueError, TypeError):
+                    continue
             if not id_list:
                 where_clauses.append('1=0')
             else:
@@ -152,7 +159,13 @@ class MySQLUserDAO:
                 }
                 await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), a_params)
         for zone_id in data.service_area_zones if data.service_area_zones is not None else []:
-            name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE id = :zid LIMIT 1'), {'zid': int(zone_id) if str(zone_id).isdigit() else None})
+            zid = None
+            if zone_id is not None:
+                try:
+                    zid = int(zone_id)
+                except (ValueError, TypeError):
+                    zid = None
+            name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE id = :zid LIMIT 1'), {'zid': zid})
             name_row = name_res.fetchone()
             zone_name = name_row.name if name_row else str(zone_id)
             await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': str(zone_id)})
@@ -211,13 +224,18 @@ class MySQLUserDAO:
                 raise e
         return _map_to_schema(row, children_map[row.id])
 
-    async def findByIds(self, ids: List[str]) -> List[User]:
+    async def findByIds(self, ids: List[int]) -> List[User]:
         if not ids:
             return []
         factory = self._factory()
         if not factory:
             return []
-        id_ints = [int(i) for i in ids if str(i).isdigit()]
+        id_ints = []
+        for i in ids:
+            try:
+                id_ints.append(int(i))
+            except (ValueError, TypeError):
+                continue
         if not id_ints:
             return []
         placeholders = [f":id_int_{idx}" for idx in range(len(id_ints))]

@@ -4,7 +4,7 @@ from pydantic import Field
 from app.models.base import CamelBaseModel
 
 class AboutUs(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     title: Optional[str] = None
     content: Optional[str] = None
     version: Optional[str] = None

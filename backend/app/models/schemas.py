@@ -1170,7 +1170,7 @@ class ReturnRequestResponse(CamelBaseModel):
 
 class ReturnRequest(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[str] = Field(None, validation_alias=AliasChoices('_id', 'id'))
+    id: Optional[str] = Field(None)
     order_id: Optional[str] = None
     user_id: Optional[str] = None
     valet_id: Optional[str] = None

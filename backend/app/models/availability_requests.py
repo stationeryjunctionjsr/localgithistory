@@ -3,7 +3,7 @@ from typing import Optional
 from app.models.base import CamelBaseModel
 
 class AvailabilityRequests(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     product_id: Optional[str] = None
     product_name: Optional[str] = None
     pincode: Optional[str] = None
