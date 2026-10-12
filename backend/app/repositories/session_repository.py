@@ -1,9 +1,9 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Any
+from typing import List, Optional, Union
 
-from pydantic import BaseModel
 from app.db.storage_factory import get_storage
+from app.utils.device import DeviceContext
 from app.utils.logger import logger
 from app.models.daos import SessionInternalCreate, SessionInternalUpdate, DeviceSnippet
 from app.models.session import Session
@@ -12,12 +12,17 @@ class SessionRepository:
     def __init__(self):
         self.storage = get_storage("sessions")
 
-    async def create_session(self, user_id: Optional[int], device: Any, refresh_token_id: str) -> Session:
-        dev_snippet = None
+    async def create_session(
+        self,
+        user_id: Optional[int],
+        device: Optional[Union[DeviceSnippet, DeviceContext]],
+        refresh_token_id: str,
+    ) -> Session:
+        dev_snippet: Optional[DeviceSnippet] = None
         if device is not None:
             if isinstance(device, DeviceSnippet):
                 dev_snippet = device
-            elif isinstance(device, (BaseModel, dict)):
+            elif isinstance(device, DeviceContext):
                 dev_snippet = DeviceSnippet.model_validate(device)
         data = SessionInternalCreate(
             user_id=user_id,
