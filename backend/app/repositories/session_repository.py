@@ -17,9 +17,7 @@ class SessionRepository:
         if device is not None:
             if isinstance(device, DeviceSnippet):
                 dev_snippet = device
-            elif isinstance(device, BaseModel):
-                dev_snippet = DeviceSnippet.model_validate(device.model_dump())
-            elif isinstance(device, dict):
+            elif isinstance(device, (BaseModel, dict)):
                 dev_snippet = DeviceSnippet.model_validate(device)
         data = SessionInternalCreate(
             user_id=user_id,

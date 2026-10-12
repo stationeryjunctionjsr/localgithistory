@@ -1102,9 +1102,32 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
         if existing_name:
             raise HTTPException(status_code=400, detail=f"Product with name '{product_data.name}' already exists")
                 
-        internal_create = ProductInternalCreate.model_validate(product_data.model_dump(by_alias=True))
-        if product_data.mrp is not None and internal_create.price in (None, 0.0):
-            internal_create.price = product_data.mrp
+        internal_create = ProductInternalCreate(
+            name=name_val,
+            sku=product_data.sku,
+            category=product_data.category,
+            sub_category=product_data.sub_category,
+            description=product_data.description,
+            brand=product_data.brand,
+            collection=product_data.collection,
+            price=product_data.mrp or 0.0,
+            mrp=product_data.mrp,
+            mrp_per_case=product_data.mrp_per_case,
+            quantity_per_case=product_data.quantity_per_case,
+            stock=product_data.stock if product_data.stock is not None else 0,
+            images=product_data.images or [],
+            videos=product_data.videos or [],
+            is_active=product_data.is_active,
+            is_exclusive=product_data.is_exclusive,
+            tags=product_data.tags or [],
+            variants=product_data.variants or [],
+            variant_attributes=product_data.variant_attributes or [],
+            details=product_data.details,
+            sellers=product_data.sellers or [],
+            catalog_seller_ids=product_data.catalogSellerIds or [],
+            rating=product_data.rating,
+            reviews=product_data.reviews,
+        )
         product = await product_repository.create(internal_create)
         _invalidate_product_caches()
         return product

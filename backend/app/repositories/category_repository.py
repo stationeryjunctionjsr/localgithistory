@@ -35,10 +35,10 @@ class CategoryRepository:
 
     async def update(self, id: str, update_data: "CategoryInternalUpdate") -> Category:
         # Synchronize categoryTag and categoryTags for backward compatibility
-        if "category_tag" in update_data.model_fields_set:
+        if "category_tag" in update_data.model_fields_set and update_data.category_tag is not None:
             tag = update_data.category_tag
             update_data.category_tags = [tag] if tag else []
-        elif "category_tags" in update_data.model_fields_set:
+        elif "category_tags" in update_data.model_fields_set and update_data.category_tags is not None:
             tags = update_data.category_tags
             update_data.category_tag = tags[0] if tags else ""
             

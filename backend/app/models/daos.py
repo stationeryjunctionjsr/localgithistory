@@ -456,7 +456,7 @@ class CategoryInternalUpdate(CamelBaseModel):
     updated_at: Optional[datetime] = None
     images: Optional[List[str]] = None
     sub_categories: Optional[List[str]] = None
-    minimum_quantity: Optional[int] = 1
+    minimum_quantity: Optional[int] = None
     category_tag: Optional[str] = None
     category_tag_id: Optional[int] = None
     category_tags: Optional[List[str]] = None

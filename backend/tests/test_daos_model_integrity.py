@@ -232,7 +232,7 @@ def test_user_filter_model_strict_typing():
     assert uf_camel.is_on_duty is True
     assert uf_camel.is_seller_admin is False
     assert uf_camel.approval_status == "approved"
-    assert uf_camel.allowed_ids == ["1", "2"]
+    assert uf_camel.allowed_ids == [1, 2]
 
     # Extra fields MUST be forbidden
     with pytest.raises(ValidationError):

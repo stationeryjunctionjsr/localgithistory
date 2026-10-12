@@ -363,7 +363,19 @@ async def update_category(
             raise HTTPException(status_code=400, detail="No fields to update")
 
         from app.models.daos import CategoryInternalUpdate
-        internal_update = CategoryInternalUpdate.model_validate(category_update.model_dump(exclude_unset=True, by_alias=True))
+        internal_update = CategoryInternalUpdate(
+            name=category_update.name,
+            description=category_update.description,
+            images=category_update.images,
+            sub_categories=category_update.sub_categories,
+            minimum_quantity=category_update.minimum_quantity,
+            category_tag=category_update.category_tag,
+            category_tag_id=category_update.category_tag_id,
+            is_active=category_update.is_active,
+            show_in_mobile_homepage=category_update.show_in_mobile_homepage,
+            gst=category_update.gst,
+            is_returnable=category_update.is_returnable,
+        )
         updated_category = await category_repository.update(category_id, internal_update)
         _invalidate_category_caches()
         return updated_category

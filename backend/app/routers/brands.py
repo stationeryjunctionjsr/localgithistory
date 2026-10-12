@@ -71,7 +71,12 @@ def _invalidate_brand_caches():
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=BrandResponse)
 async def create_brand(data: BrandCreate, current_user: User = Depends(require_super_admin)):
     from app.models.daos import BrandInternalCreate
-    internal_data = BrandInternalCreate.model_validate(data.model_dump(exclude_unset=True, by_alias=True))
+    internal_data = BrandInternalCreate(
+        name=data.name,
+        logo_url=data.logo_url,
+        show_in_mobile_homepage=data.show_in_mobile_homepage,
+        is_active=data.is_active if data.is_active is not None else True,
+    )
     brand = await brand_repository.create(internal_data)
     _invalidate_brand_caches()
     return brand
@@ -80,7 +85,12 @@ async def create_brand(data: BrandCreate, current_user: User = Depends(require_s
 @router.put("/{brand_id}", response_model=BrandResponse)
 async def update_brand(brand_id: str, data: BrandUpdate, current_user: User = Depends(require_super_admin)):
     from app.models.daos import BrandInternalUpdate
-    internal_data = BrandInternalUpdate.model_validate(data.model_dump(exclude_unset=True, by_alias=True))
+    internal_data = BrandInternalUpdate(
+        name=data.name,
+        logo_url=data.logo_url,
+        show_in_mobile_homepage=data.show_in_mobile_homepage,
+        is_active=data.is_active,
+    )
     brand = await brand_repository.update(brand_id, internal_data)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
