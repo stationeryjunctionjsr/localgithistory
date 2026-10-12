@@ -5,7 +5,6 @@ Fully relational with child tables for user_segments and visibility_rules.
 
 from app.models.schemas import BannerResponse, VisibilityRuleSnippet
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate, BannerChildrenData
-import secrets
 from datetime import datetime
 from typing import List, Optional, Union
 from app.models.banner import Banner
@@ -56,7 +55,6 @@ class MySQLBannerDAO:
 
         return BannerResponse(
             id=str(r.id),
-            external_id=r.external_id,
             title=r.title,
             description=r.description,
             image_url=r.image_url,
@@ -104,7 +102,7 @@ class MySQLBannerDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT b.id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
+                    f"SELECT b.id, b.title, b.description, b.image_url, b.link_url, "
                     f"b.display_order, b.start_date, b.end_date, b.is_active, b.is_published, "
                     f"b.target_audience, b.position, b.created_at, b.updated_at, b.zone_ids, "
                     f"COALESCE((SELECT JSON_ARRAYAGG(s.segment) FROM sj_banner_user_segments s WHERE s.banner_id = b.id), JSON_ARRAY()) AS user_segments_json, "
@@ -145,7 +143,7 @@ class MySQLBannerDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT b.id, b.external_id, b.title, b.description, b.image_url, b.link_url, "
+                    f"SELECT b.id, b.title, b.description, b.image_url, b.link_url, "
                     f"b.display_order, b.start_date, b.end_date, b.is_active, b.is_published, "
                     f"b.target_audience, b.position, b.created_at, b.updated_at, b.zone_ids, "
                     f"COALESCE((SELECT JSON_ARRAYAGG(s.segment) FROM sj_banner_user_segments s WHERE s.banner_id = b.id), JSON_ARRAY()) AS user_segments_json, "
@@ -173,18 +171,17 @@ class MySQLBannerDAO:
     async def create(self, data: BannerInternalCreate) -> BannerResponse:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, title, description, image_url, link_url,
+                        title, description, image_url, link_url,
                         display_order, start_date, end_date,
                         is_active, is_published, target_audience, position,
                         zone_ids, created_at, updated_at
                     ) VALUES (
-                        :external_id, :title, :description, :image_url, :link_url,
+                        :title, :description, :image_url, :link_url,
                         :display_order, :start_date, :end_date,
                         :is_active, :is_published, :target_audience, :position,
                         :zone_ids, :created_at, :updated_at
@@ -192,7 +189,6 @@ class MySQLBannerDAO:
                     """
                 ),
                 {
-                    "external_id": external_id,
                     "title": data.title,
                     "description": data.description,
                     "image_url": data.image_url,
@@ -209,11 +205,7 @@ class MySQLBannerDAO:
                     "updated_at": now,
                 },
             )
-            await session.commit()
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-            )
-            new_id = r.scalar()
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
         return await self.findById(str(new_id))
