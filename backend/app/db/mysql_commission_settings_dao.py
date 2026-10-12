@@ -2,7 +2,6 @@
 MySQL DAO for sj_commission_settings (Relational).
 """
 
-import secrets
 from typing import List, Optional
 
 from sqlalchemy import text
@@ -29,7 +28,7 @@ class MySQLCommissionSettingsDAO:
 
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, external_id, default_commission_pct, created_at, updated_at FROM {self.TABLE} ORDER BY id ASC")
+                text(f"SELECT id, default_commission_pct, created_at, updated_at FROM {self.TABLE} ORDER BY id ASC")
             )
             rows = result.fetchall()
 
@@ -53,7 +52,6 @@ class MySQLCommissionSettingsDAO:
             rid = int(r.id)
             out.append(CommissionSettings(
                 id=str(r.id),
-                external_id=r.external_id,
                 default_commission_pct=float(r.default_commission_pct) if r.default_commission_pct is not None else 5.0,
                 created_at=r.created_at,
                 updated_at=r.updated_at,
@@ -75,7 +73,7 @@ class MySQLCommissionSettingsDAO:
         
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, external_id, default_commission_pct, created_at, updated_at FROM {self.TABLE} WHERE id = :id"),
+                text(f"SELECT id, default_commission_pct, created_at, updated_at FROM {self.TABLE} WHERE id = :id"),
                 {"id": pid}
             )
             r = result.fetchone()
@@ -97,7 +95,6 @@ class MySQLCommissionSettingsDAO:
             
             return CommissionSettings(
                 id=str(r.id),
-                external_id=r.external_id,
                 default_commission_pct=float(r.default_commission_pct) if r.default_commission_pct is not None else 5.0,
                 created_at=r.created_at,
                 updated_at=r.updated_at,
@@ -124,26 +121,20 @@ class MySQLCommissionSettingsDAO:
     async def create(self, data: CommissionSettingsInternalCreate) -> CommissionSettings:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
 
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"""
-                    INSERT INTO {self.TABLE} (external_id, default_commission_pct, created_at, updated_at) 
-                    VALUES (:external_id, :default_commission_pct, :created_at, :updated_at)
+                    INSERT INTO {self.TABLE} (default_commission_pct, created_at, updated_at) 
+                    VALUES (:default_commission_pct, :created_at, :updated_at)
                 """),
                 {
-                    "external_id": external_id,
                     "default_commission_pct": data.default_commission_pct,
                     "created_at": now,
                     "updated_at": now,
                 },
             )
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data.tiers)
             await session.commit()
             
