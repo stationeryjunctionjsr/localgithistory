@@ -19,9 +19,7 @@ class Session(CamelBaseModel):
     comment: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    external_id: Optional[str] = None
     comments: Optional[str] = None
-    eid: Optional[str] = None
     now: Optional[str] = None
     deleted_count: int = 0
     uid: Optional[str] = None
