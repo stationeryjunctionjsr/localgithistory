@@ -3,7 +3,6 @@ MySQL DAO for sj_categories. Fully relational with child tables for images, sub_
 """
 
 from typing import Dict, List, Optional, Tuple, Union
-import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -168,12 +167,10 @@ class MySQLCategoryDAO:
         if not factory:
             return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
-                params = {"id": str(id)}
+            if not str(id).isdigit():
+                return None
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            params = {"id": int(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
@@ -184,7 +181,6 @@ class MySQLCategoryDAO:
     async def create(self, data: CategoryInternalCreate) -> Category:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         async with factory() as session:
             tag_id = data.category_tag_id
             if tag_id is None and data.category_tag:
@@ -194,22 +190,21 @@ class MySQLCategoryDAO:
                 )
                 tag_id = res_tid.scalar()
 
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, name, description, is_active, category_tag, category_tag_id,
+                        name, description, is_active, category_tag, category_tag_id,
                         minimum_quantity, gst, is_returnable, show_in_mobile_homepage,
                         created_at, updated_at
                     ) VALUES (
-                        :external_id, :name, :description, :is_active, :category_tag, :category_tag_id,
+                        :name, :description, :is_active, :category_tag, :category_tag_id,
                         :minimum_quantity, :gst, :is_returnable, :show_in_mobile_homepage,
                         :created_at, :updated_at
                     )
                     """
                 ),
                 {
-                    "external_id": external_id,
                     "name": data.name,
                     "description": data.description,
                     "is_active": 1 if data.is_active else 0,
@@ -223,11 +218,7 @@ class MySQLCategoryDAO:
                     "updated_at": now,
                 },
             )
-            await session.commit()
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-            )
-            new_id = r.scalar()
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
         return await self.findById(int(new_id))
@@ -297,12 +288,7 @@ class MySQLCategoryDAO:
         async with factory() as session:
             pk = int(id) if str(id).isdigit() else None
             if not pk:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid LIMIT 1"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
+                return False
             await session.execute(text("DELETE FROM sj_category_images WHERE category_id = :cid"), {"cid": pk})
             await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": pk})
             await session.execute(text("DELETE FROM sj_category_category_tags WHERE category_id = :cid"), {"cid": pk})
