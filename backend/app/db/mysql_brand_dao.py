@@ -4,7 +4,6 @@ MySQL DAO for sj_brands. Implements FileStorage-like interface for 'brands'.
 
 from app.models.schemas import BrandResponse
 from app.models.daos import BrandInternalCreate, BrandInternalUpdate
-import secrets
 from typing import List, Optional, Union, Any
 
 from sqlalchemy import text
@@ -58,7 +57,7 @@ class MySQLBrandDAO:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id AS _id, external_id, name, slug, image_url AS logo_url, show_in_mobile_homepage, is_active, created_at, updated_at
+                    SELECT id AS _id, name, slug, image_url AS logo_url, show_in_mobile_homepage, is_active, created_at, updated_at
                     FROM {self.TABLE}
                     WHERE {where_sql}
                     """
@@ -88,17 +87,15 @@ class MySQLBrandDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
                     """
-                    INSERT INTO sj_brands (external_id, name, slug, image_url, show_in_mobile_homepage, is_active, created_at, updated_at)
-                    VALUES (:external_id, :name, :slug, :image_url, :show_in_mobile_homepage, :is_active, :created_at, :updated_at)
+                    INSERT INTO sj_brands (name, slug, image_url, show_in_mobile_homepage, is_active, created_at, updated_at)
+                    VALUES (:name, :slug, :image_url, :show_in_mobile_homepage, :is_active, :created_at, :updated_at)
                     """
                 ),
                 {
-                    "external_id": external_id,
                     "name": data.name,
                     "slug": data.name.lower().replace(" ", "-") if data.name else "",
                     "image_url": data.logoUrl,
@@ -109,11 +106,7 @@ class MySQLBrandDAO:
                 },
             )
             await session.commit()
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                {"eid": external_id},
-            )
-            new_id = r.scalar()
+            new_id = result.lastrowid
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: 'BrandInternalUpdate') -> Optional[BrandResponse]:
