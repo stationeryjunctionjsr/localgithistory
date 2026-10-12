@@ -1,4 +1,3 @@
-import secrets
 from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -9,7 +8,7 @@ from app.models.schemas import BundleResponse, BundleItemResponse
 class MySQLBundleDAO:
     TABLE = "sj_bundles"
 
-    async def _fetch_products(self, bundle_id: str) -> List[BundleItemResponse]:
+    async def _fetch_products(self, bundle_id: int) -> List[BundleItemResponse]:
         async_session = get_async_session_factory()
         async with async_session() as session:
             result = await session.execute(
@@ -17,7 +16,7 @@ class MySQLBundleDAO:
             )
             return [BundleItemResponse(productId=row.product_id, quantity=row.quantity) for row in result.all()]
 
-    async def _save_products(self, bundle_id: str, products: List[BundleItemInternal]):
+    async def _save_products(self, bundle_id: int, products: List[BundleItemInternal]):
         async_session = get_async_session_factory()
         async with async_session() as session:
             await session.execute(text("DELETE FROM sj_bundle_products WHERE bundle_id = :b_id"), {"b_id": bundle_id})
@@ -39,7 +38,6 @@ class MySQLBundleDAO:
     async def _map_row(self, row) -> BundleResponse:
         return BundleResponse(
             id=str(row.id),
-            external_id=row.external_id,
             name=row.name,
             description=row.description,
             price=float(row.price) if row.price is not None else 0.0,
@@ -48,7 +46,7 @@ class MySQLBundleDAO:
             sales_count=row.sales_count,
             created_at=row.created_at,
             updated_at=row.updated_at,
-            items=await self._fetch_products(row.external_id)
+            items=await self._fetch_products(row.id)
         )
 
     async def findById(self, id: str) -> Optional[BundleResponse]:
@@ -70,13 +68,12 @@ class MySQLBundleDAO:
     async def create(self, data: BundleInternalCreate) -> BundleResponse:
         SessionLocal = get_async_session_factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
         
         async with SessionLocal() as session:
-            await session.execute(
-                text(f"INSERT INTO {self.TABLE} (external_id, created_at, updated_at, name, description, price, discount_percentage, is_active, sales_count) VALUES (:eid, :c, :u, :name, :desc, :price, :dp, :ia, :sc)"),
+            result = await session.execute(
+                text(f"INSERT INTO {self.TABLE} (created_at, updated_at, name, description, price, discount_percentage, is_active, sales_count) VALUES (:c, :u, :name, :desc, :price, :dp, :ia, :sc)"),
                 {
-                    "eid": ext_id, "c": now, "u": now,
+                    "c": now, "u": now,
                     "name": data.name,
                     "desc": data.description,
                     "price": data.price,
@@ -85,12 +82,11 @@ class MySQLBundleDAO:
                     "sc": data.sales_count or 0
                 }
             )
-            res = await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})
-            new_id = res.scalar()
+            new_id = result.lastrowid
             await session.commit()
             
         items = data.items if data.items else (data.products if data.products else [])
-        await self._save_products(ext_id, items)
+        await self._save_products(new_id, items)
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: BundleInternalUpdate) -> Optional[BundleResponse]:
@@ -137,8 +133,8 @@ class MySQLBundleDAO:
             await session.commit()
             
         items = update_data.items
-        if items is not None:
-            await self._save_products(existing.external_id, items)
+        if items is not None and pid is not None:
+            await self._save_products(pid, items)
             
         return await self.findById(id)
 
