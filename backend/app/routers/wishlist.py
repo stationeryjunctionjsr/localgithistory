@@ -6,6 +6,7 @@ from app.models.daos import WishlistItemInternal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
 from app.repositories.product_repository import product_repository
 from app.repositories.wishlist_repository import wishlist_repository
@@ -15,9 +16,9 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-class WishlistItemRequest(BaseModel):
-    productId: str
-    sessionId: Optional[str] = None
+class WishlistItemRequest(CamelBaseModel):
+    product_id: int
+    session_id: Optional[str] = None
 
 
 def get_role_for_pricing(user: User) -> str:
@@ -54,11 +55,11 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
         products_map = {}
         if product_ids:
             products = await product_repository.findByIds(product_ids)
-            products_map = {str(p.id): p for p in products}
+            products_map = {p.id: p for p in products}
 
         for item in raw_items:
             p_id = item.product
-            product = products_map[str(p_id)] if str(p_id) in products_map else None
+            product = products_map[p_id] if p_id in products_map else None
             if not product or product.is_active is False:
                 continue
 
@@ -67,10 +68,10 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
 
             populated_items.append(
                 {
+                    "id": item.id,
                     "quantity": quantity,
-                    "_id": str(item.id) if item.id else None,
                     "product": {
-                        "_id": str(product.id),
+                        "id": product.id,
                         "name": product.name,
                         "sku": product.sku,
                         "images": (product.images or []),
@@ -118,7 +119,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depend
 
 
 @router.delete("/{product_id}", response_model=MessageResponse)
-async def remove_from_wishlist(product_id: str, current_user: User = Depends(get_current_user)):
+async def remove_from_wishlist(product_id: int, current_user: User = Depends(get_current_user)):
     """Remove item from wishlist"""
     try:
         removed = await wishlist_repository.removeItem(current_user.user_id, product_id)

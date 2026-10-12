@@ -42,7 +42,7 @@ class WishlistRepository:
         items.append(typed_item)
         return await self.createOrUpdate(user_id, items)
 
-    async def removeItem(self, user_id: int, product_id: str):
+    async def removeItem(self, user_id: int, product_id: int):
         wishlist = await self.findByUser(user_id)
         if not wishlist:
             return False

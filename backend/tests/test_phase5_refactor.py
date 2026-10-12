@@ -115,13 +115,13 @@ async def test_wishlist_dao_direct_row_hydration():
 
     mock_item = SimpleNamespace(
         wishlist_id=5,
-        product_id="item_9",
+        product_id=9,
     )
 
     w = dao._map_to_schema(mock_wishlist_row, [mock_item])
     assert w.id == 5
     assert len(w.items) == 1
-    assert w.items[0].product == "item_9"
+    assert w.items[0].product == 9
 
 
 def test_no_dict_unpacking_in_jobs_and_daos():

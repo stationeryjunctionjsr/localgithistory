@@ -65,13 +65,13 @@ export default function WishlistPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((item: any) => {
               const product = item?.product || item;
-              const productId = product?._id || item?._id;
+              const productId = product?.id || item?.id;
               const name = product?.name || 'Item';
               const price = product?.price;
               const img = product?.displayImage || product?.images?.[0];
               return (
                 <div
-                  key={productId || item._id}
+                  key={productId || item.id}
                   className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
                 >
                   <Link href={`/customer/product/${productId}`} className="block">

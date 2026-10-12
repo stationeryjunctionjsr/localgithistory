@@ -26,7 +26,7 @@ class MySQLWishlistDAO:
         w.user = r.user_id
         if items_rows:
             w.items = [
-                WishlistItemInternal(product=str(ir.product_id))
+                WishlistItemInternal(product=ir.product_id)
                 for ir in items_rows
                 if ir.wishlist_id == r.id
             ]
@@ -43,7 +43,7 @@ class MySQLWishlistDAO:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
             res = await session.execute(
-                text(f"SELECT wishlist_id, product_id FROM sj_wishlist_items WHERE wishlist_id IN ({placeholders})"),
+                text(f"SELECT wishlist_id, CAST(product_id AS SIGNED) AS product_id FROM sj_wishlist_items WHERE wishlist_id IN ({placeholders})"),
                 chunk_params,
             )
             items_rows.extend(res.fetchall())
@@ -56,7 +56,7 @@ class MySQLWishlistDAO:
                 continue
             await session.execute(
                 text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),
-                {"wid": wid, "pid": str(item.product)},
+                {"wid": wid, "pid": item.product},
             )
 
     async def findAll(

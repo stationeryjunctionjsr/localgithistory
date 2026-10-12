@@ -273,8 +273,8 @@ class SessionInternalUpdate(CamelBaseModel):
 
 class WishlistItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    id: Optional[str] = None
-    product: str
+    id: Optional[int] = None
+    product: int
     quantity: Optional[int] = 1
     addedAt: Optional[str] = None
 

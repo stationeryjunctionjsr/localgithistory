@@ -136,13 +136,13 @@ def test_cart_item_internal_strict_fields():
 
 
 def test_wishlist_item_internal_strict_fields():
-    item = WishlistItemInternal(id="wl-1", product="prod-99")
-    assert item.id == "wl-1"
-    assert item.product == "prod-99"
+    item = WishlistItemInternal(id=1, product=99)
+    assert item.id == 1
+    assert item.product == 99
     assert not hasattr(item, "id_")
 
     with pytest.raises(ValidationError):
-        WishlistItemInternal(product="prod-99", _id="legacy-id")
+        WishlistItemInternal(product=99, _id="legacy-id")
 
 
 def test_session_internal_models_cleaned():
