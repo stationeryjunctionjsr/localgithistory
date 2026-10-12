@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import asyncio
 import time as time_module
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from app.db.storage_factory import get_storage
 
@@ -852,23 +852,22 @@ class ProductRepository:
 
         # Build collection -> productIds mapping and product -> collection names (used for search scoring)
         collections = await self._get_collections()
-        collection_product_map: dict[str, List[str]] = {}
-        product_collection_names: dict[str, List[str]] = {}
+        collection_product_map: dict[Any, List[Any]] = {}
+        product_collection_names: dict[int, List[str]] = {}
         for col in collections:
-            col_id = str(col.id)
+            col_id = col.id
             col_name = col.name
             col_product_ids = col.product_ids or []
-            if col_id:
+            if col_id is not None:
                 collection_product_map[col_id] = col_product_ids
-            for pid in col_product_ids:
-                pid_str = str(pid)
-                if pid_str not in product_collection_names:
-                    product_collection_names[pid_str] = []
-                if col_name and col_name not in product_collection_names[pid_str]:
-                    product_collection_names[pid_str].append(col_name)
+            for col_pid in col_product_ids:
+                if col_pid not in product_collection_names:
+                    product_collection_names[col_pid] = []
+                if col_name and col_name not in product_collection_names[col_pid]:
+                    product_collection_names[col_pid].append(col_name)
 
         for p in products:
-            pid = str((p.id if p.id is not None else ""))
+            pid = p.product_id
             p_category = (p.category if p.category is not None else "")
             p_sub_category = (p.sub_category if p.sub_category is not None else "")
             p_brand = (p.brand if p.brand is not None else "")
@@ -927,7 +926,7 @@ class ProductRepository:
 
         return products
 
-    async def findById(self, id: str):
+    async def findById(self, id: int):
         p = await self.storage.findById(id)
         if p:
             p = (await self._attach_category_gst([p]))[0]
@@ -1050,11 +1049,11 @@ class ProductRepository:
         created = await self.storage.create(internal_create)
         return (await self._attach_category_gst([created]))[0]
 
-    async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Product]:
+    async def update(self, id: int, update_data: 'ProductInternalUpdate') -> Optional[Product]:
         
         if 'sku' in update_data.model_fields_set:
             existing = await self.findBySku(update_data.sku)
-            if existing and str(existing.id) != str(id):
+            if existing and existing.product_id != id:
                 raise ValueError("SKU already in use")
 
         existing_product = await self.storage.findById(id)
@@ -1084,7 +1083,7 @@ class ProductRepository:
         
         return (await self._attach_category_gst([updated]))[0] if updated else None
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         from app.models.daos import ProductInternalUpdate
         return await self.storage.update(id, ProductInternalUpdate(is_active=False))
 

@@ -9,10 +9,10 @@ class WishlistRepository:
     def __init__(self):
         self.storage = get_storage("wishlists")
 
-    async def findByUser(self, user_id: str):
+    async def findByUser(self, user_id: int):
         return await self.storage.findOne(user=user_id)
 
-    async def createOrUpdate(self, user_id: str, items: 'List[WishlistItemInternal]'):
+    async def createOrUpdate(self, user_id: int, items: 'List[WishlistItemInternal]'):
         existing = await self.findByUser(user_id)
         if existing:
             wishlist_data = WishlistInternalUpdate(user=user_id, items=items or [])
@@ -21,7 +21,7 @@ class WishlistRepository:
             wishlist_data = WishlistInternalCreate(user=user_id, items=items or [])
             return await self.storage.create(wishlist_data)
 
-    async def addItem(self, user_id: str, item: 'WishlistItemInternal'):
+    async def addItem(self, user_id: int, item: 'WishlistItemInternal'):
         wishlist = await self.findByUser(user_id)
 
         typed_item = WishlistItemInternal(
@@ -42,7 +42,7 @@ class WishlistRepository:
         items.append(typed_item)
         return await self.createOrUpdate(user_id, items)
 
-    async def removeItem(self, user_id: str, product_id: str):
+    async def removeItem(self, user_id: int, product_id: str):
         wishlist = await self.findByUser(user_id)
         if not wishlist:
             return False
@@ -52,7 +52,7 @@ class WishlistRepository:
         await self.createOrUpdate(user_id, items)
         return True
 
-    async def clear(self, user_id: str):
+    async def clear(self, user_id: int):
         return await self.createOrUpdate(user_id, [])
 
 

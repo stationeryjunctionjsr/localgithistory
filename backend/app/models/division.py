@@ -13,7 +13,7 @@ class DivisionCategoryTag(CamelBaseModel):
 
 
 class Division(CamelBaseModel):
-    id: Optional[str] = Field(default=None)
+    id: Optional[int] = Field(default=None)
     name: str
     description: Optional[str] = Field(default=None)
     image_url: Optional[str] = Field(default=None)

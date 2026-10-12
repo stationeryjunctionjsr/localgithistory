@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.models.base import CamelBaseModel
 
 class PaymentEntry(CamelBaseModel):
-    entry_id: Optional[str] = None
+    entry_id: Optional[int] = None
     amount: Optional[float] = None
     payment_method: Optional[str] = None
     paid_at: Optional[datetime] = None
@@ -15,7 +15,7 @@ class PaymentEntry(CamelBaseModel):
     created_at: Optional[datetime] = None
 
 class Payment(CamelBaseModel):
-    id: str 
+    id: int 
     order_id: Optional[str] = None
     user_id: Optional[str] = None
     user_id_formatted: Optional[str] = None

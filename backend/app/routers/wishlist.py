@@ -39,7 +39,7 @@ def get_min_quantity_for_role(product, role: str) -> int:
 async def get_wishlist(current_user: User = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
-        wishlist = await wishlist_repository.findByUser(current_user.id)
+        wishlist = await wishlist_repository.findByUser(current_user.user_id)
         
         raw_items = []
         if wishlist:
@@ -100,7 +100,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depend
         role_for_pricing = get_role_for_pricing(current_user)
         min_qty = get_min_quantity_for_role(product, role_for_pricing)
 
-        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=item.product_id, quantity=min_qty))
+        await wishlist_repository.addItem(current_user.user_id, WishlistItemInternal(product=item.product_id, quantity=min_qty))
 
         # Track the addition
         from app.repositories.tracking_repository import tracking_repository
@@ -121,7 +121,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depend
 async def remove_from_wishlist(product_id: str, current_user: User = Depends(get_current_user)):
     """Remove item from wishlist"""
     try:
-        removed = await wishlist_repository.removeItem(current_user.id, product_id)
+        removed = await wishlist_repository.removeItem(current_user.user_id, product_id)
         if not removed:
             raise HTTPException(status_code=404, detail="Wishlist item not found")
         return {"message": "Removed from wishlist"}
@@ -137,7 +137,7 @@ async def remove_from_wishlist(product_id: str, current_user: User = Depends(get
 async def clear_wishlist(current_user: User = Depends(get_current_user)):
     """Clear wishlist"""
     try:
-        await wishlist_repository.clear(current_user.id)
+        await wishlist_repository.clear(current_user.user_id)
         return {"message": "Wishlist cleared"}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

@@ -1392,7 +1392,7 @@ CREATE TABLE `sj_search_tag_collections` (
 CREATE TABLE `sj_search_tag_ex_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `product_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_sj_search_tag_ex_products` (`parent_id`),
   CONSTRAINT `fk_sj_search_tag_ex_products` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
@@ -1401,7 +1401,7 @@ CREATE TABLE `sj_search_tag_ex_products` (
 CREATE TABLE `sj_search_tag_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `product_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_sj_search_tag_products` (`parent_id`),
   CONSTRAINT `fk_sj_search_tag_products` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE

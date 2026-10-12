@@ -90,9 +90,8 @@ async def get_category_tags_for_head(head_id: str):
             if not head:
                 raise HTTPException(status_code=404, detail="Category head not found")
 
-        hid = int(head.id) if str(head.id).isdigit() else None
-        if hid is not None:
-            tags = await category_tag_repository.findByCategoryHead(hid)
+        if head.id is not None:
+            tags = await category_tag_repository.findByCategoryHead(head.id)
             return [
                 {
                     "id": str(t.id),

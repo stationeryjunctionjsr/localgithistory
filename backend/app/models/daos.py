@@ -280,12 +280,12 @@ class WishlistItemInternal(CamelBaseModel):
 
 class WishlistInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    user: str
+    user: int
     items: Optional[List[WishlistItemInternal]] = []
 
 class WishlistInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    user: Optional[str] = None
+    user: Optional[int] = None
     items: Optional[List[WishlistItemInternal]] = None
 
 class TrackingInternalCreate(CamelBaseModel):

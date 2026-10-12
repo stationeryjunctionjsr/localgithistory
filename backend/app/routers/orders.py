@@ -1,4 +1,4 @@
-from app.models.daos import NotificationInternalCreate, OrderFilter, PaymentEntryInternal
+from app.models.daos import NotificationInternalCreate, OrderFilter, PaymentEntryInternal, PaymentInternalUpdate
 from app.models.push_notifications import PushNotifications
 from fastapi.responses import FileResponse
 from app.models.schemas import VariantAttributes, CouponResponse
@@ -390,16 +390,16 @@ async def update_delivery_charge(
             new_amount_remaining = (
                 payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
             await payment_repository.update(
-                payment.id, {"totalAmount": new_total,
-                             "amountRemaining": new_amount_remaining}
+                payment.id, PaymentInternalUpdate(total_amount=new_total,
+                             amount_remaining=new_amount_remaining)
             )
         elif payment_method in ["credit", "cod"]:
             # For Credit/COD: Update amount remaining
             new_amount_remaining = (
                 payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
             await payment_repository.update(
-                payment.id, {"totalAmount": new_total,
-                             "amountRemaining": new_amount_remaining}
+                payment.id, PaymentInternalUpdate(total_amount=new_total,
+                             amount_remaining=new_amount_remaining)
             )
 
     # Get updated order

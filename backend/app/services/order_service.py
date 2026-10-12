@@ -1607,8 +1607,7 @@ async def create_order_service(
                                       AND slot_uuid = :slot_id 
                                       AND (capacity IS NULL OR capacity = '' OR booked_count < CAST(capacity AS UNSIGNED))
                                 """),
-                                {"id": int(db_id) if str(db_id).isdigit()
-                                 else None, "slot_id": slot_id},
+                                {"id": db_id, "slot_id": slot_id},
                             )
 
                             if update_result.rowcount == 0:
@@ -1620,11 +1619,9 @@ async def create_order_service(
                             await session.execute(
                                 text(
                                     f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
-                                {"id": int(db_id) if str(
-                                    db_id).isdigit() else None},
+                                {"id": db_id},
                             )
                             await session.commit()
-                            # --- END NEW ATOMIC CODE ---
             except Exception as e:
                 _cfg_id = selected_slot_info["configId"] if selected_slot_info and "configId" in selected_slot_info else selected_slot_info.configId
                 _s_id = selected_slot_info["slotId"] if selected_slot_info and "slotId" in selected_slot_info else selected_slot_info.slotId

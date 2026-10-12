@@ -90,9 +90,9 @@ async def warm_critical_caches():
             products_list = products_res.products if products_res.products is not None else []
             if products_list:
                 p0 = products_list[0]
-                p0_id = p0.id if p0 else None
+                p0_id = p0.product_id if p0 and p0.product_id is not None else None
                 if p0_id:
-                    await get_public_product(str(p0_id), role="customer", response=Response())
+                    await get_public_product(p0_id, role="customer", response=Response())
         except Exception as e:
             logger.warning("Failed to warm up get_public_product: %s", e)
 

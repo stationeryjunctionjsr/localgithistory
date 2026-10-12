@@ -410,11 +410,10 @@ class MySQLProductDAO:
         records = await self.findAll(query)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[Product]:
+    async def findById(self, id: int) -> Optional[Product]:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -423,13 +422,13 @@ class MySQLProductDAO:
                        p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
                 FROM {self.TABLE} p WHERE p.id = :id
             """),
-                    {"id": pid},
+                    {"id": id},
                 )
             ).fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children_for_products(session, [pid])
-        return self._row_to_product(row, children_map[pid])
+            children_map = await self._fetch_children_for_products(session, [id])
+        return self._row_to_product(row, children_map[id])
 
     async def findByIds(self, ids: List[str]) -> List[Product]:
         if not ids:
@@ -597,13 +596,9 @@ class MySQLProductDAO:
             pid = result.lastrowid
             await self._replace_children(session, pid, data)
             await session.commit()
-        return await self.findById(str(pid))
+        return await self.findById(pid)
 
-    async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Product]:
-        existing = await self.findById(id)
-        if not existing:
-            return None
-        from app.models.daos import ProductInternalUpdate
+    async def update(self, id: int, update_data: 'ProductInternalUpdate') -> Optional[Product]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -636,8 +631,9 @@ class MySQLProductDAO:
             hsn_code=update_data.hsn_code if update_data.hsn_code is not None else existing.hsn_code
         )
         factory = self._factory()
+        if not factory or not id:
+            return None
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
 
         async with factory() as session:
             await session.execute(
@@ -650,7 +646,7 @@ class MySQLProductDAO:
                 WHERE id = :id
             """),
                 {
-                    "id": pid,
+                    "id": id,
                     "name": merged.name,
                     "description": merged.description,
                     "sku": merged.sku,
@@ -672,15 +668,16 @@ class MySQLProductDAO:
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, pid, merged)
+            await self._replace_children(session, id, merged)
             await session.commit()
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
+        if not factory or not id:
+            return False
         async with factory() as session:
-            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pid})
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
 

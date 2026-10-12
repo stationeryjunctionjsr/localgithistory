@@ -92,7 +92,7 @@ class SearchTagRepository:
         all_tags = await self.findAll()
         return [t for t in all_tags if (t.is_active if t.is_active is not None else True)]
 
-    async def addProductId(self, tag_id: int, product_id: str) -> Optional[SearchTagInternal]:
+    async def addProductId(self, tag_id: int, product_id: int) -> Optional[SearchTagInternal]:
         """Add a product ID to the tag's productIds and remove from excludedProductIds if present"""
         tag = await self.findById(tag_id)
         if not tag:
@@ -101,7 +101,7 @@ class SearchTagRepository:
         excluded = [pid for pid in (tag.excluded_product_ids if tag.excluded_product_ids is not None else []) if pid != product_id]
         return await self.update(tag_id, SearchTagInternalUpdate(product_ids=product_ids, excluded_product_ids=excluded))
 
-    async def excludeProductId(self, tag_id: int, product_id: str) -> Optional[SearchTagInternal]:
+    async def excludeProductId(self, tag_id: int, product_id: int) -> Optional[SearchTagInternal]:
         """Add a product ID to excludedProductIds and remove from productIds if present"""
         tag = await self.findById(tag_id)
         if not tag:

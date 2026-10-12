@@ -42,7 +42,7 @@ def _entry__map_to_schema(er) -> PaymentEntry:
 
 def _payment__map_to_schema(r, entries: List[PaymentEntry]) -> Payment:
     return Payment(
-        id=str(r.id),
+        id=r.id,
         order_id=r.order_id,
         userId=r.user_id,
         userIdFormatted=r.user_id_formatted,
@@ -75,7 +75,7 @@ class MySQLPaymentDAO:
         if not payment_ids:
             return []
         stmt = text(
-            f"SELECT payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at "
+            f"SELECT payment_id, CAST(entry_id AS SIGNED) AS entry_id, amount, payment_method, paid_at, image, notes, verified, created_at "
             f"FROM {self.ENTRIES_TABLE} WHERE payment_id IN :ids ORDER BY payment_id, entry_id"
         ).bindparams(bindparam("ids", expanding=True))
         result = await session.execute(stmt, {"ids": list(payment_ids)})
@@ -145,11 +145,10 @@ class MySQLPaymentDAO:
             records.append(_payment__map_to_schema(r, entries))
         return records
 
-    async def findById(self, id: str) -> Optional[Payment]:
+    async def findById(self, id: int) -> Optional[Payment]:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return None
-        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -157,17 +156,17 @@ class MySQLPaymentDAO:
                     f"payment_method, amount_paid, amount_remaining, total_amount, payment_id, created_at, updated_at "
                     f"FROM {self.PAYMENTS_TABLE} WHERE id = :id"
                 ),
-                {"id": pid},
+                {"id": id},
             )
             row = result.fetchone()
         if not row:
             return None
         async with factory() as session:
-            entry_rows = await self._get_entries_for_payment_ids(session, [pid])
+            entry_rows = await self._get_entries_for_payment_ids(session, [id])
         entries = [
             _entry__map_to_schema(er)
             for er in entry_rows
-            if er.payment_id == pid
+            if er.payment_id == id
         ]
         return _payment__map_to_schema(row, entries)
 
@@ -237,9 +236,9 @@ class MySQLPaymentDAO:
                         },
                     )
                 await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: PaymentInternalUpdate) -> Optional[Payment]:
+    async def update(self, id: int, update_data: PaymentInternalUpdate) -> Optional[Payment]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -255,10 +254,9 @@ class MySQLPaymentDAO:
         resolved_payment_id = update_data.payment_id if update_data.payment_id is not None else existing.payment_id
 
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return None
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             await session.execute(
                 text(
@@ -279,12 +277,12 @@ class MySQLPaymentDAO:
                     "total_amount": resolved_total_amount,
                     "payment_id": resolved_payment_id,
                     "updated_at": now,
-                    "id": pid,
+                    "id": id,
                 },
             )
             await session.commit()
             if update_data.payment_entries is not None:
-                await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
+                await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": id})
                 await session.commit()
                 for idx, entry in enumerate(update_data.payment_entries):
                     entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
@@ -295,7 +293,7 @@ class MySQLPaymentDAO:
                             f"VALUES (:payment_id, :entry_id, :amount, :payment_method, :paid_at, :image, :notes, :verified, :created_at)"
                         ),
                         {
-                            "payment_id": pid,
+                            "payment_id": id,
                             "entry_id": entry_id,
                             "amount": (entry.amount if entry.amount is not None else 0),
                             "payment_method": entry.payment_method or resolved_payment_method,
@@ -309,14 +307,13 @@ class MySQLPaymentDAO:
                 await session.commit()
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
-            await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
-            result = await session.execute(text(f"DELETE FROM {self.PAYMENTS_TABLE} WHERE id = :id"), {"id": pid})
+            await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": id})
+            result = await session.execute(text(f"DELETE FROM {self.PAYMENTS_TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
 

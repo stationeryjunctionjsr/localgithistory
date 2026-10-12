@@ -23,7 +23,7 @@ class MySQLWishlistDAO:
 
     def _map_to_schema(self, r, items_rows=None) -> Wishlist:
         w = Wishlist.model_validate(r)
-        w.user = str(r.user_id) if r.user_id is not None else None
+        w.user = r.user_id
         if items_rows:
             w.items = [
                 WishlistItemInternal(product=str(ir.product_id))
@@ -62,7 +62,7 @@ class MySQLWishlistDAO:
     async def findAll(
         self,
         id: Optional[int] = None,
-        user: Optional[str] = None,
+        user: Optional[int] = None,
     ) -> List[Wishlist]:
         factory = self._factory()
         if not factory:
@@ -75,7 +75,7 @@ class MySQLWishlistDAO:
             params["id"] = id
         if user is not None:
             where_clauses.append("user_id = :user_id")
-            params["user_id"] = int(user) if str(user).isdigit() else None
+            params["user_id"] = user
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
@@ -89,7 +89,7 @@ class MySQLWishlistDAO:
     async def findOne(
         self,
         id: Optional[int] = None,
-        user: Optional[str] = None,
+        user: Optional[int] = None,
     ) -> Optional[Wishlist]:
         records = await self.findAll(id=id, user=user)
         return records[0] if records else None
@@ -100,7 +100,7 @@ class MySQLWishlistDAO:
     async def create(self, data: 'WishlistInternalCreate') -> Optional[Wishlist]:
         factory = self._factory()
         now = now_utc()
-        user_id = int((data.user if data.user is not None else 0)) if str((data.user if data.user is not None else "0")).isdigit() else None
+        user_id = data.user
         items = (data.items if data.items is not None else [])
 
         async with factory() as session:
@@ -153,7 +153,7 @@ class MySQLWishlistDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, user: Optional[str] = None) -> int:
+    async def deleteMany(self, user: Optional[int] = None) -> int:
         factory = self._factory()
         if not factory:
             return 0
@@ -161,7 +161,7 @@ class MySQLWishlistDAO:
         params = {}
         if user is not None:
             where_clauses.append("user_id = :user_id")
-            params["user_id"] = int(user) if str(user).isdigit() else None
+            params["user_id"] = user
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
             await session.execute(

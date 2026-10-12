@@ -204,8 +204,8 @@ class SearchTagInternal(FlatCamelBaseModel):
     sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    product_ids: Optional[List[str]] = None
-    excluded_product_ids: Optional[List[str]] = None
+    product_ids: Optional[List[int]] = None
+    excluded_product_ids: Optional[List[int]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -218,8 +218,8 @@ class SearchTagInternalCreate(FlatCamelBaseModel):
     sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    product_ids: Optional[List[str]] = None
-    excluded_product_ids: Optional[List[str]] = None
+    product_ids: Optional[List[int]] = None
+    excluded_product_ids: Optional[List[int]] = None
 
 class SearchTagInternalUpdate(FlatCamelBaseModel):
     tag_id: Optional[str] = None
@@ -230,8 +230,8 @@ class SearchTagInternalUpdate(FlatCamelBaseModel):
     sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    product_ids: Optional[List[str]] = None
-    excluded_product_ids: Optional[List[str]] = None
+    product_ids: Optional[List[int]] = None
+    excluded_product_ids: Optional[List[int]] = None
 
 class CoachMarkInternal(FlatCamelBaseModel):
     id: Optional[str] = None

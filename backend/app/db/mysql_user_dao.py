@@ -187,12 +187,9 @@ class MySQLUserDAO:
         records = await self.findAll(filter_params, limit=1)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[User]:
+    async def findById(self, id: int) -> Optional[User]:
         factory = self._factory()
         if not factory or not id:
-            return None
-        pid = int(id) if str(id).isdigit() else None
-        if not pid:
             return None
         async with factory() as session:
             try:
@@ -205,14 +202,14 @@ class MySQLUserDAO:
                        bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE id = :id LIMIT 1
-            """), {'id': pid})).fetchone()
+            """), {'id': id})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [int(row.id)])
+                children_map = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[int(row.id)])
+        return _map_to_schema(row, children_map[row.id])
 
     async def findByIds(self, ids: List[str]) -> List[User]:
         if not ids:
@@ -402,19 +399,22 @@ class MySQLUserDAO:
             except Exception as e:
                 await session.rollback()
                 raise e
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def add_credit_used_atomic(self, id: str, amount: float) -> bool:
+    async def add_credit_used_atomic(self, id: int, amount: float) -> bool:
         factory = self._factory()
-        if not factory:
-            return False
-        uid = int(id) if str(id).isdigit() else None
-        if uid == 0:
+        if not factory or not id:
             return False
         from sqlalchemy import text
         async with factory() as session:
             try:
-                res = await session.execute(text(f'\n                    UPDATE {self.TABLE} \n                    SET credit_used = COALESCE(credit_used, 0) + :amount,\n                        updated_at = UTC_TIMESTAMP()\n                    WHERE id = :uid \n                    AND (credit_limit IS NULL OR credit_limit = 0 OR COALESCE(credit_used, 0) + :amount <= credit_limit)\n                '), {'uid': uid, 'amount': amount})
+                res = await session.execute(text(f"""
+                    UPDATE {self.TABLE} 
+                    SET credit_used = COALESCE(credit_used, 0) + :amount,
+                        updated_at = UTC_TIMESTAMP()
+                    WHERE id = :uid 
+                    AND (credit_limit IS NULL OR credit_limit = 0 OR COALESCE(credit_used, 0) + :amount <= credit_limit)
+                """), {'uid': id, 'amount': amount})
                 await session.commit()
                 return res.rowcount > 0
 
@@ -422,7 +422,7 @@ class MySQLUserDAO:
             except Exception as e:
                 await session.rollback()
                 raise e
-    async def update(self, id: str, update_data: 'UserInternalUpdate') -> Optional[User]:
+    async def update(self, id: int, update_data: 'UserInternalUpdate') -> Optional[User]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -523,13 +523,13 @@ class MySQLUserDAO:
                 await session.rollback()
                 raise e
         return await self.findById(id)
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        if not factory or not id or not str(id).isdigit():
+        if not factory or not id:
             return False
         async with factory() as session:
             try:
-                result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE id = :id'), {'id': int(id)})
+                result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE id = :id'), {'id': id})
                 await session.commit()
                 return result.rowcount > 0
             except Exception as e:

@@ -41,7 +41,7 @@ interface Product {
 // Per-product search tag override component
 function SearchTagManager({ productId, onUpdate }: { productId: string; onUpdate: () => void }) {
   const [resolvedTags, setResolvedTags] = useState<string[]>([]);
-  const [allTags, setAllTags] = useState<{ _id: string; name: string; type: string }[]>([]);
+  const [allTags, setAllTags] = useState<{ id: number; name: string; type: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -62,7 +62,7 @@ function SearchTagManager({ productId, onUpdate }: { productId: string; onUpdate
     }
   };
 
-  const handleAddTag = async (tagId: string) => {
+  const handleAddTag = async (tagId: number) => {
     try {
       await api.post(`/products/${productId}/search-tags`, { searchTagId: tagId });
       toast.success('Search tag added to product');
@@ -82,7 +82,7 @@ function SearchTagManager({ productId, onUpdate }: { productId: string; onUpdate
       return;
     }
     try {
-      await api.delete(`/products/${productId}/search-tags/${tag._id}`);
+      await api.delete(`/products/${productId}/search-tags/${tag.id}`);
       toast.success('Search tag removed from product');
       fetchProductTags();
       onUpdate();
@@ -137,9 +137,9 @@ function SearchTagManager({ productId, onUpdate }: { productId: string; onUpdate
           <div className="absolute z-20 mt-1 max-h-48 min-w-[200px] overflow-y-auto rounded border bg-white shadow-lg">
             {availableToAdd.map((tag) => (
               <button
-                key={tag._id}
+                key={tag.id}
                 type="button"
-                onClick={() => handleAddTag(tag._id)}
+                onClick={() => handleAddTag(tag.id)}
                 className="w-full border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-gray-100"
               >
                 <span className="font-medium">{tag.name}</span>

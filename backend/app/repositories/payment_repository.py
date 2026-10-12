@@ -66,7 +66,7 @@ class PaymentRepository:
 
         return payments
 
-    async def findById(self, id: str):
+    async def findById(self, id: int):
         return await self.storage.findById(id)
 
     async def findOne(self, order_id: Optional[str] = None, user_id: Optional[str] = None):
@@ -100,17 +100,17 @@ class PaymentRepository:
             
         return await self.storage.create(payment_data)
 
-    async def update(self, id: str, update_data: 'PaymentInternalUpdate'):
+    async def update(self, id: int, update_data: 'PaymentInternalUpdate'):
         update_data.updated_at = datetime.now(timezone.utc)
         return await self.storage.update(id, update_data)
 
-    async def addPaymentEntry(self, payment_id: str, entry_data: 'PaymentEntryInternal'):
+    async def addPaymentEntry(self, payment_id: int, entry_data: 'PaymentEntryInternal'):
         payment = await self.findById(payment_id)
         if not payment:
             raise ValueError("Payment not found")
 
         entries = payment.payment_entries or []
-        entry_data.entry_id = str(len(entries) + 1)
+        entry_data.entry_id = len(entries) + 1
         if entry_data.payment_method is None:
             entry_data.payment_method = payment.payment_method or "cod"
         if entry_data.paid_at is None:
@@ -136,13 +136,13 @@ class PaymentRepository:
         )
         return await self.update(payment_id, update_payload)
 
-    async def updatePaymentEntry(self, payment_id: str, entry_id: int, update_data: 'PaymentEntryInternal'):
+    async def updatePaymentEntry(self, payment_id: int, entry_id: int, update_data: 'PaymentEntryInternal'):
         payment = await self.findById(payment_id)
         if not payment:
             raise ValueError("Payment not found")
 
         entries = payment.payment_entries or []
-        entry_index = next((i for i, e in enumerate(entries) if (str(e.entry_id) == str(entry_id))), None)
+        entry_index = next((i for i, e in enumerate(entries) if e.entry_id == entry_id), None)
         if entry_index is None:
             raise ValueError("Payment entry not found")
 
@@ -168,7 +168,7 @@ class PaymentRepository:
         )
         return await self.storage.update(payment_id, update_model)
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         return await self.storage.delete(id)
 
 

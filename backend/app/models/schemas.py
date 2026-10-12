@@ -997,8 +997,8 @@ class SearchTagBase(CamelBaseModel):
     sub_categories: Optional[List[str]] = []
     brands: Optional[List[str]] = []
     collections: Optional[List[str]] = []
-    product_ids: Optional[List[str]] = []
-    excluded_product_ids: Optional[List[str]] = []
+    product_ids: Optional[List[int]] = []
+    excluded_product_ids: Optional[List[int]] = []
 
 
 class SearchTagCreate(SearchTagBase):
@@ -1013,8 +1013,8 @@ class SearchTagUpdate(CamelBaseModel):
     sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    product_ids: Optional[List[str]] = None
-    excluded_product_ids: Optional[List[str]] = None
+    product_ids: Optional[List[int]] = None
+    excluded_product_ids: Optional[List[int]] = None
 
 
 class SearchTagResponse(SearchTagBase):

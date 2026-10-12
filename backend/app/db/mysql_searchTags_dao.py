@@ -77,7 +77,7 @@ class MySQLSearchTagsDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            child_rows = await self._fetch_children(session, [int(r.id) for r in rows])
+            child_rows = await self._fetch_children(session, [r.id for r in rows])
             return [self._map_to_schema(r, child_rows) for r in rows]
 
     async def create(self, data: 'SearchTagInternalCreate') -> 'SearchTagInternal':
@@ -112,14 +112,14 @@ class MySQLSearchTagsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'SearchTagInternalUpdate') -> 'SearchTagInternal':
+    async def update(self, id: int, update_data: 'SearchTagInternalUpdate') -> 'SearchTagInternal':
         existing = await self.findById(id)
         if not existing:
             return None
         factory = self._factory()
-        pid = int(existing.id)
+        pid = existing.id
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now_utc()}
 
@@ -178,8 +178,8 @@ class MySQLSearchTagsDAO:
             sub_categories = [cr.sub_category for cr in rows_subcats if cr.parent_id == r.id]
             brands = [cr.brand for cr in rows_brands if cr.parent_id == r.id]
             collections = [cr.collection for cr in rows_collections if cr.parent_id == r.id]
-            product_ids = [cr.product_id for cr in rows_products if cr.parent_id == r.id]
-            excluded_product_ids = [cr.product_id for cr in rows_ex_products if cr.parent_id == r.id]
+            product_ids = [cr.product_id for cr in rows_products if cr.parent_id == r.id and cr.product_id is not None]
+            excluded_product_ids = [cr.product_id for cr in rows_ex_products if cr.parent_id == r.id and cr.product_id is not None]
         else:
             categories = []
             sub_categories = []
@@ -221,10 +221,10 @@ class MySQLSearchTagsDAO:
         q_collections = text(f"SELECT parent_id, collection FROM sj_search_tag_collections WHERE parent_id IN ({id_list})")
         rows_collections = (await session.execute(q_collections)).fetchall()
 
-        q_productIds = text(f"SELECT parent_id, product_id FROM sj_search_tag_products WHERE parent_id IN ({id_list})")
+        q_productIds = text(f"SELECT parent_id, CAST(product_id AS SIGNED) AS product_id FROM sj_search_tag_products WHERE parent_id IN ({id_list})")
         rows_productIds = (await session.execute(q_productIds)).fetchall()
 
-        q_excludedProductIds = text(f"SELECT parent_id, product_id FROM sj_search_tag_ex_products WHERE parent_id IN ({id_list})")
+        q_excludedProductIds = text(f"SELECT parent_id, CAST(product_id AS SIGNED) AS product_id FROM sj_search_tag_ex_products WHERE parent_id IN ({id_list})")
         rows_excludedProductIds = (await session.execute(q_excludedProductIds)).fetchall()
 
         return (

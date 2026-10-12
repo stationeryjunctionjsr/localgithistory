@@ -5,7 +5,7 @@ from app.models.schemas import MessageResponse
 from app.models.payment import Payment, PaymentEntry
 from app.models.daos import PaymentEntryInternal
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 
 class BillInfoResponse(BaseModel):
     orderId: str
@@ -196,7 +196,7 @@ class PaymentEntryResponse(BaseModel):
     updatedAt: Optional[str] = None
 
 class PaymentResponse(BaseModel):
-    id: str
+    id: int
     orderId: str
     orderNumber: Optional[str] = None
     amount: float
@@ -240,7 +240,7 @@ async def get_payments(
         order = (order_map[str(payment.order_id)] if str(payment.order_id) in order_map else None)
         enhanced_payments.append(
             PaymentResponse(
-                _id=payment.id,
+                id=payment.id,
                 orderId=payment.order_id,
                 orderNumber=order.order_number if order else payment.order_id,
                 amount=payment.amount,
@@ -255,7 +255,7 @@ async def get_payments(
 
 
 @router.get("/{payment_id}", response_model=PaymentResponse)
-async def get_payment(payment_id: str, current_user: User = Depends(require_super_admin)):
+async def get_payment(payment_id: int, current_user: User = Depends(require_super_admin)):
     """Get single payment (Super Admin only)"""
     payment = await payment_repository.findById(payment_id)
     if not payment:
@@ -265,7 +265,7 @@ async def get_payment(payment_id: str, current_user: User = Depends(require_supe
 
 @router.put("/{payment_id}/verify-entry/{entry_id}", response_model=PaymentResponse)
 async def verify_payment_entry(
-    payment_id: str, entry_id: int, verify_data: VerifyEntryRequest, current_user: User = Depends(require_super_admin)
+    payment_id: int, entry_id: int, verify_data: VerifyEntryRequest, current_user: User = Depends(require_super_admin)
 ):
     """Verify a payment entry (Super Admin only)"""
     from app.models.daos import PaymentEntryInternal

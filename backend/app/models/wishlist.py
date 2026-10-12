@@ -7,7 +7,7 @@ from app.models.base import CamelBaseModel
 
 class Wishlist(CamelBaseModel):
     id: Optional[int] = None
-    user: Optional[str] = None
+    user: Optional[int] = None
     items: List[WishlistItemInternal] = Field(default=[])
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

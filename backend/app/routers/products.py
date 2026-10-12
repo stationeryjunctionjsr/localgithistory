@@ -11,6 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
+from app.models.base import CamelBaseModel
 
 class SellerEntryUpdate(BaseModel):
     stock: Optional[int] = None
@@ -830,7 +831,7 @@ async def get_public_products(
 
 @router.get("/public/{product_id}", response_model=ProductResponse)
 @cache.ttl_cache(ttl=900.0)
-async def get_public_product(product_id: str, role: str = "customer", response: Response = None):
+async def get_public_product(product_id: int, role: str = "customer", response: Response = None):
     """Get a single product by ID (public endpoint - no auth required)"""
     role = "customer" # Force role to customer for public endpoint
     product = await product_repository.findById(product_id)
@@ -1047,7 +1048,7 @@ async def get_products(
 
 
 @cache.ttl_cache(ttl=900.0)
-async def _get_product_cached(product_id: str, effective_role: str, user_id: str):
+async def _get_product_cached(product_id: int, effective_role: str, user_id: str):
     """Cached inner function for a single authenticated product fetch.
     BUG-3 fix: cache key built from primitive strings only — no User object.
     """
@@ -1077,7 +1078,7 @@ async def _get_product_cached(product_id: str, effective_role: str, user_id: str
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
-async def get_product(product_id: str, current_user: User = Depends(get_current_user)):
+async def get_product(product_id: int, current_user: User = Depends(get_current_user)):
     # BUG-3 fix: resolve User → primitives before delegating to the cached function.
     effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
     user_id = str(current_user.id or "")
@@ -1113,7 +1114,7 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
-    product_id: str, product_data: ProductUpdate, current_user: User = Depends(require_super_admin)
+    product_id: int, product_data: ProductUpdate, current_user: User = Depends(require_super_admin)
 ):
     try:
         internal_data = ProductInternalUpdate(
@@ -1147,7 +1148,7 @@ async def update_product(
 
 
 @router.delete("/{product_id}", response_model=MessageResponse)
-async def delete_product(product_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_product(product_id: int, current_user: User = Depends(require_super_admin)):
     product = await product_repository.delete(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -1202,13 +1203,24 @@ class SearchSuggestResponse(BaseModel):
     brands: List[str]
     categories: List[str]
 
-class ProductTagAction(BaseModel):
-    searchTagId: str
+class ProductTagAction(CamelBaseModel):
+    search_tag_id: int
+
+
+class ProductSearchTagItem(CamelBaseModel):
+    id: int
+    name: str
+    type: Optional[str] = None
+
+
+class ProductSearchTagsResponse(CamelBaseModel):
+    resolved_tags: List[str]
+    all_tags: List[ProductSearchTagItem]
 
 
 @router.post("/{product_id}/search-tags", response_model=MessageResponse)
 async def add_search_tag_to_product(
-    product_id: str, action: ProductTagAction, current_user: User = Depends(require_super_admin)
+    product_id: int, action: ProductTagAction, current_user: User = Depends(require_super_admin)
 ):
     """Add a search tag to a specific product (adds to productIds, removes from excludedProductIds)"""
     product = await product_repository.findById(product_id)
@@ -1217,7 +1229,7 @@ async def add_search_tag_to_product(
 
     from app.repositories.search_tag_repository import search_tag_repository
 
-    result = await search_tag_repository.addProductId(action.searchTagId, product_id)
+    result = await search_tag_repository.addProductId(action.search_tag_id, product_id)
     if not result:
         raise HTTPException(status_code=404, detail="Search tag not found")
 
@@ -1226,7 +1238,7 @@ async def add_search_tag_to_product(
 
 @router.delete("/{product_id}/search-tags/{search_tag_id}", response_model=MessageResponse)
 async def remove_search_tag_from_product(
-    product_id: str, search_tag_id: str, current_user: User = Depends(require_super_admin)
+    product_id: int, search_tag_id: int, current_user: User = Depends(require_super_admin)
 ):
     """Remove a search tag from a specific product (adds to excludedProductIds, removes from productIds)"""
     product = await product_repository.findById(product_id)
@@ -1242,15 +1254,15 @@ async def remove_search_tag_from_product(
     return {"message": "Search tag removed from product"}
 
 
-@router.get("/{product_id}/search-tags", response_model=List[str])
-async def get_product_search_tags(product_id: str, current_user: User = Depends(require_super_admin)):
+@router.get("/{product_id}/search-tags", response_model=ProductSearchTagsResponse)
+async def get_product_search_tags(product_id: int, current_user: User = Depends(require_super_admin)):
     """Get all resolved search tags for a specific product"""
-    products_with_tags = await product_repository.find_with_resolved_search_tags({"_id": product_id})
-    if not products_with_tags:
+    product = await product_repository.findById(product_id)
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    first_product = products_with_tags[0]
-    resolved = first_product.searchTags or []
+    products_with_tags = await product_repository.resolve_search_tags([product])
+    resolved = products_with_tags[0].search_tags or []
 
     # Also return all available search tags for the add dropdown
     from app.repositories.search_tag_repository import search_tag_repository
@@ -1259,7 +1271,7 @@ async def get_product_search_tags(product_id: str, current_user: User = Depends(
 
     return {
         "resolvedTags": resolved,
-        "allTags": [{"_id": t.id, "name": t.name, "type": t.type} for t in all_tags],
+        "allTags": [{"id": t.id, "name": t.name, "type": t.type} for t in all_tags],
     }
 
 
@@ -1269,7 +1281,7 @@ class NotifyMeRequest(BaseModel):
 
 @router.post("/{product_id}/notify-me", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 async def notify_me(
-    product_id: str,
+    product_id: int,
     data: NotifyMeRequest,
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
@@ -1346,7 +1358,7 @@ async def upload_videos(
 
 @router.post("/{product_id}/seller-requests", response_model=ProductResponse)
 async def create_seller_request(
-    product_id: str,
+    product_id: int,
     data: SellerProductRequestCreate,
     current_user: User = Depends(require_super_admin_or_seller)
 ):
@@ -1393,7 +1405,7 @@ async def create_seller_request(
 
 @router.put("/{product_id}/sellers/me", response_model=ProductResponse)
 async def update_my_seller_entry(
-    product_id: str,
+    product_id: int,
     data: SellerEntryUpdate,
     current_user: User = Depends(require_super_admin_or_seller)
 ):
@@ -1427,7 +1439,7 @@ async def update_my_seller_entry(
 
 @router.put("/{product_id}/sellers/{seller_id}/approve", response_model=ProductResponse)
 async def approve_seller_request(
-    product_id: str,
+    product_id: int,
     seller_id: str,
     data: SellerRequestApprove = None,
     current_user: User = Depends(require_super_admin)
