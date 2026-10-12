@@ -1,5 +1,4 @@
 import logging
-import secrets
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union
 from pydantic import BaseModel
@@ -43,7 +42,6 @@ class FlatRelationalDAO:
         scalar_map: Dict[str, str],
         clob_map: Optional[Dict[str, str]] = None,
         *,
-        has_external_id: bool = True,
         bool_api_keys: Optional[Set[str]] = None,
         schema_cls=None,
     ):
@@ -51,7 +49,6 @@ class FlatRelationalDAO:
         self._raw_table_name = table_name
         self.scalar_map = scalar_map
         self.clob_map = clob_map or {}
-        self.has_external_id = has_external_id
         self.bool_api_keys = bool_api_keys or set()
 
     @property
@@ -101,8 +98,6 @@ class FlatRelationalDAO:
 
     def _doc_to_params(self, data: Dict, now: datetime) -> Dict:
         params = {"created_at": now, "updated_at": now}
-        if self.has_external_id:
-            params["external_id"] = secrets.token_hex(16)
         for api_key, col in self.scalar_map.items():
             val = data[api_key] if api_key in data else None
             if val is None:
@@ -127,8 +122,6 @@ class FlatRelationalDAO:
 
     def _all_columns(self) -> List[str]:
         cols = ["id", "created_at", "updated_at"]
-        if self.has_external_id:
-            cols.append("external_id")
         cols.extend(self.scalar_map.values())
         cols.extend(self.clob_map.values())
         # Use dict.fromkeys for uniqueness, then quote
@@ -191,23 +184,13 @@ class FlatRelationalDAO:
 
         cols_str = ", ".join(_q(k) for k in cols)
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"INSERT INTO {self.table_name} ({cols_str}) VALUES ({', '.join(placeholders)})"),
                 bind_params,
             )
             await session.commit()
+            new_id = result.lastrowid
 
-        if not self.has_external_id:
-            raise RuntimeError("Cannot retrieve new row id without external_id")
-
-        # Open a fresh session after commit to fetch the new row id
-        async with factory() as session:
-            result = await session.execute(
-                text(f"SELECT id FROM {self.table_name} WHERE external_id = :eid"),
-                {"eid": bind_params["external_id"]},
-            )
-            row = result.fetchone()
-        new_id = row.id if row else None
         if new_id is None:
             raise RuntimeError("Could not obtain new row id after insert")
         return await self.findById(str(new_id))
@@ -229,7 +212,7 @@ class FlatRelationalDAO:
         bind_params = {"id": params["id"]}
         set_parts = []
         for k in params:
-            if k not in ("id", "external_id", "created_at"):
+            if k not in ("id", "created_at"):
                 p = _param(k)
                 set_parts.append(f"{_q(k)} = :{p}")
                 bind_params[p] = params[k]
