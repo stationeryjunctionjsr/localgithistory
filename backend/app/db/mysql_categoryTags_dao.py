@@ -4,7 +4,6 @@ Supports division_id / category_head_id relationships and category counts.
 """
 
 from datetime import datetime, timezone
-import secrets
 from typing import Any, List, Optional, Tuple, Union
 
 from sqlalchemy import text
@@ -58,7 +57,6 @@ class MySQLCategoryTagsDAO:
                         break
         return CategoryTagInternal(
             id=str(r.id),
-            external_id=r.external_id,
             name=r.name,
             description=r.description,
             is_active=bool(r.is_active) if r.is_active is not None else True,
@@ -138,12 +136,10 @@ class MySQLCategoryTagsDAO:
         if not factory or not id:
             return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
-                params = {"id": str(id)}
+            if not str(id).isdigit():
+                return None
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            params = {"id": int(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
@@ -202,10 +198,9 @@ class MySQLCategoryTagsDAO:
     async def create(self, data: CategoryTagInternalCreate) -> CategoryTagInternal:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
 
-        cols = ["external_id", "created_at", "updated_at"]
-        params = {"eid": external_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        params = {"c": now, "u": now}
 
         if data.name is not None:
             cols.append("name")
@@ -226,7 +221,7 @@ class MySQLCategoryTagsDAO:
             params["did"] = int(target_did)
 
         col_sql = ", ".join(cols)
-        val_parts = [":eid", ":c", ":u"]
+        val_parts = [":c", ":u"]
         if "name" in params: val_parts.append(":name")
         if "desc" in params: val_parts.append(":desc")
         if "act" in params: val_parts.append(":act")
@@ -237,13 +232,8 @@ class MySQLCategoryTagsDAO:
         val_sql = ", ".join(val_parts)
 
         async with factory() as session:
-            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            await session.commit()
-
-            res_id = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-            )
-            new_id = res_id.scalar()
+            result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = result.lastrowid
 
             # Sync junction tables
             if target_did is not None:
@@ -337,12 +327,7 @@ class MySQLCategoryTagsDAO:
         async with factory() as session:
             pk = int(id) if str(id).isdigit() else None
             if not pk:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
+                return False
 
             # Delete junction records
             await session.execute(
@@ -392,7 +377,7 @@ class MySQLCategoryTagsDAO:
 
             where_sql = " OR ".join(where_parts) if where_parts else "1=0"
             sql = f"""
-                SELECT DISTINCT c.id, c.external_id, c.name, c.description, c.is_active, c.category_tag, c.category_tag_id
+                SELECT DISTINCT c.id, c.name, c.description, c.is_active, c.category_tag, c.category_tag_id
                 FROM sj_categories c
                 LEFT JOIN sj_category_category_tags cct ON c.id = cct.category_id
                 WHERE {where_sql}
