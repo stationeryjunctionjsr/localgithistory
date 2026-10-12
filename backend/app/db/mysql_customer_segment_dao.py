@@ -1,6 +1,5 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import datetime
-import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import CustomerSegmentInternal, CustomerSegmentInternalCreate, CustomerSegmentInternalUpdate
@@ -17,7 +16,6 @@ class MySQLCustomerSegmentDAO:
     def _map_to_schema(self, r, user_ids: List[str]) -> CustomerSegmentInternal:
         return CustomerSegmentInternal(
             id=str(r.id),
-            external_id=r.external_id,
             type=r.type,
             name=r.name,
             description=r.description,
@@ -41,23 +39,25 @@ class MySQLCustomerSegmentDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_user_ids(self, segment_id: str) -> List[str]:
+    async def _fetch_user_ids(self, segment_id: Union[int, str]) -> List[str]:
+        sid = int(segment_id) if str(segment_id).isdigit() else segment_id
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             result = await session.execute(
-                text("SELECT user_id FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": segment_id}
+                text("SELECT user_id FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": sid}
             )
-            return [r.user_id for r in result.fetchall()]
+            return [str(r.user_id) for r in result.fetchall()]
 
-    async def _save_user_ids(self, segment_id: str, user_ids: List[str]):
+    async def _save_user_ids(self, segment_id: Union[int, str], user_ids: List[str]):
         if user_ids is None: return
+        sid = int(segment_id) if str(segment_id).isdigit() else segment_id
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             await session.execute(
-                text("DELETE FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": segment_id}
+                text("DELETE FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": sid}
             )
             if user_ids:
-                params = [{"sid": segment_id, "uid": uid} for uid in user_ids]
+                params = [{"sid": sid, "uid": str(uid)} for uid in user_ids]
                 await session.execute(
                     text("INSERT INTO sj_customer_segment_users (segment_id, user_id) VALUES (:sid, :uid)"), params
                 )
@@ -74,7 +74,7 @@ class MySQLCustomerSegmentDAO:
             row = result.fetchone()
             if not row: return None
             
-            user_ids = await self._fetch_user_ids(row.external_id)
+            user_ids = await self._fetch_user_ids(row.id)
             return self._map_to_schema(row, user_ids)
 
     async def findAll(self, query: Optional[object] = None) -> List[CustomerSegmentInternal]:
@@ -85,15 +85,12 @@ class MySQLCustomerSegmentDAO:
             
             out = []
             for r in rows:
-                user_ids = await self._fetch_user_ids(r.external_id)
+                user_ids = await self._fetch_user_ids(r.id)
                 out.append(self._map_to_schema(r, user_ids))
             return out
 
     async def create(self, data: CustomerSegmentInternalCreate) -> CustomerSegmentInternal:
-        external_id = secrets.token_hex(16)
-        
         p = {
-            "external_id": external_id,
             "created_at": now_utc(),
             "updated_at": now_utc(),
             "type": data.type,
@@ -126,7 +123,7 @@ class MySQLCustomerSegmentDAO:
             await session.commit()
             
         user_ids = data.user_ids or []
-        await self._save_user_ids(external_id, user_ids)
+        await self._save_user_ids(new_id, user_ids)
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: CustomerSegmentInternalUpdate) -> Optional[CustomerSegmentInternal]:
@@ -164,7 +161,7 @@ class MySQLCustomerSegmentDAO:
                 await session.commit()
                 
         if update_data.user_ids is not None:
-            await self._save_user_ids(record.external_id, update_data.user_ids)
+            await self._save_user_ids(pk, update_data.user_ids)
             
         return await self.findById(id)
 
