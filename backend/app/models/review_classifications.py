@@ -1,15 +1,12 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from typing import Optional
+from app.models.base import CamelBaseModel
 
-class ReviewClassifications(BaseModel):
-    id: Optional[str] = None
-    review_id: Optional[str] = Field(default=None, alias='reviewId')
-    category: Optional[str] = Field(default=None, alias='category')
-    confidence_score: Optional[str] = Field(default=None, alias='confidenceScore')
-    sentiment: Optional[str] = Field(default=None, alias='sentiment')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class ReviewClassifications(CamelBaseModel):
+    id: Optional[int] = None
+    review_id: Optional[str] = None
+    category: Optional[str] = None
+    confidence_score: Optional[float] = None
+    sentiment: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

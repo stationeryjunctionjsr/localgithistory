@@ -40,8 +40,18 @@ from app.db.mysql_deliveryCharges_dao import MySQLDeliveryChargesDAO
 from app.db.mysql_deliveryChargeDefaults_dao import MySQLDeliveryChargeDefaultsDAO
 from app.db.mysql_deliveryZones_dao import MySQLDeliveryZonesDAO
 from app.db.mysql_activities_dao import MySQLActivitiesDAO
-from app.db.mysql_flat_daos import FLAT_DAOS
-from app.db.flat_relational_configs import FLAT_RELATIONAL_DAOS
+from app.db.mysql_aboutUs_dao import MySQLAboutUsDAO
+from app.db.mysql_privacyPolicy_dao import MySQLPrivacyPolicyDAO
+from app.db.mysql_google_reviews_dao import MySQLGoogleReviewsDAO
+from app.db.mysql_valetPayoutSettings_dao import MySQLValetPayoutSettingsDAO
+from app.db.mysql_systemSettings_dao import MySQLSystemSettingsDAO
+from app.db.mysql_pincodeSearches_dao import MySQLPincodeSearchesDAO
+from app.db.mysql_stockReservations_dao import MySQLStockReservationsDAO
+from app.db.mysql_productNotifications_dao import MySQLProductNotificationsDAO
+from app.db.mysql_productReviews_dao import MySQLProductReviewsDAO
+from app.db.mysql_classificationTags_dao import MySQLClassificationTagsDAO
+from app.db.mysql_reviewClassifications_dao import MySQLReviewClassificationsDAO
+from app.db.mysql_availabilityRequests_dao import MySQLAvailabilityRequestsDAO
 
 from app.db.mysql_user_dao import MySQLUserDAO
 from app.db.mysql_wishlist_dao import MySQLWishlistDAO
@@ -109,7 +119,19 @@ _MYSQL_DAO_COLLECTIONS = {
     "deliveryChargeDefaults": MySQLDeliveryChargeDefaultsDAO,
     "deliveryZones": MySQLDeliveryZonesDAO,
     "activities": MySQLActivitiesDAO,
-
+    "events": MySQLTrackingDAO,
+    "aboutUs": MySQLAboutUsDAO,
+    "privacyPolicy": MySQLPrivacyPolicyDAO,
+    "google_reviews": MySQLGoogleReviewsDAO,
+    "valetPayoutSettings": MySQLValetPayoutSettingsDAO,
+    "systemSettings": MySQLSystemSettingsDAO,
+    "pincodeSearches": MySQLPincodeSearchesDAO,
+    "stockReservations": MySQLStockReservationsDAO,
+    "productNotifications": MySQLProductNotificationsDAO,
+    "productReviews": MySQLProductReviewsDAO,
+    "classificationTags": MySQLClassificationTagsDAO,
+    "reviewClassifications": MySQLReviewClassificationsDAO,
+    "availabilityRequests": MySQLAvailabilityRequestsDAO,
 }
 
 
@@ -120,9 +142,6 @@ def get_storage(collection_name: str) -> object:
     """
     if collection_name in _MYSQL_DAO_COLLECTIONS:
         return _MYSQL_DAO_COLLECTIONS[collection_name]()
-    if collection_name in FLAT_DAOS:
-        return FLAT_DAOS[collection_name]
-    if collection_name in FLAT_RELATIONAL_DAOS:
-        return FLAT_RELATIONAL_DAOS[collection_name]
-        
+
     raise ValueError(f"No MySQL DAO mapped for collection: {collection_name}")
+
