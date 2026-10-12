@@ -69,7 +69,7 @@ def _map_request(request: SellerRequest, users_map: dict[str, UserSnippet]) -> S
         for resp in (request.responses or [])
     ]
     return SellerRequestResponse(
-        id=request.id if request.id is not None else request.external_id,
+        id=request.id,
         subject=request.subject,
         description=request.description,
         category=request.category,

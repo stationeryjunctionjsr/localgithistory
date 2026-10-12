@@ -67,7 +67,6 @@ class TestDeliveryChargeRepository:
         """Order below first tier max pays first tier charge."""
         class MockTier:
             def __init__(self, m, c):
-                self.external_id = "t_mock"
                 self.max = m
                 self.charge = c
         tiers = [
@@ -84,7 +83,6 @@ class TestDeliveryChargeRepository:
         """Order above all finite thresholds falls into Infinity tier (free shipping)."""
         class MockTier:
             def __init__(self, m, c):
-                self.external_id = "t_mock"
                 self.max = m
                 self.charge = c
         tiers = [
@@ -106,7 +104,6 @@ class TestDeliveryChargeRepository:
         """order_amount exactly equal to maxAmount picks the NEXT tier (strict <)."""
         class MockTier:
             def __init__(self, m, c):
-                self.external_id = "t_mock"
                 self.max = m
                 self.charge = c
         tiers = [

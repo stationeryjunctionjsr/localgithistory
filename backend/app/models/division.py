@@ -1,21 +1,19 @@
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 from pydantic import ConfigDict, Field
 from app.models.base import CamelBaseModel
 
 
 class DivisionCategoryTag(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
-    id: Union[int, str]
-    external_id: Optional[str] = None
+    id: int
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: bool = Field(True, alias="isActive")
 
 
 class Division(CamelBaseModel):
-    id: str = Field(default=None)
-    external_id: Optional[str] = Field(default=None)
+    id: Optional[str] = Field(default=None)
     name: str
     description: Optional[str] = Field(default=None)
     image_url: Optional[str] = Field(default=None)
@@ -52,7 +50,6 @@ class DivisionUpdate(CamelBaseModel):
 
 class DivisionResponse(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -69,7 +66,6 @@ class DivisionResponse(CamelBaseModel):
 class DivisionInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
     id: Optional[str] = None
-    external_id: Optional[str] = None
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = None

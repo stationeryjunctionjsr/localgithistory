@@ -108,7 +108,6 @@ async def test_wishlist_dao_direct_row_hydration():
     dao = wishlist_dao_mod.MySQLWishlistDAO()
     mock_wishlist_row = SimpleNamespace(
         id=5,
-        external_id="w_ext_5",
         user_id=99,
         created_at=None,
         updated_at=None,

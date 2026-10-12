@@ -25,5 +25,3 @@ class Banner(CamelBaseModel):
     bid: Optional[str] = Field(default=None)
     seg: Optional[str] = Field(default=None)
     rule: Optional[str] = Field(default=None)
-    external_id: Optional[str] = Field(default=None)
-    eid: Optional[str] = Field(default=None)

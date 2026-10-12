@@ -101,7 +101,6 @@ async def test_mysql_banner_dao_sql_pushdown_and_hydration():
 
     mock_row = MagicMock()
     mock_row.id = 1
-    mock_row.external_id = "ext_1"
     mock_row.title = "Welcome Banner"
     mock_row.description = "Discount on stationeries"
     mock_row.image_url = "https://img.example.com/b1.jpg"

@@ -429,7 +429,6 @@ class BundleItemResponse(CamelBaseModel):
 
 class BundleResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = None
     id: str
     name: str
     description: Optional[str] = None
@@ -620,7 +619,6 @@ class BannerUpdate(CamelBaseModel):
 
 class BannerResponse(BannerBase):
     id: str
-    external_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
@@ -779,7 +777,6 @@ class SupportTicketBase(CamelBaseModel):
     category: str = "general"
     priority: str = "medium"
     attachments: Optional[List[str]] = None
-    external_id: Optional[str] = None
 
 
 class SupportTicketCreate(SupportTicketBase):
@@ -826,7 +823,6 @@ class SupportTicketInternal(SupportTicketBase):
     closed_at: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    external_id: Optional[str] = None
 
 
 class SupportTicketResponse(SupportTicketBase):
@@ -1987,7 +1983,6 @@ class PromoteGuestResponse(BaseModel):
 class AvailabilityRequestResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
     id: Optional[str] = None
-    external_id: Optional[str] = None
     product_id: Optional[str] = None
     product_name: Optional[str] = None
     pincode: Optional[str] = None

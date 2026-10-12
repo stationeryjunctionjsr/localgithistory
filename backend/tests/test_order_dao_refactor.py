@@ -71,12 +71,11 @@ def test_build_query_conditions_numeric_id():
     assert params["id"] == 42
 
 
-def test_build_query_conditions_external_id():
+def test_build_query_conditions_non_numeric_id():
     dao = MySQLOrderDAO()
-    f = OrderFilter(id="ext_uuid_123")
+    f = OrderFilter(id="non_numeric_123")
     where_sql, params = dao._build_query_conditions(f)
-    assert "external_id = :id" in where_sql
-    assert params["id"] == "ext_uuid_123"
+    assert "1=0" in where_sql
 
 
 def test_build_query_conditions_statuses():
@@ -91,12 +90,11 @@ def test_build_query_conditions_statuses():
 
 def test_build_query_conditions_user_ids():
     dao = MySQLOrderDAO()
-    f = OrderFilter(user_ids=["10", "ext_user_uuid"])
+    f = OrderFilter(user_ids=["10", "20"])
     where_sql, params = dao._build_query_conditions(f)
-    assert "user_id IN (:u_int_0)" in where_sql
-    assert "user_id IN (SELECT id FROM sj_users WHERE external_id IN (:u_str_0))" in where_sql
+    assert "user_id IN (:u_int_0, :u_int_1)" in where_sql
     assert params["u_int_0"] == 10
-    assert params["u_str_0"] == "ext_user_uuid"
+    assert params["u_int_1"] == 20
 
 
 @pytest.mark.asyncio
@@ -154,7 +152,6 @@ def test_map_to_schema_direct_row_hydration():
 
     order_row = FakeRow(
         id=10,
-        external_id="ord_10",
         user_id="1",
         order_number="ORDER-RT-1",
         status="delivered",

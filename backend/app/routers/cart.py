@@ -87,7 +87,7 @@ async def get_cart(
 
             cart_items.append(
                 ItemSnippet(
-                    id=str(item.id) if item.id else item.external_id,
+                    id=str(item.id) if item.id is not None else None,
                     productId=product.id,
                     name=product.name,
                     sku=product.sku,

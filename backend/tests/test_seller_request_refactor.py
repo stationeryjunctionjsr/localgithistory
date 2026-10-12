@@ -86,22 +86,9 @@ async def test_mysql_seller_request_dao_delete_cascades_children():
         assert any("DELETE FROM sj_seller_request_responses WHERE request_id = :rid" in c for c in calls)
         assert any("DELETE FROM sj_seller_requests WHERE id = :rid" in c for c in calls)
 
-    # Case 2: External UUID string
-    mock_session.reset_mock()
-    with patch.object(dao, "_factory", return_value=mock_factory):
-        # find_res returns row with numeric id 456
-        find_mock = MagicMock()
-        find_mock.fetchone.return_value = MagicMock(id=456)
-        delete_mock = MagicMock(rowcount=1)
-        mock_session.execute.side_effect = [find_mock, MagicMock(), MagicMock(), delete_mock]
-
-        res = await dao.delete("abc-external-uuid")
-        assert res is True
-        calls = [str(c[0][0]) for c in mock_session.execute.call_args_list]
-        assert any("SELECT id FROM sj_seller_requests WHERE external_id = :eid" in c for c in calls)
-        assert any("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid" in c for c in calls)
-        assert any("DELETE FROM sj_seller_request_responses WHERE request_id = :rid" in c for c in calls)
-        assert any("DELETE FROM sj_seller_requests WHERE id = :rid" in c for c in calls)
+    # Case 2: Non-numeric ID returns False directly
+    res = await dao.delete("abc-non-numeric")
+    assert res is False
 
 
 @pytest.mark.asyncio

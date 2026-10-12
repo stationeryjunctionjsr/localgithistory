@@ -7,7 +7,6 @@ class StockReservation(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
     id: int
-    external_id: str
     product_id: str = Field(alias="productId")
     user_id: Optional[str] = Field(default=None, alias="userId")
     quantity: int

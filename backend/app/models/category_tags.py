@@ -5,7 +5,6 @@ from app.models.base import CamelBaseModel
 
 class CategoryTags(CamelBaseModel):
     id: Optional[str] = Field(default=None)
-    external_id: Optional[str] = Field(default=None)
     name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     is_active: Optional[bool] = Field(default=True)

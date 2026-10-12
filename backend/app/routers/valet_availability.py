@@ -185,11 +185,7 @@ async def get_all_availability(
 
     valet_ids = list({record.valet_id for record in records if record.valet_id})
     valet_users = await user_repository.findByIds(valet_ids)
-    valets_map: dict[str, User] = {}
-    for u in valet_users:
-        valets_map[str(u.id)] = u
-        if u.external_id:
-            valets_map[str(u.external_id)] = u
+    valets_map: dict[str, User] = {str(u.id): u for u in valet_users}
 
     enriched: list[EnrichedValetAvailabilityResponse] = []
     for record in records:
@@ -198,7 +194,6 @@ async def get_all_availability(
         enriched.append(
             EnrichedValetAvailabilityResponse(
                 id=record.id,
-                external_id=record.external_id,
                 valet_id=record.valet_id,
                 date=record.date,
                 availability_type=record.availability_type,

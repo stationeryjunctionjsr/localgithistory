@@ -32,7 +32,6 @@ class FaqSectionInternalUpdate(BaseModel):
 
 class FaqSectionResponse(BaseModel):
     id: Optional[str] = ""
-    externalId: Optional[str] = None
     title: str = ""
     orderIndex: Optional[int] = 0
     isActive: bool = True

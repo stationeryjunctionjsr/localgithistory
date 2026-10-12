@@ -9,7 +9,6 @@ class CartItem(CartItemInternal):
 
 class Cart(CamelBaseModel):
     id: Optional[str] = Field(default=None)
-    external_id: Optional[str] = None
     user: str = Field(alias="user_id")
     items: List[CartItemInternal] = []
     created_at: Optional[datetime] = Field(default=None)

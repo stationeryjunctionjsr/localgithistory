@@ -23,7 +23,6 @@ class SubOrderItem(CamelBaseModel):
 
 class SubOrder(CamelBaseModel):
     id: str = Field(default="")
-    external_id: Optional[str] = Field(default=None)
     sub_order_number: Optional[str] = Field(default=None)
     parent_order_id: Optional[str] = Field(default=None)
     parent_order_number: Optional[str] = Field(default=None)

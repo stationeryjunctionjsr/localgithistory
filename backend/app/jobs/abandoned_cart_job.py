@@ -39,11 +39,11 @@ FRONTEND_BASE_URL     = "https://stationeryjunction.in"
 MIGRATION_SQL = """
 CREATE TABLE IF NOT EXISTS sj_abandoned_cart_reminders (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    user_external_id VARCHAR(64)  NOT NULL,
+    user_id         INT          NOT NULL,
     tracking_id     INT          NOT NULL,
     sent_at         DATETIME     NOT NULL,
     channels        VARCHAR(128) NOT NULL,
-    INDEX idx_acr_user (user_external_id),
+    INDEX idx_acr_user (user_id),
     INDEX idx_acr_sent (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 """
@@ -68,15 +68,14 @@ async def _get_abandoned_events(session, cutoff_min: datetime, cutoff_max: datet
     Selects the *latest* cart_abandonment event per user within the idle window,
     joined with their email/name and the cart items stored in sj_tracking_cart_items.
 
-    sj_tracking.user_id  is the *external* string ID of the user.
-    sj_users.external_id matches it.
+    sj_tracking.user_id is the user integer PK; sj_users.id matches it.
     """
     from sqlalchemy import text
 
     sql = text("""
         SELECT
             t.id                      AS tracking_id,
-            t.user_id                 AS user_external_id,
+            t.user_id                 AS user_id,
             t.created_at              AS abandoned_at,
             t.cart_value,
             u.id                      AS user_pk,
@@ -89,11 +88,11 @@ async def _get_abandoned_events(session, cutoff_min: datetime, cutoff_max: datet
             ) AS product_names
         FROM sj_tracking t
         JOIN sj_users u
-            ON u.external_id = t.user_id
+            ON u.id = t.user_id
         LEFT JOIN sj_tracking_cart_items tci
             ON tci.tracking_id = t.id
         LEFT JOIN sj_products p
-            ON p.external_id = tci.product_id
+            ON p.id = tci.product_id
         WHERE
             t.event_type = 'cart_abandonment'
             AND t.user_id IS NOT NULL
@@ -121,24 +120,24 @@ async def _get_abandoned_events(session, cutoff_min: datetime, cutoff_max: datet
     return result.fetchall()
 
 
-async def _already_notified(session, user_external_id: str, cooldown_cutoff: datetime) -> bool:
+async def _already_notified(session, user_id: int, cooldown_cutoff: datetime) -> bool:
     """True if a reminder was already sent for this user within the cooldown window."""
     from sqlalchemy import text
 
     result = await session.execute(
         text("""
             SELECT 1 FROM sj_abandoned_cart_reminders
-            WHERE user_external_id = :uid
+            WHERE user_id = :uid
               AND sent_at >= :cutoff
             LIMIT 1
         """),
-        {"uid": user_external_id, "cutoff": cooldown_cutoff},
+        {"uid": user_id, "cutoff": cooldown_cutoff},
     )
     return result.fetchone() is not None
 
 
 async def _record_notification(
-    session, user_external_id: str, tracking_id: int, channels: str
+    session, user_id: int, tracking_id: int, channels: str
 ):
     """Insert a deduplication record after a successful send."""
     from sqlalchemy import text
@@ -146,12 +145,12 @@ async def _record_notification(
     await session.execute(
         text("""
             INSERT INTO sj_abandoned_cart_reminders
-                (user_external_id, tracking_id, sent_at, channels)
+                (user_id, tracking_id, sent_at, channels)
             VALUES
                 (:uid, :tid, :now, :channels)
         """),
         {
-            "uid":      user_external_id,
+            "uid":      user_id,
             "tid":      tracking_id,
             "now":      datetime.now(timezone.utc).replace(tzinfo=None),
             "channels": channels,
@@ -262,11 +261,10 @@ async def run_abandoned_cart_job():
 
     # De-duplicate by user at the Python level too — keep only the latest
     # event per user if multiple abandonment events exist in the window.
-    seen_users: set[str] = set()
+    seen_users: set[int] = set()
 
     for row in rows:
-        user_ext_id  = row.user_external_id
-        user_pk      = row.user_pk
+        user_id      = row.user_id
         email        = row.email
         name         = row.customer_name or email
         tracking_id  = row.tracking_id
@@ -275,15 +273,15 @@ async def run_abandoned_cart_job():
 
         if not email or not product_names:
             continue
-        if user_ext_id in seen_users:
+        if user_id in seen_users:
             continue   # already processed a newer event for this user
-        seen_users.add(user_ext_id)
+        seen_users.add(user_id)
 
         # ── Cooldown check ────────────────────────────────────────────────────
         async with factory() as session:
-            if await _already_notified(session, user_ext_id, cooldown_cutoff):
+            if await _already_notified(session, user_id, cooldown_cutoff):
                 logger.debug(
-                    "[AbandonedCart] Skipping user %s — notified within cooldown.", user_ext_id
+                    "[AbandonedCart] Skipping user %s — notified within cooldown.", user_id
                 )
                 continue
 
@@ -311,15 +309,15 @@ async def run_abandoned_cart_job():
             if sent:
                 channels_sent.append("email")
                 logger.info(
-                    "[AbandonedCart] Email sent → user %s (%s)", user_ext_id, email
+                    "[AbandonedCart] Email sent → user %s (%s)", user_id, email
                 )
             else:
                 logger.warning(
-                    "[AbandonedCart] Email returned False for user %s", user_ext_id
+                    "[AbandonedCart] Email returned False for user %s", user_id
                 )
         except Exception as exc:
             logger.error(
-                "[AbandonedCart] Email failed for user %s: %s", user_ext_id, exc, exc_info=True
+                "[AbandonedCart] Email failed for user %s: %s", user_id, exc, exc_info=True
             )
 
         # ── 2. In-app notification + Push ─────────────────────────────────────
@@ -327,7 +325,7 @@ async def run_abandoned_cart_job():
             from app.models.schemas import NotificationMetadata
             from app.utils.notify import notify_user
             await notify_user(
-                user_id    = str(user_ext_id),
+                user_id    = str(user_id),
                 notif_type = "abandoned_cart",
                 title      = "Your cart is waiting 🛒",
                 message    = push_message,
@@ -335,10 +333,10 @@ async def run_abandoned_cart_job():
                 metadata   = NotificationMetadata(status="reminder_sent"),
             )
             channels_sent.append("push")
-            logger.info("[AbandonedCart] In-app + push sent → user %s", user_ext_id)
+            logger.info("[AbandonedCart] In-app + push sent → user %s", user_id)
         except Exception as exc:
             logger.error(
-                "[AbandonedCart] In-app/push failed for user %s: %s", user_ext_id, exc, exc_info=True
+                "[AbandonedCart] In-app/push failed for user %s: %s", user_id, exc, exc_info=True
             )
 
         # ── WhatsApp (future) ─────────────────────────────────────────────────
@@ -350,25 +348,25 @@ async def run_abandoned_cart_job():
         #     )
         #     channels_sent.append("whatsapp")
         # except Exception as exc:
-        #     logger.error("[AbandonedCart] WA failed for user %s: %s", user_ext_id, exc)
+        #     logger.error("[AbandonedCart] WA failed for user %s: %s", user_id, exc)
 
         # ── Record dedup entry ────────────────────────────────────────────────
         if channels_sent:
             async with factory() as session:
                 await _record_notification(
                     session,
-                    user_external_id=user_ext_id,
+                    user_id=user_id,
                     tracking_id=tracking_id,
                     channels=",".join(channels_sent),
                 )
             logger.info(
                 "[AbandonedCart] Reminder recorded for user %s via [%s]",
-                user_ext_id, ", ".join(channels_sent),
+                user_id, ", ".join(channels_sent),
             )
         else:
             logger.warning(
                 "[AbandonedCart] No channel succeeded for user %s (tracking_id=%d)",
-                user_ext_id, tracking_id,
+                user_id, tracking_id,
             )
 
     logger.info("[AbandonedCart] Job finished.")

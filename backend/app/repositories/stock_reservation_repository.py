@@ -212,16 +212,13 @@ class StockReservationRepository:
             )
 
             # 4. Insert new reservation in the same connection (eliminates the deadlock risk).
-            import secrets as _secrets
-            ext_id = _secrets.token_hex(16)
-            await session.execute(
+            res = await session.execute(
                 text(
                     f"INSERT INTO {res_storage.TABLE} "
-                    f"(external_id, product_id, user_id, quantity, status, expires_at, created_at, updated_at) "
-                    f"VALUES (:eid, :pid, :uid, :qty, 'active', :exp, :now, :now)"
+                    f"(product_id, user_id, quantity, status, expires_at, created_at, updated_at) "
+                    f"VALUES (:pid, :uid, :qty, 'active', :exp, :now, :now)"
                 ),
                 {
-                    "eid": ext_id,
                     "pid": str(product_id),
                     "uid": str(user_id),
                     "qty": int(quantity),
@@ -229,11 +226,7 @@ class StockReservationRepository:
                     "now": now_naive,
                 },
             )
-            new_id_row = await session.execute(
-                text(f"SELECT id FROM {res_storage.TABLE} WHERE external_id = :eid"),
-                {"eid": ext_id},
-            )
-            new_id = new_id_row.scalar()
+            new_id = res.lastrowid
             await session.commit()
 
         logger.info(

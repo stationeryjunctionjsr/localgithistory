@@ -17,7 +17,6 @@ class Bundle(CamelBaseModel):
     items: List[BundleItem] = []
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-    external_id: Optional[str] = None
 
 class EmailOtp(BaseModel):
     pass

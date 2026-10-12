@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 class PushNotifications(BaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = Field(default=None, alias='external_id')
     title: Optional[str] = Field(default=None, alias='title')
     message: Optional[str] = Field(default=None, alias='message')
     link: Optional[str] = Field(default=None, alias='link')
@@ -19,6 +18,5 @@ class PushNotifications(BaseModel):
     created_by: Optional[str] = Field(default=None, alias='createdBy')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
     c: Optional[str] = Field(default=None, alias='c')
     u: Optional[str] = Field(default=None, alias='u')

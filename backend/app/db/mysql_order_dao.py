@@ -3,7 +3,6 @@ from app.models.daos import OrderFilter
 from app.models.order import Order
 from typing import Any, List, Optional, Set, Tuple
 import logging
-import secrets
 from datetime import datetime
 
 from sqlalchemy import text
@@ -69,35 +68,27 @@ class MySQLOrderDAO:
 
         if filter:
             if filter.id is not None:
-                if filter.id.isdigit():
+                if str(filter.id).isdigit():
                     where_clauses.append("id = :id")
                     params["id"] = int(filter.id)
                 else:
-                    where_clauses.append("external_id = :id")
-                    params["id"] = filter.id
+                    where_clauses.append("1=0")
 
             if filter.user_id is not None:
-                if filter.user_id.isdigit():
+                if str(filter.user_id).isdigit():
                     where_clauses.append("user_id = :user_id")
                     params["user_id"] = int(filter.user_id)
                 else:
-                    where_clauses.append("user_id = (SELECT id FROM sj_users WHERE external_id = :uid_str)")
-                    params["uid_str"] = filter.user_id
+                    where_clauses.append("1=0")
 
             if filter.user_ids:
                 int_uids = [int(u) for u in filter.user_ids if str(u).isdigit()]
-                str_uids = [str(u) for u in filter.user_ids if not str(u).isdigit()]
-                u_clauses = []
                 if int_uids:
                     u_params = {f"u_int_{j}": v for j, v in enumerate(int_uids)}
                     params.update(u_params)
-                    u_clauses.append(f"user_id IN ({', '.join(f':{k}' for k in u_params)})")
-                if str_uids:
-                    u_params = {f"u_str_{j}": v for j, v in enumerate(str_uids)}
-                    params.update(u_params)
-                    u_clauses.append(f"user_id IN (SELECT id FROM sj_users WHERE external_id IN ({', '.join(f':{k}' for k in u_params)}))")
-                if u_clauses:
-                    where_clauses.append(f"({' OR '.join(u_clauses)})")
+                    where_clauses.append(f"user_id IN ({', '.join(f':{k}' for k in u_params)})")
+                else:
+                    where_clauses.append("1=0")
 
             if filter.status is not None:
                 where_clauses.append("status = :status")
@@ -165,7 +156,7 @@ class MySQLOrderDAO:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
+                    SELECT id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
@@ -218,16 +209,14 @@ class MySQLOrderDAO:
 
     async def findById(self, id: str) -> Optional[Order]:
         factory = self._factory()
-        if not factory or not id:
+        if not factory or not id or not str(id).isdigit():
             return None
-        is_digit = str(id).isdigit()
-        where_cond = "id = :id" if is_digit else "external_id = :id"
-        param_val = int(id) if is_digit else str(id)
+        pid = int(id)
         async with factory() as session:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
+                    SELECT id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
@@ -235,10 +224,10 @@ class MySQLOrderDAO:
                            idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                            created_at, updated_at
                     FROM {self.TABLE}
-                    WHERE {where_cond}
+                    WHERE id = :id
                     """
                 ),
-                {"id": param_val},
+                {"id": pid},
             )
             row = result.fetchone()
             if not row:
@@ -261,32 +250,23 @@ class MySQLOrderDAO:
             return []
 
         int_ids = [int(i) for i in ids if str(i).isdigit()]
-        str_ids = [str(i) for i in ids if not str(i).isdigit()]
+        if not int_ids:
+            return []
 
         clauses: list[str] = []
         params = {}
-        if int_ids:
-            chunks_int = [int_ids[i : i + 999] for i in range(0, len(int_ids), 999)]
-            for c_idx, chunk in enumerate(chunks_int):
-                c_params = {f"iid_{c_idx}_{j}": v for j, v in enumerate(chunk)}
-                params.update(c_params)
-                clauses.append(f"id IN ({', '.join(f':{k}' for k in c_params)})")
-        if str_ids:
-            chunks_str = [str_ids[i : i + 999] for i in range(0, len(str_ids), 999)]
-            for c_idx, chunk in enumerate(chunks_str):
-                c_params = {f"sid_{c_idx}_{j}": v for j, v in enumerate(chunk)}
-                params.update(c_params)
-                clauses.append(f"external_id IN ({', '.join(f':{k}' for k in c_params)})")
-
-        if not clauses:
-            return []
+        chunks_int = [int_ids[i : i + 999] for i in range(0, len(int_ids), 999)]
+        for c_idx, chunk in enumerate(chunks_int):
+            c_params = {f"iid_{c_idx}_{j}": v for j, v in enumerate(chunk)}
+            params.update(c_params)
+            clauses.append(f"id IN ({', '.join(f':{k}' for k in c_params)})")
 
         where_sql = " OR ".join(clauses)
         async with factory() as session:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
+                    SELECT id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
@@ -388,17 +368,14 @@ class MySQLOrderDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
-        user_val = str(data.user) if data.user is not None else ""
-        uid_num = int(user_val) if user_val and user_val.isdigit() else None
-        uid_str = user_val if user_val and not user_val.isdigit() else None
+        uid = int(data.user) if data.user is not None and str(data.user).isdigit() else None
 
         async with factory() as session:
             result = await session.execute(
                 text(
                     f"""
                     INSERT IGNORE INTO {self.TABLE} (
-                        external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
+                        user_id, order_number, status, total, subtotal, tax, shipping, discount,
                         order_type, payment_status, payment_method, upi_payment_screenshot,
                         ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                         shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
@@ -406,7 +383,7 @@ class MySQLOrderDAO:
                         idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                         created_at, updated_at
                     ) VALUES (
-                        :external_id, COALESCE(:uid_num, (SELECT id FROM sj_users WHERE external_id = :uid_str)), :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
+                        :user_id, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
                         :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
                         :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
                         :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
@@ -417,9 +394,7 @@ class MySQLOrderDAO:
                     """
                 ),
                 {
-                    "external_id": external_id,
-                    "uid_num": uid_num,
-                    "uid_str": uid_str,
+                    "user_id": uid,
                     "order_number": data.order_number,
                     "status": data.status,
                     "total": (data.total if data.total is not None else 0),
@@ -485,11 +460,7 @@ class MySQLOrderDAO:
 
             if created:
                 # Our INSERT won — wire up children and commit
-                r = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                    {"eid": external_id},
-                )
-                new_id = int(r.scalar() or 0)
+                new_id = result.lastrowid
                 await self._replace_children(session, new_id, data.items or [], data.valet_decline_history or [])
                 await session.commit()
                 return await self.findById(str(new_id)), True
@@ -497,7 +468,7 @@ class MySQLOrderDAO:
                 # Another request already inserted this idempotency key — fetch it
                 await session.rollback()
                 existing = await self.findOne(
-                    OrderFilter(user_id=user_val, idempotency_key=data.idempotency_key)
+                    OrderFilter(user_id=str(uid) if uid else None, idempotency_key=data.idempotency_key)
                 )
                 return existing, False
 
@@ -511,16 +482,14 @@ class MySQLOrderDAO:
         now = now_utc()
         oid = int(existing.id)
         raw_user_id = update_data.user if update_data.user is not None else existing.user
-        user_val = str(raw_user_id) if raw_user_id is not None else ""
-        uid_num = int(user_val) if user_val and user_val.isdigit() else None
-        uid_str = user_val if user_val and not user_val.isdigit() else None
+        uid = int(raw_user_id) if raw_user_id is not None and str(raw_user_id).isdigit() else None
 
         async with factory() as session:
             await session.execute(
                 text(
                     f"""
                     UPDATE {self.TABLE} SET
-                        user_id = COALESCE(:uid_num, (SELECT id FROM sj_users WHERE external_id = :uid_str)),
+                        user_id = :user_id,
                         order_number = :order_number,
                         status = :status,
                         total = :total,
@@ -561,8 +530,7 @@ class MySQLOrderDAO:
                 ),
                 {
                     "id": oid,
-                    "uid_num": uid_num,
-                    "uid_str": uid_str,
+                    "user_id": uid,
                     "order_number": update_data.order_number if update_data.order_number is not None else existing.order_number,
                     "status": update_data.status if update_data.status is not None else existing.status,
                     "total": (update_data.total if update_data.total is not None else (existing.total if existing.total is not None else 0)),
@@ -711,29 +679,24 @@ class MySQLOrderDAO:
         if not factory:
             return []
 
-        uid = int(user_id) if str(user_id).isdigit() else None
-        user_cond = (
-            "(o.user_id = :uid OR o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
-            if uid is not None
-            else "o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
-        )
+        if not str(user_id).isdigit():
+            return []
+        uid = int(user_id)
 
         sql = f"""
             SELECT COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) AS subcat,
                    CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
             FROM {self.ITEMS_TABLE} oi
             JOIN {self.TABLE} o ON o.id = oi.order_id
-            JOIN sj_products p ON (p.id = oi.product_id OR p.external_id = CAST(oi.product_id AS CHAR))
-            WHERE {user_cond}
+            JOIN sj_products p ON p.id = oi.product_id
+            WHERE o.user_id = :uid
               AND o.created_at >= :start_date
               AND o.status != 'cancelled'
               AND COALESCE(NULLIF(p.sub_category, ''), NULLIF(p.category, '')) IS NOT NULL
             GROUP BY subcat
             ORDER BY total_qty ASC
         """
-        params = {"start_date": start_date, "user_id_str": str(user_id)}
-        if uid is not None:
-            params["uid"] = uid
+        params = {"start_date": start_date, "uid": uid}
 
         async with factory() as session:
             result = await session.execute(text(sql), params)
@@ -762,7 +725,7 @@ class MySQLOrderDAO:
                    CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS sales
             FROM {self.ITEMS_TABLE} oi
             JOIN {self.TABLE} o ON o.id = oi.order_id
-            JOIN sj_products p ON (p.id = oi.product_id OR p.external_id = CAST(oi.product_id AS CHAR))
+            JOIN sj_products p ON p.id = oi.product_id
             WHERE o.created_at >= :start_date
               AND o.status != 'cancelled'
               AND p.is_active = 1
@@ -787,25 +750,20 @@ class MySQLOrderDAO:
         if not factory:
             return set()
 
-        uid = int(user_id) if str(user_id).isdigit() else None
-        user_cond = (
-            "(o.user_id = :uid OR o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
-            if uid is not None
-            else "o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
-        )
+        if not str(user_id).isdigit():
+            return set()
+        uid = int(user_id)
         date_cond = "AND o.created_at >= :start_date" if start_date else ""
 
         sql = f"""
             SELECT DISTINCT CAST(oi.product_id AS CHAR) AS pid
             FROM {self.ITEMS_TABLE} oi
             JOIN {self.TABLE} o ON o.id = oi.order_id
-            WHERE {user_cond}
+            WHERE o.user_id = :uid
               AND o.status != 'cancelled'
               {date_cond}
         """
-        params = {"user_id_str": str(user_id)}
-        if uid is not None:
-            params["uid"] = uid
+        params = {"uid": uid}
         if start_date:
             params["start_date"] = start_date
 
@@ -860,12 +818,7 @@ class MySQLOrderDAO:
         if not factory:
             return []
 
-        uid = int(user_id) if str(user_id).isdigit() else None
-        user_cond = (
-            "(o.user_id != :uid AND o.user_id NOT IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
-            if uid is not None
-            else "o.user_id NOT IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
-        )
+        uid = int(user_id) if str(user_id).isdigit() else 0
 
         sql = f"""
             SELECT CAST(oi.product_id AS CHAR) AS pid,
@@ -874,7 +827,7 @@ class MySQLOrderDAO:
             JOIN {self.TABLE} o ON o.id = oi.order_id
             JOIN sj_users u ON u.id = o.user_id
             WHERE u.role = 'wholesaler'
-              AND {user_cond}
+              AND o.user_id != :uid
               AND o.order_number LIKE 'ORDER-WH-%'
               AND o.created_at >= :start_date
               AND o.status != 'cancelled'
@@ -882,9 +835,7 @@ class MySQLOrderDAO:
             ORDER BY total_qty DESC
             LIMIT :limit
         """
-        params = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
-        if uid is not None:
-            params["uid"] = uid
+        params = {"start_date": start_date, "uid": uid, "limit": limit}
 
         async with factory() as session:
             result = await session.execute(text(sql), params)
@@ -900,28 +851,23 @@ class MySQLOrderDAO:
         if not factory:
             return []
 
-        uid = int(user_id) if str(user_id).isdigit() else None
-        user_cond = (
-            "(o.user_id = :uid OR o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str))"
-            if uid is not None
-            else "o.user_id IN (SELECT id FROM sj_users WHERE external_id = :user_id_str)"
-        )
+        if not str(user_id).isdigit():
+            return []
+        uid = int(user_id)
 
         sql = f"""
             SELECT CAST(oi.product_id AS CHAR) AS pid,
                    CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
             FROM {self.ITEMS_TABLE} oi
             JOIN {self.TABLE} o ON o.id = oi.order_id
-            WHERE {user_cond}
+            WHERE o.user_id = :uid
               AND o.created_at >= :start_date
               AND o.status != 'cancelled'
             GROUP BY pid
             ORDER BY total_qty DESC
             LIMIT :limit
         """
-        params = {"start_date": start_date, "user_id_str": str(user_id), "limit": limit}
-        if uid is not None:
-            params["uid"] = uid
+        params = {"start_date": start_date, "uid": uid, "limit": limit}
 
         async with factory() as session:
             result = await session.execute(text(sql), params)
@@ -960,7 +906,7 @@ class MySQLOrderDAO:
                    CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
             FROM {self.ITEMS_TABLE} oi
             JOIN {self.TABLE} o ON o.id = oi.order_id
-            JOIN sj_products p ON (p.id = oi.product_id OR p.external_id = CAST(oi.product_id AS CHAR))
+            JOIN sj_products p ON p.id = oi.product_id
             {user_join}
             WHERE o.order_number LIKE :prefix
               AND o.created_at >= :start_date

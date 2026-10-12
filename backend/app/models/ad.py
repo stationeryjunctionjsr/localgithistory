@@ -6,7 +6,6 @@ from app.models.base import CamelBaseModel
 
 class Ad(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     name: Optional[str] = None
     platform: Optional[str] = None
     objective: Optional[str] = None

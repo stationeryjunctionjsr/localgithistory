@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 class CoachMarks(BaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = Field(default=None, alias='external_id')
     anchor_id: Optional[str] = Field(default=None, alias='anchorId')
     title: Optional[str] = Field(default=None, alias='title')
     description: Optional[str] = Field(default=None, alias='description')
@@ -14,6 +13,5 @@ class CoachMarks(BaseModel):
     is_active: bool = Field(default=None, alias='isActive')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
     c: Optional[str] = Field(default=None, alias='c')
     u: Optional[str] = Field(default=None, alias='u')

@@ -1,11 +1,11 @@
 """
 MySQL DAO for sj_feature_flags. Implements FileStorage-like interface for 'featureFlags'.
 
-This table uses `flag_id` (business key) instead of `external_id`.
+This table uses `flag_id` (business key).
 We still expose `_id` as numeric PK string for consistency with other DAOs in this codebase.
 """
 
-from typing import List, Optional, Union
+from typing import List, Optional
 from app.models.feature_flag import FeatureFlag
 
 from sqlalchemy import text
@@ -32,7 +32,7 @@ class MySQLFeatureFlagDAO:
         name: Optional[str] = None,
         enabled: Optional[bool] = None,
         category: Optional[str] = None,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
     ) -> List[FeatureFlag]:
         factory = self._factory()
         if not factory:
@@ -69,7 +69,7 @@ class MySQLFeatureFlagDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         flag_id: Optional[str] = None,
         name: Optional[str] = None,
         enabled: Optional[bool] = None,

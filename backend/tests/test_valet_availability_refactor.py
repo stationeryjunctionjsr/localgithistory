@@ -91,7 +91,6 @@ async def test_dao_pushdown_async_execution():
     mock_session = AsyncMock()
     mock_row = MagicMock()
     mock_row.id = 5
-    mock_row.external_id = "ext_5"
     mock_row.valet_id = "v_101"
     mock_row.date = "2026-08-15"
     mock_row.availability_type = "full_day"

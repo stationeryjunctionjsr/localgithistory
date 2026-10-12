@@ -149,7 +149,6 @@ async def _enrich_bundle(bundle) -> BundleResponse:
         items=enriched_items,
         created_at=bundle.created_at,
         updated_at=bundle.updated_at,
-        external_id=bundle.external_id,
         total_mrp=round(total_mrp, 2),
         savings=round(total_mrp - bundle_price, 2),
         savings_percent=round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
@@ -385,7 +384,6 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
 
             from app.models.daos import CartItemInternal
             new_item = CartItemInternal(
-                external_id=str(uuid.uuid4()),
                 product=pid,
                 quantity=qty,
                 sell_as_case=False,

@@ -41,7 +41,7 @@ from app.utils.logger import logger
 
 ZONE_CACHE_TTL_S = 300  # 5 minutes
 
-# { zone_external_id: (frozenset[seller_id_str], expiry_monotonic) }
+# { zone_id: (frozenset[seller_id_str], expiry_monotonic) }
 _zone_seller_cache: Dict[str, Tuple[frozenset, float]] = {}
 
 _super_admin_id_cache: Optional[str] = None
@@ -77,13 +77,13 @@ async def _fetch_all_zones() -> list:
     return await storage.findAll({"is_active": True})
 
 
-async def _get_sellers_for_zone(zone_external_id: str) -> frozenset:
+async def _get_sellers_for_zone(zone_id: str) -> frozenset:
     """
     Return frozenset of seller user_id strings who declared this zone.
-    Queries sj_seller_zones WHERE zone_id = zone_external_id.
+    Queries sj_seller_zones WHERE zone_id = :zid.
     Result is cached for 5 minutes.
     """
-    cached = _zone_seller_cache[zone_external_id] if zone_external_id in _zone_seller_cache else None
+    cached = _zone_seller_cache.get(zone_id)
     if cached and _is_fresh(cached[1]):
         return cached[0]
 
@@ -93,17 +93,18 @@ async def _get_sellers_for_zone(zone_external_id: str) -> frozenset:
 
         factory = get_async_session_factory()
         async with factory() as session:
+            zid_param = int(zone_id) if str(zone_id).isdigit() else zone_id
             res = await session.execute(
-                text("SELECT user_id FROM sj_seller_zones WHERE zone_id = :eid"),
-                {"eid": zone_external_id},
+                text("SELECT user_id FROM sj_seller_zones WHERE zone_id = :zid"),
+                {"zid": zid_param},
             )
             rows = res.fetchall()
 
         seller_ids = frozenset(str(r.user_id) for r in rows)
-        _zone_seller_cache[zone_external_id] = (seller_ids, time.monotonic() + ZONE_CACHE_TTL_S)
+        _zone_seller_cache[zone_id] = (seller_ids, time.monotonic() + ZONE_CACHE_TTL_S)
         return seller_ids
     except Exception as exc:
-        logger.error("zone_seller_cache: failed to fetch sellers for zone %s: %s", zone_external_id, exc, exc_info=True)
+        logger.error("zone_seller_cache: failed to fetch sellers for zone %s: %s", zone_id, exc, exc_info=True)
         return frozenset()
 
 
@@ -128,11 +129,10 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
             if pincode not in pincodes:
                 continue
 
-            # Use the MySQL _id (as string) as the zone identifier.
-            # sj_delivery_zones has no external_id column, so we use _id consistently.
-            zone_str_id = str((zone.id if zone.id is not None else ""))
+            # Use the MySQL id (as string) as the zone identifier.
+            zone_str_id = str(zone.id) if zone.id is not None else ""
             if not zone_str_id:
-                logger.warning("zone_seller_cache: zone has no _id: %s", zone)
+                logger.warning("zone_seller_cache: zone has no id: %s", zone)
                 return None, None
 
             # Return the full seller set — unavailable sellers are NOT subtracted here.
@@ -222,7 +222,7 @@ async def get_zone_for_pincode(pincode: str) -> Optional[DeliveryZoneInternal]:
 def invalidate_zone_cache(zone_id: Optional[str] = None) -> None:
     """
     Invalidate cache entries.
-    Pass a zone external_id to evict a specific zone, or None to clear everything.
+    Pass a zone_id to evict a specific zone, or None to clear everything.
     Call this from zone create/update/delete routes and when a seller updates their zones.
     """
     if zone_id:

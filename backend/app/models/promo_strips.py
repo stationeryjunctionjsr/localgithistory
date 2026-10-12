@@ -5,11 +5,9 @@ from pydantic import BaseModel
 
 class PromoStrips(BaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = Field(default=None, alias='external_id')
     text: Optional[str] = Field(default=None, alias='text')
     is_active: bool = Field(default=None, alias='isActive')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
     c: Optional[str] = Field(default=None, alias='c')
     u: Optional[str] = Field(default=None, alias='u')

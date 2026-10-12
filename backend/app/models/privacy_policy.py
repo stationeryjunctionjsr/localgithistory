@@ -5,7 +5,6 @@ from app.models.base import CamelBaseModel
 
 class PrivacyPolicy(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     version: Optional[str] = None
     content: Optional[str] = None
     effective_date: Optional[datetime] = None

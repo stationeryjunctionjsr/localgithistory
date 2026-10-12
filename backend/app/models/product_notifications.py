@@ -4,7 +4,6 @@ from app.models.base import CamelBaseModel
 
 class ProductNotifications(CamelBaseModel):
     id: Optional[int] = None
-    external_id: Optional[str] = None
     product_id: Optional[str] = None
     user_id: Optional[str] = None
     email: Optional[str] = None

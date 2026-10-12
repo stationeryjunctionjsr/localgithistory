@@ -32,7 +32,6 @@ class Tracking(CamelBaseModel):
     category: Optional[str] = None
     filter_name: Optional[str] = None
     id: str = None
-    external_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     product_ids: Optional[List[str]] = None

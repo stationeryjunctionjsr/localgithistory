@@ -36,7 +36,6 @@ class CategoryTagCreate(CategoryTagBase):
 
 class CategoryTagResponse(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = True

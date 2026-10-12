@@ -5,7 +5,6 @@ from app.models.base import CamelBaseModel
 
 class ValetPayoutSettings(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     delivery_charge_per_order: float = 0.0
     return_pickup_charge_per_order: float = 0.0
     created_at: Optional[datetime] = None

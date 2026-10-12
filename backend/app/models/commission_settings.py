@@ -12,7 +12,6 @@ class CommissionSettings(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     
     id: str
-    external_id: Optional[str] = None
     default_commission_pct: float = Field(default=5.0)
     tiers: List[CommissionTierInternal] = []
     created_at: Optional[datetime] = None

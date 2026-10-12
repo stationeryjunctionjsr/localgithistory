@@ -5,7 +5,6 @@ from app.models.base import CamelBaseModel
 
 class PincodeSearches(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
     is_serviceable: bool = False

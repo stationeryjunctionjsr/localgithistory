@@ -5,13 +5,11 @@ from pydantic import BaseModel
 
 class ReviewClassifications(BaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = Field(default=None, alias='external_id')
     review_id: Optional[str] = Field(default=None, alias='reviewId')
     category: Optional[str] = Field(default=None, alias='category')
     confidence_score: Optional[str] = Field(default=None, alias='confidenceScore')
     sentiment: Optional[str] = Field(default=None, alias='sentiment')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
     c: Optional[str] = Field(default=None, alias='c')
     u: Optional[str] = Field(default=None, alias='u')

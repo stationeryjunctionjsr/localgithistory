@@ -9,7 +9,6 @@ class SellerRequestResponseItem(CamelBaseModel):
 
 class SellerRequest(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     request_number: Optional[str] = None
     user: Optional[str] = None
     user_id: Optional[str] = None

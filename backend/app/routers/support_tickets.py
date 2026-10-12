@@ -90,7 +90,6 @@ async def populate_ticket(ticket_data):
         closed_at=ticket.closed_at,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
-        external_id=ticket.external_id,
         user=final_user,
         assignedTo=final_assigned_to,
         responses=populated_responses

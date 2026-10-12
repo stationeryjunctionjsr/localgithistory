@@ -4,7 +4,6 @@ from typing import Any
 Strict SQLAlchemy DAOs replacing MySQLTypedDocDAO and DocStore patterns.
 """
 
-import secrets
 from typing import Dict, List, Optional, Union
 from app.models.schemas import PromoStripResponse, OrderFeedbackResponse, ProductReviewResponse, ClassificationTagResponse
 from app.models.availability_requests import AvailabilityRequestResponse, AvailabilityRequestFilter
@@ -25,7 +24,6 @@ class MySQLReturnSettingsDAO:
         return {
             "_id": str(row.id),
             "id": row.id,
-            "external_id": row.external_id,
             "returnDays": row.return_days,
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
@@ -75,11 +73,10 @@ class MySQLReturnSettingsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.return_days is not None:
             cols.append("return_days")
             vals.append(":returnDays")
@@ -88,11 +85,11 @@ class MySQLReturnSettingsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -140,7 +137,6 @@ class MySQLOrderFeedbackDAO:
     def __map_to_schema(self, row) -> OrderFeedbackResponse:
         return OrderFeedbackResponse(
             id=row.id,
-            external_id=row.external_id,
             orderId=row.order_id,
             userId=row.user_id,
             rating=row.rating,
@@ -214,11 +210,9 @@ class MySQLOrderFeedbackDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.order_id is not None:
             cols.append("order_id")
             vals.append(":orderId")
@@ -251,11 +245,11 @@ class MySQLOrderFeedbackDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -373,11 +367,9 @@ class MySQLPromoStripsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.text is not None:
             cols.append("text")
             vals.append(":text")
@@ -390,11 +382,11 @@ class MySQLPromoStripsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -446,7 +438,6 @@ class MySQLPushNotificationsDAO:
         return {
             "_id": str(row.id),
             "id": row.id,
-            "external_id": row.external_id,
             "title": row.title,
             "message": row.message,
             "link": row.link,
@@ -536,11 +527,9 @@ class MySQLPushNotificationsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.title is not None:
             cols.append("title")
             vals.append(":title")
@@ -589,11 +578,11 @@ class MySQLPushNotificationsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -672,7 +661,6 @@ class MySQLCoachMarksDAO:
         return {
             "_id": str(row.id),
             "id": row.id,
-            "external_id": row.external_id,
             "anchorId": row.anchor_id,
             "title": row.title,
             "description": row.description,
@@ -742,11 +730,9 @@ class MySQLCoachMarksDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.anchor_id is not None:
             cols.append("anchor_id")
             vals.append(":anchorId")
@@ -775,11 +761,11 @@ class MySQLCoachMarksDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -842,7 +828,6 @@ class MySQLCategoryTagsDAO:
     def __map_to_schema(self, row) -> 'CategoryTagsInternal':
         return CategoryTagResponse(
             id=row.id,
-            external_id=row.external_id,
             name=row.name,
             description=row.description,
             isActive=bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
@@ -900,11 +885,9 @@ class MySQLCategoryTagsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.name is not None:
             cols.append("name")
             vals.append(":name")
@@ -921,11 +904,11 @@ class MySQLCategoryTagsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -979,7 +962,6 @@ class MySQLGoogle_reviewsDAO:
     def __map_to_schema(self, row) -> Google_reviewsInternal:
         return Google_reviewsInternal(
             id=str(row.id),
-            external_id=row.external_id,
             rating=row.rating,
             reviewCount=str(row.review_count) if row.review_count is not None else None,
             lastUpdated=row.last_updated,
@@ -1040,11 +1022,9 @@ class MySQLGoogle_reviewsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
@@ -1065,11 +1045,11 @@ class MySQLGoogle_reviewsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -1218,11 +1198,9 @@ class MySQLStockReservationsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
@@ -1254,11 +1232,11 @@ class MySQLStockReservationsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -1328,7 +1306,6 @@ class MySQLProductNotificationsDAO:
     def _map_to_schema(self, row) -> ProductNotificationsInternal:
         return ProductNotificationsInternal(
             id=row.id,
-            external_id=row.external_id,
             product_id=row.product_id,
             user_id=row.user_id,
             email=row.email,
@@ -1400,11 +1377,9 @@ class MySQLProductNotificationsDAO:
     async def create(self, data: ProductNotificationsInternalCreate) -> Optional[ProductNotificationsInternal]:
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
@@ -1429,11 +1404,11 @@ class MySQLProductNotificationsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(new_id)
 
@@ -1492,7 +1467,6 @@ class MySQLProductReviewsDAO:
     def __map_to_schema(self, row) -> ProductReviewResponse:
         return ProductReviewResponse(
             id=row.id,
-            external_id=row.external_id,
             productId=row.product_id,
             userId=row.user_id,
             rating=row.rating,
@@ -1557,11 +1531,9 @@ class MySQLProductReviewsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
@@ -1586,11 +1558,11 @@ class MySQLProductReviewsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -1650,7 +1622,6 @@ class MySQLClassificationTagsDAO:
     def __map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(
             id=row.id,
-            external_id=row.external_id,
             name=row.name,
             isActive=bool(row.is_active),
             createdAt=row.created_at.isoformat() if row.created_at else None,
@@ -1704,11 +1675,9 @@ class MySQLClassificationTagsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.name is not None:
             cols.append("name")
             vals.append(":name")
@@ -1721,11 +1690,11 @@ class MySQLClassificationTagsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -1777,7 +1746,6 @@ class MySQLReviewClassificationsDAO:
     def __map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(
             id=row.id,
-            external_id=row.external_id,
             reviewId=row.review_id,
             category=row.category,
             confidenceScore=row.confidence_score,
@@ -1839,11 +1807,9 @@ class MySQLReviewClassificationsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.reviewId is not None:
             cols.append("review_id")
             vals.append(":reviewId")
@@ -1864,11 +1830,11 @@ class MySQLReviewClassificationsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -1925,7 +1891,6 @@ class MySQLAboutUsDAO:
     def __map_to_schema(self, row) -> AboutUs:
         return AboutUs(
             id=str(row.id),
-            external_id=row.external_id,
             title=row.title,
             content=row.content,
             version=row.version,
@@ -1986,11 +1951,9 @@ class MySQLAboutUsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.title is not None:
             cols.append("title")
             vals.append(":title")
@@ -2011,11 +1974,11 @@ class MySQLAboutUsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -2072,7 +2035,6 @@ class MySQLPrivacyPolicyDAO:
     def __map_to_schema(self, row) -> PrivacyPolicy:
         return PrivacyPolicy(
             id=str(row.id),
-            external_id=row.external_id,
             version=row.version,
             content=row.content,
             effective_date=row.effective_date,
@@ -2133,11 +2095,9 @@ class MySQLPrivacyPolicyDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.version is not None:
             cols.append("version")
             vals.append(":version")
@@ -2158,11 +2118,11 @@ class MySQLPrivacyPolicyDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -2219,7 +2179,6 @@ class MySQLAvailabilityRequestsDAO:
     def __map_to_schema(self, row) -> AvailabilityRequestResponse:
         return AvailabilityRequestResponse(
             id=row.id,
-            external_id=row.external_id,
             productId=row.product_id,
             productName=row.product_name,
             pincode=row.pincode,
@@ -2312,32 +2271,24 @@ class MySQLAvailabilityRequestsDAO:
     async def findById(self, id: str) -> Optional[AvailabilityRequestResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
+        if pid is None:
+            return None
         async with factory() as session:
-            if pid is not None:
-                row = (
-                    await session.execute(
-                        text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                        {"id": pid},
-                    )
-                ).fetchone()
-            else:
-                row = (
-                    await session.execute(
-                        text(f"SELECT * FROM {self.TABLE} WHERE external_id = :eid"),
-                        {"eid": str(id)},
-                    )
-                ).fetchone()
+            row = (
+                await session.execute(
+                    text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
+                    {"id": pid},
+                )
+            ).fetchone()
         return self.__map_to_schema(row) if row else None
 
     async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
@@ -2362,11 +2313,11 @@ class MySQLAvailabilityRequestsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -2409,17 +2360,13 @@ class MySQLAvailabilityRequestsDAO:
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
+        if pid is None:
+            return False
         async with factory() as session:
-            if pid is not None:
-                res = await session.execute(
-                    text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                    {"id": pid},
-                )
-            else:
-                res = await session.execute(
-                    text(f"DELETE FROM {self.TABLE} WHERE external_id = :eid"),
-                    {"eid": str(id)},
-                )
+            res = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pid},
+            )
             await session.commit()
             return res.rowcount > 0
 
@@ -2432,7 +2379,6 @@ class MySQLPincodeSearchesDAO:
     def __map_to_schema(self, row) -> PincodeSearches:
         return PincodeSearches(
             id=str(row.id),
-            external_id=row.external_id,
             pincode=row.pincode,
             query=row.query,
             is_serviceable=bool(row.is_serviceable) if ("is_serviceable" in row._mapping and row.is_serviceable is not None) else False,
@@ -2493,11 +2439,9 @@ class MySQLPincodeSearchesDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.pincode is not None:
             cols.append("pincode")
             vals.append(":pincode")
@@ -2518,11 +2462,11 @@ class MySQLPincodeSearchesDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -2579,7 +2523,6 @@ class MySQLSystemSettingsDAO:
     def __map_to_schema(self, row) -> 'SystemSettingsInternal':
         return SystemSettingsResponse(
             id=row.id,
-            external_id=row.external_id,
             maintenanceMode=bool(row.maintenance_mode) if ("maintenance_mode" in row._mapping and row.maintenance_mode is not None) else False,
             allowSignups=bool(row.allow_signups) if ("allow_signups" in row._mapping and row.allow_signups is not None) else False,
             maxUploadSizeMb=row.max_upload_size_mb,
@@ -2645,11 +2588,9 @@ class MySQLSystemSettingsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.maintenanceMode is not None:
             cols.append("maintenance_mode")
             vals.append(":maintenanceMode")
@@ -2674,11 +2615,11 @@ class MySQLSystemSettingsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -2738,7 +2679,6 @@ class MySQLValetPayoutSettingsDAO:
     def __map_to_schema(self, row) -> ValetPayoutSettings:
         return ValetPayoutSettings(
             id=str(row.id),
-            external_id=row.external_id,
             delivery_charge_per_order=row.delivery_charge_per_order,
             return_pickup_charge_per_order=row.return_pickup_charge_per_order,
             created_at=row.created_at.isoformat() if row.created_at else None,
@@ -2791,11 +2731,9 @@ class MySQLValetPayoutSettingsDAO:
 
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
-        
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
         if data.delivery_chargePerOrder is not None:
             cols.append("delivery_charge_per_order")
             vals.append(":deliveryChargePerOrder")
@@ -2808,11 +2746,11 @@ class MySQLValetPayoutSettingsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = res.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 

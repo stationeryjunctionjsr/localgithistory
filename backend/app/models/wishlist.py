@@ -13,9 +13,7 @@ class Wishlist(CamelBaseModel):
     updated_at: Optional[datetime] = None
     wid: Optional[str] = None
     pid: Optional[str] = None
-    external_id: Optional[str] = None
     user_id: Optional[str] = None
-    eid: Optional[str] = None
     u: Optional[str] = None
 
     @property

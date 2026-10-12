@@ -5,7 +5,6 @@ from app.models.base import CamelBaseModel
 
 class SellerAvailability(CamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     seller_id: Optional[str] = None
     status: Optional[str] = None
     start_at: Optional[datetime] = None
