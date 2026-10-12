@@ -2,7 +2,6 @@
 MySQL DAO for sj_wishlists. Fully relational.
 """
 
-import secrets
 from typing import List, Optional, Union
 from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate, WishlistItemInternal
 from app.models.wishlist import Wishlist
@@ -64,7 +63,6 @@ class MySQLWishlistDAO:
         self,
         id: Optional[Union[int, str]] = None,
         user: Optional[Union[int, str]] = None,
-        external_id: Optional[str] = None,
     ) -> List[Wishlist]:
         factory = self._factory()
         if not factory:
@@ -78,9 +76,6 @@ class MySQLWishlistDAO:
         if user is not None:
             where_clauses.append("user_id = :user_id")
             params["user_id"] = int(user) if str(user).isdigit() else None
-        if external_id is not None:
-            where_clauses.append("external_id = :external_id")
-            params["external_id"] = str(external_id)
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
@@ -95,9 +90,8 @@ class MySQLWishlistDAO:
         self,
         id: Optional[Union[int, str]] = None,
         user: Optional[Union[int, str]] = None,
-        external_id: Optional[str] = None,
     ) -> Optional[Wishlist]:
-        records = await self.findAll(id=id, user=user, external_id=external_id)
+        records = await self.findAll(id=id, user=user)
         return records[0] if records else None
 
     async def findById(self, id: str) -> Optional[Wishlist]:
@@ -106,31 +100,24 @@ class MySQLWishlistDAO:
     async def create(self, data: 'WishlistInternalCreate') -> Optional[Wishlist]:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         user_id = int((data.user if data.user is not None else 0)) if str((data.user if data.user is not None else "0")).isdigit() else None
         items = (data.items if data.items is not None else [])
 
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"""
-                    INSERT INTO {self.TABLE} (external_id, user_id, created_at, updated_at)
-                    VALUES (:external_id, :user_id, :created_at, :updated_at)
+                    INSERT INTO {self.TABLE} (user_id, created_at, updated_at)
+                    VALUES (:user_id, :created_at, :updated_at)
                     """
                 ),
                 {
-                    "external_id": external_id,
                     "user_id": user_id,
                     "created_at": now,
                     "updated_at": now,
                 },
             )
-            await session.commit()
-
-            result = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-            )
-            new_id = result.scalar()
+            new_id = result.lastrowid
             await self._replace_items(session, new_id, items)
             await session.commit()
 
@@ -171,9 +158,8 @@ class MySQLWishlistDAO:
         where_clauses = []
         params = {}
         if user is not None:
-            where_clauses.append("user_id = COALESCE(:uid_int, (SELECT id FROM sj_users WHERE external_id = :uid_str))")
-            params["uid_int"] = int(user) if str(user).isdigit() else None
-            params["uid_str"] = str(user)
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = int(user) if str(user).isdigit() else None
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
             await session.execute(
