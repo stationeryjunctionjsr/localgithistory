@@ -5,7 +5,6 @@ MySQL DAO for sj_products (Fully Relational).
 from typing import Dict
 from app.models.schemas import ProductSellerEntry, VariantOption
 import json
-import secrets
 
 from datetime import datetime
 from typing import Any, List, Optional, Set
@@ -68,7 +67,7 @@ class MySQLProductDAO:
 
         if "my_seller_id" in query:
             my_seller_id = query["my_seller_id"]
-            join_sql = " JOIN sj_product_sellers ps ON ps.product_id = p.external_id "
+            join_sql = " JOIN sj_product_sellers ps ON ps.product_id = CONCAT('PDT-', p.id) "
             where_clauses.append("ps.seller_id = :my_seller_id")
             params["my_seller_id"] = str(my_seller_id)
         elif "seller_ids" in query:
@@ -76,7 +75,7 @@ class MySQLProductDAO:
             if not seller_ids:
                 where_clauses.append("1=0")
             else:
-                join_sql = " JOIN sj_product_sellers ps ON ps.product_id = p.external_id "
+                join_sql = " JOIN sj_product_sellers ps ON ps.product_id = CONCAT('PDT-', p.id) "
                 where_clauses.append("ps.is_active = 1")
                 where_clauses.append("ps.request_status = 'approved'")
                 s_placeholders = []
@@ -339,7 +338,7 @@ class MySQLProductDAO:
 
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
-            SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
+            SELECT p.id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
                    p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews,
                    p.weight_grams, p.length_cm, p.width_cm, p.height_cm, p.hsn_code, p.created_at, p.updated_at
             FROM {self.TABLE} p
@@ -394,7 +393,7 @@ class MySQLProductDAO:
             rows = (
                 await session.execute(
                     text(f"""
-                SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
+                SELECT p.id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
                        p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews,
                        p.weight_grams, p.length_cm, p.width_cm, p.height_cm, p.hsn_code, p.created_at, p.updated_at
                 FROM {self.TABLE} p {join_sql} WHERE {where_sql} ORDER BY p.id ASC
@@ -420,7 +419,7 @@ class MySQLProductDAO:
             row = (
                 await session.execute(
                     text(f"""
-                SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
+                SELECT p.id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
                        p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
                 FROM {self.TABLE} p WHERE p.id = :id
             """),
@@ -558,23 +557,21 @@ class MySQLProductDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
 
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, name, description, sku, category, sub_category, brand,
+                        name, description, sku, category, sub_category, brand,
                         mrp, mrp_per_case, quantity_per_case, stock, is_active, rating, reviews,
                         weight_grams, length_cm, width_cm, height_cm, hsn_code, created_at, updated_at
                     ) VALUES (
-                        :external_id, :name, :description, :sku, :category, :sub_category, :brand,
+                        :name, :description, :sku, :category, :sub_category, :brand,
                         :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :rating, :reviews,
                         :weight_grams, :length_cm, :width_cm, :height_cm, :hsn_code, :created_at, :updated_at
                     )
                 """),
                 {
-                    "external_id": external_id,
                     "name": data.name,
                     "description": data.description,
                     "sku": data.sku,
@@ -597,11 +594,7 @@ class MySQLProductDAO:
                     "updated_at": now,
                 },
             )
-            pid = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            pid = result.lastrowid
             await self._replace_children(session, pid, data)
             await session.commit()
         return await self.findById(str(pid))

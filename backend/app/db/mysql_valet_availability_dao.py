@@ -2,7 +2,6 @@
 MySQL DAO for sj_valet_availability (Relational).
 """
 
-import secrets
 from datetime import date, datetime
 from typing import Optional
 
@@ -30,7 +29,6 @@ def _format_date(d: Optional[date | datetime | str]) -> Optional[str]:
 def _map_row(r, children_slots: list[str], children_zones: list[str]) -> ValetAvailability:
     return ValetAvailability(
         id=str(r.id),
-        external_id=r.external_id,
         valet_id=r.valet_id,
         date=_format_date(r.date),
         availability_type=r.availability_type,
@@ -90,7 +88,7 @@ class MySQLValetAvailabilityDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id, external_id, valet_id, date, availability_type, created_at, updated_at FROM {self.TABLE}{where_sql} ORDER BY date ASC, id ASC"
+                    f"SELECT id, valet_id, date, availability_type, created_at, updated_at FROM {self.TABLE}{where_sql} ORDER BY date ASC, id ASC"
                 ),
                 params,
             )
@@ -186,16 +184,14 @@ class MySQLValetAvailabilityDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
 
         async with factory() as session:
             result = await session.execute(
                 text(f"""
-                    INSERT INTO {self.TABLE} (external_id, valet_id, date, availability_type, created_at, updated_at) 
-                    VALUES (:external_id, :valet_id, :date, :availability_type, :created_at, :updated_at)
+                    INSERT INTO {self.TABLE} (valet_id, date, availability_type, created_at, updated_at) 
+                    VALUES (:valet_id, :date, :availability_type, :created_at, :updated_at)
                 """),
                 {
-                    "external_id": external_id,
                     "valet_id": str(data.valet_id or ""),
                     "date": str(data.date) if data.date else None,
                     "availability_type": str(data.availability_type or ""),

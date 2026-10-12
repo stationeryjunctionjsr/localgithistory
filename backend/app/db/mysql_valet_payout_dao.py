@@ -1,5 +1,4 @@
 from datetime import datetime
-import secrets
 from typing import List, Optional
 from app.models.schemas import ValetPayoutDetailResponse
 from app.models.daos import ValetPayoutInternalCreate, ValetPayoutInternalUpdate
@@ -73,11 +72,10 @@ class MySQLValetPayoutDAO:
     async def create(self, data: ValetPayoutInternalCreate) -> ValetPayoutDetailResponse:
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
 
         if data.valet_id is not None:
             cols.append("valet_id")
@@ -135,11 +133,11 @@ class MySQLValetPayoutDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = result.lastrowid
             await session.commit()
             
         return await self.findById(str(new_id))

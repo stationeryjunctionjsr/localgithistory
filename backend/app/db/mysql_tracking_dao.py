@@ -4,7 +4,6 @@ import logging
 MySQL DAO for sj_tracking. Fully relational with child tables.
 """
 
-import secrets
 from datetime import datetime
 from app.models.tracking import (
     Tracking,
@@ -80,7 +79,6 @@ class MySQLTrackingDAO:
         )
         return Tracking(
             id=str(r.id),
-            external_id=r.external_id,
             created_at=r.created_at,
             updated_at=r.updated_at,
             type=r.event_type,
@@ -249,7 +247,7 @@ class MySQLTrackingDAO:
                         f"(SELECT pi.image_url FROM sj_product_images pi WHERE pi.product_id = MAX(p.id) ORDER BY pi.order_index ASC LIMIT 1) as display_image, "
                         f"MAX(p.mrp) as price "
                         f"FROM {self.TABLE} t "
-                        f"LEFT JOIN sj_products p ON (p.id = t.product_id OR p.external_id = t.product_id) "
+                        f"LEFT JOIN sj_products p ON p.id = t.product_id "
                         f"WHERE {where_sql} "
                         f"GROUP BY t.product_id "
                         f"ORDER BY latest_ts DESC LIMIT :limit"
@@ -600,7 +598,7 @@ class MySQLTrackingDAO:
                             SUM(COALESCE(ci.quantity, 1) * COALESCE(ci.price, 0)) as value_lost
                         FROM sj_tracking_cart_items ci
                         JOIN {self.TABLE} t ON t.id = ci.tracking_id
-                        LEFT JOIN sj_products p ON (p.id = ci.product_id OR p.external_id = ci.product_id)
+                        LEFT JOIN sj_products p ON p.id = ci.product_id
                         WHERE {where_sql}
                         GROUP BY ci.product_id
                         ORDER BY abandon_count DESC LIMIT :limit
@@ -676,10 +674,9 @@ class MySQLTrackingDAO:
     async def create(self, data: 'AnalyticsEventCreate') -> 'AnalyticsEvent':
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        params = {"eid": external_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        params = {"c": now, "u": now}
         extracted_keys = []
 
         def add_col(api_key, db_col, val):
@@ -729,16 +726,12 @@ class MySQLTrackingDAO:
         add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])
+        val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in extracted_keys])
 
         async with factory() as session:
             from sqlalchemy import text
-            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
         return await self.findById(str(new_id))

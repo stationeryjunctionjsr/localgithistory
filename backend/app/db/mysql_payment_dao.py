@@ -4,7 +4,6 @@ MySQL DAO for payments: sj_payments (header) + sj_payment_entries (child rows).
 Assembles paymentEntries from child table; create/update write entries as separate rows.
 """
 
-import secrets
 from datetime import datetime, date
 from app.models.payment import Payment, PaymentEntry, List, Optional
 
@@ -122,7 +121,7 @@ class MySQLPaymentDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id, external_id, order_id, user_id, user_id_formatted, customer_name, order_date, "
+                    f"SELECT id, order_id, user_id, user_id_formatted, customer_name, order_date, "
                     f"payment_method, amount_paid, amount_remaining, total_amount, payment_id, created_at, updated_at "
                     f"FROM {self.PAYMENTS_TABLE} "
                     f"WHERE {where_sql} "
@@ -185,10 +184,8 @@ class MySQLPaymentDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        external_id = secrets.token_hex(16)
         payment_entries = data.payment_entries or []
         params = {
-            "external_id": external_id,
             "order_id": data.order_id,
             "user_id": data.user_id,
             "user_id_formatted": data.user_id_formatted,
@@ -203,22 +200,18 @@ class MySQLPaymentDAO:
             "updated_at": now,
         }
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
-                    f"INSERT INTO {self.PAYMENTS_TABLE} (external_id, order_id, user_id, user_id_formatted, "
+                    f"INSERT INTO {self.PAYMENTS_TABLE} (order_id, user_id, user_id_formatted, "
                     f"customer_name, order_date, payment_method, amount_paid, amount_remaining, total_amount, "
-                    f"payment_id, created_at, updated_at) VALUES (:external_id, :order_id, :user_id, :user_id_formatted, "
+                    f"payment_id, created_at, updated_at) VALUES (:order_id, :user_id, :user_id_formatted, "
                     f":customer_name, :order_date, :payment_method, :amount_paid, :amount_remaining, :total_amount, "
                     f":payment_id, :created_at, :updated_at)"
                 ),
                 params,
             )
+            new_id = result.lastrowid
             await session.commit()
-            result = await session.execute(
-                text(f"SELECT id FROM {self.PAYMENTS_TABLE} WHERE external_id = :eid"),
-                {"eid": external_id},
-            )
-            new_id = result.scalar()
         if new_id and payment_entries:
             async with factory() as session:
                 for idx, entry in enumerate(payment_entries):
