@@ -1,4 +1,3 @@
-import secrets
 from typing import List, Optional, Union
 from app.models.ad import Ad
 from app.models.schemas import AdCreate, AdUpdate, AdSummaryResponse
@@ -90,7 +89,7 @@ class MySQLAdDAO:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id AS _id, external_id, name, platform, objective, status, budget_daily, budget_total, currency, start_date, end_date, target_url, headline, description, image_url, google_campaign_id, google_ad_group_id, meta_campaign_id, meta_ad_set_id, utm_source, utm_medium, utm_campaign, google_conversion_id, google_conversion_label, meta_pixel_id, notes, stat_impressions, stat_clicks, stat_leads, stat_purchases, stat_add_to_cart, stat_conversions, stat_conversion_value, stat_ctr, stat_cvr, created_at, updated_at, launched_at
+                    SELECT id AS _id, name, platform, objective, status, budget_daily, budget_total, currency, start_date, end_date, target_url, headline, description, image_url, google_campaign_id, google_ad_group_id, meta_campaign_id, meta_ad_set_id, utm_source, utm_medium, utm_campaign, google_conversion_id, google_conversion_label, meta_pixel_id, notes, stat_impressions, stat_clicks, stat_leads, stat_purchases, stat_add_to_cart, stat_conversions, stat_conversion_value, stat_ctr, stat_cvr, created_at, updated_at, launched_at
                     FROM {self.TABLE}
                     WHERE {where_sql}
                     """
@@ -128,11 +127,10 @@ class MySQLAdDAO:
     async def create(self, data: Union[Ad, AdCreate]) -> Ad:
         factory = self._factory()
         now = now_utc()
-        ext_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        vals = [":eid", ":c", ":u"]
-        params = {"eid": ext_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        vals = [":c", ":u"]
+        params = {"c": now, "u": now}
 
         scalar_map = {
             "name": "name", "platform": "platform", "objective": "objective", "status": "status",
@@ -192,11 +190,11 @@ class MySQLAdDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
             )
-            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            new_id = result.lastrowid
             await session.commit()
         return await self.findById(str(new_id))
 
