@@ -90,7 +90,7 @@ class MySQLFeatureFlagDAO:
         if not flag_id:
             raise ValueError("featureFlags requires `id` (flag_id)")
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (flag_id, name, description, enabled, category, created_at, updated_at)
@@ -107,12 +107,8 @@ class MySQLFeatureFlagDAO:
                     "updated_at": now,
                 },
             )
+            new_id = result.lastrowid
             await session.commit()
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE flag_id = :flag_id"),
-                {"flag_id": flag_id},
-            )
-            new_id = r.scalar()
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: FeatureFlag) -> Optional[FeatureFlag]:

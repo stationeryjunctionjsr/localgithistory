@@ -4,7 +4,6 @@ Fully relational with junction table sj_division_category_tags and foreign key t
 """
 
 from datetime import datetime, timezone
-import secrets
 from typing import List, Optional, Tuple, Union
 
 from sqlalchemy import text
@@ -52,7 +51,6 @@ class MySQLDivisionDAO:
                 tag_list.append(
                     DivisionCategoryTag(
                         id=tid,
-                        external_id=row.external_id,
                         name=row.name,
                         description=row.description,
                         is_active=bool(row.is_active) if row.is_active is not None else True,
@@ -66,7 +64,6 @@ class MySQLDivisionDAO:
                     category_count += int(crow.cnt)
         return DivisionInternal(
             id=str(r.id),
-            external_id=r.external_id,
             name=r.name,
             description=r.description,
             image_url=r.image_url,
@@ -93,7 +90,6 @@ class MySQLDivisionDAO:
                 j.division_id,
                 j.display_order,
                 t.id,
-                t.external_id,
                 t.name,
                 t.description,
                 t.is_active
@@ -109,7 +105,6 @@ class MySQLDivisionDAO:
             SELECT 
                 t.division_id,
                 t.id,
-                t.external_id,
                 t.name,
                 t.description,
                 t.is_active
@@ -173,12 +168,10 @@ class MySQLDivisionDAO:
         if not factory or not id:
             return None
         async with factory() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
-                params = {"id": str(id)}
+            if not str(id).isdigit():
+                return None
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            params = {"id": int(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
@@ -242,20 +235,18 @@ class MySQLDivisionDAO:
         if not factory:
             raise RuntimeError("Database not available")
 
-        external_id = secrets.token_hex(16)
         now = now_utc()
         async with factory() as session:
             q = text(f"""
                 INSERT INTO {self.TABLE} (
-                    external_id, name, description, image_url, display_order, is_active, created_at, updated_at
+                    name, description, image_url, display_order, is_active, created_at, updated_at
                 ) VALUES (
-                    :ext, :name, :desc, :img, :ord, :act, :now, :now
+                    :name, :desc, :img, :ord, :act, :now, :now
                 )
             """)
             result = await session.execute(
                 q,
                 {
-                    "ext": external_id,
                     "name": item.name.strip(),
                     "desc": item.description,
                     "img": item.image_url,

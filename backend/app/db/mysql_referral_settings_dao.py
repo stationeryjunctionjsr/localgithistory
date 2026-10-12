@@ -4,7 +4,6 @@ Maps settings schema: ReferralSettings(id, retail=ReferralSegment, business=Refe
 """
 
 from typing import List, Optional
-import secrets
 from app.models.referral_settings import ReferralSettings, ReferralSegment
 
 from sqlalchemy import text
@@ -89,12 +88,11 @@ class MySQLReferralSettingsDAO:
                 await session.execute(
                     text(
                         f"""
-                        INSERT INTO {self.TABLE} (external_id, segment, discount_type, discount_value, is_active, created_at, updated_at)
-                        VALUES (:external_id, :segment, :discount_type, :discount_value, :is_active, :created_at, :updated_at)
+                        INSERT INTO {self.TABLE} (segment, discount_type, discount_value, is_active, created_at, updated_at)
+                        VALUES (:segment, :discount_type, :discount_value, :is_active, :created_at, :updated_at)
                         """
                     ),
                     {
-                        "external_id": secrets.token_hex(16),
                         "segment": seg,
                         "discount_type": discount_type,
                         "discount_value": discount_value,
@@ -138,12 +136,11 @@ class MySQLReferralSettingsDAO:
                     await session.execute(
                         text(
                             f"""
-                            INSERT INTO {self.TABLE} (external_id, segment, discount_type, discount_value, is_active, created_at, updated_at)
-                            VALUES (:external_id, :segment, :discount_type, :discount_value, :is_active, :created_at, :updated_at)
+                            INSERT INTO {self.TABLE} (segment, discount_type, discount_value, is_active, created_at, updated_at)
+                            VALUES (:segment, :discount_type, :discount_value, :is_active, :created_at, :updated_at)
                             """
                         ),
                         {
-                            "external_id": secrets.token_hex(16),
                             "segment": seg,
                             "discount_type": discount_type,
                             "discount_value": discount_value,

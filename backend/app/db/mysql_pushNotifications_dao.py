@@ -1,6 +1,5 @@
 from typing import Optional, List, Union
 from datetime import datetime, timezone
-import secrets
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos_flat import (
@@ -26,14 +25,12 @@ class MySQLPushNotificationsDAO:
     async def findById(self, id: Union[int, str]) -> Optional[PushNotificationsInternal]:
         if not id:
             return None
+        pid = int(id) if str(id).isdigit() else None
+        if pid is None:
+            return None
         async with self._factory()() as session:
-            if str(id).isdigit():
-                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-                params = {"id": int(id)}
-            else:
-                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
-                params = {"id": str(id)}
-            result = await session.execute(q, params)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            result = await session.execute(q, {"id": pid})
             row = result.fetchone()
             if not row:
                 return None
@@ -81,11 +78,10 @@ class MySQLPushNotificationsDAO:
     async def create(self, data: PushNotificationsInternalCreate) -> PushNotificationsInternal:
         factory = self._factory()
         now = now_utc()
-        external_id = secrets.token_hex(16)
         
-        cols = ["external_id", "created_at", "updated_at"]
-        val_placeholders = [":eid", ":c", ":u"]
-        params = {"eid": external_id, "c": now, "u": now}
+        cols = ["created_at", "updated_at"]
+        val_placeholders = [":c", ":u"]
+        params = {"c": now, "u": now}
 
         if data.title is not None:
             cols.append("title")
@@ -146,20 +142,19 @@ class MySQLPushNotificationsDAO:
         val_sql = ", ".join(val_placeholders)
         
         async with factory() as session:
-            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
+            result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = result.lastrowid
             await session.commit()
             
         return await self.findById(int(new_id))
 
     async def update(self, id: Union[int, str], update_data: PushNotificationsInternalUpdate) -> Optional[PushNotificationsInternal]:
         factory = self._factory()
+        pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return None
         updates = ["updated_at = :u"]
-        params = {"u": now_utc()}
+        params = {"u": now_utc(), "id": pid}
 
         if update_data.title is not None:
             updates.append("title = :title")
@@ -207,46 +202,22 @@ class MySQLPushNotificationsDAO:
 
         upd_sql = ", ".join(updates)
         async with factory() as session:
-            if str(id).isdigit():
-                pk = int(id)
-                upd_where = "id = :pk"
-            else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return None
-                upd_where = "id = :pk"
-            params["pk"] = pk
-
-            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await session.commit()
                 
-        return await self.findById(pk)
+        return await self.findById(pid)
 
     async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
+        pid = int(id) if str(id).isdigit() else None
+        if not pid:
+            return False
         async with factory() as session:
-            if str(id).isdigit():
-                pk = int(id)
-                del_where = "id = :pk"
-                params = {"pk": pk}
-            else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
-                del_where = "id = :pk"
-                params = {"pk": pk}
-
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE {del_where}"),
-                params,
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pid},
             )
             await session.commit()
             return result.rowcount > 0
@@ -254,7 +225,6 @@ class MySQLPushNotificationsDAO:
     def _map_to_schema(self, r) -> PushNotificationsInternal:
         return PushNotificationsInternal(
             id=str(r.id),
-            external_id=r.external_id,
             title=r.title,
             message=r.message,
             link=r.link,
