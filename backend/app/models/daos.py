@@ -1,5 +1,5 @@
 from app.models.base import CamelBaseModel
-from typing import List, Optional, Any, Union
+from typing import List, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.schemas import (
     VisibilityRuleSnippet, ProductDetails, VariantAttributes,
@@ -11,7 +11,6 @@ from datetime import datetime
 class CartItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[str] = None
-    external_id: Optional[str] = Field(None, alias='externalId')
     product: Optional[str] = None
     quantity: Optional[int] = 0
     sell_as_case: Optional[bool] = False
@@ -22,19 +21,16 @@ class CartItemInternal(CamelBaseModel):
 
 class CartInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[CartItemInternal]] = []
 
 class CartInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[CartItemInternal]] = None
 
 class PaymentEntryInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     entry_id: Optional[int] = None
     amount: Optional[float] = 0.0
     payment_method: Optional[str] = None
@@ -46,7 +42,6 @@ class PaymentEntryInternal(CamelBaseModel):
 
 class PaymentInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     order_id: Optional[str] = None
     user_id: Optional[str] = None
     user_id_formatted: Optional[str] = None
@@ -63,7 +58,6 @@ class PaymentInternalCreate(CamelBaseModel):
 
 class PaymentInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     order_id: Optional[str] = None
     user_id: Optional[str] = None
     user_id_formatted: Optional[str] = None
@@ -80,13 +74,11 @@ class PaymentInternalUpdate(CamelBaseModel):
 
 class VisibilityRuleInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     pageType: Optional[str] = None
     pageIds: Optional[List[str]] = None
 
 class BannerInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -104,7 +96,6 @@ class BannerInternalCreate(CamelBaseModel):
 
 class BannerInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -139,7 +130,6 @@ class BannerFilter(CamelBaseModel):
 
 class SellerPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     seller_id: Optional[str] = None
     amount: Optional[float] = 0.0
     period_start: Optional[str] = None
@@ -155,7 +145,6 @@ class SellerPayoutInternalCreate(CamelBaseModel):
 
 class SellerPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     seller_id: Optional[str] = None
     amount: Optional[float] = None
     period_start: Optional[str] = None
@@ -203,7 +192,6 @@ class ValetPayoutInternalUpdate(CamelBaseModel):
 
 class ValetAvailabilityInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     valet_id: Optional[str] = None
     date: Optional[str] = None
     availability_type: Optional[str] = None
@@ -212,7 +200,6 @@ class ValetAvailabilityInternalCreate(CamelBaseModel):
 
 class ValetAvailabilityInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     valet_id: Optional[str] = None
     date: Optional[str] = None
     availability_type: Optional[str] = None
@@ -221,7 +208,7 @@ class ValetAvailabilityInternalUpdate(CamelBaseModel):
 
 class ValetAvailabilityFilter(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    id: Optional[Union[str, int]] = None
+    id: Optional[int] = None
     valet_id: Optional[str] = Field(None, alias="valetId")
     date: Optional[str] = None
     availability_type: Optional[str] = Field(None, alias="availabilityType")
@@ -247,7 +234,6 @@ class DeviceSnippet(CamelBaseModel):
 class SessionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[str] = None
-    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     user_id: Optional[str] = None
     device_info: Optional[DeviceSnippet] = None
@@ -266,7 +252,6 @@ class SessionInternalCreate(CamelBaseModel):
 class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     id: Optional[str] = None
-    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     user_id: Optional[str] = None
     device_info: Optional[DeviceSnippet] = None
@@ -289,33 +274,28 @@ class SessionInternalUpdate(CamelBaseModel):
 class WishlistItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[str] = None
-    external_id: Optional[str] = Field(None, alias='externalId')
     product: str
     quantity: Optional[int] = 1
     addedAt: Optional[str] = None
 
 class WishlistInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     user: str
     items: Optional[List[WishlistItemInternal]] = []
 
 class WishlistInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[WishlistItemInternal]] = None
 
 class TrackingInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     order_id: str
     status: str
     details: Optional[str] = None
 
 class TrackingInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     order_id: Optional[str] = None
     status: Optional[str] = None
     details: Optional[str] = None
@@ -328,7 +308,6 @@ class BusinessDetailsInternal(CamelBaseModel):
 
 class SellerRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     request_number: Optional[str] = None
     user: str
     subject: Optional[str] = None
@@ -345,7 +324,6 @@ class SellerRequestInternalCreate(CamelBaseModel):
 
 class SellerRequestInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     request_number: Optional[str] = None
     user: Optional[str] = None
     subject: Optional[str] = None
@@ -363,7 +341,6 @@ class SellerRequestInternalUpdate(CamelBaseModel):
 
 class ProductInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
     price: float = 0.0
@@ -415,7 +392,6 @@ class ProductInternalCreate(CamelBaseModel):
 
 class ProductInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
     sellers: Optional[List[ProductSellerEntry]] = None
     sku: Optional[str] = None
     category: Optional[str] = None
@@ -450,7 +426,6 @@ class ProductInternalUpdate(CamelBaseModel):
 
 class CategoryInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
     parent_id: Optional[str] = None
@@ -473,7 +448,6 @@ class CategoryChildrenData(CamelBaseModel):
 
 class CategoryInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     parent_id: Optional[str] = None
@@ -493,7 +467,6 @@ class CategoryInternalUpdate(CamelBaseModel):
 
 class BrandInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
     is_active: bool = True
@@ -503,7 +476,6 @@ class BrandInternalCreate(CamelBaseModel):
 
 class BrandInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -523,7 +495,6 @@ class BundleItemInternal(CamelBaseModel):
 
 class BundleInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = None
     name: str
     description: Optional[str] = None
     discount_percentage: Optional[float] = None
@@ -536,7 +507,6 @@ class BundleInternalCreate(CamelBaseModel):
 
 class BundleInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     discount_percentage: Optional[float] = None
@@ -549,7 +519,6 @@ class BundleInternalUpdate(CamelBaseModel):
 class ReturnRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     id: Optional[str] = None
-    external_id: Optional[str] = Field(None, alias='externalId')
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -576,7 +545,6 @@ class ReturnRequestInternalCreate(CamelBaseModel):
 
 class ReturnRequestInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
     order_id: Optional[str] = None
     user_id: Optional[str] = None
     items: Optional[List['ReturnItemSchema']] = None
@@ -602,7 +570,6 @@ class ReturnRequestInternalUpdate(CamelBaseModel):
 class ReturnRequestInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[str] = None
-    external_id: Optional[str] = Field(None, alias='externalId')
     return_id: Optional[str] = None
     order_id: Optional[str] = None
     user_id: Optional[str] = None

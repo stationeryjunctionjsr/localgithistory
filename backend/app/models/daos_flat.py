@@ -15,22 +15,18 @@ class FlatCamelBaseModel(CamelBaseModel):
     )
 
 class ReturnSettingsInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     return_days: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 class ReturnSettingsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     return_days: Optional[int] = None
 
 class ReturnSettingsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     return_days: Optional[int] = None
 
 class SchemeInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -46,7 +42,6 @@ class SchemeInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class SchemeInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     discount_type: Optional[str] = None
@@ -59,7 +54,6 @@ class SchemeInternalCreate(FlatCamelBaseModel):
     applicable_roles: Optional[List[str]] = None
 
 class SchemeInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     discount_type: Optional[str] = None
@@ -72,7 +66,6 @@ class SchemeInternalUpdate(FlatCamelBaseModel):
     applicable_roles: Optional[List[str]] = None
 
 class ContactInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     email: Optional[str] = None
     description: Optional[str] = None
@@ -85,7 +78,6 @@ class ContactInternal(FlatCamelBaseModel):
     social_media: Optional[SocialMedia] = None
 
 class ContactInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     email: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -95,7 +87,6 @@ class ContactInternalCreate(FlatCamelBaseModel):
     social_media: Optional[SocialMedia] = None
 
 class ContactInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     email: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -105,7 +96,6 @@ class ContactInternalUpdate(FlatCamelBaseModel):
     social_media: Optional[SocialMedia] = None
 
 class OrderFeedbackInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     comment: Optional[str] = None
     delivery_comment: Optional[str] = None
@@ -118,7 +108,6 @@ class OrderFeedbackInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class OrderFeedbackInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     comment: Optional[str] = None
     delivery_comment: Optional[str] = None
     delivery_rating: Optional[int] = None
@@ -128,7 +117,6 @@ class OrderFeedbackInternalCreate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class OrderFeedbackInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     comment: Optional[str] = None
     delivery_comment: Optional[str] = None
     delivery_rating: Optional[int] = None
@@ -138,7 +126,6 @@ class OrderFeedbackInternalUpdate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class PromoStripsInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     is_active: Optional[bool] = None
     text: Optional[str] = None
@@ -147,12 +134,10 @@ class PromoStripsInternal(FlatCamelBaseModel):
     zone_ids: Optional[List[str]] = None
 
 class DeviceKeyInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     key: str
     value: str
 
 class DeviceSubscriptionInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     user_id: Optional[str] = None
     endpoint: Optional[str] = None
@@ -162,21 +147,18 @@ class DeviceSubscriptionInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class DeviceSubscriptionInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     user_id: Optional[str] = None
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
 
 class DeviceSubscriptionInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     user_id: Optional[str] = None
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
 
 class CollectionInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -191,7 +173,6 @@ class CollectionInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CollectionInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -203,7 +184,6 @@ class CollectionInternalCreate(FlatCamelBaseModel):
     product_ids: Optional[List[str]] = None
 
 class CollectionInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
@@ -216,7 +196,6 @@ class CollectionInternalUpdate(FlatCamelBaseModel):
 
 class SearchTagInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
@@ -231,7 +210,6 @@ class SearchTagInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class SearchTagInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
@@ -244,7 +222,6 @@ class SearchTagInternalCreate(FlatCamelBaseModel):
     excluded_product_ids: Optional[List[str]] = None
 
 class SearchTagInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
@@ -258,7 +235,6 @@ class SearchTagInternalUpdate(FlatCamelBaseModel):
 
 class CoachMarkInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -269,7 +245,6 @@ class CoachMarkInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CoachMarkInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -278,7 +253,6 @@ class CoachMarkInternalCreate(FlatCamelBaseModel):
     is_active: Optional[bool] = None
 
 class CoachMarkInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -288,7 +262,6 @@ class CoachMarkInternalUpdate(FlatCamelBaseModel):
 
 class CategoryTagInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -301,7 +274,6 @@ class CategoryTagInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CategoryTagInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -309,7 +281,6 @@ class CategoryTagInternalCreate(FlatCamelBaseModel):
     category_head_id: Optional[int] = None
 
 class CategoryTagInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -317,14 +288,12 @@ class CategoryTagInternalUpdate(FlatCamelBaseModel):
     category_head_id: Optional[int] = None
 
 class DeliveryChargeTierInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     min: Optional[float] = None
     max: Optional[float] = None
     charge: Optional[float] = None
 
 class DeliveryChargeInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
@@ -344,7 +313,6 @@ class DeliveryChargeInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class DeliveryChargeInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
@@ -362,7 +330,6 @@ class DeliveryChargeInternalCreate(FlatCamelBaseModel):
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliveryChargeInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
@@ -381,7 +348,6 @@ class DeliveryChargeInternalUpdate(FlatCamelBaseModel):
 
 class DeliveryChargeDefaultInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     applicable_to_wholesaler: Optional[bool] = None
     applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
@@ -398,7 +364,6 @@ class DeliveryChargeDefaultInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class DeliveryChargeDefaultInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     applicable_to_wholesaler: Optional[bool] = None
     applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
@@ -413,7 +378,6 @@ class DeliveryChargeDefaultInternalCreate(FlatCamelBaseModel):
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliveryChargeDefaultInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     applicable_to_wholesaler: Optional[bool] = None
     applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
@@ -429,7 +393,6 @@ class DeliveryChargeDefaultInternalUpdate(FlatCamelBaseModel):
 
 class DeliveryZoneInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     default_capacity: Optional[int] = None
@@ -446,7 +409,6 @@ class DeliveryZoneInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class DeliveryZoneInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     default_capacity: Optional[int] = None
@@ -461,7 +423,6 @@ class DeliveryZoneInternalCreate(FlatCamelBaseModel):
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliveryZoneInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     default_capacity: Optional[int] = None
@@ -477,7 +438,6 @@ class DeliveryZoneInternalUpdate(FlatCamelBaseModel):
 
 class DeliverySlotInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     capacity: Optional[int] = None
@@ -490,7 +450,6 @@ class DeliverySlotInternal(FlatCamelBaseModel):
 
 class DeliverySlotConfigInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     segment: Optional[str] = None
     date: Optional[str] = None
     zone_id: Optional[str] = None
@@ -500,7 +459,6 @@ class DeliverySlotConfigInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class DeliverySlotConfigInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     segment: Optional[str] = None
     date: Optional[str] = None
     zone_id: Optional[str] = None
@@ -508,7 +466,6 @@ class DeliverySlotConfigInternalCreate(FlatCamelBaseModel):
     slots: Optional[List[DeliverySlotInternal]] = None
 
 class DeliverySlotConfigInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     segment: Optional[str] = None
     date: Optional[str] = None
     zone_id: Optional[str] = None
@@ -518,7 +475,6 @@ class DeliverySlotConfigInternalUpdate(FlatCamelBaseModel):
 
 class CustomerSegmentInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -530,7 +486,6 @@ class CustomerSegmentInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CustomerSegmentInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -540,7 +495,6 @@ class CustomerSegmentInternalCreate(FlatCamelBaseModel):
     user_ids: Optional[List[str]] = None
 
 class CustomerSegmentInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -549,7 +503,6 @@ class CustomerSegmentInternalUpdate(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CouponQuantityTierInternal(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     min_quantity: Optional[int] = None
     discount_value: Optional[float] = None
 
@@ -559,7 +512,6 @@ class CouponUserUsageInternal(FlatCamelBaseModel):
 
 class CouponInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     code: Optional[str] = None
     discount_type: Optional[str] = None
     discount_value: Optional[float] = None
@@ -613,7 +565,6 @@ class CouponInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CouponInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     code: Optional[str] = None
     discount_type: Optional[str] = None
     discount_value: Optional[float] = None
@@ -665,7 +616,6 @@ class CouponInternalCreate(FlatCamelBaseModel):
     excluded_product_ids: Optional[List[str]] = None
 
 class CouponInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     code: Optional[str] = None
     discount_type: Optional[str] = None
     discount_value: Optional[float] = None
@@ -717,20 +667,17 @@ class CouponInternalUpdate(FlatCamelBaseModel):
     excluded_product_ids: Optional[List[str]] = None
 
 class PromoStripsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     is_active: Optional[bool] = None
     text: Optional[str] = None
     zone_ids: Optional[List[str]] = None
 
 class PromoStripsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     is_active: Optional[bool] = None
     text: Optional[str] = None
     zone_ids: Optional[List[str]] = None
 
 class PushNotificationsInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     title: Optional[str] = None
     message: Optional[str] = None
     link: Optional[str] = None
@@ -748,7 +695,6 @@ class PushNotificationsInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class PushNotificationsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     created_by: Optional[str] = None
     delivered_count: Optional[int] = None
     image: Optional[str] = None
@@ -762,7 +708,6 @@ class PushNotificationsInternalCreate(FlatCamelBaseModel):
     user_behavior: Optional[str] = None
 
 class PushNotificationsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     created_by: Optional[str] = None
     delivered_count: Optional[int] = None
     image: Optional[str] = None
@@ -776,7 +721,6 @@ class PushNotificationsInternalUpdate(FlatCamelBaseModel):
     user_segment: Optional[str] = None
 
 class CoachMarksInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     anchor_id: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -785,7 +729,6 @@ class CoachMarksInternalCreate(FlatCamelBaseModel):
     title: Optional[str] = None
 
 class CoachMarksInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     anchor_id: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -794,7 +737,6 @@ class CoachMarksInternalUpdate(FlatCamelBaseModel):
     title: Optional[str] = None
 
 class CategoryTagsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
     name: Optional[str] = None
@@ -802,7 +744,6 @@ class CategoryTagsInternalCreate(FlatCamelBaseModel):
     category_head_id: Optional[int] = None
 
 class CategoryTagsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
     name: Optional[str] = None
@@ -811,7 +752,6 @@ class CategoryTagsInternalUpdate(FlatCamelBaseModel):
 
 class Google_reviewsInternal(FlatCamelBaseModel):
     id: Optional[str] = None
-    external_id: Optional[str] = None
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
@@ -820,21 +760,18 @@ class Google_reviewsInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class Google_reviewsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
     reviewCount: Optional[str] = None
 
 class Google_reviewsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
     reviewCount: Optional[str] = None
 
 class StockReservationsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     expires_at: Optional[str] = None
     product_id: Optional[str] = None
     quantity: Optional[int] = None
@@ -842,7 +779,6 @@ class StockReservationsInternalCreate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class StockReservationsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     expires_at: Optional[str] = None
     product_id: Optional[str] = None
     quantity: Optional[int] = None
@@ -853,7 +789,6 @@ class StockReservationsInternalUpdate(FlatCamelBaseModel):
 class ProductNotificationsInternal(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     id: int
-    external_id: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     product_id: str
@@ -863,7 +798,6 @@ class ProductNotificationsInternal(CamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class ProductNotificationsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     product_id: Optional[str] = None
@@ -871,7 +805,6 @@ class ProductNotificationsInternalCreate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class ProductNotificationsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     product_id: Optional[str] = None
@@ -879,7 +812,6 @@ class ProductNotificationsInternalUpdate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class ProductReviewsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     product_id: Optional[str] = None
     rating: Optional[int] = None
     review_text: Optional[str] = None
@@ -889,7 +821,6 @@ class ProductReviewsInternalCreate(FlatCamelBaseModel):
     classification: Optional[str] = None
 
 class ProductReviewsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     product_id: Optional[str] = None
     rating: Optional[int] = None
     review_text: Optional[str] = None
@@ -899,59 +830,50 @@ class ProductReviewsInternalUpdate(FlatCamelBaseModel):
     user_id: Optional[str] = None
 
 class ClassificationTagsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     is_active: Optional[bool] = None
     name: Optional[str] = None
 
 class ClassificationTagsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     is_active: Optional[bool] = None
     name: Optional[str] = None
 
 class ReviewClassificationsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     category: Optional[str] = None
     confidence_score: Optional[float] = None
     review_id: Optional[str] = None
     sentiment: Optional[str] = None
 
 class ReviewClassificationsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     category: Optional[str] = None
     confidence_score: Optional[float] = None
     review_id: Optional[str] = None
     sentiment: Optional[str] = None
 
 class AboutUsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     content: Optional[str] = None
     is_published: Optional[bool] = None
     title: Optional[str] = None
     version: Optional[str] = None
 
 class AboutUsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     content: Optional[str] = None
     is_published: Optional[bool] = None
     title: Optional[str] = None
     version: Optional[str] = None
 
 class PrivacyPolicyInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     content: Optional[str] = None
     effective_date: Optional[str] = None
     is_active: Optional[bool] = None
     version: Optional[str] = None
 
 class PrivacyPolicyInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     content: Optional[str] = None
     effective_date: Optional[str] = None
     is_active: Optional[bool] = None
     version: Optional[str] = None
 
 class AvailabilityRequestsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     pincode: Optional[str] = None
     product_id: Optional[str] = None
     product_name: Optional[str] = None
@@ -959,7 +881,6 @@ class AvailabilityRequestsInternalCreate(FlatCamelBaseModel):
     user_name: Optional[str] = None
 
 class AvailabilityRequestsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     pincode: Optional[str] = None
     product_id: Optional[str] = None
     product_name: Optional[str] = None
@@ -967,21 +888,18 @@ class AvailabilityRequestsInternalUpdate(FlatCamelBaseModel):
     user_name: Optional[str] = None
 
 class PincodeSearchesInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     is_serviceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
     timestamp: Optional[str] = None
 
 class PincodeSearchesInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     is_serviceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
     timestamp: Optional[str] = None
 
 class SystemSettingsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     allow_signups: Optional[bool] = None
     default_currency: Optional[str] = None
     maintenance_mode: Optional[bool] = None
@@ -989,7 +907,6 @@ class SystemSettingsInternalCreate(FlatCamelBaseModel):
     timezone: Optional[str] = None
 
 class SystemSettingsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     allow_signups: Optional[bool] = None
     default_currency: Optional[str] = None
     maintenance_mode: Optional[bool] = None
@@ -997,17 +914,14 @@ class SystemSettingsInternalUpdate(FlatCamelBaseModel):
     timezone: Optional[str] = None
 
 class ValetPayoutSettingsInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     delivery_charge_per_order: Optional[float] = None
     return_pickup_charge_per_order: Optional[float] = None
 
 class ValetPayoutSettingsInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     delivery_charge_per_order: Optional[float] = None
     return_pickup_charge_per_order: Optional[float] = None
 
 class SupportTicketInternalCreate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     ticket_number: str
     user: Optional[str] = None
     name: Optional[str] = None
@@ -1027,7 +941,6 @@ class SupportTicketInternalCreate(FlatCamelBaseModel):
     created_at: Optional[datetime] = None
 
 class SupportTicketInternalUpdate(FlatCamelBaseModel):
-    external_id: Optional[str] = None
     ticket_number: Optional[str] = None
     user: Optional[str] = None
     name: Optional[str] = None
@@ -1175,7 +1088,7 @@ class SellerAvailabilityInternalUpdate(FlatCamelBaseModel):
     updated_at: Optional[Union[datetime, str]] = None
 
 class SellerAvailabilityFilter(FlatCamelBaseModel):
-    id: Optional[Union[str, int]] = None
+    id: Optional[int] = None
     seller_id: Optional[str] = None
     status: Optional[str] = None
     statuses: Optional[List[str]] = None
