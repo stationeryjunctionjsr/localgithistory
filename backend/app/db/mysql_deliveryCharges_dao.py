@@ -11,12 +11,12 @@ def _parse_tier_row(r) -> DeliveryChargeTierInternal:
     max_val = (
         float('inf')
         if str(r.max_order_value).lower() in ("infinity", "inf")
-        else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
+        else (float(r.max_order_value) if r.max_order_value is not None else float('inf'))
     )
     return DeliveryChargeTierInternal(
-        min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
+        min=float(r.min_order_value) if r.min_order_value is not None else 0.0,
         max=max_val,
-        charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
+        charge=float(r.charge) if r.charge is not None else 0.0,
     )
 
 class MySQLDeliveryChargesDAO:
@@ -39,20 +39,18 @@ class MySQLDeliveryChargesDAO:
             val = res.scalar()
             return int(val) if val is not None else 0
         
-    async def findById(self, id: Union[int, str]) -> Optional[DeliveryChargeInternal]:
+    async def findById(self, id: int) -> Optional[DeliveryChargeInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
+            params = {"id": id}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-            tiers = await self._fetch_tiers(session, int(row.id))
+            tiers = await self._fetch_tiers(session, row.id)
             return self._map_to_schema(row, tiers)
 
     async def findByPincode(self, pincode: str, is_active: bool = True) -> Optional[DeliveryChargeInternal]:
@@ -216,12 +214,12 @@ class MySQLDeliveryChargesDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: DeliveryChargeInternalUpdate) -> Optional[DeliveryChargeInternal]:
+    async def update(self, id: int, update_data: DeliveryChargeInternalUpdate) -> Optional[DeliveryChargeInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"pk": id, "u": now_utc()}
         data = update_data
 
         if data.location_id is not None:
@@ -281,29 +279,23 @@ class MySQLDeliveryChargesDAO:
             params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
 
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
-            pk = int(id)
             upd_where = "id = :pk"
-            params["pk"] = pk
 
             if len(updates) > 1:
                 upd_sql = ", ".join(updates)
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
 
-            await self._replace_children(session, pk, data)
+            await self._replace_children(session, id, data)
             await session.commit()
                 
-        return await self.findById(str(pk))
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            if not str(id).isdigit():
-                return False
-            pk = int(id)
+            pk = id
 
             await session.execute(text("DELETE FROM sj_delivery_charge_tiers WHERE parent_id = :id"), {"id": pk})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
@@ -316,7 +308,7 @@ class MySQLDeliveryChargesDAO:
         tiers: List[DeliveryChargeTierInternal],
     ) -> DeliveryChargeInternal:
         return DeliveryChargeInternal(
-            id=str(r.id),
+            id=r.id,
             location_id=r.location_id,
             pincode=r.pincode,
             state=r.state,

@@ -293,7 +293,7 @@ class DeliveryChargeTierInternal(FlatCamelBaseModel):
     charge: Optional[float] = None
 
 class DeliveryChargeInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
@@ -347,7 +347,7 @@ class DeliveryChargeInternalUpdate(FlatCamelBaseModel):
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
 class DeliveryChargeDefaultInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     applicable_to_wholesaler: Optional[bool] = None
     applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
