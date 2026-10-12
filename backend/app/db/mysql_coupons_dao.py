@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 import json
 from sqlalchemy import text
@@ -32,15 +32,13 @@ class MySQLCouponsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['CouponInternal']:
+    async def findById(self, id: int) -> Optional['CouponInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
-        if not str(id).isdigit():
-            return None
         async with factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": int(id)})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
@@ -51,7 +49,7 @@ class MySQLCouponsDAO:
                 rows_applicable_categories,
                 rows_applies_to_value_ids,
                 rows_excluded_product_ids,
-            ) = await self._fetch_children(session, [int(row.id)])
+            ) = await self._fetch_children(session, [row.id])
             return self._map_to_schema(
                 row,
                 rows_quantity_tiers,
@@ -301,9 +299,9 @@ class MySQLCouponsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'CouponsInternalUpdate') -> 'CouponInternal':
+    async def update(self, id: int, update_data: 'CouponsInternalUpdate') -> 'CouponInternal':
         data = update_data
         factory = self._factory()
         updates = ["updated_at = :u"]
@@ -377,22 +375,20 @@ class MySQLCouponsDAO:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, id, data)
                 await session.commit()
         else:
             async with factory() as session:
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, id, data)
                 await session.commit()
                 
         return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        if not str(id).isdigit():
-            return False
-        pk = int(id)
+        pk = id
         async with factory() as session:
 
             await session.execute(text("DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": pk})

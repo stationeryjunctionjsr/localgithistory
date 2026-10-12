@@ -4,7 +4,7 @@ MySQL DAO for sj_brands. Implements FileStorage-like interface for 'brands'.
 
 from app.models.schemas import BrandResponse
 from app.models.daos import BrandInternalCreate, BrandInternalUpdate
-from typing import List, Optional, Union, Any
+from typing import List, Optional, Any
 
 from sqlalchemy import text
 
@@ -23,7 +23,7 @@ class MySQLBrandDAO:
 
     async def findAll(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         slug: Optional[str] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
@@ -37,7 +37,7 @@ class MySQLBrandDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if slug is not None:
             where_clauses.append("slug = :slug")
             params["slug"] = slug
@@ -70,7 +70,7 @@ class MySQLBrandDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         slug: Optional[str] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
@@ -78,7 +78,7 @@ class MySQLBrandDAO:
         records = await self.findAll(id=id, slug=slug, is_active=is_active, name=name)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[BrandResponse]:
+    async def findById(self, id: int) -> Optional[BrandResponse]:
         return await self.findOne(id=id)
 
 
@@ -107,9 +107,9 @@ class MySQLBrandDAO:
             )
             await session.commit()
             new_id = result.lastrowid
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'BrandInternalUpdate') -> Optional[BrandResponse]:
+    async def update(self, id: int, update_data: 'BrandInternalUpdate') -> Optional[BrandResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -118,7 +118,7 @@ class MySQLBrandDAO:
         if not factory:
             return None
         now = now_utc()
-        bid = int(id) if str(id).isdigit() else None
+        bid = id
         
         updates = ["updated_at = :updated_at"]
         params = {"id": bid, "updated_at": now}
@@ -155,13 +155,13 @@ class MySQLBrandDAO:
                 params,
             )
             await session.commit()
-        return await self.findById(id)
+        return await self.findById(bid)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory:
             return False
-        bid = int(id) if str(id).isdigit() else None
+        bid = id
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

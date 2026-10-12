@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -18,14 +18,12 @@ class MySQLCoachMarksDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[CoachMarkInternal]:
+    async def findById(self, id: int) -> Optional[CoachMarkInternal]:
         if not id:
-            return None
-        if not str(id).isdigit():
             return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": int(id)})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
@@ -44,7 +42,7 @@ class MySQLCoachMarksDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         anchor_id: Optional[str] = None,
     ) -> Optional[CoachMarkInternal]:
         if anchor_id:
@@ -125,9 +123,9 @@ class MySQLCoachMarksDAO:
             new_id = result.lastrowid
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: CoachMarkInternalUpdate) -> Optional[CoachMarkInternal]:
+    async def update(self, id: int, update_data: CoachMarkInternalUpdate) -> Optional[CoachMarkInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"u": now_utc()}
@@ -157,28 +155,22 @@ class MySQLCoachMarksDAO:
             params["is_active"] = 1 if update_data.is_active else 0
 
         upd_sql = ", ".join(updates)
-        if not str(id).isdigit():
-            return None
-        pk = int(id)
-        params["pk"] = pk
+        params["pk"] = id
 
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
             await session.commit()
                 
-        return await self.findById(pk)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        if not str(id).isdigit():
-            return False
-        pk = int(id)
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :pk"),
-                {"pk": pk},
+                {"pk": id},
             )
             await session.commit()
             return result.rowcount > 0

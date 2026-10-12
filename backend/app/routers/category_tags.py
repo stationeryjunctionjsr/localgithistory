@@ -35,7 +35,7 @@ class CategoryTagCreate(CategoryTagBase):
 
 
 class CategoryTagResponse(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = True
@@ -124,16 +124,14 @@ async def get_active_category_tags(
 
 
 @router.get("/{tag_id}/categories", response_model=List[Category])
-async def get_categories_for_tag(tag_id: str):
+async def get_categories_for_tag(tag_id: int):
     """Get all categories that belong to this category tag"""
     try:
         tag = await category_tag_repository.findById(tag_id)
         if not tag:
-            tag = await category_tag_repository.findByName(tag_id)
-            if not tag:
-                raise HTTPException(status_code=404, detail="Category tag not found")
+            raise HTTPException(status_code=404, detail="Category tag not found")
 
-        categories = await category_tag_repository.findCategoriesByTag(tag.id or tag.name)
+        categories = await category_tag_repository.findCategoriesByTag(tag_id)
         return categories
     except HTTPException:
         raise
@@ -144,7 +142,7 @@ async def get_categories_for_tag(tag_id: str):
 
 @router.get("/{tag_id}", response_model=CategoryTagResponse)
 async def get_category_tag(
-    tag_id: str, current_user: User = Depends(require_super_admin)
+    tag_id: int, current_user: User = Depends(require_super_admin)
 ):
     """Get a category tag by ID (Super Admin only)"""
     try:
@@ -192,7 +190,7 @@ async def create_category_tag(
 
 @router.put("/{tag_id}", response_model=CategoryTagResponse)
 async def update_category_tag(
-    tag_id: str,
+    tag_id: int,
     tag_update: CategoryTagUpdate,
     current_user: User = Depends(require_super_admin),
 ):
@@ -206,8 +204,7 @@ async def update_category_tag(
         has_updates = False
         if tag_update.name is not None:
             existing_tag = await category_tag_repository.findByName(tag_update.name)
-            existing_id = existing_tag.id if existing_tag else None
-            if existing_tag and str(existing_id) != str(tag_id):
+            if existing_tag and existing_tag.id != tag_id:
                 raise HTTPException(
                     status_code=400, detail="Category tag with this name already exists"
                 )
@@ -243,7 +240,7 @@ async def update_category_tag(
 
 @router.delete("/{tag_id}", response_model=MessageResponse)
 async def delete_category_tag(
-    tag_id: str, current_user: User = Depends(require_super_admin)
+    tag_id: int, current_user: User = Depends(require_super_admin)
 ):
     """Delete a category tag (Super Admin only)"""
     try:

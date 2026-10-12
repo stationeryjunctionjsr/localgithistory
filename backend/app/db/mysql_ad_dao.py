@@ -62,7 +62,7 @@ class MySQLAdDAO:
         status: Optional[str] = None,
         platform: Optional[str] = None,
         name: Optional[str] = None,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
     ) -> List[Ad]:
         factory = self._factory()
         if not factory:
@@ -72,7 +72,7 @@ class MySQLAdDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if status is not None:
             where_clauses.append("status = :status")
             params["status"] = status
@@ -102,24 +102,23 @@ class MySQLAdDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         name: Optional[str] = None,
         status: Optional[str] = None,
         platform: Optional[str] = None,
     ) -> Optional[Ad]:
         if id is not None:
-            return await self.findById(str(id))
+            return await self.findById(id)
         records = await self.findAll(status=status, platform=platform, name=name)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[Ad]:
+    async def findById(self, id: int) -> Optional[Ad]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": pid},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
@@ -196,19 +195,18 @@ class MySQLAdDAO:
             )
             new_id = result.lastrowid
             await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: Union[Ad, AdUpdate]) -> Optional[Ad]:
+    async def update(self, id: int, update_data: Union[Ad, AdUpdate]) -> Optional[Ad]:
         existing = await self.findById(id)
         if not existing:
             return None
 
         data = update_data
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
-        params = {"id": pid, "u": now}
+        params = {"id": id, "u": now}
 
         if data.name is not None: updates.append("name = :name"); params["name"] = data.name
         if data.platform is not None: updates.append("platform = :platform"); params["platform"] = data.platform

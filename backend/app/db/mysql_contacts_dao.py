@@ -18,27 +18,25 @@ class MySQLContactsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[ContactInternal]:
+    async def findById(self, id: int) -> Optional[ContactInternal]:
         if not id:
-            return None
-        if not str(id).isdigit():
             return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": int(id)})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
-            address_rows, phone_rows = await self._fetch_children(session, [int(row.id)])
+            address_rows, phone_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(
                 row,
-                addresses=[str(a.address) for a in address_rows if int(a.parent_id) == int(row.id)],
-                phone_numbers=[str(p.phone) for p in phone_rows if int(p.parent_id) == int(row.id)],
+                addresses=[str(a.address) for a in address_rows if a.parent_id == row.id],
+                phone_numbers=[str(p.phone) for p in phone_rows if p.parent_id == row.id],
             )
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         email: Optional[str] = None,
     ) -> Optional[ContactInternal]:
         if id:
@@ -131,12 +129,12 @@ class MySQLContactsDAO:
         async with factory() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
-            await self._replace_children(session, int(new_id), data)
+            await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: ContactInternalUpdate) -> Optional[ContactInternal]:
+    async def update(self, id: int, update_data: ContactInternalUpdate) -> Optional[ContactInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"u": now_utc()}
@@ -162,31 +160,25 @@ class MySQLContactsDAO:
             params["social_media"] = update_data.social_media.model_dump_json()
 
         upd_sql = ", ".join(updates)
-        if not str(id).isdigit():
-            return None
-        pk = int(id)
-        params["pk"] = pk
+        params["pk"] = id
 
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
-            await self._replace_children(session, pk, update_data)
+            await self._replace_children(session, id, update_data)
             await session.commit()
                 
-        return await self.findById(pk)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        if not str(id).isdigit():
-            return False
-        pk = int(id)
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": pk})
-            await session.execute(text("DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": id})
+            await session.execute(text("DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": id})
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :pk"),
-                {"pk": pk},
+                {"pk": id},
             )
             await session.commit()
             return result.rowcount > 0

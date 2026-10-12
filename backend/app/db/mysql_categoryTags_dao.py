@@ -4,7 +4,7 @@ Supports division_id / category_head_id relationships and category counts.
 """
 
 from datetime import datetime, timezone
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple
 
 from sqlalchemy import text
 
@@ -56,7 +56,7 @@ class MySQLCategoryTagsDAO:
                         category_count = int(c.cnt)
                         break
         return CategoryTagInternal(
-            id=str(r.id),
+            id=r.id,
             name=r.name,
             description=r.description,
             is_active=bool(r.is_active) if r.is_active is not None else True,
@@ -131,15 +131,13 @@ class MySQLCategoryTagsDAO:
 
         return div_rows, count_rows, cat_col_rows
 
-    async def findById(self, id: Union[int, str]) -> Optional[CategoryTagInternal]:
+    async def findById(self, id: int) -> Optional[CategoryTagInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
+            params = {"id": id}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
@@ -149,7 +147,7 @@ class MySQLCategoryTagsDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         name: Optional[str] = None,
         is_active: Optional[bool] = None,
         division_id: Optional[int] = None,
@@ -253,16 +251,16 @@ class MySQLCategoryTagsDAO:
                     pass
                 await session.commit()
 
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: CategoryTagInternalUpdate) -> Optional[CategoryTagInternal]:
+    async def update(self, id: int, update_data: CategoryTagInternalUpdate) -> Optional[CategoryTagInternal]:
         existing = await self.findById(id)
         if not existing:
             return None
 
         factory = self._factory()
         now = now_utc()
-        tag_id = int(existing.id)
+        tag_id = id
 
         updates = ["updated_at = :u"]
         params = {"id": tag_id, "u": now}
@@ -318,16 +316,14 @@ class MySQLCategoryTagsDAO:
 
             await session.commit()
 
-        return await self.findById(str(tag_id))
+        return await self.findById(tag_id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            pk = int(id) if str(id).isdigit() else None
-            if not pk:
-                return False
+            pk = id
 
             # Delete junction records
             await session.execute(
@@ -345,37 +341,24 @@ class MySQLCategoryTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def findCategoriesByTag(self, tag_id_or_name: Union[int, str]) -> List[Category]:
+    async def findCategoriesByTag(self, tag_id: int) -> List[Category]:
         """Get all categories belonging to this category tag"""
         factory = self._factory()
-        if not factory or not tag_id_or_name:
+        if not factory or not tag_id:
             return []
 
         async with factory() as session:
-            tag_name = None
-            tag_id = None
-            if str(tag_id_or_name).isdigit():
-                tag_id = int(tag_id_or_name)
-                r = (await session.execute(text("SELECT name FROM sj_category_tags WHERE id = :id"), {"id": tag_id})).fetchone()
-                if r:
-                    tag_name = r.name
-            else:
-                tag_name = str(tag_id_or_name)
-                r = (await session.execute(text("SELECT id FROM sj_category_tags WHERE name = :name"), {"name": tag_name})).fetchone()
-                if r:
-                    tag_id = int(r.id)
+            r = (await session.execute(text("SELECT name FROM sj_category_tags WHERE id = :id"), {"id": tag_id})).fetchone()
+            tag_name = r.name if r else None
 
-            where_parts = []
-            params = {}
-            if tag_id is not None:
-                where_parts.append("c.category_tag_id = :tid")
-                params["tid"] = tag_id
+            where_parts = ["c.category_tag_id = :tid"]
+            params = {"tid": tag_id}
             if tag_name:
                 where_parts.append("c.category_tag = :tname")
                 where_parts.append("cct.tag = :tname")
                 params["tname"] = tag_name
 
-            where_sql = " OR ".join(where_parts) if where_parts else "1=0"
+            where_sql = " OR ".join(where_parts)
             sql = f"""
                 SELECT DISTINCT c.id, c.name, c.description, c.is_active, c.category_tag, c.category_tag_id
                 FROM sj_categories c

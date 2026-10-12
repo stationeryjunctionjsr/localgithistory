@@ -150,7 +150,7 @@ class MySQLCategoryDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         name: Optional[str] = None,
         category_tag: Optional[str] = None,
         is_active: Optional[bool] = None,
@@ -160,22 +160,20 @@ class MySQLCategoryDAO:
         records = await self.findAll(name=name, category_tag=category_tag, is_active=is_active)
         return records[0] if records else None
 
-    async def findById(self, id: Union[int, str]) -> Optional[Category]:
+    async def findById(self, id: int) -> Optional[Category]:
         if not id:
             return None
         factory = self._factory()
         if not factory:
             return None
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
+            params = {"id": id}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-            img_rows, sub_rows, tag_rows = await self._fetch_children(session, [int(row.id)])
+            img_rows, sub_rows, tag_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, img_rows, sub_rows, tag_rows)
 
     async def create(self, data: CategoryInternalCreate) -> Category:
@@ -221,15 +219,15 @@ class MySQLCategoryDAO:
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: CategoryInternalUpdate) -> Optional[Category]:
+    async def update(self, id: int, update_data: CategoryInternalUpdate) -> Optional[Category]:
         existing = await self.findById(id)
         if not existing:
             return None
         factory = self._factory()
         now = now_utc()
-        cid = int(id) if str(id).isdigit() else int(existing.id)
+        cid = id
         async with factory() as session:
             new_tag_id = update_data.category_tag_id
             if new_tag_id is None and update_data.category_tag is not None:
@@ -279,16 +277,14 @@ class MySQLCategoryDAO:
             )
             await self._replace_children(session, cid, dummy_merged)
             await session.commit()
-        return await self.findById(id)
+        return await self.findById(cid)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            pk = int(id) if str(id).isdigit() else None
-            if not pk:
-                return False
+            pk = id
             await session.execute(text("DELETE FROM sj_category_images WHERE category_id = :cid"), {"cid": pk})
             await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": pk})
             await session.execute(text("DELETE FROM sj_category_category_tags WHERE category_id = :cid"), {"cid": pk})

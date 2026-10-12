@@ -23,24 +23,22 @@ class MySQLActivitiesDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional[ActivityInternal]:
+    async def findById(self, id: int) -> Optional[ActivityInternal]:
         if not id:
-            return None
-        if not str(id).isdigit():
             return None
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            result = await session.execute(q, {"id": int(id)})
+            result = await session.execute(q, {"id": id})
             row = result.fetchone()
             if not row:
                 return None
                 
-            meta_rows = await self._fetch_meta(session, [int(row.id)])
+            meta_rows = await self._fetch_meta(session, [row.id])
             return self._map_to_schema(row, meta_rows)
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
         action: Optional[str] = None,
@@ -82,7 +80,7 @@ class MySQLActivitiesDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            meta_rows = await self._fetch_meta(session, [int(r.id) for r in rows])
+            meta_rows = await self._fetch_meta(session, [r.id for r in rows])
             return [self._map_to_schema(r, meta_rows) for r in rows]
 
     async def create(self, data: ActivityInternalCreate) -> ActivityInternal:
@@ -147,9 +145,9 @@ class MySQLActivitiesDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: Union[int, str], update_data: ActivityInternalUpdate) -> Optional[ActivityInternal]:
+    async def update(self, id: int, update_data: ActivityInternalUpdate) -> Optional[ActivityInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"u": now_utc()}
@@ -167,28 +165,22 @@ class MySQLActivitiesDAO:
             params["is_guest"] = 1 if update_data.is_guest else 0
 
         upd_sql = ", ".join(updates)
-        if not str(id).isdigit():
-            return None
-        pk = int(id)
-        params["pk"] = pk
+        params["pk"] = id
 
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
-            await self._replace_children(session, pk, update_data)
+            await self._replace_children(session, id, update_data)
             await session.commit()
                 
-        return await self.findById(pk)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
-        if not str(id).isdigit():
-            return False
-        pk = int(id)
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": pk})
-            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :pk"), {"pk": pk})
+            await session.execute(text("DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": id})
+            result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :pk"), {"pk": id})
             await session.commit()
             return result.rowcount > 0
 

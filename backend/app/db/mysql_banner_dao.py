@@ -75,7 +75,7 @@ class MySQLBannerDAO:
 
     async def findAll(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         is_active: Optional[bool] = None,
         is_published: Optional[bool] = None,
         title: Optional[str] = None,
@@ -87,7 +87,7 @@ class MySQLBannerDAO:
         params = {}
         if id is not None:
             where_clauses.append("b.id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if is_active is not None:
             where_clauses.append("b.is_active = :is_active")
             params["is_active"] = 1 if is_active else 0
@@ -157,7 +157,7 @@ class MySQLBannerDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[int] = None,
         is_active: Optional[bool] = None,
         is_published: Optional[bool] = None,
         title: Optional[str] = None,
@@ -165,7 +165,7 @@ class MySQLBannerDAO:
         records = await self.findAll(id=id, is_active=is_active, is_published=is_published, title=title)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[BannerResponse]:
+    async def findById(self, id: int) -> Optional[BannerResponse]:
         return await self.findOne(id=id)
 
     async def create(self, data: BannerInternalCreate) -> BannerResponse:
@@ -208,9 +208,9 @@ class MySQLBannerDAO:
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
             await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: BannerInternalUpdate) -> Optional[BannerResponse]:
+    async def update(self, id: int, update_data: BannerInternalUpdate) -> Optional[BannerResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -230,7 +230,7 @@ class MySQLBannerDAO:
 
         factory = self._factory()
         now = now_utc()
-        bid = int(id) if str(id).isdigit() else None
+        bid = id
         async with factory() as session:
             await session.execute(
                 text(
@@ -275,13 +275,13 @@ class MySQLBannerDAO:
             )
             await self._replace_children(session, bid, children_data)
             await session.commit()
-        return await self.findById(id)
+        return await self.findById(bid)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )
             await session.commit()
             return result.rowcount > 0

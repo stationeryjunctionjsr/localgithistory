@@ -261,7 +261,7 @@ class CoachMarkInternalUpdate(FlatCamelBaseModel):
     is_active: Optional[bool] = None
 
 class CategoryTagInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None

@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -19,20 +19,18 @@ class MySQLCollectionsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['CollectionInternal']:
+    async def findById(self, id: int) -> Optional['CollectionInternal']:
         factory = self._factory()
         if not factory or not id:
             return None
         async with factory() as session:
-            if not str(id).isdigit():
-                return None
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
-            params = {"id": int(id)}
+            params = {"id": id}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-            rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids = await self._fetch_children(session, [int(row.id)])
+            rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids)
 
     async def findOne(
@@ -107,9 +105,9 @@ class MySQLCollectionsDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: 'CollectionInternalUpdate') -> 'CollectionInternal':
+    async def update(self, id: int, update_data: 'CollectionInternalUpdate') -> 'CollectionInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -138,23 +136,21 @@ class MySQLCollectionsDAO:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), update_data)
+                await self._replace_children(session, id, update_data)
                 await session.commit()
         else:
             async with factory() as session:
-                await self._replace_children(session, int(id), update_data)
+                await self._replace_children(session, id, update_data)
                 await session.commit()
                 
         return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            if not str(id).isdigit():
-                return False
-            pk = int(id)
+            pk = id
 
             await session.execute(text("DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": pk})
             await session.execute(text("DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": pk})
@@ -169,7 +165,7 @@ class MySQLCollectionsDAO:
             return result.rowcount > 0
 
     def _map_to_schema(self, r, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids) -> 'CollectionInternal':
-        row_id = int(r.id)
+        row_id = r.id
         return CollectionInternal(
             id=str(r.id),
             name=r.name,
