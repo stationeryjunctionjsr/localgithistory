@@ -211,71 +211,102 @@ class MySQLBannerDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: BannerInternalUpdate) -> Optional[BannerResponse]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
+            return None
+        factory = self._factory()
+        if not factory:
             return None
 
-        title = update_data.title if update_data.title is not None else existing.title
-        description = update_data.description if update_data.description is not None else existing.description
-        image_url = update_data.image_url if update_data.image_url is not None else existing.image_url
-        link_url = update_data.link_url if update_data.link_url is not None else existing.link_url
-        display_order = update_data.display_order if update_data.display_order is not None else (existing.display_order or 0)
-        start_date = update_data.start_date if update_data.start_date is not None else existing.start_date
-        end_date = update_data.end_date if update_data.end_date is not None else existing.end_date
-        is_active = update_data.is_active if update_data.is_active is not None else existing.is_active
-        is_published = update_data.is_published if update_data.is_published is not None else existing.is_published
-        target_audience = update_data.target_audience if update_data.target_audience is not None else existing.target_audience
-        position = update_data.position if update_data.position is not None else existing.position
-        zone_ids = update_data.zone_ids if update_data.zone_ids is not None else existing.zone_ids
-
-        factory = self._factory()
         now = now_utc()
-        bid = id
+        updates = ["updated_at = :updated_at"]
+        params = {"id": id, "updated_at": now}
+
+        if "title" in update_data.model_fields_set:
+            updates.append("title = :title")
+            params["title"] = update_data.title
+
+        if "description" in update_data.model_fields_set:
+            updates.append("description = :description")
+            params["description"] = update_data.description
+
+        if "image_url" in update_data.model_fields_set:
+            updates.append("image_url = :image_url")
+            params["image_url"] = update_data.image_url
+
+        if "link_url" in update_data.model_fields_set:
+            updates.append("link_url = :link_url")
+            params["link_url"] = update_data.link_url
+
+        if "display_order" in update_data.model_fields_set:
+            updates.append("display_order = :display_order")
+            params["display_order"] = update_data.display_order if update_data.display_order is not None else 0
+
+        if "start_date" in update_data.model_fields_set:
+            updates.append("start_date = :start_date")
+            params["start_date"] = update_data.start_date
+
+        if "end_date" in update_data.model_fields_set:
+            updates.append("end_date = :end_date")
+            params["end_date"] = update_data.end_date
+
+        if "is_active" in update_data.model_fields_set:
+            updates.append("is_active = :is_active")
+            params["is_active"] = 1 if update_data.is_active else 0
+
+        if "is_published" in update_data.model_fields_set:
+            updates.append("is_published = :is_published")
+            params["is_published"] = 1 if update_data.is_published else 0
+
+        if "target_audience" in update_data.model_fields_set:
+            updates.append("target_audience = :target_audience")
+            params["target_audience"] = update_data.target_audience
+
+        if "position" in update_data.model_fields_set:
+            updates.append("position = :position")
+            params["position"] = update_data.position
+
+        if "zone_ids" in update_data.model_fields_set:
+            updates.append("zone_ids = :zone_ids")
+            params["zone_ids"] = json.dumps(update_data.zone_ids) if update_data.zone_ids else None
+
+        set_sql = ", ".join(updates)
+        has_children_update = False
         async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    UPDATE {self.TABLE} SET
-                        title = :title,
-                        description = :description,
-                        image_url = :image_url,
-                        link_url = :link_url,
-                        display_order = :display_order,
-                        start_date = :start_date,
-                        end_date = :end_date,
-                        is_active = :is_active,
-                        is_published = :is_published,
-                        target_audience = :target_audience,
-                        position = :position,
-                        zone_ids = :zone_ids,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": bid,
-                    "title": title,
-                    "description": description,
-                    "image_url": image_url,
-                    "link_url": link_url,
-                    "display_order": display_order,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "is_active": 1 if is_active else 0,
-                    "is_published": 1 if is_published else 0,
-                    "target_audience": target_audience,
-                    "position": position,
-                    "zone_ids": json.dumps(zone_ids) if zone_ids else None,
-                    "updated_at": now,
-                },
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
-            children_data = BannerChildrenData(
-                user_segments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
-                visibility_rules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules,
-            )
-            await self._replace_children(session, bid, children_data)
+            if "user_segments" in update_data.model_fields_set:
+                has_children_update = True
+                await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": id})
+                if update_data.user_segments:
+                    for seg in update_data.user_segments:
+                        await session.execute(
+                            text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
+                            {"bid": id, "seg": seg},
+                        )
+
+            if "visibility_rules" in update_data.model_fields_set:
+                has_children_update = True
+                await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": id})
+                if update_data.visibility_rules:
+                    for rule in update_data.visibility_rules:
+                        try:
+                            rule_val = rule.model_dump_json()
+                        except AttributeError:
+                            rule_val = str(rule)
+                        await session.execute(
+                            text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
+                            {"bid": id, "rule": rule_val},
+                        )
+
             await session.commit()
-        return await self.findById(bid)
+            if result.rowcount == 0 and not has_children_update:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
         factory = self._factory()

@@ -107,7 +107,7 @@ async def upload_banner_image(image: UploadFile = File(...), current_user: User 
 
 
 @router.get("/{banner_id}", response_model=BannerResponse)
-async def get_banner(banner_id: str, current_user: User = Depends(require_super_admin)):
+async def get_banner(banner_id: int, current_user: User = Depends(require_super_admin)):
     banner = await banner_repository.findById(banner_id)
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
@@ -123,7 +123,7 @@ async def create_banner(banner_data: BannerCreate, current_user: User = Depends(
 
 
 @router.put("/{banner_id}", response_model=BannerResponse)
-async def update_banner(banner_id: str, banner_data: BannerUpdate, current_user: User = Depends(require_super_admin)):
+async def update_banner(banner_id: int, banner_data: BannerUpdate, current_user: User = Depends(require_super_admin)):
     banner = await banner_repository.update(banner_id, banner_data)
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
@@ -132,7 +132,7 @@ async def update_banner(banner_id: str, banner_data: BannerUpdate, current_user:
 
 
 @router.delete("/{banner_id}", response_model=MessageResponse)
-async def delete_banner(banner_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_banner(banner_id: int, current_user: User = Depends(require_super_admin)):
     result = await banner_repository.delete(banner_id)
     if not result:
         raise HTTPException(status_code=404, detail="Banner not found")

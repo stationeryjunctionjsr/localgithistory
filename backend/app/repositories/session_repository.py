@@ -44,23 +44,7 @@ class SessionRepository:
         return await self.storage.findById(session_id)
 
     async def update_session(self, session_id: int, updates: SessionInternalUpdate) -> Optional[Session]:
-        existing = await self.storage.findById(session_id)
-        if not existing:
-            return None
-        
-        # Use model_fields_set and explicitly assign attributes
-        for field in updates.model_fields_set:
-            match field:
-                case "user_id": existing.user_id = updates.user_id
-                case "refresh_token_id": existing.refresh_token_id = updates.refresh_token_id
-                case "status": existing.status = updates.status
-                case "last_active_at": existing.last_active_at = updates.last_active_at
-                case "revoked_at": existing.revoked_at = updates.revoked_at
-                case "revoked_reason": existing.revoked_reason = updates.revoked_reason
-                case "device": existing.device = updates.device
-                case "is_guest": existing.is_guest = updates.is_guest
-
-        return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing, from_attributes=True))
+        return await self.storage.update(session_id, updates)
 
     async def revoke_session(self, session_id: int, reason: str) -> Optional[Session]:
         return await self.update_session(

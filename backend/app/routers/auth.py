@@ -11,6 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict
 
 from app.models.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse
+from app.models.daos import SessionInternalUpdate
 from app.repositories.session_repository import session_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import (
@@ -464,11 +465,11 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
     # touch activity and issue new tokens (60s SQL debounce via DAO)
     await session_repository.touch(session_id)
     device = parse_device(request, default_type="web")
-    await session_repository.update_session(session_id, {"device": device})
+    await session_repository.update_session(session_id, SessionInternalUpdate(device=device))
 
     access_token = create_access_token(user_id, session_id)
     new_refresh_id = str(uuid4())
-    await session_repository.update_session(session_id, {"refreshTokenId": new_refresh_id})
+    await session_repository.update_session(session_id, SessionInternalUpdate(refresh_token_id=new_refresh_id))
     refresh_token = create_refresh_token(user_id, session_id, new_refresh_id)
 
     user = await user_repository.findById(user_id)

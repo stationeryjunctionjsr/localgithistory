@@ -20,7 +20,7 @@ class CategoryRepository:
     async def findAll(self) -> List[Category]:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional[Category]:
+    async def findById(self, id: int) -> Optional[Category]:
         return await self.storage.findById(id)
 
     async def findByName(self, name: str) -> Optional[Category]:
@@ -33,7 +33,7 @@ class CategoryRepository:
     async def create(self, category_data: "CategoryInternalCreate") -> Category:
         return await self.storage.create(category_data)
 
-    async def update(self, id: str, update_data: "CategoryInternalUpdate") -> Optional[Category]:
+    async def update(self, id: int, update_data: "CategoryInternalUpdate") -> Optional[Category]:
         # Synchronize categoryTag and categoryTags for backward compatibility
         if "category_tag" in update_data.model_fields_set and update_data.category_tag is not None:
             tag = update_data.category_tag
@@ -44,7 +44,7 @@ class CategoryRepository:
             
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> Optional[Category]:
+    async def delete(self, id: int) -> Optional[Category]:
         # Soft delete - set isActive to false
         from app.models.daos import CategoryInternalUpdate
         return await self.update(id, CategoryInternalUpdate(is_active=False))

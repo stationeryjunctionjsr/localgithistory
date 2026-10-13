@@ -2,7 +2,7 @@
 MySQL DAO for sj_categories. Fully relational with child tables for images, sub_categories, and category_tags.
 """
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -222,62 +222,113 @@ class MySQLCategoryDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: CategoryInternalUpdate) -> Optional[Category]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
         factory = self._factory()
-        now = now_utc()
-        cid = id
-        async with factory() as session:
-            new_tag_id = update_data.category_tag_id
-            if new_tag_id is None and update_data.category_tag is not None:
-                res_tid = await session.execute(
-                    text("SELECT id FROM sj_category_tags WHERE name = :tname LIMIT 1"),
-                    {"tname": str(update_data.category_tag).strip()},
-                )
-                new_tag_id = res_tid.scalar()
-            elif new_tag_id is None:
-                new_tag_id = existing.category_tag_id
+        if not factory:
+            return None
 
-            await session.execute(
-                text(
-                    f"""
-                    UPDATE {self.TABLE} SET
-                        name = :name,
-                        description = :description,
-                        is_active = :is_active,
-                        category_tag = :category_tag,
-                        category_tag_id = :category_tag_id,
-                        minimum_quantity = :minimum_quantity,
-                        gst = :gst,
-                        is_returnable = :is_returnable,
-                        show_in_mobile_homepage = :show_in_mobile_homepage,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": cid,
-                    "name": update_data.name if update_data.name is not None else existing.name,
-                    "description": update_data.description if update_data.description is not None else existing.description,
-                    "is_active": 1 if (update_data.is_active if update_data.is_active is not None else existing.is_active) else 0,
-                    "category_tag": update_data.category_tag if update_data.category_tag is not None else existing.category_tag,
-                    "category_tag_id": new_tag_id,
-                    "minimum_quantity": update_data.minimum_quantity if update_data.minimum_quantity is not None else existing.minimum_quantity,
-                    "gst": update_data.gst if update_data.gst is not None else existing.gst,
-                    "is_returnable": 1 if (update_data.is_returnable if update_data.is_returnable is not None else existing.is_returnable) else 0,
-                    "show_in_mobile_homepage": 1 if (update_data.show_in_mobile_homepage if update_data.show_in_mobile_homepage is not None else existing.show_in_mobile_homepage) else 0,
-                    "updated_at": now,
-                },
+        now = now_utc()
+        updates = ["updated_at = :updated_at"]
+        params = {"id": id, "updated_at": now}
+
+        if "name" in update_data.model_fields_set:
+            updates.append("name = :name")
+            params["name"] = update_data.name
+
+        if "description" in update_data.model_fields_set:
+            updates.append("description = :description")
+            params["description"] = update_data.description
+
+        if "is_active" in update_data.model_fields_set:
+            updates.append("is_active = :is_active")
+            params["is_active"] = 1 if update_data.is_active else 0
+
+        if "category_tag" in update_data.model_fields_set:
+            updates.append("category_tag = :category_tag")
+            params["category_tag"] = update_data.category_tag
+
+        if "category_tag_id" in update_data.model_fields_set:
+            updates.append("category_tag_id = :category_tag_id")
+            params["category_tag_id"] = update_data.category_tag_id
+
+        if "minimum_quantity" in update_data.model_fields_set:
+            updates.append("minimum_quantity = :minimum_quantity")
+            params["minimum_quantity"] = update_data.minimum_quantity
+
+        if "gst" in update_data.model_fields_set:
+            updates.append("gst = :gst")
+            params["gst"] = update_data.gst
+
+        if "is_returnable" in update_data.model_fields_set:
+            updates.append("is_returnable = :is_returnable")
+            params["is_returnable"] = 1 if update_data.is_returnable else 0
+
+        if "show_in_mobile_homepage" in update_data.model_fields_set:
+            updates.append("show_in_mobile_homepage = :show_in_mobile_homepage")
+            params["show_in_mobile_homepage"] = 1 if update_data.show_in_mobile_homepage else 0
+
+        set_sql = ", ".join(updates)
+        has_children_update = False
+        async with factory() as session:
+            if "category_tag" in update_data.model_fields_set and "category_tag_id" not in update_data.model_fields_set:
+                if update_data.category_tag is not None:
+                    res_tid = await session.execute(
+                        text("SELECT id FROM sj_category_tags WHERE name = :tname LIMIT 1"),
+                        {"tname": str(update_data.category_tag).strip()},
+                    )
+                    tag_id = res_tid.scalar()
+                    updates.append("category_tag_id = :resolved_tag_id")
+                    params["resolved_tag_id"] = tag_id
+                    set_sql = ", ".join(updates)
+
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
-            dummy_merged = CategoryChildrenData(
-                images=update_data.images if update_data.images is not None else existing.images,
-                subCategories=update_data.sub_categories if update_data.sub_categories is not None else existing.sub_categories,
-                categoryTags=update_data.category_tags if update_data.category_tags is not None else existing.category_tags,
-            )
-            await self._replace_children(session, cid, dummy_merged)
+
+            if "images" in update_data.model_fields_set:
+                has_children_update = True
+                await session.execute(text("DELETE FROM sj_category_images WHERE category_id = :cid"), {"cid": id})
+                if update_data.images:
+                    for img in update_data.images:
+                        await session.execute(
+                            text("INSERT INTO sj_category_images (category_id, image_url) VALUES (:cid, :img)"),
+                            {"cid": id, "img": str(img)},
+                        )
+
+            if "sub_categories" in update_data.model_fields_set:
+                has_children_update = True
+                await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": id})
+                if update_data.sub_categories:
+                    for sub in update_data.sub_categories:
+                        await session.execute(
+                            text("INSERT INTO sj_category_sub_categories (category_id, sub_category) VALUES (:cid, :sub)"),
+                            {"cid": id, "sub": str(sub)},
+                        )
+
+            if "category_tags" in update_data.model_fields_set:
+                has_children_update = True
+                await session.execute(text("DELETE FROM sj_category_category_tags WHERE category_id = :cid"), {"cid": id})
+                if update_data.category_tags:
+                    for tag in update_data.category_tags:
+                        tag_id_res = await session.execute(
+                            text("SELECT id FROM sj_category_tags WHERE name = :tname LIMIT 1"),
+                            {"tname": str(tag).strip()},
+                        )
+                        tag_id = tag_id_res.scalar()
+                        await session.execute(
+                            text("INSERT INTO sj_category_category_tags (category_id, tag, category_tag_id) VALUES (:cid, :tag, :tid)"),
+                            {"cid": id, "tag": str(tag), "tid": tag_id},
+                        )
+
             await session.commit()
-        return await self.findById(cid)
+            if result.rowcount == 0 and not has_children_update:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
         factory = self._factory()

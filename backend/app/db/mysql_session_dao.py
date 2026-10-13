@@ -147,64 +147,67 @@ class MySQLSessionDAO:
             new_id = result.lastrowid
         return await self.findById(new_id)
 
-    async def update(self, id: int, update_data: 'SessionInternalUpdate') -> Optional['Session']:
+    async def update(self, id: int, update_data: SessionInternalUpdate) -> Optional[Session]:
         if not id:
             return None
-        existing = await self.findById(id)
-        if not existing:
-            return None
-        
-        # update_data is SessionInternalUpdate. It uses userId, not user_id.
-        # existing is Session. We can just use explicit properties.
         factory = self._factory()
         if not factory:
             return None
-        
-        now = now_utc()
-        
-        # Extract fields from existing
-        # existing is a Session object, which has user_id
-        final_user_id = update_data.user_id if update_data.user_id is not None else existing.user_id
-        final_refresh_token_id = update_data.refresh_token_id if update_data.refresh_token_id is not None else existing.refresh_token_id
-        final_status = update_data.status if update_data.status is not None else existing.status
-        final_last_active_at = update_data.last_active_at if update_data.last_active_at is not None else (existing.last_active_at.isoformat() if existing.last_active_at else None)
-        final_revoked_at = update_data.revoked_at if update_data.revoked_at is not None else (existing.revoked_at.isoformat() if existing.revoked_at else None)
-        final_revoked_reason = update_data.revoked_reason if update_data.revoked_reason is not None else existing.revoked_reason
-        final_is_guest = update_data.is_guest if update_data.is_guest is not None else existing.is_guest
-        final_comments = update_data.comment if update_data.comment is not None else existing.comments
-        user_id = final_user_id
 
+        now = now_utc()
+        updates = ["updated_at = :updated_at"]
+        params = {"id": id, "updated_at": now}
+
+        if "user_id" in update_data.model_fields_set:
+            updates.append("user_id = :user_id")
+            params["user_id"] = update_data.user_id
+        elif "user" in update_data.model_fields_set:
+            updates.append("user_id = :user_id")
+            params["user_id"] = int(update_data.user) if update_data.user is not None and str(update_data.user).isdigit() else None
+
+        if "refresh_token_id" in update_data.model_fields_set:
+            updates.append("refresh_token_id = :refresh_token_id")
+            params["refresh_token_id"] = str(update_data.refresh_token_id) if update_data.refresh_token_id is not None else None
+
+        if "status" in update_data.model_fields_set:
+            updates.append("status = :status")
+            params["status"] = str(update_data.status) if update_data.status is not None else None
+
+        if "last_active_at" in update_data.model_fields_set:
+            updates.append("last_active_at = :last_active_at")
+            params["last_active_at"] = _to_ts(update_data.last_active_at)
+
+        if "revoked_at" in update_data.model_fields_set:
+            updates.append("revoked_at = :revoked_at")
+            params["revoked_at"] = _to_ts(update_data.revoked_at)
+
+        if "revoked_reason" in update_data.model_fields_set:
+            updates.append("revoked_reason = :revoked_reason")
+            params["revoked_reason"] = update_data.revoked_reason
+
+        if "is_guest" in update_data.model_fields_set:
+            updates.append("is_guest = :is_guest")
+            params["is_guest"] = 1 if update_data.is_guest else 0
+
+        if "comment" in update_data.model_fields_set:
+            updates.append("comments = :comments")
+            params["comments"] = update_data.comment
+        elif "comments" in update_data.model_fields_set:
+            updates.append("comments = :comments")
+            params["comments"] = update_data.comments
+
+        set_sql = ", ".join(updates)
         async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    UPDATE {self.TABLE} SET
-                        user_id = :user_id,
-                        refresh_token_id = :refresh_token_id,
-                        status = :status,
-                        last_active_at = :last_active_at,
-                        revoked_at = :revoked_at,
-                        revoked_reason = :revoked_reason,
-                        is_guest = :is_guest,
-                        comments = :comments,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": id,
-                    "user_id": user_id,
-                    "refresh_token_id": final_refresh_token_id,
-                    "status": final_status,
-                    "last_active_at": _to_ts(final_last_active_at),
-                    "revoked_at": _to_ts(final_revoked_at),
-                    "revoked_reason": final_revoked_reason,
-                    "is_guest": 1 if final_is_guest else 0,
-                    "comments": final_comments,
-                    "updated_at": now,
-                },
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
             await session.commit()
+            if result.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
         return await self.findById(id)
 
     async def touch(self, session_id: int, device: Optional[DeviceSnippet] = None) -> None:

@@ -265,7 +265,7 @@ async def get_categories(current_user: User = Depends(require_super_admin)):
 
 
 @router.get("/{category_id}", response_model=Category)
-async def get_category(category_id: str, current_user: User = Depends(require_super_admin)):
+async def get_category(category_id: int, current_user: User = Depends(require_super_admin)):
     """Get category by ID (Super Admin only)"""
     try:
         category = await category_repository.findById(category_id)
@@ -341,7 +341,7 @@ async def create_category(category: CategoryBase, current_user: User = Depends(r
 
 @router.put("/{category_id}", response_model=Category)
 async def update_category(
-    category_id: str, category_update: CategoryUpdate, current_user: User = Depends(require_super_admin)
+    category_id: int, category_update: CategoryUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Update a category (Super Admin only)"""
     try:
@@ -363,18 +363,8 @@ async def update_category(
             raise HTTPException(status_code=400, detail="No fields to update")
 
         from app.models.daos import CategoryInternalUpdate
-        internal_update = CategoryInternalUpdate(
-            name=category_update.name,
-            description=category_update.description,
-            images=category_update.images,
-            sub_categories=category_update.sub_categories,
-            minimum_quantity=category_update.minimum_quantity,
-            category_tag=category_update.category_tag,
-            category_tag_id=category_update.category_tag_id,
-            is_active=category_update.is_active,
-            show_in_mobile_homepage=category_update.show_in_mobile_homepage,
-            gst=category_update.gst,
-            is_returnable=category_update.is_returnable,
+        internal_update = CategoryInternalUpdate.model_validate(
+            category_update.model_dump(exclude_unset=True)
         )
         updated_category = await category_repository.update(category_id, internal_update)
         _invalidate_category_caches()
@@ -387,7 +377,7 @@ async def update_category(
 
 
 @router.delete("/{category_id}", response_model=MessageResponse)
-async def delete_category(category_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_category(category_id: int, current_user: User = Depends(require_super_admin)):
     """Delete a category (soft delete) (Super Admin only)"""
     try:
         category = await category_repository.findById(category_id)

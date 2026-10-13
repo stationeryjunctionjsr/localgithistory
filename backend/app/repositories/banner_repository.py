@@ -66,7 +66,7 @@ class BannerRepository:
 
         return banners
 
-    async def findById(self, id: str) -> Optional[BannerResponse]:
+    async def findById(self, id: int) -> Optional[BannerResponse]:
         return await self.storage.findById(id)
 
     async def findActive(self, filters: Optional[BannerFilter] = None, zone_id: Optional[str] = None) -> List[BannerResponse]:
@@ -126,26 +126,11 @@ class BannerRepository:
         )
         return await self.storage.create(internal_create)
 
-    async def update(self, id: str, update_data: BannerUpdate) -> Optional[BannerResponse]:
-        internal_update = BannerInternalUpdate(
-            title=update_data.title,
-            description=update_data.description,
-            image_url=update_data.image_url,
-            link_url=update_data.link_url,
-            display_order=update_data.display_order,
-            start_date=update_data.start_date,
-            end_date=update_data.end_date,
-            is_active=update_data.is_active,
-            is_published=update_data.is_published,
-            target_audience=update_data.target_audience,
-            user_segments=update_data.user_segments,
-            visibility_rules=update_data.visibility_rules,
-            position=update_data.position,
-            zone_ids=update_data.zone_ids,
-        )
+    async def update(self, id: int, update_data: BannerUpdate) -> Optional[BannerResponse]:
+        internal_update = BannerInternalUpdate.model_validate(update_data.model_dump(exclude_unset=True))
         return await self.storage.update(id, internal_update)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

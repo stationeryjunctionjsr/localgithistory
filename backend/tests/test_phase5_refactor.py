@@ -147,3 +147,204 @@ def test_no_dict_unpacking_in_jobs_and_daos():
                 for key in node.keys:
                     assert key is not None, f"Found **dict literal unpacking in {mod.__name__} at line {node.lineno}"
 
+
+@pytest.mark.asyncio
+async def test_session_dao_and_repo_targeted_dynamic_update():
+    from app.db.mysql_session_dao import MySQLSessionDAO
+    from app.repositories.session_repository import SessionRepository
+    from app.models.daos import SessionInternalUpdate
+    from app.models.session import Session
+
+    dao = MySQLSessionDAO()
+
+    # Mock DB session and execution
+    executed_sqls = []
+    executed_params = []
+
+    mock_db_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.rowcount = 1
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+    mock_db_session.commit = AsyncMock()
+
+    async def fake_execute(statement, params=None):
+        executed_sqls.append(str(statement))
+        executed_params.append(params or {})
+        return mock_result
+
+    mock_db_session.execute = fake_execute
+
+    # Context manager mock for session factory
+    class MockContextManager:
+        async def __aenter__(self):
+            return mock_db_session
+        async def __aexit__(self, *args):
+            pass
+
+    dao._factory = MagicMock(return_value=lambda: MockContextManager())
+
+    # Mock findById for post-update return
+    fake_session = Session(id=123, status="revoked", revoked_reason="testing")
+    dao.findById = AsyncMock(return_value=fake_session)
+
+    # 1. Update only status and revoked_reason
+    res = await dao.update(123, SessionInternalUpdate(status="revoked", revoked_reason="testing"))
+    assert res is fake_session
+    assert len(executed_sqls) == 1
+    sql = executed_sqls[0]
+    params = executed_params[0]
+
+    # Verify SQL only targets provided fields
+    assert "status = :status" in sql
+    assert "revoked_reason = :revoked_reason" in sql
+    assert "updated_at = :updated_at" in sql
+    assert "user_id = :user_id" not in sql
+    assert "refresh_token_id = :refresh_token_id" not in sql
+    assert "comments = :comments" not in sql
+    assert params["id"] == 123
+    assert params["status"] == "revoked"
+    assert params["revoked_reason"] == "testing"
+
+    # 2. Test SessionRepository delegates directly without pre-read
+    repo = SessionRepository()
+    repo.storage = AsyncMock()
+    repo.storage.update = AsyncMock(return_value=fake_session)
+
+    update_payload = SessionInternalUpdate(refresh_token_id="new-token-123")
+    repo_res = await repo.update_session(123, update_payload)
+    assert repo_res is fake_session
+    repo.storage.update.assert_awaited_once_with(123, update_payload)
+    assert inspect.signature(MySQLSessionDAO.update).parameters["update_data"].annotation is SessionInternalUpdate
+    assert inspect.signature(SessionRepository.update_session).parameters["updates"].annotation is SessionInternalUpdate
+
+
+@pytest.mark.asyncio
+async def test_banner_and_category_targeted_dynamic_updates():
+    from datetime import datetime, timezone
+    from app.db.mysql_banner_dao import MySQLBannerDAO
+    from app.db.mysql_category_dao import MySQLCategoryDAO
+    from app.models.daos import BannerInternalUpdate, CategoryInternalUpdate
+    from app.models.schemas import BannerResponse
+    from app.models.category import Category
+
+    # 1. Verify MySQLBannerDAO targeted dynamic update
+    banner_dao = MySQLBannerDAO()
+    banner_sqls = []
+    banner_params = []
+
+    mock_db_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.rowcount = 1
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+    mock_db_session.commit = AsyncMock()
+
+    async def fake_banner_exec(statement, params=None):
+        banner_sqls.append(str(statement))
+        banner_params.append(params or {})
+        return mock_result
+
+    mock_db_session.execute = fake_banner_exec
+
+    class MockContextManager:
+        async def __aenter__(self):
+            return mock_db_session
+        async def __aexit__(self, *args):
+            pass
+
+    banner_dao._factory = MagicMock(return_value=lambda: MockContextManager())
+    fake_banner = BannerResponse(
+        id="50",
+        title="Targeted Promo",
+        displayOrder=5,
+        imageUrl="https://img.com/promo.jpg",
+        updatedAt=datetime.now(timezone.utc),
+    )
+    banner_dao.findById = AsyncMock(return_value=fake_banner)
+
+    b_res = await banner_dao.update(50, BannerInternalUpdate(title="Targeted Promo", display_order=5))
+    assert b_res is fake_banner
+    assert len(banner_sqls) == 1
+    b_sql = banner_sqls[0]
+    b_p = banner_params[0]
+    assert "title = :title" in b_sql
+    assert "display_order = :display_order" in b_sql
+    assert "description = :description" not in b_sql
+    assert "image_url = :image_url" not in b_sql
+    assert b_p["id"] == 50
+    assert b_p["title"] == "Targeted Promo"
+    assert b_p["display_order"] == 5
+
+    # 2. Verify MySQLCategoryDAO targeted dynamic update
+    category_dao = MySQLCategoryDAO()
+    cat_sqls = []
+    cat_params = []
+
+    async def fake_cat_exec(statement, params=None):
+        cat_sqls.append(str(statement))
+        cat_params.append(params or {})
+        return mock_result
+
+    mock_cat_session = AsyncMock()
+    mock_cat_session.execute = fake_cat_exec
+    mock_cat_session.commit = AsyncMock()
+
+    class MockCatContextManager:
+        async def __aenter__(self):
+            return mock_cat_session
+        async def __aexit__(self, *args):
+            pass
+
+    category_dao._factory = MagicMock(return_value=lambda: MockCatContextManager())
+    fake_cat = Category(id="99", name="Targeted Cat", is_active=True)
+    category_dao.findById = AsyncMock(return_value=fake_cat)
+
+    c_res = await category_dao.update(99, CategoryInternalUpdate(name="Targeted Cat", is_active=True))
+    assert c_res is fake_cat
+    assert len(cat_sqls) == 1
+    c_sql = cat_sqls[0]
+    c_p = cat_params[0]
+    assert "name = :name" in c_sql
+    assert "is_active = :is_active" in c_sql
+    assert "description = :description" not in c_sql
+    assert "minimum_quantity = :minimum_quantity" not in c_sql
+    assert c_p["id"] == 99
+    assert c_p["name"] == "Targeted Cat"
+    assert c_p["is_active"] == 1
+
+
+def test_category_and_banner_zero_anti_patterns():
+    import app.repositories.category_repository as cat_repo_mod
+    import app.db.mysql_category_dao as cat_dao_mod
+    import app.routers.categories as cat_router_mod
+
+    trees = {
+        "cat_repo": ast.parse(inspect.getsource(cat_repo_mod)),
+        "cat_dao": ast.parse(inspect.getsource(cat_dao_mod)),
+        "cat_router": ast.parse(inspect.getsource(cat_router_mod)),
+    }
+
+    # Zero reflection calls (getattr, setattr, hasattr)
+    for name, tree in trees.items():
+        reflections = [
+            n.func.id
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in {"getattr", "setattr", "hasattr"}
+        ]
+        assert len(reflections) == 0, f"Found reflection calls in {name}: {reflections}"
+
+    # Verify no dual-ID branching (isdigit) or cid checks in category repository
+    cat_repo_src = inspect.getsource(cat_repo_mod)
+    assert "isdigit" not in cat_repo_src, "Found isdigit in CategoryRepository"
+    assert "cid" not in cat_repo_src, "Found cid in CategoryRepository"
+    assert "dict" not in cat_repo_src.lower(), "Found dict in CategoryRepository"
+
+    # Verify category repo signatures use int
+    sig_find = inspect.signature(cat_repo_mod.CategoryRepository.findById)
+    assert sig_find.parameters["id"].annotation is int, f"findById expected int, got {sig_find.parameters['id'].annotation}"
+
+    sig_update = inspect.signature(cat_repo_mod.CategoryRepository.update)
+    assert sig_update.parameters["id"].annotation is int, f"update expected int, got {sig_update.parameters['id'].annotation}"
+
+    sig_delete = inspect.signature(cat_repo_mod.CategoryRepository.delete)
+    assert sig_delete.parameters["id"].annotation is int, f"delete expected int, got {sig_delete.parameters['id'].annotation}"
+
