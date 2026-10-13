@@ -1,7 +1,7 @@
 from app.models.daos_flat import StockReservationsInternalUpdate
 from app.models.stock_reservation import StockReservation, StockReservationBatch
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 
@@ -39,13 +39,13 @@ class StockReservationRepository:
     def _now_iso(self) -> str:
         return datetime.now(timezone.utc).isoformat() + "Z"
 
-    async def get_reserved_quantity(self, product_id: str, exclude_user_id: Optional[str] = None) -> int:
+    async def get_reserved_quantity(self, product_id: int, exclude_user_id: Optional[str] = None) -> int:
         """Returns the total active, non-expired reserved quantity for a product."""
         batch = await self.get_batch_reservations([product_id], exclude_user_id=exclude_user_id)
         return batch.get_reserved_for_product(product_id)
 
     async def get_batch_reservations(
-        self, product_ids: List[str], exclude_user_id: Optional[str] = None
+        self, product_ids: List[int], exclude_user_id: Optional[str] = None
     ) -> StockReservationBatch:
         """Returns the total active, non-expired reserved quantity for each product_id in batch."""
         if not product_ids:
@@ -57,7 +57,7 @@ class StockReservationRepository:
         return StockReservationBatch(items=items)
 
     async def get_reserved_quantities_bulk(
-        self, product_ids: List[str], exclude_user_id: Optional[str] = None
+        self, product_ids: List[int], exclude_user_id: Optional[str] = None
     ) -> StockReservationBatch:
         """Alias returning StockReservationBatch for products in batch."""
         return await self.get_batch_reservations(product_ids, exclude_user_id=exclude_user_id)
@@ -76,7 +76,7 @@ class StockReservationRepository:
 
         return active_res
 
-    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> StockReservation:
+    async def reserve_stock(self, product_id: int, user_id: str, quantity: int, ttl_minutes: int) -> StockReservation:
         """Creates or updates a reservation for a product and user."""
         await self.ensure_table_exists()
 
@@ -87,12 +87,8 @@ class StockReservationRepository:
         await self.release_user_reservations(user_id, product_id)
 
         from app.models.daos_flat import StockReservationsInternalCreate
-        try:
-            pid = int(str(product_id).replace("PDT-", ""))
-        except (ValueError, TypeError):
-            pid = None
         reservation_data = StockReservationsInternalCreate(
-            product_id=pid,
+            product_id=product_id,
             user_id=user_id,
             quantity=quantity,
             status="active",
@@ -109,37 +105,25 @@ class StockReservationRepository:
         )
         return created
 
-    async def release_user_reservations(self, user_id: str, product_id: Optional[Union[int, str]] = None) -> None:
+    async def release_user_reservations(self, user_id: str, product_id: Optional[int] = None) -> None:
         """Marks active reservations for a user as released."""
         await self.ensure_table_exists()
-        pid = None
-        if product_id is not None:
-            try:
-                pid = int(str(product_id).replace("PDT-", ""))
-            except (ValueError, TypeError):
-                pid = None
         active_res = await self.storage.findAll(
             user_id=user_id,
             status="active",
-            product_id=pid,
+            product_id=product_id,
         )
         for res in active_res:
             await self.storage.update(res.id, StockReservationsInternalUpdate(status="released"))
             logger.info("Released stock reservation %s for user %s", res.id, user_id)
 
-    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[Union[int, str]] = None) -> None:
+    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[int] = None) -> None:
         """Marks active reservations for a user as fulfilled (order placed)."""
         await self.ensure_table_exists()
-        pid = None
-        if product_id is not None:
-            try:
-                pid = int(str(product_id).replace("PDT-", ""))
-            except (ValueError, TypeError):
-                pid = None
         active_res = await self.storage.findAll(
             user_id=user_id,
             status="active",
-            product_id=pid,
+            product_id=product_id,
         )
         now = datetime.now(timezone.utc)
 
@@ -158,15 +142,15 @@ class StockReservationRepository:
         if expired_count > 0:
             logger.info("Cleaned up %d expired stock reservations", expired_count)
 
-    async def reserve_stock_checked(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> StockReservation:
+    async def reserve_stock_checked(self, product_id: int, user_id: str, quantity: int, ttl_minutes: int) -> StockReservation:
         from datetime import datetime, timedelta, timezone
         from sqlalchemy import text
         from app.config.database import get_async_session_factory
         from app.db.storage_factory import get_storage as _get_storage
 
         await self.ensure_table_exists()
-        factory = get_async_session_factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return await self.reserve_stock(product_id, user_id, quantity, ttl_minutes)
 
         product_storage = _get_storage("products")
@@ -177,11 +161,11 @@ class StockReservationRepository:
         expires_at = now + timedelta(minutes=ttl_minutes)
         expires_naive = expires_at.replace(tzinfo=None)
 
-        async with factory() as session:
+        async with async_session() as session:
             # 1. Lock the product row — serialises concurrent add-to-cart for same product.
             prod_result = await session.execute(
                 text(f"SELECT id, stock FROM {product_storage.TABLE} WHERE id = :pid FOR UPDATE"),
-                {"pid": str(product_id)},
+                {"pid": product_id},
             )
             prod_row = prod_result.fetchone()
             if not prod_row:
@@ -198,7 +182,7 @@ class StockReservationRepository:
                     f"  AND status = 'active' "
                     f"  AND expires_at > :now"
                 ),
-                {"pid": str(product_id), "uid": str(user_id), "now": now_naive},
+                {"pid": product_id, "uid": user_id, "now": now_naive},
             )
             res_row = res_result.fetchone()
             other_reserved = int(res_row.reserved or 0) if res_row else 0
@@ -215,7 +199,7 @@ class StockReservationRepository:
                     f"SET status = 'released', updated_at = UTC_TIMESTAMP() "
                     f"WHERE product_id = :pid AND user_id = :uid AND status = 'active'"
                 ),
-                {"pid": str(product_id), "uid": str(user_id)},
+                {"pid": product_id, "uid": user_id},
             )
 
             # 4. Insert new reservation in the same connection (eliminates the deadlock risk).
@@ -226,9 +210,9 @@ class StockReservationRepository:
                     f"VALUES (:pid, :uid, :qty, 'active', :exp, :now, :now)"
                 ),
                 {
-                    "pid": str(product_id),
-                    "uid": str(user_id),
-                    "qty": int(quantity),
+                    "pid": product_id,
+                    "uid": user_id,
+                    "qty": quantity,
                     "exp": expires_naive,
                     "now": now_naive,
                 },

@@ -32,9 +32,6 @@ class MySQLSessionDAO:
     def TABLE(self):
         return "sj_sessions"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, r) -> Session:
         return Session.model_validate(r)
 
@@ -46,9 +43,6 @@ class MySQLSessionDAO:
         status: Optional[str] = None,
         is_guest: Optional[bool] = None,
     ) -> List[Session]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = []
         params = {}
         if id is not None:
@@ -68,7 +62,8 @@ class MySQLSessionDAO:
             params["is_guest"] = 1 if is_guest else 0
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -93,10 +88,10 @@ class MySQLSessionDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional['Session']:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -111,13 +106,11 @@ class MySQLSessionDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: 'SessionInternalCreate') -> Optional[Session]:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
         now = now_utc()
         user_id = data.user_id
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -149,9 +142,6 @@ class MySQLSessionDAO:
 
     async def update(self, id: int, update_data: SessionInternalUpdate) -> Optional[Session]:
         if not id:
-            return None
-        factory = self._factory()
-        if not factory:
             return None
 
         now = now_utc()
@@ -197,7 +187,8 @@ class MySQLSessionDAO:
             params["comments"] = update_data.comments
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -212,14 +203,14 @@ class MySQLSessionDAO:
 
     async def touch(self, session_id: int, device: Optional[DeviceSnippet] = None) -> None:
         """Lightweight session touch — single UPDATE with SQL-level 60s debounce. Fire-and-forget."""
-        factory = self._factory()
-        if not factory or not session_id:
+        if not session_id:
             return
         now = now_utc()
         from datetime import timedelta
         throttle_time = now - timedelta(seconds=60)
         try:
-            async with factory() as session:
+            async_session = get_async_session_factory()
+            async with async_session() as session:
                 await session.execute(
                     text(
                         f"""
@@ -246,8 +237,7 @@ class MySQLSessionDAO:
         Much more efficient than findAll() + Python loop + N individual UPDATEs.
         Returns the number of sessions revoked.
         """
-        factory = self._factory()
-        if not factory or user_id is None:
+        if user_id is None:
             return 0
         now = now_utc()
         params: dict = {
@@ -260,7 +250,8 @@ class MySQLSessionDAO:
             exclude_clause = "AND id != :exclude_id"
             params["exclude_id"] = exclude_session_id
         try:
-            async with factory() as session:
+            async_session = get_async_session_factory()
+            async with async_session() as session:
                 result = await session.execute(
                     text(
                         f"""
@@ -285,10 +276,10 @@ class MySQLSessionDAO:
             return 0
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},
@@ -298,10 +289,10 @@ class MySQLSessionDAO:
 
     async def deleteMany(self, user_id: Optional[int] = None) -> int:
         """Delete matching sessions in a single SQL statement instead of N+1 deletes."""
-        factory = self._factory()
-        if not factory or user_id is None:
+        if user_id is None:
             return 0
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
                 {"uid": user_id},
@@ -320,9 +311,6 @@ class MySQLSessionDAO:
         status: Optional[str] = None,
     ) -> int:
         """Count sessions using SELECT COUNT(*) — never loads row data."""
-        factory = self._factory()
-        if not factory:
-            return 0
         where_clauses = []
         params = {}
         if user_id is not None:
@@ -332,7 +320,8 @@ class MySQLSessionDAO:
             where_clauses.append("status = :status")
             params["status"] = str(status)
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} {where_sql}"), params)
             return int(result.scalar() or 0)
 

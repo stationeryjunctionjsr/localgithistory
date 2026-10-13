@@ -26,9 +26,6 @@ class MySQLCategoryTagsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(
         self,
         r,
@@ -133,10 +130,10 @@ class MySQLCategoryTagsDAO:
         return div_rows, count_rows, cat_col_rows
 
     async def findById(self, id: int) -> Optional[CategoryTagInternal]:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             params = {"id": id}
             result = await session.execute(q, params)
@@ -183,10 +180,10 @@ class MySQLCategoryTagsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -195,7 +192,9 @@ class MySQLCategoryTagsDAO:
             return [self._map_to_schema(r, div_rows, count_rows, cat_col_rows) for r in rows]
 
     async def create(self, data: CategoryTagInternalCreate) -> CategoryTagInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database not available")
         now = now_utc()
 
         cols = ["created_at", "updated_at"]
@@ -230,7 +229,7 @@ class MySQLCategoryTagsDAO:
 
         val_sql = ", ".join(val_parts)
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
 
@@ -258,8 +257,8 @@ class MySQLCategoryTagsDAO:
         if not id:
             return None
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
         now = now_utc()
         tag_id = id
@@ -287,7 +286,7 @@ class MySQLCategoryTagsDAO:
             params["did"] = target_did if target_did else None
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
 
             # Sync junction tables
@@ -325,10 +324,10 @@ class MySQLCategoryTagsDAO:
         return await self.findById(tag_id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             pk = id
 
             # Delete junction records
@@ -349,11 +348,11 @@ class MySQLCategoryTagsDAO:
 
     async def findCategoriesByTag(self, tag_id: int) -> List[Category]:
         """Get all categories belonging to this category tag"""
-        factory = self._factory()
-        if not factory or not tag_id:
+        async_session = get_async_session_factory()
+        if not async_session or not tag_id:
             return []
 
-        async with factory() as session:
+        async with async_session() as session:
             r = (await session.execute(text("SELECT name FROM sj_category_tags WHERE id = :id"), {"id": tag_id})).fetchone()
             tag_name = r.name if r else None
 

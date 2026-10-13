@@ -15,9 +15,6 @@ from app.models.daos_flat import (
 class MySQLAvailabilityRequestsDAO:
     TABLE = "sj_availability_requests"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> AvailabilityRequestResponse:
         return AvailabilityRequestResponse(
             id=row.id,
@@ -32,9 +29,6 @@ class MySQLAvailabilityRequestsDAO:
         )
 
     async def count(self, filters: Optional[AvailabilityRequestFilter] = None) -> int:
-        factory = self._factory()
-        if not factory:
-            return 0
         where_clauses = []
         params = {}
         if filters:
@@ -57,7 +51,8 @@ class MySQLAvailabilityRequestsDAO:
                 where_clauses.append("status = :status")
                 params["status"] = filters.status.strip()
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             count_val = (
                 await session.execute(
                     text(f"SELECT COUNT(*) FROM {self.TABLE}{where_sql}"),
@@ -73,9 +68,6 @@ class MySQLAvailabilityRequestsDAO:
         limit: Optional[int] = None,
         order_by: str = "created_at DESC, id DESC",
     ) -> List[AvailabilityRequestResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = []
         params = {}
         if filters:
@@ -108,7 +100,8 @@ class MySQLAvailabilityRequestsDAO:
                 pagination_sql += " OFFSET :skip"
                 params["skip"] = skip
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY {order_by}{pagination_sql}"),
@@ -127,10 +120,8 @@ class MySQLAvailabilityRequestsDAO:
     async def findById(self, id: int) -> Optional[AvailabilityRequestResponse]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -140,9 +131,6 @@ class MySQLAvailabilityRequestsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: AvailabilityRequestsInternalCreate) -> Optional[AvailabilityRequestResponse]:
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -170,7 +158,8 @@ class MySQLAvailabilityRequestsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -181,9 +170,6 @@ class MySQLAvailabilityRequestsDAO:
 
     async def update(self, id: int, data: AvailabilityRequestsInternalUpdate) -> Optional[AvailabilityRequestResponse]:
         if not id:
-            return None
-        factory = self._factory()
-        if not factory:
             return None
 
         now = now_utc()
@@ -211,7 +197,8 @@ class MySQLAvailabilityRequestsDAO:
             params["userEmail"] = data.user_email
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -227,10 +214,8 @@ class MySQLAvailabilityRequestsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

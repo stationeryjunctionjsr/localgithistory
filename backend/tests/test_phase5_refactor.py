@@ -181,14 +181,13 @@ async def test_session_dao_and_repo_targeted_dynamic_update():
         async def __aexit__(self, *args):
             pass
 
-    dao._factory = MagicMock(return_value=lambda: MockContextManager())
-
     # Mock findById for post-update return
     fake_session = Session(id=123, status="revoked", revoked_reason="testing")
     dao.findById = AsyncMock(return_value=fake_session)
 
     # 1. Update only status and revoked_reason
-    res = await dao.update(123, SessionInternalUpdate(status="revoked", revoked_reason="testing"))
+    with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=lambda: MockContextManager()):
+        res = await dao.update(123, SessionInternalUpdate(status="revoked", revoked_reason="testing"))
     assert res is fake_session
     assert len(executed_sqls) == 1
     sql = executed_sqls[0]
@@ -251,7 +250,6 @@ async def test_banner_and_category_targeted_dynamic_updates():
         async def __aexit__(self, *args):
             pass
 
-    banner_dao._factory = MagicMock(return_value=lambda: MockContextManager())
     fake_banner = BannerResponse(
         id="50",
         title="Targeted Promo",
@@ -261,7 +259,8 @@ async def test_banner_and_category_targeted_dynamic_updates():
     )
     banner_dao.findById = AsyncMock(return_value=fake_banner)
 
-    b_res = await banner_dao.update(50, BannerInternalUpdate(title="Targeted Promo", display_order=5))
+    with patch("app.db.mysql_banner_dao.get_async_session_factory", return_value=lambda: MockContextManager()):
+        b_res = await banner_dao.update(50, BannerInternalUpdate(title="Targeted Promo", display_order=5))
     assert b_res is fake_banner
     assert len(banner_sqls) == 1
     b_sql = banner_sqls[0]
@@ -294,11 +293,11 @@ async def test_banner_and_category_targeted_dynamic_updates():
         async def __aexit__(self, *args):
             pass
 
-    category_dao._factory = MagicMock(return_value=lambda: MockCatContextManager())
     fake_cat = Category(id="99", name="Targeted Cat", is_active=True)
     category_dao.findById = AsyncMock(return_value=fake_cat)
 
-    c_res = await category_dao.update(99, CategoryInternalUpdate(name="Targeted Cat", is_active=True))
+    with patch("app.db.mysql_category_dao.get_async_session_factory", return_value=lambda: MockCatContextManager()):
+        c_res = await category_dao.update(99, CategoryInternalUpdate(name="Targeted Cat", is_active=True))
     assert c_res is fake_cat
     assert len(cat_sqls) == 1
     c_sql = cat_sqls[0]
@@ -412,9 +411,9 @@ async def test_five_new_daos_targeted_dynamic_updates_and_zero_dict():
     # 2. Test MySQLBrandDAO dynamic update
     b_dao = brand_dao_mod.MySQLBrandDAO()
     b_exec, b_factory = setup_mock_db()
-    b_dao._factory = MagicMock(return_value=b_factory)
     b_dao.findById = AsyncMock(return_value=MagicMock())
-    await b_dao.update(10, BrandInternalUpdate(name="Acme Corp"))
+    with patch("app.db.mysql_brand_dao.get_async_session_factory", return_value=b_factory):
+        await b_dao.update(10, BrandInternalUpdate(name="Acme Corp"))
     assert len(b_exec) == 1
     sql, params = b_exec[0]
     assert "name = :name" in sql
@@ -428,9 +427,9 @@ async def test_five_new_daos_targeted_dynamic_updates_and_zero_dict():
     # 3. Test MySQLFeatureFlagDAO dynamic update
     ff_dao = ff_dao_mod.MySQLFeatureFlagDAO()
     ff_exec, ff_factory = setup_mock_db()
-    ff_dao._factory = MagicMock(return_value=ff_factory)
     ff_dao.findById = AsyncMock(return_value=MagicMock())
-    await ff_dao.update(20, FeatureFlagUpdate(enabled=True))
+    with patch("app.db.mysql_feature_flag_dao.get_async_session_factory", return_value=ff_factory):
+        await ff_dao.update(20, FeatureFlagUpdate(enabled=True))
     assert len(ff_exec) == 1
     sql, params = ff_exec[0]
     assert "enabled = :enabled" in sql
@@ -442,9 +441,9 @@ async def test_five_new_daos_targeted_dynamic_updates_and_zero_dict():
     # 4. Test MySQLCommissionSettingsDAO dynamic update
     c_dao = comm_dao_mod.MySQLCommissionSettingsDAO()
     c_exec, c_factory = setup_mock_db()
-    c_dao._factory = MagicMock(return_value=c_factory)
     c_dao.findById = AsyncMock(return_value=MagicMock())
-    await c_dao.update(30, CommissionSettingsInternalUpdate(default_commission_pct=12.5))
+    with patch("app.db.mysql_commission_settings_dao.get_async_session_factory", return_value=c_factory):
+        await c_dao.update(30, CommissionSettingsInternalUpdate(default_commission_pct=12.5))
     assert len(c_exec) == 1
     sql, params = c_exec[0]
     assert "default_commission_pct = :pct" in sql
@@ -468,9 +467,9 @@ async def test_five_new_daos_targeted_dynamic_updates_and_zero_dict():
     # 6. Test MySQLDivisionDAO dynamic update
     div_dao = div_dao_mod.MySQLDivisionDAO()
     div_exec, div_factory = setup_mock_db()
-    div_dao._factory = MagicMock(return_value=div_factory)
     div_dao.findById = AsyncMock(return_value=MagicMock())
-    await div_dao.update(50, DivisionInternalUpdate(name="Electronics Division", is_active=True))
+    with patch("app.db.mysql_division_dao.get_async_session_factory", return_value=div_factory):
+        await div_dao.update(50, DivisionInternalUpdate(name="Electronics Division", is_active=True))
     assert len(div_exec) == 1
     sql, params = div_exec[0]
     assert "name = :name" in sql
@@ -541,9 +540,9 @@ async def test_four_more_daos_targeted_dynamic_updates_and_zero_dict():
     # 2. Test MySQLAdDAO targeted dynamic update
     ad_dao = ad_dao_mod.MySQLAdDAO()
     ad_exec, ad_factory = setup_mock_db()
-    ad_dao._factory = MagicMock(return_value=ad_factory)
     ad_dao.findById = AsyncMock(return_value=MagicMock())
-    await ad_dao.update(101, AdUpdate(name="Flash Sale", status="active"))
+    with patch("app.db.mysql_ad_dao.get_async_session_factory", return_value=ad_factory):
+        await ad_dao.update(101, AdUpdate(name="Flash Sale", status="active"))
     assert len(ad_exec) == 1
     sql, params = ad_exec[0]
     assert "name = :name" in sql
@@ -557,9 +556,9 @@ async def test_four_more_daos_targeted_dynamic_updates_and_zero_dict():
     # 3. Test MySQLCategoryTagsDAO targeted dynamic update
     ct_dao = cat_tags_dao_mod.MySQLCategoryTagsDAO()
     ct_exec, ct_factory = setup_mock_db()
-    ct_dao._factory = MagicMock(return_value=ct_factory)
     ct_dao.findById = AsyncMock(return_value=MagicMock())
-    await ct_dao.update(202, CategoryTagInternalUpdate(name="Trending Tag"))
+    with patch("app.db.mysql_categoryTags_dao.get_async_session_factory", return_value=ct_factory):
+        await ct_dao.update(202, CategoryTagInternalUpdate(name="Trending Tag"))
     assert len(ct_exec) == 1
     sql, params = ct_exec[0]
     assert "name = :name" in sql
@@ -571,9 +570,9 @@ async def test_four_more_daos_targeted_dynamic_updates_and_zero_dict():
     # 4. Test MySQLSchemesDAO targeted dynamic update
     sc_dao = schemes_dao_mod.MySQLSchemesDAO()
     sc_exec, sc_factory = setup_mock_db()
-    sc_dao._factory = MagicMock(return_value=sc_factory)
     sc_dao.findById = AsyncMock(return_value=MagicMock())
-    await sc_dao.update(303, SchemeInternalUpdate(name="Monsoon Scheme"))
+    with patch("app.db.mysql_schemes_dao.get_async_session_factory", return_value=sc_factory):
+        await sc_dao.update(303, SchemeInternalUpdate(name="Monsoon Scheme"))
     assert len(sc_exec) == 1
     sql, params = sc_exec[0]
     assert "name = :s_name" in sql
@@ -584,9 +583,9 @@ async def test_four_more_daos_targeted_dynamic_updates_and_zero_dict():
     # 5. Test MySQLSearchTagsDAO targeted dynamic update without child updates
     st_dao = search_tags_dao_mod.MySQLSearchTagsDAO()
     st_exec, st_factory = setup_mock_db()
-    st_dao._factory = MagicMock(return_value=st_factory)
     st_dao.findById = AsyncMock(return_value=MagicMock())
-    await st_dao.update(404, SearchTagInternalUpdate(name="Summer Collection"))
+    with patch("app.db.mysql_searchTags_dao.get_async_session_factory", return_value=st_factory):
+        await st_dao.update(404, SearchTagInternalUpdate(name="Summer Collection"))
     # Only 1 query: UPDATE, no child table operations
     assert len(st_exec) == 1
     sql, params = st_exec[0]
@@ -598,9 +597,9 @@ async def test_four_more_daos_targeted_dynamic_updates_and_zero_dict():
 
     # 6. Test MySQLSearchTagsDAO targeted dynamic update WITH child updates
     st_exec2, st_factory2 = setup_mock_db()
-    st_dao._factory = MagicMock(return_value=st_factory2)
     st_dao.findById = AsyncMock(return_value=MagicMock())
-    await st_dao.update(404, SearchTagInternalUpdate(categories=["cat1", "cat2"]))
+    with patch("app.db.mysql_searchTags_dao.get_async_session_factory", return_value=st_factory2):
+        await st_dao.update(404, SearchTagInternalUpdate(categories=["cat1", "cat2"]))
     # UPDATE query + DELETE categories + INSERT cat1 + INSERT cat2
     assert len(st_exec2) == 4
     cat_del_sql = st_exec2[1][0]
@@ -663,9 +662,9 @@ async def test_settings_and_content_daos_targeted_dynamic_updates_and_zero_dict(
     # 2. Test MySQLAboutUsDAO targeted dynamic update
     about_dao = about_dao_mod.MySQLAboutUsDAO()
     about_exec, about_factory = setup_mock_db()
-    about_dao._factory = MagicMock(return_value=about_factory)
     about_dao.findById = AsyncMock(return_value=MagicMock())
-    await about_dao.update(1, AboutUsInternalUpdate(title="About Us New"))
+    with patch("app.db.mysql_aboutUs_dao.get_async_session_factory", return_value=about_factory):
+        await about_dao.update(1, AboutUsInternalUpdate(title="About Us New"))
     assert len(about_exec) == 1
     sql, params = about_exec[0]
     assert "title = :title" in sql
@@ -678,9 +677,9 @@ async def test_settings_and_content_daos_targeted_dynamic_updates_and_zero_dict(
     # 3. Test MySQLPrivacyPolicyDAO targeted dynamic update
     privacy_dao = privacy_dao_mod.MySQLPrivacyPolicyDAO()
     p_exec, p_factory = setup_mock_db()
-    privacy_dao._factory = MagicMock(return_value=p_factory)
     privacy_dao.findById = AsyncMock(return_value=MagicMock())
-    await privacy_dao.update(1, PrivacyPolicyInternalUpdate(version="2.0"))
+    with patch("app.db.mysql_privacyPolicy_dao.get_async_session_factory", return_value=p_factory):
+        await privacy_dao.update(1, PrivacyPolicyInternalUpdate(version="2.0"))
     assert len(p_exec) == 1
     sql, params = p_exec[0]
     assert "version = :version" in sql
@@ -693,9 +692,9 @@ async def test_settings_and_content_daos_targeted_dynamic_updates_and_zero_dict(
     # 4. Test MySQLSystemSettingsDAO targeted dynamic update
     sys_dao = sys_dao_mod.MySQLSystemSettingsDAO()
     s_exec, s_factory = setup_mock_db()
-    sys_dao._factory = MagicMock(return_value=s_factory)
     sys_dao.findById = AsyncMock(return_value=MagicMock())
-    await sys_dao.update(1, SystemSettingsUpdate(maintenance_mode=True))
+    with patch("app.db.mysql_systemSettings_dao.get_async_session_factory", return_value=s_factory):
+        await sys_dao.update(1, SystemSettingsUpdate(maintenance_mode=True))
     assert len(s_exec) == 1
     sql, params = s_exec[0]
     assert "maintenance_mode = :maintenanceMode" in sql
@@ -709,9 +708,9 @@ async def test_settings_and_content_daos_targeted_dynamic_updates_and_zero_dict(
     # 5. Test MySQLValetPayoutSettingsDAO targeted dynamic update
     valet_dao = valet_payout_dao_mod.MySQLValetPayoutSettingsDAO()
     v_exec, v_factory = setup_mock_db()
-    valet_dao._factory = MagicMock(return_value=v_factory)
     valet_dao.findById = AsyncMock(return_value=MagicMock())
-    await valet_dao.update(1, ValetPayoutSettingsInternalUpdate(delivery_charge_per_order=45.0))
+    with patch("app.db.mysql_valetPayoutSettings_dao.get_async_session_factory", return_value=v_factory):
+        await valet_dao.update(1, ValetPayoutSettingsInternalUpdate(delivery_charge_per_order=45.0))
     assert len(v_exec) == 1
     sql, params = v_exec[0]
     assert "delivery_charge_per_order = :deliveryChargePerOrder" in sql
@@ -782,9 +781,9 @@ async def test_group_a_daos_targeted_dynamic_updates_and_zero_dict():
     # 2. Test MySQLAvailabilityRequestsDAO targeted dynamic update
     avail_dao = avail_dao_mod.MySQLAvailabilityRequestsDAO()
     a_exec, a_factory = setup_mock_db()
-    avail_dao._factory = MagicMock(return_value=a_factory)
     avail_dao.findById = AsyncMock(return_value=MagicMock())
-    await avail_dao.update(10, AvailabilityRequestsInternalUpdate(product_name="Sample Product"))
+    with patch("app.db.mysql_availabilityRequests_dao.get_async_session_factory", return_value=a_factory):
+        await avail_dao.update(10, AvailabilityRequestsInternalUpdate(product_name="Sample Product"))
     assert len(a_exec) == 1
     sql, params = a_exec[0]
     assert "product_name = :productName" in sql
@@ -798,9 +797,9 @@ async def test_group_a_daos_targeted_dynamic_updates_and_zero_dict():
     # 3. Test MySQLClassificationTagsDAO targeted dynamic update
     tag_dao = class_dao_mod.MySQLClassificationTagsDAO()
     t_exec, t_factory = setup_mock_db()
-    tag_dao._factory = MagicMock(return_value=t_factory)
     tag_dao.findById = AsyncMock(return_value=MagicMock())
-    await tag_dao.update(20, ClassificationTagsInternalUpdate(name="Delivery Speed"))
+    with patch("app.db.mysql_classificationTags_dao.get_async_session_factory", return_value=t_factory):
+        await tag_dao.update(20, ClassificationTagsInternalUpdate(name="Delivery Speed"))
     assert len(t_exec) == 1
     sql, params = t_exec[0]
     assert "name = :name" in sql
@@ -811,9 +810,9 @@ async def test_group_a_daos_targeted_dynamic_updates_and_zero_dict():
     # 4. Test MySQLGoogleReviewsDAO targeted dynamic update
     g_dao = google_reviews_dao_mod.MySQLGoogleReviewsDAO()
     g_exec, g_factory = setup_mock_db()
-    g_dao._factory = MagicMock(return_value=g_factory)
     g_dao.findById = AsyncMock(return_value=MagicMock())
-    await g_dao.update(30, Google_reviewsInternalUpdate(rating=4.9))
+    with patch("app.db.mysql_google_reviews_dao.get_async_session_factory", return_value=g_factory):
+        await g_dao.update(30, Google_reviewsInternalUpdate(rating=4.9))
     assert len(g_exec) == 1
     sql, params = g_exec[0]
     assert "rating = :rating" in sql
@@ -826,9 +825,9 @@ async def test_group_a_daos_targeted_dynamic_updates_and_zero_dict():
     # 5. Test MySQLReviewClassificationsDAO targeted dynamic update
     r_dao = review_class_dao_mod.MySQLReviewClassificationsDAO()
     r_exec, r_factory = setup_mock_db()
-    r_dao._factory = MagicMock(return_value=r_factory)
     r_dao.findById = AsyncMock(return_value=MagicMock())
-    await r_dao.update(40, ReviewClassificationsInternalUpdate(category="Packaging"))
+    with patch("app.db.mysql_reviewClassifications_dao.get_async_session_factory", return_value=r_factory):
+        await r_dao.update(40, ReviewClassificationsInternalUpdate(category="Packaging"))
     assert len(r_exec) == 1
     sql, params = r_exec[0]
     assert "category = :category" in sql

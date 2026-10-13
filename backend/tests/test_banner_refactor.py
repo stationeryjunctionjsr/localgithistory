@@ -128,7 +128,7 @@ async def test_mysql_banner_dao_sql_pushdown_and_hydration():
     session_ctx.__aenter__.return_value = mock_session
     session_ctx.__aexit__.return_value = None
 
-    with patch.object(dao, "_factory", return_value=MagicMock(return_value=session_ctx)):
+    with patch("app.db.mysql_banner_dao.get_async_session_factory", return_value=MagicMock(return_value=session_ctx)):
         banners = await dao.findAll(is_active=True, is_published=True)
 
     assert len(banners) == 1

@@ -18,15 +18,10 @@ from app.models.commission_settings import (
 class MySQLCommissionSettingsDAO:
     TABLE = "sj_commission_settings"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def findAll(self) -> List[CommissionSettings]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT id, default_commission_pct, created_at, updated_at FROM {self.TABLE} ORDER BY id ASC")
             )
@@ -142,9 +137,7 @@ class MySQLCommissionSettingsDAO:
     async def update(self, id: int, update_data: CommissionSettingsInternalUpdate) -> Optional[CommissionSettings]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
+        async_session = get_async_session_factory()
             
         now = now_utc()
         updates = ["updated_at = :upd"]
@@ -156,7 +149,7 @@ class MySQLCommissionSettingsDAO:
 
         set_sql = ", ".join(updates)
         has_children_update = False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -173,8 +166,8 @@ class MySQLCommissionSettingsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )

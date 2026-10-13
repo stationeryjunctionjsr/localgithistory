@@ -22,9 +22,6 @@ class MySQLBannerDAO:
     def TABLE(self):
         return "sj_banners"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, r) -> BannerResponse:
         zone_ids = None
         if r.zone_ids:
@@ -80,9 +77,7 @@ class MySQLBannerDAO:
         is_published: Optional[bool] = None,
         title: Optional[str] = None,
     ) -> List[BannerResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
         where_clauses = []
         params = {}
         if id is not None:
@@ -99,7 +94,7 @@ class MySQLBannerDAO:
             params["title"] = title
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"SELECT b.id, b.title, b.description, b.image_url, b.link_url, "
@@ -120,9 +115,7 @@ class MySQLBannerDAO:
         position: Optional[str] = None,
         target_audience: Optional[str] = None,
     ) -> List[BannerResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
         now_dt = current_time or now_utc()
         now_str = now_dt.isoformat()
         where_clauses = [
@@ -140,7 +133,7 @@ class MySQLBannerDAO:
             params["target_audience"] = target_audience
 
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"SELECT b.id, b.title, b.description, b.image_url, b.link_url, "
@@ -169,9 +162,9 @@ class MySQLBannerDAO:
         return await self.findOne(id=id)
 
     async def create(self, data: BannerInternalCreate) -> BannerResponse:
-        factory = self._factory()
+        async_session = get_async_session_factory()
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -213,9 +206,7 @@ class MySQLBannerDAO:
     async def update(self, id: int, update_data: BannerInternalUpdate) -> Optional[BannerResponse]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
+        async_session = get_async_session_factory()
 
         now = now_utc()
         updates = ["updated_at = :updated_at"]
@@ -271,7 +262,7 @@ class MySQLBannerDAO:
 
         set_sql = ", ".join(updates)
         has_children_update = False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -309,8 +300,8 @@ class MySQLBannerDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )

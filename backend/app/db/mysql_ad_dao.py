@@ -10,17 +10,14 @@ from app.db.db_utils import now_utc
 class MySQLAdDAO:
     TABLE = "sj_ads"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> Ad:
         return Ad.model_validate(row)
 
     async def getSummary(self) -> AdSummaryResponse:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return AdSummaryResponse()
-        async with factory() as session:
+        async with async_session() as session:
             sql = f"""
                 SELECT
                     COUNT(*) as total_ads,
@@ -64,8 +61,8 @@ class MySQLAdDAO:
         name: Optional[str] = None,
         id: Optional[int] = None,
     ) -> List[Ad]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
             
         where_clauses = []
@@ -85,7 +82,7 @@ class MySQLAdDAO:
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -113,8 +110,10 @@ class MySQLAdDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[Ad]:
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
+            return None
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -124,7 +123,9 @@ class MySQLAdDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: Union[Ad, AdCreate]) -> Ad:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database not available")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -188,7 +189,7 @@ class MySQLAdDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -200,8 +201,8 @@ class MySQLAdDAO:
     async def update(self, id: int, update_data: AdUpdate) -> Optional[Ad]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
 
         now = now_utc()
@@ -246,7 +247,7 @@ class MySQLAdDAO:
         if "stat_cvr" in update_data.model_fields_set: updates.append("stat_cvr = :st_cvr"); params["st_cvr"] = update_data.stat_cvr
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await session.commit()
             if result.rowcount == 0:
@@ -257,10 +258,10 @@ class MySQLAdDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

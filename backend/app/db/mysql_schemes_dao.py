@@ -17,15 +17,12 @@ class MySQLSchemesDAO:
     def TABLE(self):
         from app.config.settings import settings
         return self.table_name
-
-    def _factory(self):
-        return get_async_session_factory()
         
     async def findById(self, id: int) -> Optional['SchemeInternal']:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -35,10 +32,10 @@ class MySQLSchemesDAO:
             return self._map_to_schema(row, roles_rows)
 
     async def findByCode(self, code: str) -> Optional['SchemeInternal']:
-        factory = self._factory()
-        if not factory or not code:
+        async_session = get_async_session_factory()
+        if not async_session or not code:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE code = :code LIMIT 1")
             result = await session.execute(q, {"code": code})
             row = result.fetchone()
@@ -77,10 +74,10 @@ class MySQLSchemesDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -89,7 +86,9 @@ class MySQLSchemesDAO:
             return [self._map_to_schema(r, roles_rows) for r in rows]
 
     async def create(self, data: SchemeInternalCreate) -> Optional[SchemeInternal]:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database not available")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -134,7 +133,7 @@ class MySQLSchemesDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'discount_type', 'discount_value', 'min_purchase_amount', 'valid_from', 'valid_until', 'is_active', 'code'] if f"s_{k}" in params])
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -145,8 +144,8 @@ class MySQLSchemesDAO:
     async def update(self, id: int, data: SchemeInternalUpdate) -> Optional[SchemeInternal]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
 
         pid = id
@@ -192,7 +191,7 @@ class MySQLSchemesDAO:
         has_roles_update = "applicable_roles" in data.model_fields_set
         upd_sql = ", ".join(updates)
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             if has_roles_update:
                 await self._replace_children(session, pid, data)
@@ -205,10 +204,10 @@ class MySQLSchemesDAO:
         return await self.findById(pid)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": id})
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

@@ -15,9 +15,6 @@ from app.models.daos_flat import (
 class MySQLClassificationTagsDAO:
     TABLE = "sj_classification_tags"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(
             id=row.id,
@@ -32,9 +29,6 @@ class MySQLClassificationTagsDAO:
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
     ) -> List[ClassificationTagResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = []
         params = {}
         if name is not None:
@@ -45,7 +39,8 @@ class MySQLClassificationTagsDAO:
             params["isActive"] = 1 if is_active else 0
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
@@ -65,10 +60,8 @@ class MySQLClassificationTagsDAO:
     async def findById(self, id: int) -> Optional[ClassificationTagResponse]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -78,9 +71,6 @@ class MySQLClassificationTagsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: ClassificationTagsInternalCreate) -> Optional[ClassificationTagResponse]:
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -96,7 +86,8 @@ class MySQLClassificationTagsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -107,9 +98,6 @@ class MySQLClassificationTagsDAO:
 
     async def update(self, id: int, data: ClassificationTagsInternalUpdate) -> Optional[ClassificationTagResponse]:
         if not id:
-            return None
-        factory = self._factory()
-        if not factory:
             return None
 
         now = now_utc()
@@ -125,7 +113,8 @@ class MySQLClassificationTagsDAO:
             params["isActive"] = 1 if data.is_active else 0
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -141,10 +130,8 @@ class MySQLClassificationTagsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

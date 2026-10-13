@@ -16,17 +16,9 @@ class MySQLProductNotificationsDAO:
     TABLE = "sj_product_notifications"
 
     def _map_to_schema(self, row) -> ProductNotificationsInternal:
-        pid = row.product_id
-        if pid is not None:
-            try:
-                pid = int(str(pid).replace("PDT-", ""))
-            except (ValueError, TypeError):
-                pid = 0
-        else:
-            pid = 0
         return ProductNotificationsInternal(
             id=row.id,
-            product_id=pid,
+            product_id=row.product_id,
             user_id=row.user_id,
             email=row.email,
             phone=row.phone,

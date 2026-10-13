@@ -15,9 +15,6 @@ from app.models.daos_flat import (
 class MySQLGoogleReviewsDAO:
     TABLE = "sj_google_reviews"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> Google_reviewsInternal:
         return Google_reviewsInternal(
             id=row.id,
@@ -30,9 +27,6 @@ class MySQLGoogleReviewsDAO:
         )
 
     async def findAll(self, method: Optional[str] = None) -> List[Google_reviewsInternal]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = []
         params = {}
         if method is not None:
@@ -40,7 +34,8 @@ class MySQLGoogleReviewsDAO:
             params["method"] = method
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
@@ -56,10 +51,8 @@ class MySQLGoogleReviewsDAO:
     async def findById(self, id: int) -> Optional[Google_reviewsInternal]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -69,9 +62,6 @@ class MySQLGoogleReviewsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: Google_reviewsInternalCreate) -> Optional[Google_reviewsInternal]:
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -95,7 +85,8 @@ class MySQLGoogleReviewsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -106,9 +97,6 @@ class MySQLGoogleReviewsDAO:
 
     async def update(self, id: int, data: Google_reviewsInternalUpdate) -> Optional[Google_reviewsInternal]:
         if not id:
-            return None
-        factory = self._factory()
-        if not factory:
             return None
 
         now = now_utc()
@@ -132,7 +120,8 @@ class MySQLGoogleReviewsDAO:
             params["method"] = data.method
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -148,10 +137,8 @@ class MySQLGoogleReviewsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

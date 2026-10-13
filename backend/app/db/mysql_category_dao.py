@@ -15,9 +15,6 @@ class MySQLCategoryDAO:
     def TABLE(self):
         return "sj_categories"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(
         self,
         r,
@@ -118,9 +115,7 @@ class MySQLCategoryDAO:
         is_active: Optional[bool] = None,
         is_returnable: Optional[bool] = None,
     ) -> List[Category]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
 
         where_clauses = []
         params = {}
@@ -138,7 +133,7 @@ class MySQLCategoryDAO:
             params["is_returnable"] = 1 if is_returnable else 0
 
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"), params
             )
@@ -163,10 +158,8 @@ class MySQLCategoryDAO:
     async def findById(self, id: int) -> Optional[Category]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             params = {"id": id}
             result = await session.execute(q, params)
@@ -177,9 +170,9 @@ class MySQLCategoryDAO:
             return self._map_to_schema(row, img_rows, sub_rows, tag_rows)
 
     async def create(self, data: CategoryInternalCreate) -> Category:
-        factory = self._factory()
+        async_session = get_async_session_factory()
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             tag_id = data.category_tag_id
             if tag_id is None and data.category_tag:
                 res_tid = await session.execute(
@@ -224,9 +217,7 @@ class MySQLCategoryDAO:
     async def update(self, id: int, update_data: CategoryInternalUpdate) -> Optional[Category]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
+        async_session = get_async_session_factory()
 
         now = now_utc()
         updates = ["updated_at = :updated_at"]
@@ -270,7 +261,7 @@ class MySQLCategoryDAO:
 
         set_sql = ", ".join(updates)
         has_children_update = False
-        async with factory() as session:
+        async with async_session() as session:
             if "category_tag" in update_data.model_fields_set and "category_tag_id" not in update_data.model_fields_set:
                 if update_data.category_tag is not None:
                     res_tid = await session.execute(
@@ -331,10 +322,10 @@ class MySQLCategoryDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             pk = id
             await session.execute(text("DELETE FROM sj_category_images WHERE category_id = :cid"), {"cid": pk})
             await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": pk})

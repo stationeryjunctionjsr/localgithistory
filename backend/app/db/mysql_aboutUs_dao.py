@@ -12,9 +12,6 @@ from app.models.daos_flat import AboutUsInternalCreate, AboutUsInternalUpdate
 class MySQLAboutUsDAO:
     TABLE = "sj_about_us"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> AboutUs:
         return AboutUs(
             id=row.id,
@@ -45,10 +42,10 @@ class MySQLAboutUsDAO:
             params["version"] = version
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
@@ -70,8 +67,10 @@ class MySQLAboutUsDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[AboutUs]:
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
+            return None
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -81,7 +80,9 @@ class MySQLAboutUsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: AboutUsInternalCreate) -> AboutUs:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database not available")
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -105,7 +106,7 @@ class MySQLAboutUsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -117,8 +118,8 @@ class MySQLAboutUsDAO:
     async def update(self, id: int, data: AboutUsInternalUpdate) -> Optional[AboutUs]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
 
         now = now_utc()
@@ -142,7 +143,7 @@ class MySQLAboutUsDAO:
             params["isPublished"] = 1 if data.is_published else 0
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -158,10 +159,10 @@ class MySQLAboutUsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 from pydantic import Field, ConfigDict
 from pydantic import BaseModel
 
@@ -26,13 +26,9 @@ class StockReservationBatch(BaseModel):
     model_config = ConfigDict(extra='forbid')
     items: List[ProductReservedStock] = Field(default_factory=list)
 
-    def get_reserved_for_product(self, product_id: Union[int, str]) -> int:
-        try:
-            pid_int = int(str(product_id).replace("PDT-", ""))
-        except (ValueError, TypeError):
-            return 0
+    def get_reserved_for_product(self, product_id: int) -> int:
         for item in self.items:
-            if item.product_id == pid_int:
+            if item.product_id == product_id:
                 return item.reserved_quantity
         return 0
 

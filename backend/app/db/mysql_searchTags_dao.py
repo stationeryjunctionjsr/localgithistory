@@ -15,15 +15,12 @@ class MySQLSearchTagsDAO:
     @property
     def TABLE(self):
         return self.table_name
-
-    def _factory(self):
-        return get_async_session_factory()
         
     async def findById(self, id: int) -> Optional['SearchTagInternal']:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -69,10 +66,10 @@ class MySQLSearchTagsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -81,7 +78,9 @@ class MySQLSearchTagsDAO:
             return [self._map_to_schema(r, child_rows) for r in rows]
 
     async def create(self, data: 'SearchTagInternalCreate') -> 'SearchTagInternal':
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database not available")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -106,7 +105,7 @@ class MySQLSearchTagsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['tag_id', 'name', 'type', 'is_active'] if f"s_{k}" in params])
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -117,8 +116,8 @@ class MySQLSearchTagsDAO:
     async def update(self, id: int, update_data: SearchTagInternalUpdate) -> Optional[SearchTagInternal]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
 
         updates = ["updated_at = :u"]
@@ -144,7 +143,7 @@ class MySQLSearchTagsDAO:
         has_child_updates = bool(child_fields.intersection(update_data.model_fields_set))
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             if has_child_updates:
                 await self._replace_children(session, id, update_data)
@@ -153,10 +152,10 @@ class MySQLSearchTagsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": id})
             await session.execute(text("DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": id})
             await session.execute(text("DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": id})

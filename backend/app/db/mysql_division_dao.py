@@ -26,9 +26,6 @@ class MySQLDivisionDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(
         self,
         r,
@@ -164,10 +161,10 @@ class MySQLDivisionDAO:
                 )
 
     async def findById(self, id: int) -> Optional[DivisionInternal]:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -177,10 +174,10 @@ class MySQLDivisionDAO:
             return self._map_to_schema(row, junc_rows, direct_rows, count_rows)
 
     async def findByName(self, name: str) -> Optional[DivisionInternal]:
-        factory = self._factory()
-        if not factory or not name:
+        async_session = get_async_session_factory()
+        if not async_session or not name:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE LOWER(name) = LOWER(:name) LIMIT 1")
             result = await session.execute(q, {"name": name.strip()})
             row = result.fetchone()
@@ -215,10 +212,10 @@ class MySQLDivisionDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY display_order ASC, name ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -228,12 +225,12 @@ class MySQLDivisionDAO:
             return [self._map_to_schema(r, junc_rows, direct_rows, count_rows) for r in rows]
 
     async def create(self, item: DivisionInternalCreate) -> DivisionInternal:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             raise RuntimeError("Database not available")
 
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"""
                 INSERT INTO {self.TABLE} (
                     name, description, image_url, display_order, is_active, created_at, updated_at
@@ -289,11 +286,11 @@ class MySQLDivisionDAO:
             params["act"] = 1 if item.is_active else 0
 
         has_tags_update = "category_tag_ids" in item.model_fields_set
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
 
-        async with factory() as session:
+        async with async_session() as session:
             q = text(f"UPDATE {self.TABLE} SET {', '.join(update_fields)} WHERE id = :id")
             result = await session.execute(q, params)
 
@@ -311,10 +308,10 @@ class MySQLDivisionDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             # 1. Unlink tags
             await session.execute(
                 text("UPDATE sj_category_tags SET division_id = NULL WHERE division_id = :did"),

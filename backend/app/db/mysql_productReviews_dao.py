@@ -16,17 +16,9 @@ class MySQLProductReviewsDAO:
     TABLE = "sj_product_reviews"
 
     def _map_to_schema(self, row) -> ProductReviewResponse:
-        pid = row.product_id
-        if pid is not None:
-            try:
-                pid = int(str(pid).replace("PDT-", ""))
-            except (ValueError, TypeError):
-                pid = 0
-        else:
-            pid = 0
         return ProductReviewResponse(
             id=row.id,
-            productId=pid,
+            productId=row.product_id,
             userId=row.user_id,
             rating=row.rating or 0,
             reviewText=row.review_text,

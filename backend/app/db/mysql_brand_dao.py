@@ -18,9 +18,6 @@ class MySQLBrandDAO:
     def TABLE(self):
         return "sj_brands"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def findAll(
         self,
         id: Optional[int] = None,
@@ -29,9 +26,7 @@ class MySQLBrandDAO:
         name: Optional[str] = None,
         show_in_mobile_homepage: Optional[bool] = None,
     ) -> List[BrandResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
             
         where_clauses = []
         params = {}
@@ -53,7 +48,7 @@ class MySQLBrandDAO:
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -83,11 +78,9 @@ class MySQLBrandDAO:
 
 
     async def create(self, data: 'BrandInternalCreate') -> BrandResponse:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
+        async_session = get_async_session_factory()
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     """
@@ -112,9 +105,7 @@ class MySQLBrandDAO:
     async def update(self, id: int, update_data: 'BrandInternalUpdate') -> Optional[BrandResponse]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
+        async_session = get_async_session_factory()
         now = now_utc()
         
         updates = ["updated_at = :updated_at"]
@@ -145,7 +136,7 @@ class MySQLBrandDAO:
 
         set_sql = ", ".join(updates)
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -158,11 +149,11 @@ class MySQLBrandDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory:
+        if not id:
             return False
+        async_session = get_async_session_factory()
         bid = id
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": bid},

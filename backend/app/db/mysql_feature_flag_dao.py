@@ -20,9 +20,6 @@ class MySQLFeatureFlagDAO:
     def TABLE(self):
         return "sj_feature_flags"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, r) -> FeatureFlag:
         return FeatureFlag.model_validate(r)
 
@@ -34,9 +31,7 @@ class MySQLFeatureFlagDAO:
         category: Optional[str] = None,
         id: Optional[int] = None,
     ) -> List[FeatureFlag]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
             
         where_clauses = []
         params = {}
@@ -58,7 +53,7 @@ class MySQLFeatureFlagDAO:
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT id, flag_id, name, description, enabled, category, created_at, updated_at FROM {self.TABLE} WHERE {where_sql}"),
                 params
@@ -82,14 +77,12 @@ class MySQLFeatureFlagDAO:
         return await self.findOne(id=id)
 
     async def create(self, data: FeatureFlag) -> FeatureFlag:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
+        async_session = get_async_session_factory()
         now = now_utc()
         flag_id = data.flag_id or data.id
         if not flag_id:
             raise ValueError("featureFlags requires `id` (flag_id)")
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -114,9 +107,7 @@ class MySQLFeatureFlagDAO:
     async def update(self, id: int, update_data: FeatureFlagUpdate) -> Optional[FeatureFlag]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
+        async_session = get_async_session_factory()
         now = now_utc()
         updates = ["updated_at = :updated_at"]
         params = {"id": id, "updated_at": now}
@@ -143,7 +134,7 @@ class MySQLFeatureFlagDAO:
 
         set_sql = ", ".join(updates)
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -156,10 +147,10 @@ class MySQLFeatureFlagDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

@@ -17,17 +17,9 @@ class MySQLStockReservationsDAO:
     TABLE = "sj_stock_reservations"
 
     def _map_to_schema(self, row) -> StockReservation:
-        pid = row.product_id
-        if pid is not None:
-            try:
-                pid = int(str(pid).replace("PDT-", ""))
-            except (ValueError, TypeError):
-                pid = 0
-        else:
-            pid = 0
         return StockReservation(
             id=row.id,
-            productId=pid,
+            productId=row.product_id,
             userId=row.user_id,
             quantity=row.quantity or 0,
             status=row.status or "active",
@@ -37,7 +29,7 @@ class MySQLStockReservationsDAO:
         )
 
     async def get_reserved_quantities_by_product_ids(
-        self, product_ids: List[str], exclude_user_id: Optional[str] = None
+        self, product_ids: List[int], exclude_user_id: Optional[str] = None
     ) -> List[ProductReservedStock]:
         if not product_ids:
             return []
@@ -67,7 +59,7 @@ class MySQLStockReservationsDAO:
             rows = (await session.execute(text(sql), params)).fetchall()
             return [
                 ProductReservedStock(
-                    product_id=int(str(r.product_id).replace("PDT-", "")),
+                    product_id=r.product_id,
                     reserved_quantity=int(r.total_reserved or 0),
                 )
                 for r in rows
