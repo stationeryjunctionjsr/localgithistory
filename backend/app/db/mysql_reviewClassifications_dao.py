@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_review_classifications with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -10,15 +10,6 @@ from app.models.daos_flat import (
     ReviewClassificationsInternalCreate,
     ReviewClassificationsInternalUpdate,
 )
-
-
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
 
 
 class MySQLReviewClassificationsDAO:
@@ -38,60 +29,65 @@ class MySQLReviewClassificationsDAO:
             updated_at=row.updated_at,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ReviewClassifications]:
-        query = query or {}
+    async def findAll(
+        self,
+        review_id: Optional[str] = None,
+        category: Optional[str] = None,
+        sentiment: Optional[str] = None,
+    ) -> List[ReviewClassifications]:
+        factory = self._factory()
+        if not factory:
+            return []
         where_clauses = []
         params = {}
-        if "reviewId" in query or "review_id" in query:
-            r_id = query.get("reviewId") if "reviewId" in query else query.get("review_id")
+        if review_id is not None:
             where_clauses.append("review_id = :reviewId")
-            params["reviewId"] = str(r_id)
-        if "category" in query:
+            params["reviewId"] = review_id
+        if category is not None:
             where_clauses.append("category = :category")
-            params["category"] = query["category"]
-        if "confidenceScore" in query or "confidence_score" in query:
-            cs = query.get("confidenceScore") if "confidenceScore" in query else query.get("confidence_score")
-            where_clauses.append("confidence_score = :confidenceScore")
-            params["confidenceScore"] = float(cs)
-        if "sentiment" in query:
+            params["category"] = category
+        if sentiment is not None:
             where_clauses.append("sentiment = :sentiment")
-            params["sentiment"] = query["sentiment"]
+            params["sentiment"] = sentiment
 
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
                     params,
                 )
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ReviewClassifications]:
-        if "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
-        records = await self.findAll(query)
+    async def findOne(
+        self,
+        review_id: Optional[str] = None,
+        category: Optional[str] = None,
+        sentiment: Optional[str] = None,
+    ) -> Optional[ReviewClassifications]:
+        records = await self.findAll(review_id=review_id, category=category, sentiment=sentiment)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[ReviewClassifications]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
         factory = self._factory()
+        if not factory:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: ReviewClassificationsInternalCreate) -> ReviewClassifications:
+    async def create(self, data: ReviewClassificationsInternalCreate) -> Optional[ReviewClassifications]:
         factory = self._factory()
+        if not factory:
+            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -125,48 +121,56 @@ class MySQLReviewClassificationsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: ReviewClassificationsInternalUpdate) -> Optional[ReviewClassifications]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
+        factory = self._factory()
+        if not factory:
             return None
 
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if data.review_id is not None:
+        params = {"id": id, "u": now}
+
+        if "review_id" in data.model_fields_set:
             updates.append("review_id = :reviewId")
-            params["reviewId"] = str(data.review_id)
-        if data.category is not None:
+            params["reviewId"] = str(data.review_id) if data.review_id is not None else None
+
+        if "category" in data.model_fields_set:
             updates.append("category = :category")
             params["category"] = data.category
-        if data.confidence_score is not None:
+
+        if "confidence_score" in data.model_fields_set:
             updates.append("confidence_score = :confidenceScore")
-            params["confidenceScore"] = float(data.confidence_score)
-        if data.sentiment is not None:
+            params["confidenceScore"] = float(data.confidence_score) if data.confidence_score is not None else None
+
+        if "sentiment" in data.model_fields_set:
             updates.append("sentiment = :sentiment")
             params["sentiment"] = data.sentiment
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(id_val)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

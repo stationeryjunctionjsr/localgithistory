@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_classification_tags with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -10,15 +10,6 @@ from app.models.daos_flat import (
     ClassificationTagsInternalCreate,
     ClassificationTagsInternalUpdate,
 )
-
-
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
 
 
 class MySQLClassificationTagsDAO:
@@ -36,53 +27,60 @@ class MySQLClassificationTagsDAO:
             updatedAt=row.updated_at,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ClassificationTagResponse]:
-        query = query or {}
+    async def findAll(
+        self,
+        is_active: Optional[bool] = None,
+        name: Optional[str] = None,
+    ) -> List[ClassificationTagResponse]:
+        factory = self._factory()
+        if not factory:
+            return []
         where_clauses = []
         params = {}
-        if "name" in query:
+        if name is not None:
             where_clauses.append("name = :name")
-            params["name"] = query["name"]
-        if "isActive" in query or "is_active" in query:
-            val = query.get("isActive") if "isActive" in query else query.get("is_active")
+            params["name"] = name
+        if is_active is not None:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if val else 0
+            params["isActive"] = 1 if is_active else 0
 
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
                     params,
                 )
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ClassificationTagResponse]:
-        if "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
-        records = await self.findAll(query)
+    async def findOne(
+        self,
+        is_active: Optional[bool] = None,
+        name: Optional[str] = None,
+    ) -> Optional[ClassificationTagResponse]:
+        records = await self.findAll(is_active=is_active, name=name)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[ClassificationTagResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
         factory = self._factory()
+        if not factory:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: ClassificationTagsInternalCreate) -> ClassificationTagResponse:
+    async def create(self, data: ClassificationTagsInternalCreate) -> Optional[ClassificationTagResponse]:
         factory = self._factory()
+        if not factory:
+            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -108,42 +106,48 @@ class MySQLClassificationTagsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: ClassificationTagsInternalUpdate) -> Optional[ClassificationTagResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
+        factory = self._factory()
+        if not factory:
             return None
 
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if data.name is not None:
+        params = {"id": id, "u": now}
+
+        if "name" in data.model_fields_set:
             updates.append("name = :name")
             params["name"] = data.name
-        if data.is_active is not None:
+
+        if "is_active" in data.model_fields_set:
             updates.append("is_active = :isActive")
             params["isActive"] = 1 if data.is_active else 0
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(id_val)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

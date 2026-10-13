@@ -234,14 +234,16 @@ async def admin_create_classification(
 
 @router.put("/admin/classifications/{class_id}", response_model=ClassificationActionResponse)
 async def admin_update_classification(
-    class_id: str, class_data: ClassificationUpdate, current_user: User = Depends(require_super_admin)
+    class_id: int, class_data: ClassificationUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Update a review classification (super admin only)."""
     existing = await review_classification_repository.findById(class_id)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classification not found")
 
-    has_updates = False
+    from app.models.daos_flat import ClassificationTagsInternalUpdate
+    update_data = ClassificationTagsInternalUpdate()
+
     if class_data.name is not None:
         name = class_data.name.strip()
         if not name:
@@ -250,19 +252,17 @@ async def admin_update_classification(
         # Check uniqueness
         all_classes = await review_classification_repository.findAll()
         for c in all_classes:
-            if c.id != class_id and (c.name or "").strip().lower() == name.lower():
+            if c.id != str(class_id) and (c.name or "").strip().lower() == name.lower():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Classification name already in use"
                 )
-        existing.name = name
-        has_updates = True
+        update_data.name = name
 
     if class_data.is_active is not None:
-        existing.is_active = class_data.is_active
-        has_updates = True
+        update_data.is_active = class_data.is_active
 
-    if not has_updates:
+    if not update_data.model_fields_set:
         return ClassificationActionResponse(message="No changes made", classification=existing)
 
-    updated = await review_classification_repository.update(class_id, existing)
-    return ClassificationActionResponse(message="Classification updated successfully", classification=updated)
+    updated = await review_classification_repository.update(class_id, update_data)
+    return ClassificationActionResponse(message="Classification updated successfully", classification=updated or existing)

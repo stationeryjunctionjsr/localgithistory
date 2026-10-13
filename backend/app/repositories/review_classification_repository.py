@@ -68,34 +68,35 @@ class ReviewClassificationRepository:
         try:
             all_classes = await self.storage.findAll()
             if not all_classes:
+                from app.models.daos_flat import ClassificationTagsInternalCreate
                 defaults = ["Quality", "Price", "Delivery", "Other"]
                 for name in defaults:
-                    await self.storage.create({"name": name, "isActive": True})
+                    await self.storage.create(ClassificationTagsInternalCreate(name=name, is_active=True))
                 logger.info("Pre-populated default review classifications: %s", defaults)
         except Exception as e:
             logger.error("Failed to pre-populate default classifications: %s", str(e))
 
-    async def findAll(self, query: Optional[dict] = None) -> List[ClassificationTagResponse]:
+    async def findAll(self, is_active: Optional[bool] = None, name: Optional[str] = None) -> List[ClassificationTagResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll(query)
+        return await self.storage.findAll(is_active=is_active, name=name)
 
     async def find_active(self) -> List[ClassificationTagResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll({"isActive": True})
+        return await self.storage.findAll(is_active=True)
 
-    async def findById(self, id: str) -> Optional[ClassificationTagResponse]:
+    async def findById(self, id: int) -> Optional[ClassificationTagResponse]:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def create(self, data: 'ClassificationTagsInternalCreate') -> ClassificationTagResponse:
+    async def create(self, data: 'ClassificationTagsInternalCreate') -> Optional[ClassificationTagResponse]:
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: 'ClassificationTagsInternalUpdate') -> Optional[ClassificationTagResponse]:
+    async def update(self, id: int, update_data: 'ClassificationTagsInternalUpdate') -> Optional[ClassificationTagResponse]:
         await self.ensure_table_exists()
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         await self.ensure_table_exists()
         return await self.storage.delete(id)
 

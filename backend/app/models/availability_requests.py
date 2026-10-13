@@ -22,5 +22,6 @@ class AvailabilityRequestFilter(CamelBaseModel):
     pincode: Optional[str] = None
     user_name: Optional[str] = None
     user_email: Optional[str] = None
+    status: Optional[str] = None
 
 

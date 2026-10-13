@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_availability_requests with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -10,15 +10,6 @@ from app.models.daos_flat import (
     AvailabilityRequestsInternalCreate,
     AvailabilityRequestsInternalUpdate,
 )
-
-
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
 
 
 class MySQLAvailabilityRequestsDAO:
@@ -41,6 +32,9 @@ class MySQLAvailabilityRequestsDAO:
         )
 
     async def count(self, filters: Optional[AvailabilityRequestFilter] = None) -> int:
+        factory = self._factory()
+        if not factory:
+            return 0
         where_clauses = []
         params = {}
         if filters:
@@ -59,8 +53,10 @@ class MySQLAvailabilityRequestsDAO:
             if filters.user_email:
                 where_clauses.append("user_email = :user_email")
                 params["user_email"] = filters.user_email.strip()
+            if filters.status:
+                where_clauses.append("status = :status")
+                params["status"] = filters.status.strip()
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        factory = self._factory()
         async with factory() as session:
             count_val = (
                 await session.execute(
@@ -68,7 +64,7 @@ class MySQLAvailabilityRequestsDAO:
                     params,
                 )
             ).scalar()
-        return int(count_val or 0)
+        return count_val or 0
 
     async def findAll(
         self,
@@ -76,8 +72,10 @@ class MySQLAvailabilityRequestsDAO:
         skip: Optional[int] = None,
         limit: Optional[int] = None,
         order_by: str = "created_at DESC, id DESC",
-        query: Optional[Dict] = None,
     ) -> List[AvailabilityRequestResponse]:
+        factory = self._factory()
+        if not factory:
+            return []
         where_clauses = []
         params = {}
         if filters:
@@ -96,29 +94,20 @@ class MySQLAvailabilityRequestsDAO:
             if filters.user_email:
                 where_clauses.append("user_email = :user_email")
                 params["user_email"] = filters.user_email.strip()
-        elif query:
-            if "productId" in query or "product_id" in query:
-                p_id = query.get("productId") if "productId" in query else query.get("product_id")
-                where_clauses.append("product_id = :product_id")
-                params["product_id"] = str(p_id).strip()
-            if "pincode" in query:
-                where_clauses.append("pincode = :pincode")
-                params["pincode"] = str(query["pincode"]).strip()
-            if "status" in query:
+            if filters.status:
                 where_clauses.append("status = :status")
-                params["status"] = str(query["status"]).strip()
+                params["status"] = filters.status.strip()
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
         pagination_sql = ""
         if limit is not None:
             pagination_sql += " LIMIT :limit"
-            params["limit"] = int(limit)
+            params["limit"] = limit
             if skip is not None:
                 pagination_sql += " OFFSET :skip"
-                params["skip"] = int(skip)
+                params["skip"] = skip
 
-        factory = self._factory()
         async with factory() as session:
             rows = (
                 await session.execute(
@@ -130,34 +119,30 @@ class MySQLAvailabilityRequestsDAO:
 
     async def findOne(
         self,
-        query: Optional[Union[Dict, AvailabilityRequestFilter]] = None,
         filters: Optional[AvailabilityRequestFilter] = None,
     ) -> Optional[AvailabilityRequestResponse]:
-        if isinstance(query, dict) and "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
-        active_filters = filters or (query if isinstance(query, AvailabilityRequestFilter) else None)
-        active_query = query if isinstance(query, dict) else None
-        records = await self.findAll(filters=active_filters, query=active_query, limit=1)
+        records = await self.findAll(filters=filters, limit=1)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[AvailabilityRequestResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
         factory = self._factory()
+        if not factory:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
+    async def create(self, data: AvailabilityRequestsInternalCreate) -> Optional[AvailabilityRequestResponse]:
         factory = self._factory()
+        if not factory:
+            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -195,50 +180,60 @@ class MySQLAvailabilityRequestsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: AvailabilityRequestsInternalUpdate) -> Optional[AvailabilityRequestResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
+        factory = self._factory()
+        if not factory:
             return None
+
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if data.product_id is not None:
+        params = {"id": id, "u": now}
+
+        if "product_id" in data.model_fields_set:
             updates.append("product_id = :productId")
             params["productId"] = data.product_id
-        if data.product_name is not None:
+
+        if "product_name" in data.model_fields_set:
             updates.append("product_name = :productName")
             params["productName"] = data.product_name
-        if data.pincode is not None:
+
+        if "pincode" in data.model_fields_set:
             updates.append("pincode = :pincode")
             params["pincode"] = data.pincode
-        if data.user_name is not None:
+
+        if "user_name" in data.model_fields_set:
             updates.append("user_name = :userName")
             params["userName"] = data.user_name
-        if data.user_email is not None:
+
+        if "user_email" in data.model_fields_set:
             updates.append("user_email = :userEmail")
             params["userEmail"] = data.user_email
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(id_val)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

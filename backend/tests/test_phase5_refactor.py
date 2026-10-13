@@ -719,3 +719,123 @@ async def test_settings_and_content_daos_targeted_dynamic_updates_and_zero_dict(
     assert params["id"] == 1
     assert params["deliveryChargePerOrder"] == 45.0
 
+
+@pytest.mark.asyncio
+async def test_group_a_daos_targeted_dynamic_updates_and_zero_dict():
+    import app.db.mysql_availabilityRequests_dao as avail_dao_mod
+    import app.db.mysql_classificationTags_dao as class_dao_mod
+    import app.db.mysql_google_reviews_dao as google_reviews_dao_mod
+    import app.db.mysql_reviewClassifications_dao as review_class_dao_mod
+    import app.repositories.review_classification_repository as review_class_repo_mod
+
+    from app.models.daos_flat import (
+        AvailabilityRequestsInternalUpdate,
+        ClassificationTagsInternalUpdate,
+        Google_reviewsInternalUpdate,
+        ReviewClassificationsInternalUpdate,
+    )
+
+    # 1. AST Check: Zero reflection calls, zero dict in signatures, zero isdigit, zero _to_int
+    modules_to_check = [
+        avail_dao_mod,
+        class_dao_mod,
+        google_reviews_dao_mod,
+        review_class_dao_mod,
+        review_class_repo_mod,
+    ]
+    for mod in modules_to_check:
+        src = inspect.getsource(mod)
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "hasattr"}:
+                assert False, f"Found reflection call {node.func.id} in {mod.__name__}"
+            if isinstance(node, ast.FunctionDef):
+                for arg in node.args.args:
+                    if arg.annotation and isinstance(arg.annotation, ast.Name):
+                        assert arg.annotation.id not in {"dict", "Dict"}, f"Found dict/Dict parameter in {mod.__name__}.{node.name}"
+
+        assert "isdigit" not in src, f"Found isdigit in {mod.__name__}"
+        assert "_to_int" not in src, f"Found _to_int in {mod.__name__}"
+
+    # Helper for DB mock
+    def setup_mock_db():
+        executed = []
+        mock_session = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.rowcount = 1
+
+        async def fake_exec(stmt, p=None):
+            executed.append((str(stmt), p or {}))
+            return mock_res
+
+        mock_session.execute = fake_exec
+        mock_session.commit = AsyncMock()
+
+        class MockCtx:
+            async def __aenter__(self):
+                return mock_session
+            async def __aexit__(self, *args):
+                pass
+
+        return executed, lambda: MockCtx()
+
+    # 2. Test MySQLAvailabilityRequestsDAO targeted dynamic update
+    avail_dao = avail_dao_mod.MySQLAvailabilityRequestsDAO()
+    a_exec, a_factory = setup_mock_db()
+    avail_dao._factory = MagicMock(return_value=a_factory)
+    avail_dao.findById = AsyncMock(return_value=MagicMock())
+    await avail_dao.update(10, AvailabilityRequestsInternalUpdate(product_name="Sample Product"))
+    assert len(a_exec) == 1
+    sql, params = a_exec[0]
+    assert "product_name = :productName" in sql
+    assert "product_id = :productId" not in sql
+    assert "pincode = :pincode" not in sql
+    assert "user_name = :userName" not in sql
+    assert "user_email = :userEmail" not in sql
+    assert params["id"] == 10
+    assert params["productName"] == "Sample Product"
+
+    # 3. Test MySQLClassificationTagsDAO targeted dynamic update
+    tag_dao = class_dao_mod.MySQLClassificationTagsDAO()
+    t_exec, t_factory = setup_mock_db()
+    tag_dao._factory = MagicMock(return_value=t_factory)
+    tag_dao.findById = AsyncMock(return_value=MagicMock())
+    await tag_dao.update(20, ClassificationTagsInternalUpdate(name="Delivery Speed"))
+    assert len(t_exec) == 1
+    sql, params = t_exec[0]
+    assert "name = :name" in sql
+    assert "is_active = :isActive" not in sql
+    assert params["id"] == 20
+    assert params["name"] == "Delivery Speed"
+
+    # 4. Test MySQLGoogleReviewsDAO targeted dynamic update
+    g_dao = google_reviews_dao_mod.MySQLGoogleReviewsDAO()
+    g_exec, g_factory = setup_mock_db()
+    g_dao._factory = MagicMock(return_value=g_factory)
+    g_dao.findById = AsyncMock(return_value=MagicMock())
+    await g_dao.update(30, Google_reviewsInternalUpdate(rating=4.9))
+    assert len(g_exec) == 1
+    sql, params = g_exec[0]
+    assert "rating = :rating" in sql
+    assert "review_count = :reviewCount" not in sql
+    assert "last_updated = :lastUpdated" not in sql
+    assert "method = :method" not in sql
+    assert params["id"] == 30
+    assert params["rating"] == 4.9
+
+    # 5. Test MySQLReviewClassificationsDAO targeted dynamic update
+    r_dao = review_class_dao_mod.MySQLReviewClassificationsDAO()
+    r_exec, r_factory = setup_mock_db()
+    r_dao._factory = MagicMock(return_value=r_factory)
+    r_dao.findById = AsyncMock(return_value=MagicMock())
+    await r_dao.update(40, ReviewClassificationsInternalUpdate(category="Packaging"))
+    assert len(r_exec) == 1
+    sql, params = r_exec[0]
+    assert "category = :category" in sql
+    assert "review_id = :reviewId" not in sql
+    assert "confidence_score = :confidenceScore" not in sql
+    assert "sentiment = :sentiment" not in sql
+    assert params["id"] == 40
+    assert params["category"] == "Packaging"
+
+
