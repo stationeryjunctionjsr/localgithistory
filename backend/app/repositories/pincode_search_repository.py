@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.db.storage_factory import get_storage
+from app.models.pincode_searches import PincodeSearches
 from app.utils.logger import logger
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class PincodeSearchRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage = None
 
     @property
@@ -28,7 +29,7 @@ class PincodeSearchRepository:
         city: Optional[str] = None,
         state: Optional[str] = None,
         district: Optional[str] = None,
-    ) -> Optional[dict]:
+    ) -> Optional[PincodeSearches]:
         """Log a pincode search event into the database with timestamp and serviceability details."""
         try:
             now_ist = datetime.now(IST).isoformat()
@@ -59,7 +60,7 @@ class PincodeSearchRepository:
         search: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Fetch paginated pincode search logs with optional filters."""
         try:
             all_records = await self.storage.findAll() or []
@@ -112,7 +113,7 @@ class PincodeSearchRepository:
             "pages": pages,
         }
 
-    async def get_stats(self) -> dict:
+    async def get_stats(self) -> Dict[str, Any]:
         """Get summary analytics on pincode searches for Super Admin."""
         try:
             all_records = await self.storage.findAll() or []

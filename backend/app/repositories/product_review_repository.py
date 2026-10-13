@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class ProductReviewRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage = None
         self._initialized = False
 
@@ -24,7 +24,7 @@ class ProductReviewRepository:
             self._storage = get_storage("productReviews")
         return self._storage
 
-    async def ensure_table_exists(self):
+    async def ensure_table_exists(self) -> None:
         if self._initialized:
             return
         self._initialized = True

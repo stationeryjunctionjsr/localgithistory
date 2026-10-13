@@ -1,28 +1,29 @@
 from app.models.saved_for_later import SavedForLater, SavedForLaterItem
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, List
+from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
 from app.db.storage_factory import get_storage
 
 
 class CartRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("carts")
 
-    async def findByUser(self, user_id: str):
+    async def findByUser(self, user_id: str) -> Optional[Cart]:
         return await self.storage.findOne(user=user_id)
 
-    async def create(self, cart_data: 'CartInternalCreate'):
+    async def create(self, cart_data: 'CartInternalCreate') -> Cart:
         return await self.storage.create(cart_data)
 
-    async def update(self, id: int, update_data: 'CartInternalUpdate'):
+    async def update(self, id: int, update_data: 'CartInternalUpdate') -> Optional[Cart]:
         return await self.storage.update(id, update_data)
 
-    async def clearCart(self, user_id: str):
+    async def clearCart(self, user_id: str) -> Optional[Cart]:
         """Atomically clear all items from the user's cart."""
         return await self.storage.update_items_atomic(user_id, lambda _: [])
 
-    async def createOrUpdate(self, user_id: str, items: list):
+    async def createOrUpdate(self, user_id: str, items: list) -> Optional[Cart]:
         existing = await self.findByUser(user_id)
         cart_data = CartInternalUpdate(user=user_id, items=items or [])
         if existing:
@@ -31,7 +32,7 @@ class CartRepository:
             create_data = CartInternalCreate(user=user_id, items=items or [])
             return await self.create(create_data)
 
-    async def addItem(self, user_id: str, item: 'CartItemInternal'):
+    async def addItem(self, user_id: str, item: 'CartItemInternal') -> Optional[Cart]:
         """Atomically add an item to the cart.
 
         Uses a DB-level FOR UPDATE lock so concurrent add requests for the
@@ -68,7 +69,7 @@ class CartRepository:
 
         return await self.storage.update_items_atomic(user_id, _merge)
 
-    async def removeItem(self, user_id: str, item_id: str):
+    async def removeItem(self, user_id: str, item_id: str) -> Optional[Cart]:
         """Atomically remove a specific item from the cart.
 
         Uses a DB-level FOR UPDATE lock so concurrent removals cannot race.
@@ -78,7 +79,7 @@ class CartRepository:
 
         return await self.storage.update_items_atomic(user_id, _merge)
 
-    async def saveForLater(self, user_id: str, product_id: str):
+    async def saveForLater(self, user_id: str, product_id: str) -> Optional[SavedForLater]:
         """Save item for later"""
         saved_storage = get_storage("savedForLater")
         existing = await saved_storage.findOne(user=user_id)
@@ -95,7 +96,7 @@ class CartRepository:
         else:
             return await saved_storage.create(SavedForLater(user=user_id, items=[saved_item]))
 
-    async def getSavedForLater(self, user_id: str):
+    async def getSavedForLater(self, user_id: str) -> SavedForLater:
         """Get saved for later items"""
         saved_storage = get_storage("savedForLater")
         return await saved_storage.findOne(user=user_id) or SavedForLater(user=user_id, items=[])

@@ -40,7 +40,7 @@ class MySQLDeviceSubscriptionsDAO:
     async def findOne(
         self,
         id: Optional[int] = None,
-        user_id: Optional[str] = None,
+        user_id: Optional[int] = None,
         endpoint: Optional[str] = None,
         expo_token: Optional[str] = None,
     ) -> Optional[DeviceSubscriptionInternal]:
@@ -51,7 +51,7 @@ class MySQLDeviceSubscriptionsDAO:
 
     async def findAll(
         self,
-        user_id: Optional[str] = None,
+        user_id: Optional[int] = None,
         endpoint: Optional[str] = None,
         expo_token: Optional[str] = None,
         limit: Optional[int] = None,
@@ -69,7 +69,7 @@ class MySQLDeviceSubscriptionsDAO:
             params["expo_token"] = expo_token
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-        limit_sql = f" LIMIT {int(limit)}" if limit else ""
+        limit_sql = f" LIMIT {limit}" if limit else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC{limit_sql}"
 
         async with self._factory()() as session:

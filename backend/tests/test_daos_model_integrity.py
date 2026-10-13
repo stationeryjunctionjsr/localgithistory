@@ -349,4 +349,71 @@ def test_section_2b_zero_reflection_in_repositories_and_routers():
     assert "hasattr(" not in bundles_src, "bundles router _enrich_bundle must not use hasattr"
 
 
+def test_user_and_sub_order_cleanups_integrity():
+    import inspect
+    from typing import Optional, List
+    from app.models.user import User, UserFilter
+    from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserBase, UserUpdate, UserResponse
+    from app.models.daos_flat import (
+        DeviceSubscriptionInternal,
+        DeviceSubscriptionInternalCreate,
+        DeviceSubscriptionInternalUpdate,
+    )
+    from app.db.mysql_user_dao import MySQLUserDAO
+    from app.db.mysql_sub_order_dao import MySQLSubOrderDAO
+    from app.db.mysql_deviceSubscriptions_dao import MySQLDeviceSubscriptionsDAO
+    from app.repositories.user_repository import UserRepository
+    from app.repositories.sub_order_repository import SubOrderRepository
+    from app.services.push_notification_service import PushNotificationService
 
+    # 1. User.id & UserResponse.id are native int, no user_id field on User/UserResponse/UserInternalCreate/UserInternalUpdate
+    u = User(id=42)
+    assert u.id == 42
+    assert UserResponse.model_fields["id"].annotation == int
+    for model_cls in (User, UserResponse, UserInternalCreate, UserInternalUpdate):
+        assert "user_id" not in model_cls.model_fields, f"user_id must not be a field on {model_cls.__name__}"
+    assert not hasattr(u, "user_id"), "User must not have a redundant user_id property"
+
+    # 2. DeviceSubscriptionInternal models & DAO use Optional[int] for user_id, and PushNotificationService uses typed attributes
+    for ds_cls in (DeviceSubscriptionInternal, DeviceSubscriptionInternalCreate, DeviceSubscriptionInternalUpdate):
+        assert ds_cls.model_fields["user_id"].annotation == Optional[int], f"{ds_cls.__name__}.user_id must be Optional[int]"
+    assert inspect.signature(MySQLDeviceSubscriptionsDAO.findOne).parameters["user_id"].annotation == Optional[int]
+    assert inspect.signature(MySQLDeviceSubscriptionsDAO.findAll).parameters["user_id"].annotation == Optional[int]
+    from app.models.daos import OrderFilter
+    assert OrderFilter.model_fields["user_ids"].annotation == Optional[List[str]], "OrderFilter.user_ids must strictly be Optional[List[str]] with no Union"
+    push_src = inspect.getsource(PushNotificationService)
+    assert 'notification["userSegment"]' not in push_src
+    assert 'd["userId"]' not in push_src
+    assert 'device["endpoint"]' not in push_src
+    assert 'isinstance(device.keys' not in push_src, "PushNotificationService must not use isinstance on typed Pydantic device.keys"
+
+    # 3. payment_terms is integer typed with no redundant int() casting and default 30 in UserRepository.create
+    import re
+    for model_cls in (User, UserBase, UserUpdate, UserResponse, UserInternalCreate, UserInternalUpdate):
+        assert model_cls.model_fields["payment_terms"].annotation == Optional[int]
+    dao_src = inspect.getsource(MySQLUserDAO)
+    assert 'replace("net_"' not in dao_src, "MySQLUserDAO must not string-strip 'net_' from payment_terms"
+    assert not re.search(r"\bint\(", dao_src), "MySQLUserDAO must have zero redundant int(...) casts"
+    repo_create_src = inspect.getsource(UserRepository.create)
+    assert 'else "30"' not in repo_create_src, "UserRepository.create must use integer 30 for payment_terms default"
+    assert "getNextUserId" not in repo_create_src, "UserRepository.create must not call getNextUserId before DAO create"
+
+    # 4. UserFilter.allowed_ids & MySQLUserDAO._fetch_children / _replace_children use typed AddressSnippet & native int zones
+    assert UserFilter.model_fields["allowed_ids"].annotation == Optional[List[int]]
+    build_cond_src = inspect.getsource(MySQLUserDAO._build_query_conditions)
+    assert "try:" not in build_cond_src
+    assert "isinstance(filter_params, dict)" not in build_cond_src
+    fetch_children_src = inspect.getsource(MySQLUserDAO._fetch_children)
+    assert "AddressSnippet(" in fetch_children_src, "_fetch_children must construct AddressSnippet instances directly"
+    assert "r.zone_id" in fetch_children_src and "append(r.zone_name)" not in fetch_children_src, "_fetch_children must append r.zone_id (int)"
+    replace_child_src = inspect.getsource(MySQLUserDAO._replace_children)
+    assert "AddressSnippet.model_validate" not in replace_child_src, "_replace_children must use AddressSnippet attributes directly"
+
+    # 5. UserRepository & SubOrderRepository / MySQLSubOrderDAO accept native int IDs
+    assert inspect.signature(UserRepository.findById).parameters["id"].annotation == int
+    assert inspect.signature(UserRepository.findByIds).parameters["ids"].annotation == List[int]
+    assert inspect.signature(UserRepository.update).parameters["id"].annotation == int
+    assert inspect.signature(UserRepository.delete).parameters["id"].annotation == int
+    assert inspect.signature(MySQLSubOrderDAO.findByParentOrder).parameters["parent_order_id"].annotation == int
+    assert inspect.signature(SubOrderRepository.findByParentOrder).parameters["parent_order_id"].annotation == int
+    assert "parent_order_number" not in inspect.getsource(MySQLSubOrderDAO.findByParentOrder)

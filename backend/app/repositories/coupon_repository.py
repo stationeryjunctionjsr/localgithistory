@@ -1,28 +1,32 @@
 import asyncio
-from app.models.schemas import CouponUpdate
-from app.models.daos_flat import CouponInternalUpdate
-from typing import TYPE_CHECKING
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Set, Union
 
 from app.db.storage_factory import get_storage
+from app.models.daos_flat import (
+    CouponInternal,
+    CouponInternalCreate,
+    CouponInternalUpdate,
+    CouponQuantityTierInternal,
+)
+from app.models.schemas import (
+    BxGyEvaluationResponse,
+    CouponCreate,
+    CouponUpdate,
+    CouponValidationDetail,
+    CouponValidationResponse,
+)
 from app.utils.logger import logger
-from app.models.schemas import BxGyEvaluationResponse, CouponValidationResponse, CouponValidationDetail
-
-if TYPE_CHECKING:
-    from app.models.daos import CouponInternalCreate, CouponInternalUpdate, CouponInternal
-    from app.models.schemas import CouponOverlapData
-
 
 
 class OverlapConflictError(ValueError):
-    def __init__(self, overlap_data: 'CouponOverlapData'):
+    def __init__(self, overlap_data: Any) -> None:
         self.overlap_data = overlap_data
         super().__init__("Similar discount already exists for overlapping products")
 
 
 class CouponRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("coupons")
         self._category_storage = get_storage("categories")
         self._brand_storage = get_storage("brands")
@@ -247,7 +251,7 @@ class CouponRepository:
         method: Optional[str] = None,
         code: Optional[str] = None,
         type_of_discount: Optional[str] = None,
-    ):
+    ) -> List[CouponInternal]:
         return await self.storage.findAll(
             is_active=is_active,
             method=method,
@@ -255,10 +259,10 @@ class CouponRepository:
             type_of_discount=type_of_discount,
         )
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[CouponInternal]:
         return await self.storage.findById(id)
 
-    async def findByCode(self, code: str):
+    async def findByCode(self, code: str) -> Optional[CouponInternal]:
         if not code or not str(code).strip():
             return None
         return await self.storage.findOne(code=code.upper())
@@ -435,7 +439,7 @@ class CouponRepository:
             user_behavior_cache[cache_key] = result
         return result
 
-    async def create(self, coupon_data: 'CouponCreateInternal'):
+    async def create(self, coupon_data: Union[CouponCreate, CouponInternalCreate]) -> CouponInternal:
         method = (coupon_data.method if coupon_data.method is not None else "discount_code")
         code = coupon_data.code or ""
         if method == "discount_code" and code:
@@ -532,7 +536,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def update(self, id: str, update_data: 'CouponInternalUpdate'):
+    async def update(self, id: str, update_data: Union[CouponUpdate, CouponInternalUpdate]) -> Optional[CouponInternal]:
         from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
         from app.models.schemas import Coupon, CouponValidationResponse, BxGyEvaluationResponseUpdate
         
@@ -589,12 +593,12 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def delete(self, id: str):
+    async def delete(self, id: str) -> bool:
         res = await self.storage.delete(id)
         self.invalidate_cache()
         return res
 
-    async def incrementUsage(self, id: str, user_id: str):
+    async def incrementUsage(self, id: str, user_id: str) -> Optional[CouponInternal]:
         """Atomically increment used_count for a coupon.
 
         Uses a single SQL UPDATE (used_count = used_count + 1) so concurrent
@@ -1112,7 +1116,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
         return affected
 
-    async def check_discount_overlap(self, coupon_data: 'CouponInternal', exclude_coupon_id: Optional[str] = None):
+    async def check_discount_overlap(self, coupon_data: CouponInternal, exclude_coupon_id: Optional[str] = None) -> Optional[CouponValidationResponse]:
         from app.models.daos_flat import CouponInternalCreate
         """Identify conflicting active coupons and return affected product count."""
         if not (coupon_data.is_active if coupon_data.is_active is not None else True):
@@ -1188,7 +1192,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             return CouponValidationResponse(valid=True, totalOverlappingProducts=total_overlapping_products, details=overlaps)
         return None
 
-    async def get_active_coupons(self) -> List['CouponInternal']:
+    async def get_active_coupons(self) -> List[CouponInternal]:
         """Get all active coupons with a short 60s cache.
 
         Double-checked locking: fast path serves from warm cache without the lock;
@@ -1219,7 +1223,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             self._active_coupons_cache_time = datetime.now(timezone.utc)
             return active_coupons
 
-    async def get_active_automatic_product_discounts(self) -> List['CouponInternal']:
+    async def get_active_automatic_product_discounts(self) -> List[CouponInternal]:
         """Get all active automatic product discounts with short caching.
 
         Double-checked locking: fast path serves from warm cache without the lock;
@@ -1277,7 +1281,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             self._active_automatic_discounts_cache_time = datetime.now(timezone.utc)
             return valid_discounts
 
-    async def get_applicable_automatic_product_discounts(self, role: str, user_id: Optional[str] = None) -> List['CouponInternal']:
+    async def get_applicable_automatic_product_discounts(self, role: str, user_id: Optional[str] = None) -> List[CouponInternal]:
         discounts = await self.get_active_automatic_product_discounts()
         applicable = []
         for c in discounts:
@@ -1296,12 +1300,12 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
     async def get_applicable_discounts_for_product(
         self,
-        product: 'ProductInternal',
+        product: Any,
         role: str,
         user_id: Optional[str] = None,
         all_coupons: Optional[List[dict]] = None,
         user_behavior_cache: Optional[dict] = None,
-    ) -> List['CouponInternal']:
+    ) -> List[CouponInternal]:
         """Find other active discounts applicable to this product, excluding the default highest automatic product discount"""
         if all_coupons is None:
             all_coupons = await self.get_active_coupons()
@@ -1406,7 +1410,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         return applicable
 
 
-def get_coupon_description(c: 'CouponInternal') -> str:
+def get_coupon_description(c: CouponInternal) -> str:
     method_lbl = "Use code " + c.code if c.method == "discount_code" and c.code else "Automatic offer"
     type_of_disc = c.type_of_discount
     disc_type = c.discount_type

@@ -5,7 +5,7 @@ from app.db.storage_factory import get_storage
 from app.models.daos_flat import ReturnSettingsInternal, ReturnSettingsInternalCreate, ReturnSettingsInternalUpdate
 
 class ReturnSettingsRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("returnSettings")
 
     async def get_settings(self) -> ReturnSettingsInternal:
@@ -19,7 +19,7 @@ class ReturnSettingsRepository:
             return created
         return settings[0]
 
-    async def update_settings(self, update_data: ReturnSettingsInternalUpdate) -> ReturnSettingsInternal:
+    async def update_settings(self, update_data: ReturnSettingsInternalUpdate) -> Optional[ReturnSettingsInternal]:
         settings = await self.get_settings()
         return await self.storage.update(settings.id, update_data)
 

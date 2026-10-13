@@ -6,7 +6,7 @@ from app.models.daos_flat import SchemeInternal
 class SchemeRepository:
     """Discount schemes for Business Segment (wholesaler) users."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("schemes")
 
     async def findAll(

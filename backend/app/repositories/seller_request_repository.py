@@ -1,16 +1,15 @@
 import secrets
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
-
 from app.models.schemas import TicketResponseItemInternal
 from app.models.seller_request import SellerRequest, SellerRequestResponseItem
 
 
 class SellerRequestRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("sellerRequests")
 
     def generateRequestNumber(self) -> str:
@@ -34,10 +33,10 @@ class SellerRequestRepository:
             request_number=request_number,
         )
 
-    async def findById(self, id: int):
+    async def findById(self, id: int) -> Optional[SellerRequest]:
         return await self.storage.findById(id)
 
-    async def create(self, request_data: SellerRequestInternalCreate):
+    async def create(self, request_data: SellerRequestInternalCreate) -> Optional[SellerRequest]:
         request_data.request_number = self.generateRequestNumber()
         request_data.created_at = datetime.now(timezone.utc).isoformat()
         if request_data.category is None:
@@ -50,10 +49,10 @@ class SellerRequestRepository:
             request_data.attachments = []
         if request_data.responses is None:
             request_data.responses = []
-            
+
         return await self.storage.create(request_data)
 
-    async def update(self, id: int, update_data: SellerRequestInternalUpdate):
+    async def update(self, id: int, update_data: SellerRequestInternalUpdate) -> Optional[SellerRequest]:
         if update_data.status == "resolved" and update_data.resolved_at is None:
             update_data.resolved_at = datetime.now(timezone.utc).isoformat()
         elif update_data.status == "closed" and update_data.closed_at is None:
@@ -61,7 +60,7 @@ class SellerRequestRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, request_id: int, response_data: TicketResponseItemInternal):
+    async def addResponse(self, request_id: int, response_data: TicketResponseItemInternal) -> Optional[SellerRequest]:
         request = await self.findById(request_id)
         if not request:
             raise ValueError("Request not found")
@@ -86,7 +85,7 @@ class SellerRequestRepository:
 
         return await self.update(request_id, update_payload)
 
-    async def delete(self, id: int):
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

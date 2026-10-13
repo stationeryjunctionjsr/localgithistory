@@ -8,6 +8,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.models.schemas import UserInternalUpdate
+from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
 
 
@@ -16,24 +18,24 @@ async def set_super_admin_email():
 
     try:
         # Check if super admin already exists
-        existing = await user_repository.findOne({"role": "super_admin"})
+        existing = await user_repository.findOne(UserFilter(role="super_admin"))
 
         if existing:
             print("=" * 60)
             print("Updating Super Admin Email")
             print("=" * 60)
-            print(f"Current Email: {existing.get('email')}")
+            print(f"Current Email: {existing.email}")
             print(f"New Email: {email}")
 
             # Update only the email (no password change)
-            update_data = {"email": email, "name": existing.get("name", "Super Admin")}
+            update_data = UserInternalUpdate(email=email, name=existing.name or "Super Admin")
 
-            await user_repository.update(existing["_id"], update_data)
+            await user_repository.update(existing.id, update_data)
 
             print("\n✓ Super Admin Email Updated Successfully!")
             print("=" * 60)
             print(f"Email: {email}")
-            print(f"Name: {existing.get('name', 'Super Admin')}")
+            print(f"Name: {existing.name or 'Super Admin'}")
             print("\nNote: Password was not changed.")
             print("=" * 60)
         else:

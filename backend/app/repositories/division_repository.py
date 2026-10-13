@@ -10,7 +10,7 @@ from app.models.division import (
 
 
 class DivisionRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("divisions")
 
     def _get_timestamp(self) -> str:

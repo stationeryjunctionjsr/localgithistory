@@ -15,7 +15,7 @@ HOMEPAGE_ALIASES = frozenset({
 
 
 class BannerRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("banners")
 
     async def findAll(self, filters: Optional[BannerFilter] = None) -> List[BannerResponse]:
@@ -66,7 +66,7 @@ class BannerRepository:
 
         return banners
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[BannerResponse]:
         return await self.storage.findById(id)
 
     async def findActive(self, filters: Optional[BannerFilter] = None, zone_id: Optional[str] = None) -> List[BannerResponse]:

@@ -1,6 +1,6 @@
 from app.models.user import User, UserFilter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
-from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate, UserCreate
+from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate, UserCreate, AddressSnippet
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_password_hash, verify_password
@@ -19,10 +19,10 @@ class UserRepository:
     async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[User]:
         return await self.storage.findAll(filter_params, skip=skip, limit=limit)
 
-    async def findById(self, id: str) -> Optional[User]:
+    async def findById(self, id: int) -> Optional[User]:
         return await self.storage.findById(id)
 
-    async def findByIds(self, ids: List[str]) -> List[User]:
+    async def findByIds(self, ids: List[int]) -> List[User]:
         return await self.storage.findByIds(ids)
 
     async def findOne(self, filter_params: UserFilter) -> Optional[User]:
@@ -62,7 +62,7 @@ class UserRepository:
                 return user
         return None
 
-    async def create(self, user_data: UserCreate):
+    async def create(self, user_data: UserCreate) -> User:
         # Check if user with email already exists (only if email is provided)
         email = user_data.email
         if email:
@@ -82,21 +82,6 @@ class UserRepository:
             raise ValueError("Password is required")
         hashed_password = get_password_hash(password_val)
 
-        # Generate display user ID. Using max(userId)+1 rather than count+1 means
-        # that even if two registrations race, the one that commits second will see
-        # the first one's row and pick a higher number. Not atomic, but far safer
-        # than count-based allocation which silently produces duplicates when rows
-        # are deleted and re-added.
-        try:
-            user_id = await self.storage.getNextUserId()
-        except Exception:
-            logger.error(
-                "Failed to generate next userId; falling back to userId=1.",
-                exc_info=True,
-            )
-            user_id = 1
-        user_id_formatted = f"USER-{user_id}"
-
         # Determine approval status
         role = (user_data.role if user_data.role is not None else "customer")
         approval_status = "pending" if role == "wholesaler" else "approved"
@@ -109,22 +94,20 @@ class UserRepository:
         email_val = email.lower() if email else None
 
         user_model = UserInternalCreate(
-            user_id=user_id,
-            user_id_formatted=user_id_formatted,
             name=name,
             email=email_val,
             password=hashed_password,
             role=role,
             phone=(user_data.phone if user_data.phone is not None else ""),
             company_name=(user_data.company_name if user_data.company_name is not None else ""),
-            address=(user_data.address if user_data.address is not None else {}),
+            address=user_data.address,
             saved_addresses=(user_data.saved_addresses if user_data.saved_addresses is not None else []),
             is_active=(user_data.is_active if user_data.is_active is not None else True),
             approval_status=(user_data.approval_status if user_data.approval_status is not None else approval_status),
             is_deactivated=(user_data.is_deactivated if user_data.is_deactivated is not None else False),
             credit_limit=(user_data.credit_limit if user_data.credit_limit is not None else 0),
             credit_used=(user_data.credit_used if user_data.credit_used is not None else 0),
-            payment_terms=(user_data.payment_terms if user_data.payment_terms is not None else "30"),
+            payment_terms=(user_data.payment_terms if user_data.payment_terms is not None else 30),
             assigned_salesperson=user_data.assigned_salesperson,
             referral_code=referral_code,
             is_email_verified=(user_data.is_email_verified if user_data.is_email_verified is not None else False),
@@ -142,10 +125,10 @@ class UserRepository:
                 user_model.saved_addresses = []
             user_model.saved_addresses.append(user_model.address)
 
-        created_dict = await self.storage.create(user_model)
-        return created_dict
+        created_user = await self.storage.create(user_model)
+        return created_user
 
-    async def update(self, id: str, update_data: 'UserInternalUpdate'):
+    async def update(self, id: int, update_data: 'UserInternalUpdate'):
         # Don't allow updating email to an existing one
         email_val = update_data.email
         if email_val is not None:
@@ -167,10 +150,10 @@ class UserRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         return await self.storage.delete(id)
 
-    async def addSavedAddress(self, user_id: str, address: 'SavedAddress'):
+    async def addSavedAddress(self, user_id: int, address: AddressSnippet):
         """Add a new address to user's saved addresses list uniquely."""
         user = await self.findById(user_id)
         if not user:
@@ -191,7 +174,7 @@ class UserRepository:
 
         if not is_duplicate:
             saved_addresses.append(address)
-            await self.update(user_id, UserUpdate(savedAddresses=saved_addresses))
+            await self.update(user_id, UserInternalUpdate(saved_addresses=saved_addresses))
 
         return saved_addresses
 
@@ -219,11 +202,11 @@ class UserRepository:
         for user in users:
             if not user.referral_code:
                 code = await get_unique_referral_code(self)
-                await self.update(user.id, UserUpdate(referralCode=code))
+                await self.update(user.id, UserInternalUpdate(referral_code=code))
                 updated_count += 1
         return updated_count
 
-    async def adjust_credit(self, user_id: str, amount: float) -> Optional[User]:
+    async def adjust_credit(self, user_id: int, amount: float) -> Optional[User]:
         """
         Atomically adjust user credit (positive = consume, negative = refund).
         Uses SELECT FOR UPDATE on the relational table.

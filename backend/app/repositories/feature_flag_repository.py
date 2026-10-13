@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class FeatureFlagRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("featureFlags")
 
     async def find_all(

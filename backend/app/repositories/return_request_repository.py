@@ -11,7 +11,7 @@ from app.utils.logger import logger
 from app.models.daos import ReturnRequestInternalCreate, ReturnRequestInternalUpdate, ReturnRequestInternal
 
 class ReturnRequestRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage = None
         self._columns_checked = False
 
@@ -21,7 +21,7 @@ class ReturnRequestRepository:
             self._storage = get_storage("returnRequests")
         return self._storage
 
-    async def ensure_table_columns(self):
+    async def ensure_table_columns(self) -> None:
         if self._columns_checked:
             return
         factory = get_async_session_factory()
@@ -113,7 +113,7 @@ class ReturnRequestRepository:
 
         return await self.storage.create(data)
 
-    async def update(self, id: int, update_data: ReturnRequestInternalUpdate) -> ReturnRequestInternal:
+    async def update(self, id: int, update_data: ReturnRequestInternalUpdate) -> Optional[ReturnRequestInternal]:
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: int) -> bool:

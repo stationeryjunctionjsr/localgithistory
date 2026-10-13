@@ -1,19 +1,16 @@
-from app.models.product import Product
-from typing import TYPE_CHECKING
 import asyncio
-import time as time_module
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Optional
+import time as time_module
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.db.storage_factory import get_storage
-
-if TYPE_CHECKING:
-    from app.models.daos import ProductInternalCreate, ProductInternalUpdate
-    
+from app.models.daos import ProductInternalCreate, ProductInternalUpdate
+from app.models.daos_flat import CollectionInternal, SearchTagInternal
+from app.models.product import Product
 
 
 class ProductRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("products")
         self._search_tags_cache = None
         self._search_tags_cache_time = None
@@ -56,7 +53,7 @@ class ProductRepository:
         "description": 1,
     }
 
-    def _get_variant_search_text(self, product: 'ProductInternal') -> str:
+    def _get_variant_search_text(self, product: Product) -> str:
         """Flatten variant attributes and combination values into searchable text."""
         parts = []
         for attr in product.variant_attributes or []:
@@ -64,7 +61,7 @@ class ProductRepository:
 
         return " ".join(parts)
 
-    def _extract_price_text(self, product: 'ProductInternal') -> str:
+    def _extract_price_text(self, product: Product) -> str:
         """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
         parts = []
         if product.mrp is not None:
@@ -81,7 +78,7 @@ class ProductRepository:
                 pass
         return " ".join(parts).lower()
 
-    def _score_product(self, product: 'ProductInternal', tokens: List[str]) -> float:
+    def _score_product(self, product: Product, tokens: List[str]) -> float:
         """Score a product against search tokens using weighted field matching.
         Supports text matching, price matching, and price range expression matching."""
         score = 0.0
@@ -155,7 +152,7 @@ class ProductRepository:
                 return 0.0  # AND logic: all tokens must match somewhere
         return score
 
-    async def _weighted_search(self, products: List['Product'], search_query: str) -> dict:
+    async def _weighted_search(self, products: List[Product], search_query: str) -> Dict[str, Any]:
         """Filter and rank products using multi-word tokenized search with weighted relevance scoring.
         Falls back to fuzzy matching if exact search yields fewer than 5 results.
         The CPU-heavy fuzzy search is offloaded to a thread pool to avoid blocking the event loop."""
@@ -163,7 +160,7 @@ class ProductRepository:
         if not tokens:
             return {"products": products, "usedFuzzy": False, "suggestedQuery": None}
 
-        scored: List[Tuple['Product', float]] = []
+        scored: List[Tuple[Product, float]] = []
         for p in products:
             score = self._score_product(p, tokens)
             if score > 0:
@@ -331,7 +328,7 @@ class ProductRepository:
             }
             return light_products
 
-    async def _attach_category_gst(self, products: List['Product']) -> List[Product]:
+    async def _attach_category_gst(self, products: List[Product]) -> List[Product]:
         if not products:
             return products
         from app.repositories.category_repository import category_repository
@@ -348,7 +345,7 @@ class ProductRepository:
             p.gst = float(cat_gst_map[p.category] if p.category in cat_gst_map else 0)
         return products
 
-    async def findAll(self, query: Optional[dict] = None):
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Product]:
         products = await self.storage.findAll(query)
         products = await self._attach_category_gst(products)
 
@@ -469,7 +466,7 @@ class ProductRepository:
                 products = []
 
         # Apply availability filter: when set, only show available or only stock out
-        def _is_in_stock(p: 'ProductInternal') -> bool:
+        def _is_in_stock(p: Product) -> bool:
             stock = p.stock
             if stock is None:
                 return False
@@ -526,8 +523,8 @@ class ProductRepository:
         return products
 
     async def get_catalog(
-        self, query: dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
-    ):
+        self, query: Dict[str, Any], skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
+    ) -> Tuple[List[Product], int, Dict[str, Any], bool, Optional[str]]:
         """Orchestrates server-side pagination by calling the DAO."""
         dao_query = query.copy()
         role = query["role"] if "role" in query else "customer"
@@ -787,7 +784,7 @@ class ProductRepository:
 
         return products
 
-    async def _get_active_search_tags(self) -> List[Product]:
+    async def _get_active_search_tags(self) -> List[SearchTagInternal]:
         """Get all active search tags with short caching.
 
         Double-checked locking: 10 s TTL means this expires frequently.
@@ -817,7 +814,7 @@ class ProductRepository:
             self._search_tags_cache_time = datetime.now(timezone.utc)
             return tags
 
-    async def _get_collections(self) -> List[Product]:
+    async def _get_collections(self) -> List[CollectionInternal]:
         """Get all collections with short caching.
 
         Double-checked locking: same 10 s TTL; same stampede risk as _get_active_search_tags.
@@ -846,7 +843,7 @@ class ProductRepository:
             self._collections_cache_time = datetime.now(timezone.utc)
             return collections
 
-    async def resolve_search_tags(self, products: List['Product']) -> List[Product]:
+    async def resolve_search_tags(self, products: List[Product]) -> List[Product]:
         """Resolve which search tags apply to each product based on association rules"""
         search_tags = await self._get_active_search_tags()
 
@@ -926,13 +923,13 @@ class ProductRepository:
 
         return products
 
-    async def findById(self, id: int):
+    async def findById(self, id: int) -> Optional[Product]:
         p = await self.storage.findById(id)
         if p:
             p = (await self._attach_category_gst([p]))[0]
         return p
 
-    async def findByIds(self, ids: List[str]):
+    async def findByIds(self, ids: List[str]) -> List[Product]:
         if not ids:
             return []
         products = await self.storage.findByIds(ids)
@@ -940,13 +937,13 @@ class ProductRepository:
             products = await self._attach_category_gst(products)
         return products
 
-    async def findBySku(self, sku: str):
+    async def findBySku(self, sku: str) -> Optional[Product]:
         p = await self.storage.findOne({"sku": sku})
         if p:
             p = (await self._attach_category_gst([p]))[0]
         return p
 
-    async def findByName(self, name: str):
+    async def findByName(self, name: str) -> Optional[Product]:
         p = await self.storage.findOne({"name": name})
         if p:
             p = (await self._attach_category_gst([p]))[0]
@@ -965,8 +962,7 @@ class ProductRepository:
         products = await self.storage.findAll({"allowed_ids": str_ids, "isActive": True})
         return await self._attach_category_gst(products)
 
-    async def create(self, product_data: 'ProductInternalCreate') -> Product:
-        from app.models.daos import ProductInternalCreate
+    async def create(self, product_data: ProductInternalCreate) -> Product:
         if product_data.mrp is None: product_data.mrp = 0.0
         if product_data.price is None: product_data.price = 0.0
         if not product_data.category: product_data.category = "Uncategorized"
@@ -989,8 +985,6 @@ class ProductRepository:
         product_id = max_id + 1
         product_id_formatted = f"PDT-{product_id}"
 
-        from app.models.daos import ProductInternalCreate
-        
         sku_val = product_data.sku
         if not sku_val or str(sku_val).strip() == "":
             sku_val = f"SKU-{product_id_formatted}"
@@ -1049,7 +1043,7 @@ class ProductRepository:
         created = await self.storage.create(internal_create)
         return (await self._attach_category_gst([created]))[0]
 
-    async def update(self, id: int, update_data: 'ProductInternalUpdate') -> Optional[Product]:
+    async def update(self, id: int, update_data: ProductInternalUpdate) -> Optional[Product]:
         
         if 'sku' in update_data.model_fields_set:
             existing = await self.findBySku(update_data.sku)
@@ -1083,13 +1077,12 @@ class ProductRepository:
         
         return (await self._attach_category_gst([updated]))[0] if updated else None
 
-    async def delete(self, id: int):
-        from app.models.daos import ProductInternalUpdate
+    async def delete(self, id: int) -> Optional[Product]:
         return await self.storage.update(id, ProductInternalUpdate(is_active=False))
 
     def getPriceForRole(
         self,
-        product: 'ProductInternal',
+        product: Product,
         role: str,
         quantity: int = 1,
         selected_attributes: Optional[dict] = None,
@@ -1217,8 +1210,12 @@ class ProductRepository:
         return max(0, actual_stock - reserved)
 
     async def decrement_stock_atomic(
-        self, product_id: str, quantity: int, variant_combinations: list = None, role: str = None
-    ):
+        self,
+        product_id: str,
+        quantity: int,
+        variant_combinations: Optional[List[Dict[str, Any]]] = None,
+        role: Optional[str] = None,
+    ) -> Optional[int]:
         from sqlalchemy import text
         from app.config.database import get_async_session_factory
         factory = get_async_session_factory()

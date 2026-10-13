@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class CategoryRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("categories")
 
     def _get_timestamp(self) -> str:
@@ -33,7 +33,7 @@ class CategoryRepository:
     async def create(self, category_data: "CategoryInternalCreate") -> Category:
         return await self.storage.create(category_data)
 
-    async def update(self, id: str, update_data: "CategoryInternalUpdate") -> Category:
+    async def update(self, id: str, update_data: "CategoryInternalUpdate") -> Optional[Category]:
         # Synchronize categoryTag and categoryTags for backward compatibility
         if "category_tag" in update_data.model_fields_set and update_data.category_tag is not None:
             tag = update_data.category_tag
@@ -44,7 +44,7 @@ class CategoryRepository:
             
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> Category:
+    async def delete(self, id: str) -> Optional[Category]:
         # Soft delete - set isActive to false
         from app.models.daos import CategoryInternalUpdate
         return await self.update(id, CategoryInternalUpdate(is_active=False))

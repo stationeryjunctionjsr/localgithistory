@@ -14,7 +14,7 @@ from app.utils.logger import logger
 
 
 class ProductNotificationRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage = None
 
     @property
@@ -23,7 +23,7 @@ class ProductNotificationRepository:
             self._storage = get_storage("productNotifications")
         return self._storage
 
-    async def ensure_table_exists(self):
+    async def ensure_table_exists(self) -> None:
         """No-op: Schema is managed via MySQL migrations."""
         return
 
@@ -57,7 +57,7 @@ class ProductNotificationRepository:
 
         return await self.storage.create(notification_data)
 
-    async def trigger_restock_notifications(self, product_id: str, product_name: str):
+    async def trigger_restock_notifications(self, product_id: str, product_name: str) -> None:
         active_notifs = await self.find_active_by_product(str(product_id))
         if not active_notifs:
             return

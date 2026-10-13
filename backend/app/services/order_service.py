@@ -15,7 +15,7 @@ from app.models.daos import NotificationInternalCreate, BundleInternalUpdate
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from app.models.product import Product
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
-from app.models.user import User
+from app.models.user import User, UserFilter
 from app.models.schemas import (
     Address,
     UserSnippet,
@@ -244,11 +244,17 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     # 1. Collect all unique IDs across all orders
     for order in orders:
         if order.user:
-            user_ids.add(str(order.user))
+            try:
+                user_ids.add(int(order.user))
+            except (ValueError, TypeError):
+                pass
 
         # Order.assigned_valet is the snake_case Pydantic field (alias: assignedValet)
         if order.assigned_valet:
-            valet_ids.add(str(order.assigned_valet))
+            try:
+                valet_ids.add(int(order.assigned_valet))
+            except (ValueError, TypeError):
+                pass
 
         if order.id:
             order_ids.add(str(order.id))
@@ -261,8 +267,8 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
                 product_ids.add(str(pid))
 
     # 2. Fetch all required users, valets, products, and payments in parallel
-    users_task = get_storage("users").findAll({"allowed_ids": list(
-        user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
+    users_task = get_storage("users").findAll(UserFilter(allowed_ids=list(
+        user_ids.union(valet_ids)))) if user_ids.union(valet_ids) else None
     products_task = get_storage("products").findAll(
         {"allowed_ids": list(product_ids)}) if product_ids else None
     payments_task = get_storage("payments").findAll(
@@ -276,9 +282,8 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     # 3. Build lookup maps
     users_map = {}
     for u in users_list:
-        if u.user_id:
-            users_map[str(u.user_id)] = u
         if u.id:
+            users_map[u.id] = u
             users_map[str(u.id)] = u
 
     products_map = {}
@@ -503,8 +508,7 @@ async def create_order_service(
                 logger.warning("Wholesaler user %r has non-integer payment_terms %r; defaulting to 30 days.", (user.id if user else '?'), terms_days, exc_info=True)
                 terms_days = 30
 
-        user_id_val = user.user_id if user.user_id else str(user.id)
-        user_payments = await payment_repository.findAll(user_id=str(user_id_val))
+        user_payments = await payment_repository.findAll(user_id=str(user.id))
         import datetime as dt
         now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
         has_overdue = False
@@ -1790,7 +1794,7 @@ async def create_order_service(
 
         payment_data = PaymentInternalCreate(
             order_id=str(order.id),
-            user_id=str(user_for_payment.user_id),
+            user_id=str(user_for_payment.id),
             customer_name=user_for_payment.name,
             order_date=order.created_at if isinstance(order.created_at, str) else str(order.created_at),
             payment_method=order_data.payment_method,

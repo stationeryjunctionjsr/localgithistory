@@ -322,7 +322,7 @@ async def register_device(
         if not userId and credentials:
             try:
                 current_user = await verify_token(credentials.credentials)
-                userId = current_user.id or current_user.user_id
+                userId = current_user.id
             except Exception as e:
                 # Not authenticated or invalid token — continue as guest
                 logger.warning("Optional device registration auth token verification failed: %s", str(e))

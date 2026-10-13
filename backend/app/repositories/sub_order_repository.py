@@ -39,7 +39,7 @@ class SubOrderRepository:
     async def findById(self, id: int) -> Optional[SubOrder]:
         return await self.storage.findById(id)
 
-    async def findByParentOrder(self, parent_order_id: str) -> List[SubOrder]:
+    async def findByParentOrder(self, parent_order_id: int) -> List[SubOrder]:
         return await self.storage.findByParentOrder(parent_order_id)
 
     async def findBySeller(

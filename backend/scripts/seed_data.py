@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.models.schemas import UserCreate
+from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
 from app.repositories.product_repository import product_repository
 
@@ -27,10 +28,10 @@ async def seed_data():
         email = os.getenv("TEST_ADMIN_EMAIL", "admin@stationery.com")
         password = os.getenv("TEST_ADMIN_PASSWORD")
 
-        existing_admin = await user_repository.findOne({"role": "super_admin"})
+        existing_admin = await user_repository.findOne(UserFilter(role="super_admin"))
         if existing_admin:
             print("   ✓ Super Admin already exists")
-            email = existing_admin.get("email", email)
+            email = existing_admin.email or email
             password = password or "(Already exists/hidden)"
             print(f"   Email: {email}")
         else:

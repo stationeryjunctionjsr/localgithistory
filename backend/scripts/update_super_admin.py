@@ -8,7 +8,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.models.schemas import UserCreate
+from app.models.schemas import UserCreate, UserInternalUpdate
+from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
 
 
@@ -26,25 +27,25 @@ async def update_or_create_super_admin():
 
     try:
         # Check if super admin already exists
-        existing = await user_repository.findOne({"role": "super_admin"})
+        existing = await user_repository.findOne(UserFilter(role="super_admin"))
 
         if existing:
             print("=" * 60)
             print("Updating Existing Super Admin")
             print("=" * 60)
-            print(f"Current Email: {existing.get('email')}")
+            print(f"Current Email: {existing.email}")
             print(f"Updating to Email: {email}")
 
             # Update the existing super admin
-            update_data = {
-                "email": email,
-                "name": name,
-                "password": password,  # Will be hashed by repository
-                "isActive": True,
-                "approvalStatus": "approved",
-            }
+            update_data = UserInternalUpdate(
+                email=email,
+                name=name,
+                password=password,  # Will be hashed by repository
+                is_active=True,
+                approval_status="approved",
+            )
 
-            await user_repository.update(existing["_id"], update_data)
+            await user_repository.update(existing.id, update_data)
 
             print("\n✓ Super Admin Updated Successfully!")
             print("=" * 60)

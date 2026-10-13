@@ -30,8 +30,7 @@ async def verify_media_ownership(key_or_path: str, current_user: Optional[User])
         
     if "payments/" in key_or_path:
         filename = key_or_path.split("/")[-1]
-        user_id_val = current_user.user_id if current_user.user_id else str(current_user.id)
-        payments = await payment_repository.findAll(user_id=user_id_val)
+        payments = await payment_repository.findAll(user_id=current_user.id)
         for p in payments:
             if p.payment_entries:
                 for entry in p.payment_entries:

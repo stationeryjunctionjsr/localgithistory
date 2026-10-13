@@ -64,7 +64,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
     slot_id = order.delivery_slot_id
     required_pincodes: set[str] = set()
     from app.repositories.sub_order_repository import sub_order_repository
-    sub_orders = await sub_order_repository.findByParentOrder(str(order.id))
+    sub_orders = await sub_order_repository.findByParentOrder(order.id)
     if sub_orders:
         for so in sub_orders:
             so_seller_id = so.seller_id

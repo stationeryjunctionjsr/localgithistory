@@ -271,22 +271,22 @@ class UserBase(CamelBaseModel):
     device_token: Optional[str] = None
     preferred_language: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
     approval_status: Optional[str] = "approved"
-    is_deactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
+    is_deactivated: Optional[bool] = False
     credit_limit: Optional[float] = 0
     credit_used: Optional[float] = 0
-    payment_terms: Optional[str] = "30"
+    payment_terms: Optional[int] = 30
     assigned_salesperson: Optional[str] = None
-    is_seller_admin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
-    is_on_duty: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isOnDuty", "is_on_duty"))
+    is_seller_admin: Optional[bool] = False
+    is_on_duty: Optional[bool] = False
     commission_override_pct: Optional[float] = None
-    service_area_zones: Optional[List[str]] = Field(default_factory=list, validation_alias=AliasChoices("serviceAreaZones", "service_area_zones"))
+    service_area_zones: Optional[List[int]] = Field(default_factory=list)
 
     @property
     def isOnDuty(self) -> Optional[bool]:
         return self.is_on_duty
 
     @property
-    def serviceAreaZones(self) -> Optional[List[str]]:
+    def serviceAreaZones(self) -> Optional[List[int]]:
         return self.service_area_zones
     password: Optional[str] = None
     sessionId: Optional[str] = None
@@ -342,11 +342,11 @@ class UserUpdate(CamelBaseModel):
     is_on_duty: Optional[bool] = None
     credit_limit: Optional[float] = None
     credit_used: Optional[float] = None
-    payment_terms: Optional[str] = None
+    payment_terms: Optional[int] = None
     assigned_salesperson: Optional[str] = None
     is_email_verified: Optional[bool] = None
     commission_override_pct: Optional[float] = None
-    service_area_zones: Optional[List[str]] = None
+    service_area_zones: Optional[List[int]] = None
     referral_code: Optional[str] = None
     preferred_language: Optional[str] = None
     upi_id: Optional[str] = None
@@ -358,20 +358,19 @@ class UserUpdate(CamelBaseModel):
 
 
 class UserResponse(UserBase):
-    id: str
-    user_id: Optional[int] = None
+    id: int
     user_id_formatted: Optional[str] = None
     role: Optional[str] = None
     effectiveRole: Optional[str] = None
     approval_status: Optional[str] = None
-    is_active: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
-    is_deactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
-    credit_limit: float = Field(validation_alias=AliasChoices("creditLimit", "credit_limit"))
-    credit_used: float = Field(validation_alias=AliasChoices("creditUsed", "credit_used"))
+    is_active: bool = True
+    is_deactivated: Optional[bool] = False
+    credit_limit: float = 0.0
+    credit_used: float = 0.0
     payment_terms: Optional[int] = None
     assigned_salesperson: Optional[str] = None
     referral_code: Optional[str] = None
-    is_seller_admin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
+    is_seller_admin: Optional[bool] = False
     commission_override_pct: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -1747,13 +1746,12 @@ class PromoStripResponse(PromoStripBase):
 # --- DAO Internal Models ---
 class UserInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    user_id: int
     is_seller_admin: bool = False
-    service_area_zones: Optional[List[str]] = None
-    saved_addresses: Optional[List[SavedAddress]] = None
+    service_area_zones: Optional[List[int]] = None
+    saved_addresses: Optional[List[AddressSnippet]] = None
     is_on_duty: bool = False
     commission_override_pct: Optional[float] = None
-    user_id_formatted: str
+    user_id_formatted: Optional[str] = None
     name: str
     email: Optional[str] = None
     password: str
@@ -1761,13 +1759,13 @@ class UserInternalCreate(CamelBaseModel):
     phone: str = ""
     company_name: str = ""
     gstin: Optional[str] = None
-    address: Optional[Address] = None
+    address: Optional[AddressSnippet] = None
     is_active: bool = True
     approval_status: str
     is_deactivated: bool = False
     credit_limit: Optional[float] = None
     credit_used: Optional[float] = None
-    payment_terms: str = "30"
+    payment_terms: Optional[int] = 30
     assigned_salesperson: Optional[str] = None
     referral_code: Optional[str] = None
     is_email_verified: bool = False
@@ -1784,7 +1782,6 @@ class UserInternalCreate(CamelBaseModel):
 
 class UserInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    user_id: Optional[int] = None
     user_id_formatted: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
@@ -1793,8 +1790,8 @@ class UserInternalUpdate(CamelBaseModel):
     phone: Optional[str] = None
     company_name: Optional[str] = None
     gstin: Optional[str] = None
-    address: Optional[Address] = None
-    saved_addresses: Optional[List[Address]] = None
+    address: Optional[AddressSnippet] = None
+    saved_addresses: Optional[List[AddressSnippet]] = None
     is_active: Optional[bool] = None
     approval_status: Optional[str] = None
     is_deactivated: Optional[bool] = None
@@ -1802,11 +1799,11 @@ class UserInternalUpdate(CamelBaseModel):
     is_on_duty: Optional[bool] = None
     credit_limit: Optional[float] = None
     credit_used: Optional[float] = None
-    payment_terms: Optional[str] = None
+    payment_terms: Optional[int] = None
     assigned_salesperson: Optional[str] = None
     referral_code: Optional[str] = None
     is_email_verified: Optional[bool] = None
-    service_area_zones: Optional[List[str]] = None
+    service_area_zones: Optional[List[int]] = None
     commission_override_pct: Optional[float] = None
     upi_id: Optional[str] = None
     qr_code_url: Optional[str] = None

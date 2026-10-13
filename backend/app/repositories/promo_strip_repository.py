@@ -6,7 +6,7 @@ from app.db.storage_factory import get_storage
 
 
 class PromoStripRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("promoStrips")
 
     def _get_timestamp(self) -> str:
@@ -49,7 +49,7 @@ class PromoStripRepository:
             data.is_active = True
         return await self.storage.create(data)
 
-    async def update(self, id: int, update_data: PromoStripsInternalUpdate) -> PromoStripsInternal:
+    async def update(self, id: int, update_data: PromoStripsInternalUpdate) -> Optional[PromoStripsInternal]:
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: int) -> bool:

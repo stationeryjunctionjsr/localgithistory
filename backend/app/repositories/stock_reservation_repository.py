@@ -1,5 +1,5 @@
 from app.models.daos_flat import StockReservationsInternalUpdate
-from app.models.stock_reservation import StockReservationBatch
+from app.models.stock_reservation import StockReservation, StockReservationBatch
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -12,7 +12,7 @@ from app.utils.logger import logger
 
 
 class StockReservationRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         # We wrap storage retrieval in a property or get it dynamically
         self._storage = None
         self._initialized = False
@@ -23,7 +23,7 @@ class StockReservationRepository:
             self._storage = get_storage("stockReservations")
         return self._storage
 
-    async def ensure_table_exists(self):
+    async def ensure_table_exists(self) -> None:
         if self._initialized:
             return
         # MySQL: tables are created by Alembic migrations — no runtime DDL needed.
@@ -62,7 +62,7 @@ class StockReservationRepository:
         """Alias returning StockReservationBatch for products in batch."""
         return await self.get_batch_reservations(product_ids, exclude_user_id=exclude_user_id)
 
-    async def get_user_reservations(self, user_id: str) -> List['StockReservationInternal']:
+    async def get_user_reservations(self, user_id: str) -> List[StockReservation]:
         """Returns all active, non-expired reservations for a user."""
         await self.ensure_table_exists()
         all_res = await self.storage.findAll({"userId": str(user_id), "status": "active"})
@@ -76,7 +76,7 @@ class StockReservationRepository:
 
         return active_res
 
-    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> 'StockReservationInternal':
+    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> StockReservation:
         """Creates or updates a reservation for a product and user."""
         await self.ensure_table_exists()
 
@@ -105,7 +105,7 @@ class StockReservationRepository:
         )
         return created
 
-    async def release_user_reservations(self, user_id: str, product_id: Optional[str] = None):
+    async def release_user_reservations(self, user_id: str, product_id: Optional[str] = None) -> None:
         """Marks active reservations for a user as released."""
         await self.ensure_table_exists()
         query = {"userId": str(user_id), "status": "active"}
@@ -117,7 +117,7 @@ class StockReservationRepository:
             await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="released"))
             logger.info("Released stock reservation %s for user %s", res.id, user_id)
 
-    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[str] = None):
+    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[str] = None) -> None:
         """Marks active reservations for a user as fulfilled (order placed)."""
         await self.ensure_table_exists()
         query = {"userId": str(user_id), "status": "active"}
@@ -135,7 +135,7 @@ class StockReservationRepository:
             else:
                 await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="expired"))
 
-    async def cleanup_expired(self):
+    async def cleanup_expired(self) -> None:
         """Finds and marks all expired reservations as 'expired'."""
         await self.ensure_table_exists()
         active_res = await self.storage.findAll({"status": "active"})
@@ -151,7 +151,7 @@ class StockReservationRepository:
         if expired_count > 0:
             logger.info("Cleaned up %d expired stock reservations", expired_count)
 
-    async def reserve_stock_checked(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> 'StockReservationInternal':
+    async def reserve_stock_checked(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> StockReservation:
         from datetime import datetime, timedelta, timezone
         from sqlalchemy import text
         from app.config.database import get_async_session_factory

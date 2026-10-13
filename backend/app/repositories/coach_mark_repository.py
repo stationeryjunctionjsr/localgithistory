@@ -1,4 +1,3 @@
-from typing import Any
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -7,7 +6,7 @@ from app.models.daos_flat import CoachMarkInternal, CoachMarkInternalCreate, Coa
 
 
 class CoachMarkRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("coachMarks")
 
     def _get_timestamp(self) -> str:
@@ -27,7 +26,7 @@ class CoachMarkRepository:
             data.is_active = True
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: CoachMarkInternalUpdate) -> CoachMarkInternal:
+    async def update(self, id: str, update_data: CoachMarkInternalUpdate) -> Optional[CoachMarkInternal]:
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> bool:

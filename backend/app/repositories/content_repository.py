@@ -9,7 +9,7 @@ from app.models.daos_flat import (
     PrivacyPolicyInternalCreate, PrivacyPolicyInternalUpdate
 )
 from app.models.faq_section import (
-    FaqSectionInternalCreate, FaqSectionInternalUpdate
+    FaqSectionInternalCreate, FaqSectionInternalUpdate, FaqSectionResponse
 )
 
 def _increment_version(version: str) -> str:
@@ -22,7 +22,7 @@ def _increment_version(version: str) -> str:
 
 
 class AboutUsRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("aboutUs")
 
     async def get(self) -> Optional[AboutUs]:
@@ -51,7 +51,7 @@ class AboutUsRepository:
 
 
 class PrivacyPolicyRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("privacyPolicy")
 
     async def get(self) -> Optional[PrivacyPolicy]:
@@ -89,17 +89,17 @@ class PrivacyPolicyRepository:
 
 
 class FAQRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("faqSections")
 
-    async def find_all(self) -> List[object]:
+    async def find_all(self) -> List[FaqSectionResponse]:
         sections = await self.storage.findAll()
         return sorted(sections, key=lambda s: (s.display_order if s.display_order is not None else 0))
 
-    async def find_by_id(self, section_id: str) -> Optional[object]:
+    async def find_by_id(self, section_id: str) -> Optional[FaqSectionResponse]:
         return await self.storage.findById(section_id)
 
-    async def create_section(self, data: FaqSectionInternalCreate) -> object:
+    async def create_section(self, data: FaqSectionInternalCreate) -> FaqSectionResponse:
         if data.icon is None:
             data.icon = "help-circle-outline"
         if data.display_order is None:
@@ -108,10 +108,10 @@ class FAQRepository:
             data.items = []
         return await self.storage.create(data)
 
-    async def update_section(self, section_id: str, data: FaqSectionInternalUpdate) -> object:
+    async def update_section(self, section_id: str, data: FaqSectionInternalUpdate) -> Optional[FaqSectionResponse]:
         return await self.storage.update(section_id, data)
 
-    async def delete_section(self, section_id: str) -> object:
+    async def delete_section(self, section_id: str) -> bool:
         return await self.storage.delete(section_id)
 
 

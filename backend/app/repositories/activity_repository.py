@@ -4,10 +4,11 @@ from pydantic import BaseModel
 from app.utils.device import DeviceContext
 
 from app.db.storage_factory import get_storage
+from app.models.daos_flat import ActivityInternal, ActivityInternalCreate, ActivityInternalUpdate, ActivityMetaInternal
 
 
 class ActivityRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("activities")
 
     async def log_activity(
@@ -19,8 +20,7 @@ class ActivityRepository:
         device: DeviceContext,
         comment: Optional[str] = None,
         is_guest: bool = False,
-    ):
-        from app.models.daos_flat import ActivityInternalCreate, ActivityMetaInternal
+    ) -> Optional[ActivityInternal]:
         meta_list = [
             ActivityMetaInternal(key=k, value=str(v))
             for k, v in (meta.model_dump(mode="json", exclude_unset=True, exclude_none=True).items() if meta else ())
@@ -38,11 +38,10 @@ class ActivityRepository:
             payload.os = device.os
             payload.os_version = device.osVersion
             payload.device_type = device.deviceType
-            
+
         return await self.storage.create(payload)
 
-    async def promote_guest_activities(self, session_id: str, user_id: str) -> object:
-        from app.models.daos_flat import ActivityInternalUpdate
+    async def promote_guest_activities(self, session_id: str, user_id: str) -> int:
         activities = await self.storage.findAll(session_id=session_id)
         updated = 0
         for act in activities:
@@ -51,7 +50,7 @@ class ActivityRepository:
                     act.id, ActivityInternalUpdate(user_id=user_id, is_guest=False, comments="login performed in the same session")
                 )
                 updated += 1
-        return {"updated": updated}
+        return updated
 
 
 activity_repository = ActivityRepository()

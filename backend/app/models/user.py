@@ -1,7 +1,7 @@
 from app.models.schemas import AddressSnippet as Address, CartItem, OrderItem, VisibilityRule
 from datetime import datetime
 from typing import Optional, List, Any, Dict
-from pydantic import BaseModel, ConfigDict, Field, AliasChoices
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.base import CamelBaseModel
 
 class UserFilter(CamelBaseModel):
@@ -15,14 +15,13 @@ class UserFilter(CamelBaseModel):
     is_on_duty: Optional[bool] = None
     approval_status: Optional[str] = None
     is_active: Optional[bool] = None
-    allowed_ids: Optional[List[str]] = None
+    allowed_ids: Optional[List[int]] = None
 
 UserFilter.model_rebuild()
 
 
 class User(CamelBaseModel):
     id: int
-    user_id: Optional[int] = Field(default=None, validation_alias=AliasChoices("id", "user_id")) 
     user_id_formatted: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
@@ -43,7 +42,7 @@ class User(CamelBaseModel):
     is_email_verified: bool = Field(default=False)
     referral_code: Optional[str] = None
     is_seller_admin: bool = Field(default=False)
-    service_area_zones: Optional[List[str]] = Field(default=[])
+    service_area_zones: Optional[List[int]] = Field(default=[])
     is_on_duty: bool = Field(default=False)
     commission_override_pct: Optional[float] = None
     created_at: Optional[datetime] = None

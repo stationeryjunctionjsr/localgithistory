@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.models.schemas import UserCreate
+from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
 
 
@@ -27,13 +28,13 @@ async def create_super_admin():
 
     try:
         # Check if super admin already exists
-        existing = await user_repository.findOne({"role": "super_admin"})
+        existing = await user_repository.findOne(UserFilter(role="super_admin"))
         if existing:
             print("=" * 60)
             print("Super Admin Already Exists")
             print("=" * 60)
-            print(f"Email: {existing.get('email')}")
-            print(f"Name: {existing.get('name')}")
+            print(f"Email: {existing.email}")
+            print(f"Name: {existing.name}")
             print("\nOnly one super admin is allowed in the system.")
             print("If you need to reset the password, delete the existing admin first.")
             print("=" * 60)

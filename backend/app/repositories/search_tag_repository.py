@@ -7,7 +7,7 @@ from app.models.daos_flat import SearchTagInternal, SearchTagInternalCreate, Sea
 
 
 class SearchTagRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("searchTags")
 
     def _get_timestamp(self) -> str:
@@ -84,7 +84,7 @@ class SearchTagRepository:
         )
         return await self.storage.create(tag_internal)
 
-    async def update(self, id: int, update_data: SearchTagInternalUpdate) -> SearchTagInternal:
+    async def update(self, id: int, update_data: SearchTagInternalUpdate) -> Optional[SearchTagInternal]:
         return await self.storage.update(id, update_data)
 
     async def findAllActive(self) -> List[SearchTagInternal]:

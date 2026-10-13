@@ -126,18 +126,13 @@ class MySQLSubOrderDAO:
             items_rows = items_res.fetchall()
             return self._map_to_schema(row, items_rows)
 
-    async def findByParentOrder(self, parent_order_id: str) -> List[SubOrder]:
+    async def findByParentOrder(self, parent_order_id: int) -> List[SubOrder]:
         factory = self._get_session_factory()
         if not factory or not parent_order_id:
             return []
         async with factory() as session:
-            try:
-                pid = int(parent_order_id)
-                q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_id = :pid ORDER BY id ASC")
-                params = {"pid": pid}
-            except (ValueError, TypeError):
-                q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_number = :pid ORDER BY id ASC")
-                params = {"pid": str(parent_order_id)}
+            q = text(f"SELECT * FROM {self.table_name} WHERE parent_order_id = :pid ORDER BY id ASC")
+            params = {"pid": parent_order_id}
             result = await session.execute(q, params)
             rows = result.fetchall()
             if not rows:

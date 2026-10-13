@@ -10,7 +10,7 @@ from app.models.daos_flat import (
 
 
 class CategoryTagRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("categoryTags")
 
     def _get_timestamp(self) -> str:

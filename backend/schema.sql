@@ -1795,7 +1795,7 @@ CREATE TABLE `sj_users` (
   `is_deactivated` tinyint(1) NOT NULL DEFAULT '0',
   `credit_limit` decimal(18,2) NOT NULL DEFAULT '0.00',
   `credit_used` decimal(18,2) NOT NULL DEFAULT '0.00',
-  `payment_terms` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_terms` int DEFAULT NULL,
   `assigned_salesperson` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_email_verified` tinyint(1) NOT NULL DEFAULT '0',
   `referral_code` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class CustomerSegmentsRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("customerSegments")
 
     async def get_all(self, segment_type: Optional[str] = None) -> List[CustomerSegmentInternal]:

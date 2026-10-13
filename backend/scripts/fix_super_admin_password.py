@@ -9,6 +9,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.models.schemas import UserInternalUpdate
+from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
 
 
@@ -25,7 +27,7 @@ async def fix_super_admin_password():
 
     try:
         # Find super admin
-        admin = await user_repository.findOne({"role": "super_admin"})
+        admin = await user_repository.findOne(UserFilter(role="super_admin"))
 
         if not admin:
             print("=" * 60)
@@ -36,10 +38,10 @@ async def fix_super_admin_password():
         print("=" * 60)
         print("Fixing Super Admin Password")
         print("=" * 60)
-        print(f"Email: {admin.get('email')}")
+        print(f"Email: {admin.email}")
 
         # Check if current password hash works
-        current_hash = admin.get("password", "")
+        current_hash = admin.password or ""
         if current_hash:
             # Try to verify with bcrypt directly
             try:
@@ -48,8 +50,8 @@ async def fix_super_admin_password():
                 if bcrypt.checkpw(password_bytes, hash_bytes):
                     print("Current password hash is valid!")
                     # Just update email if needed
-                    if admin.get("email") != email.lower():
-                        await user_repository.update(admin["_id"], {"email": email.lower()})
+                    if admin.email != email.lower():
+                        await user_repository.update(admin.id, UserInternalUpdate(email=email.lower()))
                         print(f"Email updated to: {email}")
                     print("=" * 60)
                     return
@@ -62,7 +64,7 @@ async def fix_super_admin_password():
         hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
         # Update password and email
-        await user_repository.update(admin["_id"], {"password": hashed_password, "email": email.lower()})
+        await user_repository.update(admin.id, UserInternalUpdate(password=hashed_password, email=email.lower()))
 
         print("\n[OK] Super Admin Password Updated!")
         print("=" * 60)

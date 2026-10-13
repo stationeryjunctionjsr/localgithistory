@@ -167,19 +167,9 @@ class PushNotificationRepository:
             for d in devices
         ]
 
-    async def getDeviceSubscriptionsByUser(self, userId: str) -> List[dict]:
+    async def getDeviceSubscriptionsByUser(self, userId: int):
         """Get device subscriptions for a specific user"""
-        user_devices = await self.device_storage.findAll(user_id=userId)
-        return [
-            {
-                "endpoint": d.endpoint,
-                "keys": {k.key: k.value for k in (d.keys or [])} if isinstance(d.keys, list) else (d.keys or {}),
-                "expoToken": d.expo_token,
-                "id": str(d.id) if d.id is not None else "",
-                "_id": str(d.id) if d.id is not None else "",
-            }
-            for d in user_devices
-        ]
+        return await self.device_storage.findAll(user_id=userId)
 
     async def removeDeviceSubscription(self, device_id: str):
         """Remove a device subscription"""

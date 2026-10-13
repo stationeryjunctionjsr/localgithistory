@@ -6,7 +6,7 @@ from app.models.schemas import VisibilityRuleSnippet
 
 
 class CollectionRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("collections")
 
     async def findAll(
@@ -83,7 +83,7 @@ class CollectionRepository:
     async def create(self, collection_data: CollectionInternalCreate) -> CollectionInternal:
         return await self.storage.create(collection_data)
 
-    async def update(self, id: str, update_data: CollectionInternalUpdate) -> CollectionInternal:
+    async def update(self, id: str, update_data: CollectionInternalUpdate) -> Optional[CollectionInternal]:
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> bool:

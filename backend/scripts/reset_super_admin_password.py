@@ -8,6 +8,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.models.schemas import UserInternalUpdate
+from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_password_hash
 
@@ -25,7 +27,7 @@ async def reset_super_admin_password():
 
     try:
         # Find super admin
-        admin = await user_repository.findOne({"role": "super_admin"})
+        admin = await user_repository.findOne(UserFilter(role="super_admin"))
 
         if not admin:
             print("=" * 60)
@@ -37,14 +39,14 @@ async def reset_super_admin_password():
         print("=" * 60)
         print("Resetting Super Admin Password")
         print("=" * 60)
-        print(f"Current Email: {admin.get('email')}")
+        print(f"Current Email: {admin.email}")
         print(f"New Password: {password}")
 
         # Hash password using passlib (same as used in verification)
         hashed_password = get_password_hash(password)
 
         # Update password
-        await user_repository.update(admin["_id"], {"password": hashed_password, "email": email.lower()})
+        await user_repository.update(admin.id, UserInternalUpdate(password=hashed_password, email=email.lower()))
 
         print("\n[OK] Super Admin Password Reset Successfully!")
         print("=" * 60)

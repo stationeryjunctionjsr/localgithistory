@@ -10,7 +10,7 @@ from app.utils.logger import logger
 
 
 class GoogleReviewRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("google_reviews")
         self.url = "https://share.google/6nwo4Mqy2qMRtztbF"
         self.api_key = os.getenv("GOOGLE_MAPS_API_KEY")
@@ -23,7 +23,7 @@ class GoogleReviewRepository:
 
         return Google_reviewsInternal(rating=0.0, reviewCount="0", lastUpdated="", method="")
 
-    async def fetch_via_api(self) -> Google_reviewsInternalCreate:
+    async def fetch_via_api(self) -> Optional[Google_reviewsInternalCreate]:
         if not self.api_key:
             return None
 
@@ -129,7 +129,7 @@ class GoogleReviewRepository:
             logger.error(f"Error fetching Google reviews: {str(e)}", exc_info=True)
             raise e
 
-    async def _update_storage(self, new_data: Google_reviewsInternalCreate):
+    async def _update_storage(self, new_data: Google_reviewsInternalCreate) -> None:
         existing = await self.storage.findAll()
         if existing:
             update_data = Google_reviewsInternalUpdate(

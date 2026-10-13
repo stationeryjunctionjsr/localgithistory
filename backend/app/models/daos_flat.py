@@ -139,7 +139,7 @@ class DeviceKeyInternal(FlatCamelBaseModel):
 
 class DeviceSubscriptionInternal(FlatCamelBaseModel):
     id: Optional[int] = None
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
@@ -147,13 +147,13 @@ class DeviceSubscriptionInternal(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class DeviceSubscriptionInternalCreate(FlatCamelBaseModel):
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
 
 class DeviceSubscriptionInternalUpdate(FlatCamelBaseModel):
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None

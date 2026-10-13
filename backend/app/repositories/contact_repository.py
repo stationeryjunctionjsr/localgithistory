@@ -4,7 +4,7 @@ from app.db.storage_factory import get_storage
 from app.models.daos_flat import ContactInternal, ContactInternalCreate, ContactInternalUpdate
 
 class ContactRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("contacts")
 
     async def findAll(self, is_active: Optional[bool] = None) -> List[ContactInternal]:
@@ -33,7 +33,7 @@ class ContactRepository:
 
         return await self.storage.create(contact_data)
 
-    async def update(self, id: str, update_data: ContactInternalUpdate) -> ContactInternal:
+    async def update(self, id: str, update_data: ContactInternalUpdate) -> Optional[ContactInternal]:
         # If email is explicitly None, set to empty string
         if update_data.email is None:
             # We preserve None meaning "don't update" in update_data, but here it seems they wanted to clear it

@@ -24,7 +24,7 @@ class TieredChargeResult(CamelBaseModel):
 
 
 class DeliveryChargeRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("deliveryCharges")
         self.default_storage = get_storage("deliveryChargeDefaults")
         self.zone_storage = get_storage("deliveryZones")
@@ -35,10 +35,10 @@ class DeliveryChargeRepository:
     async def findById(self, id: int) -> Optional[DeliveryChargeInternal]:
         return await self.storage.findById(id)
 
-    async def findByLocation(self, state: str, city: str, district: str):
+    async def findByLocation(self, state: str, city: str, district: str) -> Optional[DeliveryChargeInternal]:
         return await self.storage.findByLocation(state=state, district=district, city=city)
 
-    async def findByPincode(self, pincode: str):
+    async def findByPincode(self, pincode: str) -> Optional[DeliveryChargeInternal]:
         """Find pincode-specific charge"""
         return await self.storage.findByPincode(pincode)
 

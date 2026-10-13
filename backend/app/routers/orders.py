@@ -463,7 +463,7 @@ async def update_order_status(
 
         # ── Pickup gate: for multi-seller orders, ALL sub-orders must be picked up ──
         # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
-        all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
+        all_sub_orders = await sub_order_repository.findByParentOrder(order.id)
         if all_sub_orders:
             not_picked_up = [
                 so.sub_order_number or so.id
@@ -539,7 +539,7 @@ async def update_order_status(
                 new_payment = await payment_repository.create(
                     PaymentInternalCreate(
                         order_id=order.id,
-                        user_id=user.user_id if user else None,
+                        user_id=user.id if user else None,
                         customer_name=user.name if user else "Unknown",
                         order_date=order.created_at if type(order.created_at) is str else str(order.created_at),
                         payment_method="cod",
@@ -1103,7 +1103,7 @@ async def valet_response(
 
         # ── Multi-seller: propagate assignedValet to all sub-orders, notify each seller ──
         # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
-        sub_orders_for_order = await sub_order_repository.findByParentOrder(order_id)
+        sub_orders_for_order = await sub_order_repository.findByParentOrder(order.id)
         if sub_orders_for_order:
             notified_sellers: set = set()
             for _so in sub_orders_for_order:
@@ -1303,7 +1303,7 @@ async def confirm_sub_order_pickup(
     await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(pickupStatus="picked_up"))
 
     # Re-fetch all sibling sub-orders to check if ALL pickups are done
-    all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
+    all_sub_orders = await sub_order_repository.findByParentOrder(order.id)
     remaining = [s for s in all_sub_orders if s.pickup_status != "picked_up"]
 
     # now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"  # was a dangling no-op after find-and-replace stripped the assignment; unused in this block
@@ -1615,7 +1615,7 @@ async def update_seller_order_status(
     if parent_id:
         parent = await order_repository.findById(parent_id)
         if parent:
-            _sub_orders = await sub_order_repository.findByParentOrder(parent_id)
+            _sub_orders = await sub_order_repository.findByParentOrder(parent.id)
             if _sub_orders:
                 _f_status = await _compute_fulfillment_status([so.id for so in _sub_orders])
             if _f_status:

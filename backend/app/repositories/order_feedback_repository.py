@@ -4,7 +4,7 @@ from app.db.storage_factory import get_storage
 from app.models.daos_flat import OrderFeedbackInternal, OrderFeedbackInternalCreate, OrderFeedbackInternalUpdate
 
 class OrderFeedbackRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("orderFeedback")
 
     async def findAll(self) -> List[OrderFeedbackInternal]:
@@ -34,7 +34,7 @@ class OrderFeedbackRepository:
 
         return await self.storage.create(feedback_data)
 
-    async def update(self, id: int, update_data: OrderFeedbackInternalUpdate) -> OrderFeedbackInternal:
+    async def update(self, id: int, update_data: OrderFeedbackInternalUpdate) -> Optional[OrderFeedbackInternal]:
         if update_data.rating is not None:
             update_data.rating = int(update_data.rating)
         if update_data.delivery_rating is not None:

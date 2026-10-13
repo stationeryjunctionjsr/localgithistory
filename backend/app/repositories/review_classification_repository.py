@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class ReviewClassificationRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self._storage = None
         self._initialized = False
 
@@ -24,7 +24,7 @@ class ReviewClassificationRepository:
             self._storage = get_storage("classificationTags")
         return self._storage
 
-    async def ensure_table_exists(self):
+    async def ensure_table_exists(self) -> None:
         if self._initialized:
             return
         self._initialized = True
@@ -64,7 +64,7 @@ class ReviewClassificationRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def _prepopulate_defaults(self):
+    async def _prepopulate_defaults(self) -> None:
         try:
             all_classes = await self.storage.findAll()
             if not all_classes:

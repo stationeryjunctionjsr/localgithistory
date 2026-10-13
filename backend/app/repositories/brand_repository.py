@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class BrandRepository:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage("brands")
 
     async def findAll(
@@ -22,7 +22,7 @@ class BrandRepository:
         items = await self.storage.findAll(is_active=is_active, slug=slug, name=name)
         return sorted(items, key=lambda x: (x.name or "").lower())
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[Brand]:
         return await self.storage.findById(id)
 
     async def findActive(self) -> List[Brand]:

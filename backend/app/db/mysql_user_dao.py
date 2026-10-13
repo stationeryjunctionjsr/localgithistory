@@ -1,5 +1,5 @@
 from typing import Any
-from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse, AddressSnippet
+from app.models.schemas import UserInternalCreate, UserInternalUpdate, AddressSnippet
 from app.models.user import User, UserFilter
 """
 MySQL DAO for sj_users (Fully Relational).
@@ -13,22 +13,14 @@ from app.config.settings import settings
 def _map_to_schema(r, children: Dict) -> User:
     u = User.model_validate(r)
     all_addresses = children.get("addresses", [])
-    u.address = next((a for a in all_addresses if a.get("isPrimary")), None)
-    u.saved_addresses = [a for a in all_addresses if not a.get("isPrimary")]
+    u.address = next((a for a in all_addresses if a.is_primary), None)
+    u.saved_addresses = [a for a in all_addresses if not a.is_primary]
     u.service_area_zones = children.get("zones", [])
     
-    u.user_id = r.id
-    if not u.user_id_formatted and u.user_id:
+    if not u.user_id_formatted and u.id:
         u.user_id_formatted = f"USER-{r.id}"
     
     u.password = r.password_hash
-    
-    pt = r.payment_terms
-    if pt:
-        try:
-            u.payment_terms = int(str(pt).replace("net_", ""))
-        except (ValueError, TypeError):
-            u.payment_terms = None
         
     return u
 
@@ -72,13 +64,7 @@ class MySQLUserDAO:
             where_clauses.append('is_active = :is_active')
             params['is_active'] = 1 if filter_params.is_active else 0
         if filter_params.allowed_ids is not None:
-            allowed_ids = filter_params.allowed_ids
-            id_list = []
-            for aid in allowed_ids:
-                try:
-                    id_list.append(int(aid))
-                except (ValueError, TypeError):
-                    continue
+            id_list = [aid for aid in filter_params.allowed_ids if aid is not None]
             if not id_list:
                 where_clauses.append('1=0')
             else:
@@ -104,10 +90,27 @@ class MySQLUserDAO:
             placeholders = ', '.join([f':{k}' for k in chunk_params.keys()])
             res = await session.execute(text(f'SELECT user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code FROM sj_user_addresses WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
-                children_map[r.user_id]['addresses'].append({'isPrimary': bool(r.is_primary), 'street': r.street, 'city': r.city, 'state': r.state, 'pincode': r.pincode, 'phone': r.phone, 'district': r.district, 'country': r.country, 'googleLocation': r.google_location, 'latitude': float(r.latitude) if r.latitude is not None else None, 'longitude': float(r.longitude) if r.longitude is not None else None})
+                children_map[r.user_id]['addresses'].append(
+                    AddressSnippet(
+                        is_primary=bool(r.is_primary),
+                        street=r.street,
+                        city=r.city,
+                        state=r.state,
+                        pincode=r.pincode,
+                        phone=r.phone,
+                        district=r.district,
+                        country=r.country,
+                        google_location=r.google_location,
+                        latitude=float(r.latitude) if r.latitude is not None else None,
+                        longitude=float(r.longitude) if r.longitude is not None else None,
+                        address=r.address_text,
+                        zip_code=r.zip_code,
+                    )
+                )
             res = await session.execute(text(f'SELECT user_id, zone_name, zone_id FROM sj_seller_zones WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
-                children_map[r.user_id]['zones'].append(r.zone_name)
+                if r.zone_id is not None:
+                    children_map[r.user_id]['zones'].append(r.zone_id)
         return children_map
 
     async def _replace_children(self, session, uid: int, data: User):
@@ -116,59 +119,47 @@ class MySQLUserDAO:
         address = data.address
         saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
         if address:
-            addr_obj = AddressSnippet.model_validate(address)
             params = {
                 'uid': uid,
-                'st': addr_obj.street,
-                'c': addr_obj.city,
-                's': addr_obj.state,
-                'p': addr_obj.pincode,
-                'ph': addr_obj.phone,
-                'd': addr_obj.district,
-                'co': addr_obj.country,
-                'gl': addr_obj.google_location,
-                'lat': addr_obj.latitude,
-                'lon': addr_obj.longitude,
-                'at': addr_obj.address,
-                'zc': addr_obj.zip_code,
+                'st': address.street,
+                'c': address.city,
+                's': address.state,
+                'p': address.pincode,
+                'ph': address.phone,
+                'd': address.district,
+                'co': address.country,
+                'gl': address.google_location,
+                'lat': address.latitude,
+                'lon': address.longitude,
+                'at': address.address,
+                'zc': address.zip_code,
             }
-            try:
-                await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), params)
-            except Exception as e:
-                import traceback
-                print("CRASH ON ADDRESS PARAMS:", params)
-                traceback.print_exc()
-                raise e
+            await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), params)
         for a in saved_addresses:
             if a != address:
-                a_obj = AddressSnippet.model_validate(a)
                 a_params = {
                     'uid': uid,
-                    'st': a_obj.street,
-                    'c': a_obj.city,
-                    's': a_obj.state,
-                    'p': a_obj.pincode,
-                    'ph': a_obj.phone,
-                    'd': a_obj.district,
-                    'co': a_obj.country,
-                    'gl': a_obj.google_location,
-                    'lat': a_obj.latitude,
-                    'lon': a_obj.longitude,
-                    'at': a_obj.address,
-                    'zc': a_obj.zip_code,
+                    'st': a.street,
+                    'c': a.city,
+                    's': a.state,
+                    'p': a.pincode,
+                    'ph': a.phone,
+                    'd': a.district,
+                    'co': a.country,
+                    'gl': a.google_location,
+                    'lat': a.latitude,
+                    'lon': a.longitude,
+                    'at': a.address,
+                    'zc': a.zip_code,
                 }
                 await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), a_params)
         for zone_id in data.service_area_zones if data.service_area_zones is not None else []:
-            zid = None
-            if zone_id is not None:
-                try:
-                    zid = int(zone_id)
-                except (ValueError, TypeError):
-                    zid = None
-            name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE id = :zid LIMIT 1'), {'zid': zid})
+            if zone_id is None:
+                continue
+            name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE id = :zid LIMIT 1'), {'zid': zone_id})
             name_row = name_res.fetchone()
             zone_name = name_row.name if name_row else str(zone_id)
-            await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': str(zone_id)})
+            await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': zone_id})
 
     async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[User]:
         factory = self._factory()
@@ -179,18 +170,15 @@ class MySQLUserDAO:
             try:
                 query_str = f'\n                SELECT id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
                 if limit is not None:
-                    query_str += f' LIMIT {int(limit)}'
+                    query_str += f' LIMIT {limit}'
                 if skip is not None:
-                    query_str += f' OFFSET {int(skip)}'
+                    query_str += f' OFFSET {skip}'
                 rows = (await session.execute(text(query_str), params)).fetchall()
-                children_map = await self._fetch_children(session, [int(r.id) for r in rows])
+                children_map = await self._fetch_children(session, [r.id for r in rows])
             except Exception as e:
                 await session.rollback()
                 raise e
-        from app.models.user import User
-        records = [UserResponse.model_validate(_map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
-        pass
-        return records
+        return [_map_to_schema(r, children_map.get(r.id, {})) for r in rows]
 
     async def findSuperAdmin(self) -> Optional[User]:
         records = await self.findAll(UserFilter(role="super_admin"), limit=1)
@@ -230,16 +218,8 @@ class MySQLUserDAO:
         factory = self._factory()
         if not factory:
             return []
-        id_ints = []
-        for i in ids:
-            try:
-                id_ints.append(int(i))
-            except (ValueError, TypeError):
-                continue
-        if not id_ints:
-            return []
-        placeholders = [f":id_int_{idx}" for idx in range(len(id_ints))]
-        params = {f"id_int_{idx}": val for idx, val in enumerate(id_ints)}
+        placeholders = [f":id_{idx}" for idx in range(len(ids))]
+        params = {f"id_{idx}": val for idx, val in enumerate(ids)}
         where_sql = f"id IN ({', '.join(placeholders)})"
         async with factory() as session:
             try:
@@ -262,8 +242,8 @@ class MySQLUserDAO:
                 ).fetchall()
                 if not rows:
                     return []
-                children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-                return [_map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+                children_map = await self._fetch_children(session, [r.id for r in rows])
+                return [_map_to_schema(r, children_map.get(r.id, {})) for r in rows]
             except Exception:
                 await session.rollback()
                 raise
@@ -286,11 +266,11 @@ class MySQLUserDAO:
             """), {'email': email.lower()})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [int(row.id)])
+                children_map = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[int(row.id)])
+        return _map_to_schema(row, children_map[row.id])
 
     async def findByPhone(self, phone: str) -> Optional[User]:
         factory = self._factory()
@@ -313,11 +293,11 @@ class MySQLUserDAO:
             """), {'phone': phone, 'normalized': normalized})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [int(row.id)])
+                children_map = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[int(row.id)])
+        return _map_to_schema(row, children_map[row.id])
 
     async def findByReferralCode(self, referral_code: str) -> Optional[User]:
         factory = self._factory()
@@ -337,11 +317,11 @@ class MySQLUserDAO:
             """), {'referral_code': referral_code.upper()})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [int(row.id)])
+                children_map = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[int(row.id)])
+        return _map_to_schema(row, children_map[row.id])
 
     async def getNextUserId(self) -> int:
         factory = self._factory()
@@ -349,7 +329,7 @@ class MySQLUserDAO:
             return 1
         async with factory() as session:
             val = (await session.execute(text(f"SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}"))).scalar()
-            return int(val or 1)
+            return val or 1
 
     async def create(self, data: UserInternalCreate) -> User:
         now = datetime.now(timezone.utc)
@@ -376,10 +356,10 @@ class MySQLUserDAO:
                     :bank_account_number, :bank_ifsc_code, :bank_account_holder, :bank_name,
                     :created_at, :updated_at
                 )
-            """), {'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.company_name, 'gst_number': data.gstin, 'is_active': 1 if (data.is_active if data.is_active is not None else True) else 0, 'approval_status': data.approval_status if data.approval_status is not None else 'approved', 'is_deactivated': 1 if data.is_deactivated else 0, 'credit_limit': data.credit_limit if data.credit_limit is not None else 0, 'credit_used': data.credit_used if data.credit_used is not None else 0, 'payment_terms': str(data.payment_terms if data.payment_terms is not None else '30'), 'assigned_salesperson': data.assigned_salesperson, 'is_email_verified': 1 if (data.is_email_verified if data.is_email_verified is not None else False) else 0, 'referral_code': data.referral_code, 'is_seller_admin': 1 if data.is_seller_admin else 0, 'is_on_duty': 1 if data.is_on_duty else 0, 'commission_override_pct': data.commission_override_pct, 'upi_id': data.upi_id, 'qr_code_url': data.qr_code_url, 'bank_account_number': data.bank_account_number, 'bank_ifsc_code': data.bank_ifsc_code, 'bank_account_holder': data.bank_account_holder, 'bank_name': data.bank_name, 'created_at': now, 'updated_at': now})
+            """), {'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.company_name, 'gst_number': data.gstin, 'is_active': 1 if (data.is_active if data.is_active is not None else True) else 0, 'approval_status': data.approval_status if data.approval_status is not None else 'approved', 'is_deactivated': 1 if data.is_deactivated else 0, 'credit_limit': data.credit_limit if data.credit_limit is not None else 0, 'credit_used': data.credit_used if data.credit_used is not None else 0, 'payment_terms': data.payment_terms if data.payment_terms is not None else 30, 'assigned_salesperson': data.assigned_salesperson, 'is_email_verified': 1 if (data.is_email_verified if data.is_email_verified is not None else False) else 0, 'referral_code': data.referral_code, 'is_seller_admin': 1 if data.is_seller_admin else 0, 'is_on_duty': 1 if data.is_on_duty else 0, 'commission_override_pct': data.commission_override_pct, 'upi_id': data.upi_id, 'qr_code_url': data.qr_code_url, 'bank_account_number': data.bank_account_number, 'bank_ifsc_code': data.bank_ifsc_code, 'bank_account_holder': data.bank_account_holder, 'bank_name': data.bank_name, 'created_at': now, 'updated_at': now})
                 new_id = result.lastrowid
                 temp_user = User(
-                    user_id=new_id,
+                    id=new_id,
                     user_id_formatted=user_id_formatted,
                     name=data.name,
                     email=data.email,
@@ -387,7 +367,7 @@ class MySQLUserDAO:
                     role=data.role,
                     phone=data.phone,
                     company_name=data.company_name,
-                    gstin=data.gstin,
+                    gst_number=data.gstin,
                     address=data.address,
                     saved_addresses=data.saved_addresses if data.saved_addresses else [],
                     is_active=data.is_active if data.is_active is not None else True,
@@ -490,7 +470,7 @@ class MySQLUserDAO:
                         updated_at = :updated_at
                     WHERE id = :id_int
                 '''), {
-                    'id_int': int(existing.user_id),
+                    'id_int': existing.id,
                     'name': name,
                     'email': email,
                     'password_hash': password_hash,
@@ -503,7 +483,7 @@ class MySQLUserDAO:
                     'is_deactivated': 1 if is_deactivated else 0,
                     'credit_limit': credit_limit if credit_limit is not None else 0,
                     'credit_used': credit_used if credit_used is not None else 0,
-                    'payment_terms': str(payment_terms) if payment_terms is not None else None,
+                    'payment_terms': payment_terms,
                     'assigned_salesperson': assigned_salesperson,
                     'is_email_verified': 1 if is_email_verified else 0,
                     'referral_code': referral_code,
@@ -519,7 +499,7 @@ class MySQLUserDAO:
                     'updated_at': now
                 })
             
-                child_keys = ['address', 'savedAddresses', 'serviceAreaZones']
+                child_keys = ['address', 'saved_addresses', 'service_area_zones']
                 has_child_updates = False
                 for k in child_keys:
                     if k in update_data.model_fields_set:
@@ -534,7 +514,7 @@ class MySQLUserDAO:
                     if "service_area_zones" in fields_set:
                         existing.service_area_zones = update_data.service_area_zones
                             
-                    await self._replace_children(session, existing.user_id, existing)
+                    await self._replace_children(session, existing.id, existing)
                 
                 await session.commit()
             except Exception as e:
