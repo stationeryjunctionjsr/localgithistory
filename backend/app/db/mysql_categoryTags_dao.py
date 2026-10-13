@@ -48,12 +48,13 @@ class MySQLCategoryTagsDAO:
             if count_rows:
                 for c in count_rows:
                     if c.tag == r.name:
-                        category_count = int(c.cnt)
+                        category_count = c.cnt or 0
                         break
             if cat_col_rows:
                 for c in cat_col_rows:
-                    if c.category_tag == r.name and int(c.cnt) > category_count:
-                        category_count = int(c.cnt)
+                    cnt = c.cnt or 0
+                    if c.category_tag == r.name and cnt > category_count:
+                        category_count = cnt
                         break
         return CategoryTagInternal(
             id=r.id,

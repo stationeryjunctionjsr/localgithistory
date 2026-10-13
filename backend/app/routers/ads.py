@@ -99,7 +99,7 @@ async def track_ad_event(
         type=event_type,
         user_id=current_user.id if current_user else None,
         filter_name="campaign",
-        filter_value=ad_id,
+        filter_value=ad.name,
         payload=AnalyticsEventPayload(source="ad"),
     )
     await events_storage.create(event_payload)

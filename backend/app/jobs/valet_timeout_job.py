@@ -130,7 +130,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
         return None
     sys_storage = get_storage('systemSettings')
     sys_settings = await sys_storage.findById(1)
-    global_max = int(sys_settings.max_concurrent_orders or 1) if sys_settings else 1
+    global_max = (sys_settings.max_concurrent_orders or 1) if sys_settings else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     available_valet_ids = [str(v.id) for v in available_valets]
     active_orders = await order_repository.findAll(OrderFilter(statuses=BUSY_STATUSES))
@@ -139,7 +139,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
     for v in available_valets:
         vid = str(v.id)
         active_count = sum(1 for o in all_active_orders if str(o.assigned_valet or '') == vid)
-        max_concurrent = int(v.max_concurrent_orders or global_max)
+        max_concurrent = v.max_concurrent_orders or global_max
         if active_count < max_concurrent:
             scored.append((active_count, v))
     if not scored:
@@ -232,7 +232,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
         return None
     sys_storage = get_storage('systemSettings')
     sys_settings = await sys_storage.findById(1)
-    global_max = int(sys_settings.max_concurrent_orders or 1) if sys_settings else 1
+    global_max = (sys_settings.max_concurrent_orders or 1) if sys_settings else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     ACTIVE_RETURN_STATUSES = ['pending_valet', 'assigned']
     available_valet_ids = [str(v.id) for v in available_valets]
@@ -251,7 +251,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
             for r in all_active_returns
         )
         total_active_load = order_load + return_load
-        max_concurrent = int(v.max_concurrent_orders or global_max)
+        max_concurrent = v.max_concurrent_orders or global_max
         if total_active_load < max_concurrent:
             scored.append((total_active_load, v))
     if not scored:
