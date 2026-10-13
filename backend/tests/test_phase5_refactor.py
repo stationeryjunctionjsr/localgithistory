@@ -839,3 +839,142 @@ async def test_group_a_daos_targeted_dynamic_updates_and_zero_dict():
     assert params["category"] == "Packaging"
 
 
+@pytest.mark.asyncio
+async def test_group_b_daos_targeted_dynamic_updates_and_zero_dict():
+    import app.db.mysql_productReviews_dao as prod_reviews_dao_mod
+    import app.db.mysql_productNotifications_dao as prod_notifs_dao_mod
+    import app.db.mysql_stockReservations_dao as stock_res_dao_mod
+    import app.db.mysql_bundle_dao as bundle_dao_mod
+    import app.db.mysql_supportTickets_dao as support_tickets_dao_mod
+    import app.repositories.product_review_repository as prod_review_repo_mod
+    import app.repositories.product_notification_repository as prod_notif_repo_mod
+    import app.repositories.stock_reservation_repository as stock_res_repo_mod
+
+    from app.models.daos_flat import (
+        ProductReviewsInternalUpdate,
+        ProductNotificationsInternalUpdate,
+        StockReservationsInternalUpdate,
+        SupportTicketInternalUpdate,
+    )
+    from app.models.daos import BundleInternalUpdate
+
+    # 1. AST Check: Zero reflection calls, zero dict in signatures, zero isdigit, zero _to_int
+    modules_to_check = [
+        prod_reviews_dao_mod,
+        prod_notifs_dao_mod,
+        stock_res_dao_mod,
+        bundle_dao_mod,
+        support_tickets_dao_mod,
+        prod_review_repo_mod,
+        prod_notif_repo_mod,
+        stock_res_repo_mod,
+    ]
+    for mod in modules_to_check:
+        src = inspect.getsource(mod)
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "hasattr"}:
+                assert False, f"Found reflection call {node.func.id} in {mod.__name__}"
+            if isinstance(node, ast.FunctionDef):
+                for arg in node.args.args:
+                    if arg.annotation and isinstance(arg.annotation, ast.Name):
+                        assert arg.annotation.id not in {"dict", "Dict"}, f"Found dict/Dict parameter in {mod.__name__}.{node.name}"
+
+        assert "isdigit" not in src, f"Found isdigit in {mod.__name__}"
+        assert "_to_int" not in src, f"Found _to_int in {mod.__name__}"
+
+    # Helper for DB mock
+    def setup_mock_db():
+        executed = []
+        mock_session = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.rowcount = 1
+
+        async def fake_exec(stmt, p=None):
+            executed.append((str(stmt), p or {}))
+            return mock_res
+
+        mock_session.execute = fake_exec
+        mock_session.commit = AsyncMock()
+
+        class MockCtx:
+            async def __aenter__(self):
+                return mock_session
+            async def __aexit__(self, *args):
+                pass
+
+        return executed, lambda: MockCtx()
+
+    # 2. Test MySQLProductReviewsDAO targeted dynamic update
+    pr_dao = prod_reviews_dao_mod.MySQLProductReviewsDAO()
+    pr_exec, pr_factory = setup_mock_db()
+    pr_dao._factory = MagicMock(return_value=pr_factory)
+    pr_dao.findById = AsyncMock(return_value=MagicMock())
+    await pr_dao.update(100, ProductReviewsInternalUpdate(status="approved"))
+    assert len(pr_exec) == 1
+    sql, params = pr_exec[0]
+    assert "status = :status" in sql
+    assert "rating = :rating" not in sql
+    assert "product_id = :productId" not in sql
+    assert "user_id = :userId" not in sql
+    assert params["id"] == 100
+    assert params["status"] == "approved"
+
+    # 3. Test MySQLProductNotificationsDAO targeted dynamic update
+    pn_dao = prod_notifs_dao_mod.MySQLProductNotificationsDAO()
+    pn_exec, pn_factory = setup_mock_db()
+    pn_dao._factory = MagicMock(return_value=pn_factory)
+    pn_dao.findById = AsyncMock(return_value=MagicMock())
+    await pn_dao.update(200, ProductNotificationsInternalUpdate(status="notified"))
+    assert len(pn_exec) == 1
+    sql, params = pn_exec[0]
+    assert "status = :status" in sql
+    assert "email = :email" not in sql
+    assert "product_id = :productId" not in sql
+    assert params["id"] == 200
+    assert params["status"] == "notified"
+
+    # 4. Test MySQLStockReservationsDAO targeted dynamic update
+    sr_dao = stock_res_dao_mod.MySQLStockReservationsDAO()
+    sr_exec, sr_factory = setup_mock_db()
+    sr_dao._factory = MagicMock(return_value=sr_factory)
+    sr_dao.findById = AsyncMock(return_value=MagicMock())
+    await sr_dao.update(300, StockReservationsInternalUpdate(status="released"))
+    assert len(sr_exec) == 1
+    sql, params = sr_exec[0]
+    assert "status = :status" in sql
+    assert "quantity = :quantity" not in sql
+    assert "product_id = :productId" not in sql
+    assert params["id"] == 300
+    assert params["status"] == "released"
+
+    # 5. Test MySQLBundleDAO targeted dynamic update
+    b_dao = bundle_dao_mod.MySQLBundleDAO()
+    b_exec, b_factory = setup_mock_db()
+    b_dao._factory = MagicMock(return_value=b_factory)
+    b_dao.findById = AsyncMock(return_value=MagicMock())
+    await b_dao.update(400, BundleInternalUpdate(price=99.99))
+    assert len(b_exec) == 1
+    sql, params = b_exec[0]
+    assert "price = :price" in sql
+    assert "name = :name" not in sql
+    assert "discount_percentage = :dp" not in sql
+    assert params["id"] == 400
+    assert params["price"] == 99.99
+
+    # 6. Test MySQLSupportTicketsDAO targeted dynamic update
+    st_dao = support_tickets_dao_mod.MySQLSupportTicketsDAO()
+    st_exec, st_factory = setup_mock_db()
+    st_dao._factory = MagicMock(return_value=st_factory)
+    st_dao.findById = AsyncMock(return_value=MagicMock())
+    await st_dao.update(500, SupportTicketInternalUpdate(status="resolved"))
+    assert len(st_exec) == 1
+    sql, params = st_exec[0]
+    assert "status = :s_status" in sql
+    assert "priority = :s_priority" not in sql
+    assert "ticket_number = :s_ticket_number" not in sql
+    assert params["id"] == 500
+    assert params["s_status"] == "resolved"
+
+
+

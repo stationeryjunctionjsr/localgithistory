@@ -65,7 +65,7 @@ class StockReservationRepository:
     async def get_user_reservations(self, user_id: str) -> List[StockReservation]:
         """Returns all active, non-expired reservations for a user."""
         await self.ensure_table_exists()
-        all_res = await self.storage.findAll({"userId": str(user_id), "status": "active"})
+        all_res = await self.storage.findAll(user_id=str(user_id), status="active")
 
         active_res = []
         now = datetime.now(timezone.utc)
@@ -108,44 +108,44 @@ class StockReservationRepository:
     async def release_user_reservations(self, user_id: str, product_id: Optional[str] = None) -> None:
         """Marks active reservations for a user as released."""
         await self.ensure_table_exists()
-        query = {"userId": str(user_id), "status": "active"}
-        if product_id:
-            query["productId"] = str(product_id)
-
-        active_res = await self.storage.findAll(query)
+        active_res = await self.storage.findAll(
+            user_id=str(user_id),
+            status="active",
+            product_id=str(product_id) if product_id else None,
+        )
         for res in active_res:
-            await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="released"))
+            await self.storage.update(res.id, StockReservationsInternalUpdate(status="released"))
             logger.info("Released stock reservation %s for user %s", res.id, user_id)
 
     async def fulfill_user_reservations(self, user_id: str, product_id: Optional[str] = None) -> None:
         """Marks active reservations for a user as fulfilled (order placed)."""
         await self.ensure_table_exists()
-        query = {"userId": str(user_id), "status": "active"}
-        if product_id:
-            query["productId"] = str(product_id)
-
-        active_res = await self.storage.findAll(query)
+        active_res = await self.storage.findAll(
+            user_id=str(user_id),
+            status="active",
+            product_id=str(product_id) if product_id else None,
+        )
         now = datetime.now(timezone.utc)
 
         for res in active_res:
             # Only fulfill if not already expired
             if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
-                await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="fulfilled"))
+                await self.storage.update(res.id, StockReservationsInternalUpdate(status="fulfilled"))
                 logger.info("Fulfilled stock reservation %s for user %s", res.id, user_id)
             else:
-                await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="expired"))
+                await self.storage.update(res.id, StockReservationsInternalUpdate(status="expired"))
 
     async def cleanup_expired(self) -> None:
         """Finds and marks all expired reservations as 'expired'."""
         await self.ensure_table_exists()
-        active_res = await self.storage.findAll({"status": "active"})
+        active_res = await self.storage.findAll(status="active")
 
         now = datetime.now(timezone.utc)
         expired_count = 0
 
         for res in active_res:
             if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) <= now:
-                await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="expired"))
+                await self.storage.update(res.id, StockReservationsInternalUpdate(status="expired"))
                 expired_count += 1
 
         if expired_count > 0:

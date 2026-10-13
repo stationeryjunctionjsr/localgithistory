@@ -8,8 +8,13 @@ from app.models.schemas import BundleResponse, BundleItemResponse
 class MySQLBundleDAO:
     TABLE = "sj_bundles"
 
+    def _factory(self):
+        return get_async_session_factory()
+
     async def _fetch_products(self, bundle_id: int) -> List[BundleItemResponse]:
-        async_session = get_async_session_factory()
+        async_session = self._factory()
+        if not async_session:
+            return []
         async with async_session() as session:
             result = await session.execute(
                 text("SELECT product_id, quantity FROM sj_bundle_products WHERE bundle_id = :b_id"), {"b_id": bundle_id}
@@ -17,7 +22,9 @@ class MySQLBundleDAO:
             return [BundleItemResponse(productId=row.product_id, quantity=row.quantity) for row in result.all()]
 
     async def _save_products(self, bundle_id: int, products: List[BundleItemInternal]):
-        async_session = get_async_session_factory()
+        async_session = self._factory()
+        if not async_session:
+            return
         async with async_session() as session:
             await session.execute(text("DELETE FROM sj_bundle_products WHERE bundle_id = :b_id"), {"b_id": bundle_id})
             if products:
@@ -50,7 +57,11 @@ class MySQLBundleDAO:
         )
 
     async def findById(self, id: int) -> Optional[BundleResponse]:
-        SessionLocal = get_async_session_factory()
+        if not id:
+            return None
+        SessionLocal = self._factory()
+        if not SessionLocal:
+            return None
         async with SessionLocal() as session:
             res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE id = :id"), {"id": id})
             row = res.fetchone()
@@ -59,13 +70,17 @@ class MySQLBundleDAO:
             return await self._map_row(row)
 
     async def findAll(self) -> List[BundleResponse]:
-        SessionLocal = get_async_session_factory()
+        SessionLocal = self._factory()
+        if not SessionLocal:
+            return []
         async with SessionLocal() as session:
             res = await session.execute(text(f"SELECT * FROM {self.TABLE}"))
             return [await self._map_row(row) for row in res.fetchall()]
 
-    async def create(self, data: BundleInternalCreate) -> BundleResponse:
-        SessionLocal = get_async_session_factory()
+    async def create(self, data: BundleInternalCreate) -> Optional[BundleResponse]:
+        SessionLocal = self._factory()
+        if not SessionLocal:
+            return None
         now = now_utc()
         
         async with SessionLocal() as session:
@@ -89,50 +104,53 @@ class MySQLBundleDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: BundleInternalUpdate) -> Optional[BundleResponse]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
-            
-        SessionLocal = get_async_session_factory()
+        SessionLocal = self._factory()
+        if not SessionLocal:
+            return None
         now = now_utc()
         
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
         
-        if update_data.name is not None:
+        if "name" in update_data.model_fields_set:
             updates.append("name = :name")
             params["name"] = update_data.name
             
-        if update_data.description is not None:
+        if "description" in update_data.model_fields_set:
             updates.append("description = :desc")
             params["desc"] = update_data.description
             
-        if update_data.price is not None:
+        if "price" in update_data.model_fields_set:
             updates.append("price = :price")
             params["price"] = update_data.price
             
-        if update_data.discount_percentage is not None:
+        if "discount_percentage" in update_data.model_fields_set:
             updates.append("discount_percentage = :dp")
             params["dp"] = update_data.discount_percentage
             
-        if update_data.is_active is not None:
+        if "is_active" in update_data.model_fields_set:
             updates.append("is_active = :ia")
             params["ia"] = 1 if update_data.is_active else 0
             
-        if update_data.sales_count is not None:
+        if "sales_count" in update_data.model_fields_set:
             updates.append("sales_count = :sc")
             params["sc"] = update_data.sales_count
             
         async with SessionLocal() as session:
-            await session.execute(
-                text(f"UPDATE {self.TABLE} SET {','.join(updates)} WHERE id = :id"),
+            res = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {', '.join(updates)} WHERE id = :id"),
                 params
             )
             await session.commit()
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
             
-        items = update_data.items
-        if items is not None:
-            await self._save_products(id, items)
+        if "items" in update_data.model_fields_set and update_data.items is not None:
+            await self._save_products(id, update_data.items)
             
         return await self.findById(id)
 
@@ -143,7 +161,11 @@ class MySQLBundleDAO:
         return all_bundles[0] if all_bundles else None
 
     async def delete(self, id: int) -> bool:
-        SessionLocal = get_async_session_factory()
+        if not id:
+            return False
+        SessionLocal = self._factory()
+        if not SessionLocal:
+            return False
         async with SessionLocal() as session:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()

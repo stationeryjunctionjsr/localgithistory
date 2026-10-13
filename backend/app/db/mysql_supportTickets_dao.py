@@ -168,81 +168,83 @@ class MySQLSupportTicketsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: 'SupportTicketInternalUpdate') -> Optional['SupportTicketInternal']:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
-        data = update_data
         factory = self._factory()
+        if not factory:
+            return None
+
+        data = update_data
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.ticket_number is not None:
+        if "ticket_number" in data.model_fields_set:
             updates.append("ticket_number = :s_ticket_number")
             params["s_ticket_number"] = data.ticket_number
 
-        if data.user is not None:
+        if "user" in data.model_fields_set:
             updates.append("user_id = :s_user")
             params["s_user"] = data.user
 
-        if data.name is not None:
+        if "name" in data.model_fields_set:
             updates.append("name = :s_name")
             params["s_name"] = data.name
 
-        if data.email is not None:
+        if "email" in data.model_fields_set:
             updates.append("email = :s_email")
             params["s_email"] = data.email
 
-        if data.phone is not None:
+        if "phone" in data.model_fields_set:
             updates.append("phone = :s_phone")
             params["s_phone"] = data.phone
 
-        if data.company is not None:
+        if "company" in data.model_fields_set:
             updates.append("company = :s_company")
             params["s_company"] = data.company
 
-        if data.subject is not None:
+        if "subject" in data.model_fields_set:
             updates.append("subject = :s_subject")
             params["s_subject"] = data.subject
 
-        if data.description is not None:
+        if "description" in data.model_fields_set:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.category is not None:
+        if "category" in data.model_fields_set:
             updates.append("category = :s_category")
             params["s_category"] = data.category
 
-        if data.priority is not None:
+        if "priority" in data.model_fields_set:
             updates.append("priority = :s_priority")
             params["s_priority"] = data.priority
 
-        if data.status is not None:
+        if "status" in data.model_fields_set:
             updates.append("status = :s_status")
             params["s_status"] = data.status
 
-        if data.assigned_to is not None:
+        if "assigned_to" in data.model_fields_set:
             updates.append("assigned_to = :s_assigned_to")
             params["s_assigned_to"] = data.assigned_to
 
-        if data.resolved_at is not None:
+        if "resolved_at" in data.model_fields_set:
             updates.append("resolved_at = :s_resolved_at")
             params["s_resolved_at"] = data.resolved_at
 
-        if data.closed_at is not None:
+        if "closed_at" in data.model_fields_set:
             updates.append("closed_at = :s_closed_at")
             params["s_closed_at"] = data.closed_at
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+        upd_sql = ", ".join(updates)
+        async with factory() as session:
+            res = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            if "attachments" in data.model_fields_set or "responses" in data.model_fields_set:
                 await self._replace_children(session, id, data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, id, data)
-                await session.commit()
-                
+            await session.commit()
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:

@@ -389,7 +389,7 @@ class ProductVariation(CamelBaseModel):
 # Product Schemas
 
 class ProductReviewResponse(CamelBaseModel):
-    id: str
+    id: int
     product_id: str
     user_id: str
     rating: int

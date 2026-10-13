@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_product_reviews with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -12,15 +12,6 @@ from app.models.daos_flat import (
 )
 
 
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
-
-
 class MySQLProductReviewsDAO:
     TABLE = "sj_product_reviews"
 
@@ -29,74 +20,80 @@ class MySQLProductReviewsDAO:
 
     def _map_to_schema(self, row) -> ProductReviewResponse:
         return ProductReviewResponse(
-            id=str(row.id),
+            id=row.id,
             productId=str(row.product_id),
             userId=str(row.user_id),
-            rating=int(row.rating) if row.rating is not None else 0,
+            rating=row.rating or 0,
             reviewText=str(row.review_text) if row.review_text is not None else None,
             status=str(row.status) if row.status is not None else "pending",
             createdAt=row.created_at,
             updatedAt=row.updated_at,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
-        query = query or {}
+    async def findAll(
+        self,
+        product_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        rating: Optional[int] = None,
+        status: Optional[str] = None,
+    ) -> List[ProductReviewResponse]:
+        factory = self._factory()
+        if not factory:
+            return []
         where_clauses = []
         params = {}
-        if "productId" in query or "product_id" in query:
-            p_id = query.get("productId") if "productId" in query else query.get("product_id")
+        if product_id is not None:
             where_clauses.append("product_id = :productId")
-            params["productId"] = str(p_id)
-        if "userId" in query or "user_id" in query:
-            u_id = query.get("userId") if "userId" in query else query.get("user_id")
+            params["productId"] = str(product_id)
+        if user_id is not None:
             where_clauses.append("user_id = :userId")
-            params["userId"] = str(u_id)
-        if "rating" in query:
+            params["userId"] = str(user_id)
+        if rating is not None:
             where_clauses.append("rating = :rating")
-            params["rating"] = _to_int(query["rating"])
-        if "reviewText" in query or "review_text" in query:
-            rt = query.get("reviewText") if "reviewText" in query else query.get("review_text")
-            where_clauses.append("review_text = :reviewText")
-            params["reviewText"] = str(rt)
-        if "status" in query:
+            params["rating"] = rating
+        if status is not None:
             where_clauses.append("status = :status")
-            params["status"] = str(query["status"])
+            params["status"] = str(status)
 
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
                     params,
                 )
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ProductReviewResponse]:
-        if "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
-        records = await self.findAll(query)
+    async def findOne(
+        self,
+        product_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        rating: Optional[int] = None,
+        status: Optional[str] = None,
+    ) -> Optional[ProductReviewResponse]:
+        records = await self.findAll(product_id=product_id, user_id=user_id, rating=rating, status=status)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[ProductReviewResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
         factory = self._factory()
+        if not factory:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: ProductReviewsInternalCreate) -> ProductReviewResponse:
+    async def create(self, data: ProductReviewsInternalCreate) -> Optional[ProductReviewResponse]:
         factory = self._factory()
+        if not factory:
+            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -112,7 +109,7 @@ class MySQLProductReviewsDAO:
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = int(data.rating)
+            params["rating"] = data.rating
         if data.review_text is not None:
             cols.append("review_text")
             vals.append(":reviewText")
@@ -134,51 +131,60 @@ class MySQLProductReviewsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: ProductReviewsInternalUpdate) -> Optional[ProductReviewResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
+        factory = self._factory()
+        if not factory:
             return None
 
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if data.product_id is not None:
+        params = {"id": id, "u": now}
+
+        if "product_id" in data.model_fields_set:
             updates.append("product_id = :productId")
-            params["productId"] = str(data.product_id)
-        if data.user_id is not None:
+            params["productId"] = str(data.product_id) if data.product_id is not None else None
+
+        if "user_id" in data.model_fields_set:
             updates.append("user_id = :userId")
-            params["userId"] = str(data.user_id)
-        if data.rating is not None:
+            params["userId"] = str(data.user_id) if data.user_id is not None else None
+
+        if "rating" in data.model_fields_set:
             updates.append("rating = :rating")
-            params["rating"] = int(data.rating)
-        if data.review_text is not None:
+            params["rating"] = data.rating
+
+        if "review_text" in data.model_fields_set:
             updates.append("review_text = :reviewText")
             params["reviewText"] = data.review_text
-        if data.status is not None:
+
+        if "status" in data.model_fields_set:
             updates.append("status = :status")
             params["status"] = data.status
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(id_val)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

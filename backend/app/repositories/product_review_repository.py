@@ -62,27 +62,33 @@ class ProductReviewRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self, query: Optional[dict] = None) -> List[ProductReviewResponse]:
+    async def findAll(
+        self,
+        product_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        rating: Optional[int] = None,
+        status: Optional[str] = None,
+    ) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll(query)
+        return await self.storage.findAll(product_id=product_id, user_id=user_id, rating=rating, status=status)
 
     async def find_approved_by_product(self, product_id: str) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll({"productId": str(product_id), "status": "approved"})
+        return await self.storage.findAll(product_id=str(product_id), status="approved")
 
-    async def findById(self, id: str) -> Optional[ProductReviewResponse]:
+    async def findById(self, id: int) -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def create(self, data: 'ProductReviewsInternalCreate') -> ProductReviewResponse:
+    async def create(self, data: 'ProductReviewsInternalCreate') -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: 'ProductReviewsInternalUpdate') -> Optional[ProductReviewResponse]:
+    async def update(self, id: int, update_data: 'ProductReviewsInternalUpdate') -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         await self.ensure_table_exists()
         return await self.storage.delete(id)
 

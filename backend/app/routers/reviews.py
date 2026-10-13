@@ -124,10 +124,7 @@ async def get_active_classifications():
 @router.get("/admin/list", response_model=List[ProductReviewResponse])
 async def admin_get_all_reviews(status_filter: Optional[str] = None, current_user: User = Depends(require_super_admin)):
     """Get all reviews in the system, optionally filtered by status (super admin only)."""
-    query = {}
-    if status_filter:
-        query["status"] = status_filter
-    reviews = await product_review_repository.findAll(query)
+    reviews = await product_review_repository.findAll(status=status_filter)
 
     # Sort by creation date descending
     reviews.sort(key=lambda r: (r.created_at or ""), reverse=True)
@@ -135,13 +132,14 @@ async def admin_get_all_reviews(status_filter: Optional[str] = None, current_use
 
 
 @router.post("/admin/{review_id}/approve", response_model=ReviewActionResponse)
-async def admin_approve_review(review_id: str, current_user: User = Depends(require_super_admin)):
+async def admin_approve_review(review_id: int, current_user: User = Depends(require_super_admin)):
     """Approve a product review to make it publicly visible (super admin only)."""
     review = await product_review_repository.findById(review_id)
     if not review:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
 
-    updated = await product_review_repository.update(review_id, {"status": "approved"})
+    from app.models.daos_flat import ProductReviewsInternalUpdate
+    updated = await product_review_repository.update(review_id, ProductReviewsInternalUpdate(status="approved"))
 
     # Recalculate average rating for the product
     try:
@@ -180,7 +178,7 @@ async def admin_approve_review(review_id: str, current_user: User = Depends(requ
 
 
 @router.post("/admin/{review_id}/remove", response_model=ReviewActionResponse)
-async def admin_remove_review(review_id: str, current_user: User = Depends(require_super_admin)):
+async def admin_remove_review(review_id: int, current_user: User = Depends(require_super_admin)):
     """Reject/remove a review so it is hidden from the public (super admin only)."""
     review = await product_review_repository.findById(review_id)
     if not review:
