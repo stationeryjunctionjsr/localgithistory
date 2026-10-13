@@ -20,7 +20,7 @@ class MySQLClassificationTagsDAO:
 
     def _map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(
-            id=str(row.id),
+            id=row.id,
             name=row.name,
             isActive=bool(row.is_active),
             createdAt=row.created_at,

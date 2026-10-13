@@ -399,7 +399,7 @@ class ProductReviewResponse(CamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class ClassificationTagResponse(CamelBaseModel):
-    id: str
+    id: int
     name: str
     is_active: bool
     created_at: Optional[datetime] = None

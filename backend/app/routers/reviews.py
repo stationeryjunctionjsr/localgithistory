@@ -252,7 +252,7 @@ async def admin_update_classification(
         # Check uniqueness
         all_classes = await review_classification_repository.findAll()
         for c in all_classes:
-            if c.id != str(class_id) and (c.name or "").strip().lower() == name.lower():
+            if c.id != class_id and (c.name or "").strip().lower() == name.lower():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Classification name already in use"
                 )
