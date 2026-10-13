@@ -49,11 +49,10 @@ class MySQLBundleDAO:
             items=await self._fetch_products(row.id)
         )
 
-    async def findById(self, id: str) -> Optional[BundleResponse]:
+    async def findById(self, id: int) -> Optional[BundleResponse]:
         SessionLocal = get_async_session_factory()
-        pid = int(id) if str(id).isdigit() else None
         async with SessionLocal() as session:
-            res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE id = :id"), {"id": pid})
+            res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE id = :id"), {"id": id})
             row = res.fetchone()
             if not row:
                 return None
@@ -87,19 +86,18 @@ class MySQLBundleDAO:
             
         items = data.items if data.items else (data.products if data.products else [])
         await self._save_products(new_id, items)
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: BundleInternalUpdate) -> Optional[BundleResponse]:
+    async def update(self, id: int, update_data: BundleInternalUpdate) -> Optional[BundleResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
             
         SessionLocal = get_async_session_factory()
-        pid = int(id) if str(id).isdigit() else None
         now = now_utc()
         
         updates = ["updated_at = :u"]
-        params = {"id": pid, "u": now}
+        params = {"id": id, "u": now}
         
         if update_data.name is not None:
             updates.append("name = :name")
@@ -133,21 +131,20 @@ class MySQLBundleDAO:
             await session.commit()
             
         items = update_data.items
-        if items is not None and pid is not None:
-            await self._save_products(pid, items)
+        if items is not None:
+            await self._save_products(id, items)
             
         return await self.findById(id)
 
-    async def findOne(self, id: Optional[str] = None) -> Optional[BundleResponse]:
-        if id:
+    async def findOne(self, id: Optional[int] = None) -> Optional[BundleResponse]:
+        if id is not None:
             return await self.findById(id)
         all_bundles = await self.findAll()
         return all_bundles[0] if all_bundles else None
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         SessionLocal = get_async_session_factory()
-        pid = int(id) if str(id).isdigit() else None
         async with SessionLocal() as session:
-            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pid})
+            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return res.rowcount > 0

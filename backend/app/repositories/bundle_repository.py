@@ -31,22 +31,21 @@ class BundleRepository:
     async def findAll(self) -> List[BundleResponse]:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional[BundleResponse]:
+    async def findById(self, id: int) -> Optional[BundleResponse]:
         return await self.storage.findById(id)
 
-    async def findOne(self, id: Optional[str] = None) -> Optional[BundleResponse]:
+    async def findOne(self, id: Optional[int] = None) -> Optional[BundleResponse]:
         return await self.storage.findOne(id=id)
 
     async def create(self, data: BundleInternalCreate) -> BundleResponse:
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: BundleInternalUpdate) -> Optional[BundleResponse]:
+    async def update(self, id: int, update_data: BundleInternalUpdate) -> Optional[BundleResponse]:
         await self.ensure_table_exists()
-        update_data.updated_at = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         await self.ensure_table_exists()
         return await self.storage.delete(id)
 

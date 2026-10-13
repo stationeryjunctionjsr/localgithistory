@@ -55,7 +55,7 @@ async def get_segments(type: Optional[str] = None, admin: User = Depends(require
 
 
 @router.get("/{segment_id}", response_model=CustomerSegmentResponse)
-async def get_segment(segment_id: str, admin: User = Depends(require_super_admin)):
+async def get_segment(segment_id: int, admin: User = Depends(require_super_admin)):
     segment = await customer_segments_repository.get_by_id(segment_id)
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
@@ -67,7 +67,6 @@ async def get_segment(segment_id: str, admin: User = Depends(require_super_admin
 async def create_segment(segment: CustomerSegmentCreate, admin: User = Depends(require_super_admin)):
     from app.models.daos import CustomerSegmentInternalCreate
     create_model = CustomerSegmentInternalCreate(
-        id=str(uuid.uuid4()),
         name=segment.name,
         type=segment.type,
         user_ids=segment.userIds,
@@ -79,7 +78,7 @@ async def create_segment(segment: CustomerSegmentCreate, admin: User = Depends(r
 
 
 @router.put("/{segment_id}", response_model=CustomerSegmentResponse)
-async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin: User = Depends(require_super_admin)):
+async def update_segment(segment_id: int, segment: CustomerSegmentUpdate, admin: User = Depends(require_super_admin)):
     existing = await customer_segments_repository.get_by_id(segment_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Segment not found")
@@ -95,7 +94,7 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
 
 
 @router.delete("/{segment_id}", response_model=MessageResponse)
-async def delete_segment(segment_id: str, admin: User = Depends(require_super_admin)):
+async def delete_segment(segment_id: int, admin: User = Depends(require_super_admin)):
     success = await customer_segments_repository.delete(segment_id)
     if not success:
         raise HTTPException(status_code=404, detail="Segment not found")

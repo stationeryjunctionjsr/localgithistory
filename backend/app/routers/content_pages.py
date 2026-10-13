@@ -114,7 +114,7 @@ async def create_faq_section(data: FAQSectionCreate, user: User = Depends(requir
 
 
 @router.put("/faq/{section_id}", response_model=FAQSectionResponse)
-async def update_faq_section(section_id: str, data: FAQSectionUpdate, user: User = Depends(require_super_admin)):
+async def update_faq_section(section_id: int, data: FAQSectionUpdate, user: User = Depends(require_super_admin)):
     existing = await faq_repository.find_by_id(section_id)
     if not existing:
         raise HTTPException(status_code=404, detail="FAQ section not found")
@@ -122,7 +122,7 @@ async def update_faq_section(section_id: str, data: FAQSectionUpdate, user: User
 
 
 @router.delete("/faq/{section_id}", response_model=MessageResponse)
-async def delete_faq_section(section_id: str, user: User = Depends(require_super_admin)):
+async def delete_faq_section(section_id: int, user: User = Depends(require_super_admin)):
     existing = await faq_repository.find_by_id(section_id)
     if not existing:
         raise HTTPException(status_code=404, detail="FAQ section not found")

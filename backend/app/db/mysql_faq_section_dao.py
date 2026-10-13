@@ -42,11 +42,10 @@ class MySQLFaqSectionDAO:
             items=await self._fetch_items(row.id)
         )
 
-    async def findById(self, id: str) -> Optional[FaqSectionResponse]:
+    async def findById(self, id: int) -> Optional[FaqSectionResponse]:
         SessionLocal = get_async_session_factory()
-        pid = int(id) if str(id).isdigit() else None
         async with SessionLocal() as session:
-            res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE id = :id"), {"id": pid})
+            res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE id = :id"), {"id": id})
             row = res.fetchone()
             if not row:
                 return None
@@ -77,19 +76,18 @@ class MySQLFaqSectionDAO:
             await session.commit()
             
         await self._save_items(new_id, data.items or [])
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: FaqSectionInternalUpdate) -> Optional[FaqSectionResponse]:
+    async def update(self, id: int, update_data: FaqSectionInternalUpdate) -> Optional[FaqSectionResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
             
         SessionLocal = get_async_session_factory()
-        pid = int(id) if str(id).isdigit() else None
         now = now_utc()
         
         updates = ["updated_at = :u"]
-        params = {"id": pid, "u": now}
+        params = {"id": id, "u": now}
         
         if update_data.title is not None:
             updates.append("title = :title")
@@ -111,15 +109,14 @@ class MySQLFaqSectionDAO:
             )
             await session.commit()
             
-        if update_data.items is not None and pid is not None:
-            await self._save_items(pid, update_data.items)
+        if update_data.items is not None:
+            await self._save_items(id, update_data.items)
             
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         SessionLocal = get_async_session_factory()
-        pid = int(id) if str(id).isdigit() else None
         async with SessionLocal() as session:
-            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pid})
+            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return res.rowcount > 0

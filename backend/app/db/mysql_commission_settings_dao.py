@@ -67,14 +67,13 @@ class MySQLCommissionSettingsDAO:
             ))
         return out
 
-    async def findById(self, id: str) -> Optional[CommissionSettings]:
+    async def findById(self, id: int) -> Optional[CommissionSettings]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
         
         async with factory() as session:
             result = await session.execute(
                 text(f"SELECT id, default_commission_pct, created_at, updated_at FROM {self.TABLE} WHERE id = :id"),
-                {"id": pid}
+                {"id": id}
             )
             r = result.fetchone()
             if not r:
@@ -82,7 +81,7 @@ class MySQLCommissionSettingsDAO:
                 
             t_res = await session.execute(
                 text("SELECT min_val, max_val, commission_pct FROM sj_commission_settings_tiers WHERE setting_id = :sid ORDER BY id ASC"),
-                {"sid": pid}
+                {"sid": id}
             )
             tiers = [
                 CommissionTierInternal(
@@ -94,7 +93,7 @@ class MySQLCommissionSettingsDAO:
             ]
             
             return CommissionSettings(
-                id=str(r.id),
+                id=r.id,
                 default_commission_pct=float(r.default_commission_pct) if r.default_commission_pct is not None else 5.0,
                 created_at=r.created_at,
                 updated_at=r.updated_at,
@@ -138,16 +137,15 @@ class MySQLCommissionSettingsDAO:
             await self._replace_children(session, new_id, data.tiers)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: CommissionSettingsInternalUpdate) -> Optional[CommissionSettings]:
+    async def update(self, id: int, update_data: CommissionSettingsInternalUpdate) -> Optional[CommissionSettings]:
         existing = await self.findById(id)
         if not existing:
             return None
             
         now = now_utc()
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
 
         pct = existing.default_commission_pct
         if update_data.default_commission_pct is not None:
@@ -156,20 +154,19 @@ class MySQLCommissionSettingsDAO:
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET default_commission_pct = :pct, updated_at = :upd WHERE id = :id"),
-                {"id": pid, "pct": pct, "upd": now},
+                {"id": id, "pct": pct, "upd": now},
             )
             if update_data.tiers is not None:
-                await self._replace_children(session, pid, update_data.tiers)
+                await self._replace_children(session, id, update_data.tiers)
             await session.commit()
             
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pid}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )
             await session.commit()
             return result.rowcount > 0

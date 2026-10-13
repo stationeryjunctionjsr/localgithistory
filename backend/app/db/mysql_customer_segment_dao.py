@@ -61,13 +61,11 @@ class MySQLCustomerSegmentDAO:
                 )
             await session.commit()
 
-    async def findById(self, id: str) -> Optional[CustomerSegmentInternal]:
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None: return None
+    async def findById(self, id: int) -> Optional[CustomerSegmentInternal]:
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             result = await session.execute(
-                text("SELECT * FROM sj_customer_segments WHERE id = :id"), {"id": pk}
+                text("SELECT * FROM sj_customer_segments WHERE id = :id"), {"id": id}
             )
             row = result.fetchone()
             if not row: return None
@@ -122,17 +120,14 @@ class MySQLCustomerSegmentDAO:
             
         user_ids = data.user_ids or []
         await self._save_user_ids(new_id, user_ids)
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: CustomerSegmentInternalUpdate) -> Optional[CustomerSegmentInternal]:
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None: return None
-        
+    async def update(self, id: int, update_data: CustomerSegmentInternalUpdate) -> Optional[CustomerSegmentInternal]:
         record = await self.findById(id)
         if not record: return None
         
         updates = ["updated_at = :u"]
-        params = {"id": pk, "u": now_utc()}
+        params = {"id": id, "u": now_utc()}
         
         if update_data.name is not None: updates.append("name = :name"); params["name"] = update_data.name
         if update_data.description is not None: updates.append("description = :description"); params["description"] = update_data.description
@@ -159,16 +154,14 @@ class MySQLCustomerSegmentDAO:
                 await session.commit()
                 
         if update_data.user_ids is not None:
-            await self._save_user_ids(pk, update_data.user_ids)
+            await self._save_user_ids(id, update_data.user_ids)
             
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None: return False
+    async def delete(self, id: int) -> bool:
         SessionLocal = self._factory()
         async with SessionLocal() as session:
-            res = await session.execute(text("DELETE FROM sj_customer_segments WHERE id = :id"), {"id": pk})
+            res = await session.execute(text("DELETE FROM sj_customer_segments WHERE id = :id"), {"id": id})
             await session.commit()
             return res.rowcount > 0
 

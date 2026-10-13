@@ -13,7 +13,7 @@ from app.models.schemas import BannerResponse, BannerCreate, BannerUpdate
 import app.repositories.banner_repository as repo_mod
 import app.db.mysql_banner_dao as banner_dao_mod
 import app.routers.banners as router_mod
-import app.db.flat_relational_dao as flat_dao_mod
+import archive.flat_relational_dao as flat_dao_mod
 
 
 def test_zero_lambdas_and_zero_anti_patterns():

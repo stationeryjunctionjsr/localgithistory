@@ -96,7 +96,7 @@ class FAQRepository:
         sections = await self.storage.findAll()
         return sorted(sections, key=lambda s: (s.display_order if s.display_order is not None else 0))
 
-    async def find_by_id(self, section_id: str) -> Optional[FaqSectionResponse]:
+    async def find_by_id(self, section_id: int) -> Optional[FaqSectionResponse]:
         return await self.storage.findById(section_id)
 
     async def create_section(self, data: FaqSectionInternalCreate) -> FaqSectionResponse:
@@ -108,10 +108,10 @@ class FAQRepository:
             data.items = []
         return await self.storage.create(data)
 
-    async def update_section(self, section_id: str, data: FaqSectionInternalUpdate) -> Optional[FaqSectionResponse]:
+    async def update_section(self, section_id: int, data: FaqSectionInternalUpdate) -> Optional[FaqSectionResponse]:
         return await self.storage.update(section_id, data)
 
-    async def delete_section(self, section_id: str) -> bool:
+    async def delete_section(self, section_id: int) -> bool:
         return await self.storage.delete(section_id)
 
 

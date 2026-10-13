@@ -10,7 +10,7 @@ No child tables. Keys are API (camelCase); values are DB column names (snake_cas
 from app.config.settings import settings
 from typing import Dict, Optional, Set
 
-from app.db.flat_relational_dao import FlatRelationalDAO
+from archive.flat_relational_dao import FlatRelationalDAO
 
 
 def _dao(

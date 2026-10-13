@@ -22,7 +22,7 @@ class CustomerSegmentsRepository:
             query = {"type": segment_type}
         return await self.storage.findAll(query)
 
-    async def get_by_id(self, segment_id: str) -> Optional[CustomerSegmentInternal]:
+    async def get_by_id(self, segment_id: int) -> Optional[CustomerSegmentInternal]:
         return await self.storage.findById(segment_id)
 
     async def create(self, data: 'CustomerSegmentInternalCreate') -> CustomerSegmentInternal:
@@ -30,11 +30,11 @@ class CustomerSegmentsRepository:
         # timestamps are handled in DAO
         return await self.storage.create(data)
 
-    async def update(self, segment_id: str, data: 'CustomerSegmentInternalUpdate') -> Optional[CustomerSegmentInternal]:
+    async def update(self, segment_id: int, data: 'CustomerSegmentInternalUpdate') -> Optional[CustomerSegmentInternal]:
         # timestamps are handled in DAO
         return await self.storage.update(segment_id, data)
 
-    async def delete(self, segment_id: str) -> bool:
+    async def delete(self, segment_id: int) -> bool:
         return await self.storage.delete(segment_id)
 
 

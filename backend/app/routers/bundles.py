@@ -325,7 +325,7 @@ async def list_all_bundles(current_user: User = Depends(require_super_admin)):
 
 @router.get("/{bundle_id}", response_model=BundleResponse)
 @cache.ttl_cache(ttl=300.0)
-async def get_bundle(bundle_id: str):
+async def get_bundle(bundle_id: int):
     """Get a single active bundle with full product details (public)."""
     try:
         bundle = await bundle_repository.findById(bundle_id)
@@ -342,7 +342,7 @@ async def get_bundle(bundle_id: str):
 
 
 @router.post("/{bundle_id}/add-to-cart", response_model=MessageResponse)
-async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_current_user)):
+async def add_bundle_to_cart(bundle_id: int, current_user: User = Depends(get_current_user)):
     """
     Add all items from a bundle to the user's cart.
     Prices are computed at the individual item level (bundle savings are shown in cart UI).
@@ -472,7 +472,7 @@ async def create_bundle(payload: CreateBundleRequest, current_user: User = Depen
 
 @router.put("/admin/{bundle_id}", response_model=BundleResponse)
 async def update_bundle(
-    bundle_id: str,
+    bundle_id: int,
     payload: UpdateBundleRequest,
     current_user: User = Depends(require_super_admin),
 ):
@@ -513,7 +513,7 @@ async def update_bundle(
 
 
 @router.delete("/admin/{bundle_id}", response_model=MessageResponse)
-async def delete_bundle(bundle_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_bundle(bundle_id: int, current_user: User = Depends(require_super_admin)):
     """Admin: permanently delete a bundle."""
     try:
         bundle = await bundle_repository.findById(bundle_id)
