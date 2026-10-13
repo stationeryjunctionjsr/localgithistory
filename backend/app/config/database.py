@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 from dotenv import load_dotenv
 
 load_dotenv()
+load_dotenv("backend/.env")
 
 from sqlalchemy import event
 from sqlalchemy.exc import DisconnectionError

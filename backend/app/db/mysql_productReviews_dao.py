@@ -15,13 +15,18 @@ from app.models.daos_flat import (
 class MySQLProductReviewsDAO:
     TABLE = "sj_product_reviews"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> ProductReviewResponse:
+        pid = row.product_id
+        if pid is not None:
+            try:
+                pid = int(str(pid).replace("PDT-", ""))
+            except (ValueError, TypeError):
+                pid = 0
+        else:
+            pid = 0
         return ProductReviewResponse(
             id=row.id,
-            productId=row.product_id,
+            productId=pid,
             userId=row.user_id,
             rating=row.rating or 0,
             reviewText=row.review_text,
@@ -32,14 +37,12 @@ class MySQLProductReviewsDAO:
 
     async def findAll(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[int] = None,
         user_id: Optional[str] = None,
         rating: Optional[int] = None,
         status: Optional[str] = None,
     ) -> List[ProductReviewResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
         where_clauses = []
         params = {}
         if product_id is not None:
@@ -56,7 +59,7 @@ class MySQLProductReviewsDAO:
             params["status"] = status
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
@@ -67,7 +70,7 @@ class MySQLProductReviewsDAO:
 
     async def findOne(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[int] = None,
         user_id: Optional[str] = None,
         rating: Optional[int] = None,
         status: Optional[str] = None,
@@ -78,10 +81,8 @@ class MySQLProductReviewsDAO:
     async def findById(self, id: int) -> Optional[ProductReviewResponse]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -91,9 +92,6 @@ class MySQLProductReviewsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: ProductReviewsInternalCreate) -> Optional[ProductReviewResponse]:
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -101,11 +99,11 @@ class MySQLProductReviewsDAO:
         if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = str(data.product_id)
+            params["productId"] = data.product_id
         if data.user_id is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = str(data.user_id)
+            params["userId"] = data.user_id
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
@@ -121,7 +119,8 @@ class MySQLProductReviewsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -133,10 +132,6 @@ class MySQLProductReviewsDAO:
     async def update(self, id: int, data: ProductReviewsInternalUpdate) -> Optional[ProductReviewResponse]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-
         now = now_utc()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
@@ -162,7 +157,8 @@ class MySQLProductReviewsDAO:
             params["status"] = data.status
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -178,10 +174,8 @@ class MySQLProductReviewsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

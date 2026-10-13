@@ -15,13 +15,18 @@ from app.models.daos_flat import (
 class MySQLProductNotificationsDAO:
     TABLE = "sj_product_notifications"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> ProductNotificationsInternal:
+        pid = row.product_id
+        if pid is not None:
+            try:
+                pid = int(str(pid).replace("PDT-", ""))
+            except (ValueError, TypeError):
+                pid = 0
+        else:
+            pid = 0
         return ProductNotificationsInternal(
             id=row.id,
-            product_id=row.product_id,
+            product_id=pid,
             user_id=row.user_id,
             email=row.email,
             phone=row.phone,
@@ -32,15 +37,13 @@ class MySQLProductNotificationsDAO:
 
     async def findAll(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[int] = None,
         user_id: Optional[str] = None,
         email: Optional[str] = None,
         phone: Optional[str] = None,
         status: Optional[str] = None,
     ) -> List[ProductNotificationsInternal]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
         where_clauses = []
         params = {}
         if product_id is not None:
@@ -60,7 +63,7 @@ class MySQLProductNotificationsDAO:
             params["status"] = status
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
@@ -71,7 +74,7 @@ class MySQLProductNotificationsDAO:
 
     async def findOne(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[int] = None,
         user_id: Optional[str] = None,
         email: Optional[str] = None,
         phone: Optional[str] = None,
@@ -83,10 +86,8 @@ class MySQLProductNotificationsDAO:
     async def findById(self, id: int) -> Optional[ProductNotificationsInternal]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -96,9 +97,6 @@ class MySQLProductNotificationsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: ProductNotificationsInternalCreate) -> Optional[ProductNotificationsInternal]:
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -126,7 +124,8 @@ class MySQLProductNotificationsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -138,10 +137,6 @@ class MySQLProductNotificationsDAO:
     async def update(self, id: int, data: ProductNotificationsInternalUpdate) -> Optional[ProductNotificationsInternal]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-
         now = now_utc()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
@@ -167,7 +162,8 @@ class MySQLProductNotificationsDAO:
             params["status"] = data.status
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -183,10 +179,8 @@ class MySQLProductNotificationsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

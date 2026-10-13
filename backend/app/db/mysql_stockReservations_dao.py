@@ -16,13 +16,18 @@ from app.models.daos_flat import (
 class MySQLStockReservationsDAO:
     TABLE = "sj_stock_reservations"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row) -> StockReservation:
+        pid = row.product_id
+        if pid is not None:
+            try:
+                pid = int(str(pid).replace("PDT-", ""))
+            except (ValueError, TypeError):
+                pid = 0
+        else:
+            pid = 0
         return StockReservation(
             id=row.id,
-            productId=row.product_id,
+            productId=pid,
             userId=row.user_id,
             quantity=row.quantity or 0,
             status=row.status or "active",
@@ -36,9 +41,7 @@ class MySQLStockReservationsDAO:
     ) -> List[ProductReservedStock]:
         if not product_ids:
             return []
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
         now = now_utc()
 
         placeholders = [f":pid_{i}" for i in range(len(product_ids))]
@@ -60,11 +63,11 @@ class MySQLStockReservationsDAO:
               {user_clause}
             GROUP BY product_id
         """
-        async with factory() as session:
+        async with async_session() as session:
             rows = (await session.execute(text(sql), params)).fetchall()
             return [
                 ProductReservedStock(
-                    product_id=r.product_id,
+                    product_id=int(str(r.product_id).replace("PDT-", "")),
                     reserved_quantity=int(r.total_reserved or 0),
                 )
                 for r in rows
@@ -72,13 +75,11 @@ class MySQLStockReservationsDAO:
 
     async def findAll(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[int] = None,
         user_id: Optional[str] = None,
         status: Optional[str] = None,
     ) -> List[StockReservation]:
-        factory = self._factory()
-        if not factory:
-            return []
+        async_session = get_async_session_factory()
         where_clauses = []
         params = {}
         if product_id is not None:
@@ -92,7 +93,7 @@ class MySQLStockReservationsDAO:
             params["status"] = status
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
@@ -103,7 +104,7 @@ class MySQLStockReservationsDAO:
 
     async def findOne(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[int] = None,
         user_id: Optional[str] = None,
         status: Optional[str] = None,
     ) -> Optional[StockReservation]:
@@ -113,10 +114,8 @@ class MySQLStockReservationsDAO:
     async def findById(self, id: int) -> Optional[StockReservation]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -126,9 +125,6 @@ class MySQLStockReservationsDAO:
         return self._map_to_schema(row) if row else None
 
     async def create(self, data: StockReservationsInternalCreate) -> Optional[StockReservation]:
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
@@ -161,7 +157,8 @@ class MySQLStockReservationsDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -172,9 +169,6 @@ class MySQLStockReservationsDAO:
 
     async def update(self, id: int, data: StockReservationsInternalUpdate) -> Optional[StockReservation]:
         if not id:
-            return None
-        factory = self._factory()
-        if not factory:
             return None
 
         now = now_utc()
@@ -207,7 +201,8 @@ class MySQLStockReservationsDAO:
             params["expiresAt"] = datetime.fromisoformat(exp).replace(tzinfo=None) if exp else None
 
         set_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
@@ -223,10 +218,8 @@ class MySQLStockReservationsDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},
@@ -236,10 +229,8 @@ class MySQLStockReservationsDAO:
 
     async def cleanup_expired(self) -> int:
         now = now_utc()
-        factory = self._factory()
-        if not factory:
-            return 0
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET status = 'expired', updated_at = :now WHERE status = 'active' AND expires_at <= :now"),
                 {"now": now},

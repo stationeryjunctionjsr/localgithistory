@@ -1,7 +1,7 @@
 from app.models.daos_flat import StockReservationsInternalUpdate
 from app.models.stock_reservation import StockReservation, StockReservationBatch
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from app.db.storage_factory import get_storage
 
@@ -87,8 +87,12 @@ class StockReservationRepository:
         await self.release_user_reservations(user_id, product_id)
 
         from app.models.daos_flat import StockReservationsInternalCreate
+        try:
+            pid = int(str(product_id).replace("PDT-", ""))
+        except (ValueError, TypeError):
+            pid = None
         reservation_data = StockReservationsInternalCreate(
-            product_id=product_id,
+            product_id=pid,
             user_id=user_id,
             quantity=quantity,
             status="active",
@@ -105,25 +109,37 @@ class StockReservationRepository:
         )
         return created
 
-    async def release_user_reservations(self, user_id: str, product_id: Optional[str] = None) -> None:
+    async def release_user_reservations(self, user_id: str, product_id: Optional[Union[int, str]] = None) -> None:
         """Marks active reservations for a user as released."""
         await self.ensure_table_exists()
+        pid = None
+        if product_id is not None:
+            try:
+                pid = int(str(product_id).replace("PDT-", ""))
+            except (ValueError, TypeError):
+                pid = None
         active_res = await self.storage.findAll(
             user_id=user_id,
             status="active",
-            product_id=product_id if product_id else None,
+            product_id=pid,
         )
         for res in active_res:
             await self.storage.update(res.id, StockReservationsInternalUpdate(status="released"))
             logger.info("Released stock reservation %s for user %s", res.id, user_id)
 
-    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[str] = None) -> None:
+    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[Union[int, str]] = None) -> None:
         """Marks active reservations for a user as fulfilled (order placed)."""
         await self.ensure_table_exists()
+        pid = None
+        if product_id is not None:
+            try:
+                pid = int(str(product_id).replace("PDT-", ""))
+            except (ValueError, TypeError):
+                pid = None
         active_res = await self.storage.findAll(
             user_id=user_id,
             status="active",
-            product_id=product_id if product_id else None,
+            product_id=pid,
         )
         now = datetime.now(timezone.utc)
 

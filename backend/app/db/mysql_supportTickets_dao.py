@@ -17,14 +17,11 @@ class MySQLSupportTicketsDAO:
         from app.config.settings import settings
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional['SupportTicketInternal']:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -34,10 +31,10 @@ class MySQLSupportTicketsDAO:
             return self._map_to_schema(row, rows_attachments, rows_responses)
 
     async def findByTicketNumber(self, ticket_number: str) -> Optional['SupportTicketInternal']:
-        factory = self._factory()
-        if not factory or not ticket_number:
+        if not ticket_number:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE ticket_number = :tn LIMIT 1")
             result = await session.execute(q, {"tn": str(ticket_number)})
             row = result.fetchone()
@@ -82,10 +79,8 @@ class MySQLSupportTicketsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
-            return []
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -94,7 +89,6 @@ class MySQLSupportTicketsDAO:
             return [self._map_to_schema(r, rows_attachments, rows_responses) for r in rows]
 
     async def create(self, data: 'SupportTicketInternalCreate') -> 'SupportTicketInternal':
-        factory = self._factory()
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -159,7 +153,8 @@ class MySQLSupportTicketsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['ticket_number', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assigned_to', 'resolved_at', 'closed_at'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -169,9 +164,6 @@ class MySQLSupportTicketsDAO:
 
     async def update(self, id: int, update_data: 'SupportTicketInternalUpdate') -> Optional['SupportTicketInternal']:
         if not id:
-            return None
-        factory = self._factory()
-        if not factory:
             return None
 
         data = update_data
@@ -235,7 +227,8 @@ class MySQLSupportTicketsDAO:
             params["s_closed_at"] = data.closed_at
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             if "attachments" in data.model_fields_set or "responses" in data.model_fields_set:
                 await self._replace_children(session, id, data)
@@ -248,10 +241,10 @@ class MySQLSupportTicketsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": id})
             await session.execute(text("DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": id})
 

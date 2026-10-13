@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union
 from app.models.schemas import ProductReviewResponse
 from sqlalchemy import text
 
@@ -64,17 +64,27 @@ class ProductReviewRepository:
 
     async def findAll(
         self,
-        product_id: Optional[str] = None,
+        product_id: Optional[Union[int, str]] = None,
         user_id: Optional[str] = None,
         rating: Optional[int] = None,
         status: Optional[str] = None,
     ) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll(product_id=product_id, user_id=user_id, rating=rating, status=status)
+        pid = None
+        if product_id is not None:
+            try:
+                pid = int(str(product_id).replace("PDT-", ""))
+            except (ValueError, TypeError):
+                pid = None
+        return await self.storage.findAll(product_id=pid, user_id=user_id, rating=rating, status=status)
 
-    async def find_approved_by_product(self, product_id: str) -> List[ProductReviewResponse]:
+    async def find_approved_by_product(self, product_id: Union[int, str]) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll(product_id=product_id, status="approved")
+        try:
+            pid = int(str(product_id).replace("PDT-", ""))
+        except (ValueError, TypeError):
+            pid = None
+        return await self.storage.findAll(product_id=pid, status="approved")
 
     async def findById(self, id: int) -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()

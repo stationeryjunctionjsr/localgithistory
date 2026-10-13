@@ -908,9 +908,9 @@ async def test_group_b_daos_targeted_dynamic_updates_and_zero_dict():
     # 2. Test MySQLProductReviewsDAO targeted dynamic update
     pr_dao = prod_reviews_dao_mod.MySQLProductReviewsDAO()
     pr_exec, pr_factory = setup_mock_db()
-    pr_dao._factory = MagicMock(return_value=pr_factory)
     pr_dao.findById = AsyncMock(return_value=MagicMock())
-    await pr_dao.update(100, ProductReviewsInternalUpdate(status="approved"))
+    with patch("app.db.mysql_productReviews_dao.get_async_session_factory", return_value=pr_factory):
+        await pr_dao.update(100, ProductReviewsInternalUpdate(status="approved"))
     assert len(pr_exec) == 1
     sql, params = pr_exec[0]
     assert "status = :status" in sql
@@ -923,9 +923,9 @@ async def test_group_b_daos_targeted_dynamic_updates_and_zero_dict():
     # 3. Test MySQLProductNotificationsDAO targeted dynamic update
     pn_dao = prod_notifs_dao_mod.MySQLProductNotificationsDAO()
     pn_exec, pn_factory = setup_mock_db()
-    pn_dao._factory = MagicMock(return_value=pn_factory)
     pn_dao.findById = AsyncMock(return_value=MagicMock())
-    await pn_dao.update(200, ProductNotificationsInternalUpdate(status="notified"))
+    with patch("app.db.mysql_productNotifications_dao.get_async_session_factory", return_value=pn_factory):
+        await pn_dao.update(200, ProductNotificationsInternalUpdate(status="notified"))
     assert len(pn_exec) == 1
     sql, params = pn_exec[0]
     assert "status = :status" in sql
@@ -937,9 +937,9 @@ async def test_group_b_daos_targeted_dynamic_updates_and_zero_dict():
     # 4. Test MySQLStockReservationsDAO targeted dynamic update
     sr_dao = stock_res_dao_mod.MySQLStockReservationsDAO()
     sr_exec, sr_factory = setup_mock_db()
-    sr_dao._factory = MagicMock(return_value=sr_factory)
     sr_dao.findById = AsyncMock(return_value=MagicMock())
-    await sr_dao.update(300, StockReservationsInternalUpdate(status="released"))
+    with patch("app.db.mysql_stockReservations_dao.get_async_session_factory", return_value=sr_factory):
+        await sr_dao.update(300, StockReservationsInternalUpdate(status="released"))
     assert len(sr_exec) == 1
     sql, params = sr_exec[0]
     assert "status = :status" in sql
@@ -951,9 +951,9 @@ async def test_group_b_daos_targeted_dynamic_updates_and_zero_dict():
     # 5. Test MySQLBundleDAO targeted dynamic update
     b_dao = bundle_dao_mod.MySQLBundleDAO()
     b_exec, b_factory = setup_mock_db()
-    b_dao._factory = MagicMock(return_value=b_factory)
     b_dao.findById = AsyncMock(return_value=MagicMock())
-    await b_dao.update(400, BundleInternalUpdate(price=99.99))
+    with patch("app.db.mysql_bundle_dao.get_async_session_factory", return_value=b_factory):
+        await b_dao.update(400, BundleInternalUpdate(price=99.99))
     assert len(b_exec) == 1
     sql, params = b_exec[0]
     assert "price = :price" in sql
@@ -965,9 +965,9 @@ async def test_group_b_daos_targeted_dynamic_updates_and_zero_dict():
     # 6. Test MySQLSupportTicketsDAO targeted dynamic update
     st_dao = support_tickets_dao_mod.MySQLSupportTicketsDAO()
     st_exec, st_factory = setup_mock_db()
-    st_dao._factory = MagicMock(return_value=st_factory)
     st_dao.findById = AsyncMock(return_value=MagicMock())
-    await st_dao.update(500, SupportTicketInternalUpdate(status="resolved"))
+    with patch("app.db.mysql_supportTickets_dao.get_async_session_factory", return_value=st_factory):
+        await st_dao.update(500, SupportTicketInternalUpdate(status="resolved"))
     assert len(st_exec) == 1
     sql, params = st_exec[0]
     assert "status = :s_status" in sql

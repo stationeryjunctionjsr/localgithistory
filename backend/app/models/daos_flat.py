@@ -782,14 +782,14 @@ class Google_reviewsInternalUpdate(FlatCamelBaseModel):
 
 class StockReservationsInternalCreate(FlatCamelBaseModel):
     expires_at: Optional[str] = None
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     quantity: Optional[int] = None
     status: Optional[str] = None
     user_id: Optional[str] = None
 
 class StockReservationsInternalUpdate(FlatCamelBaseModel):
     expires_at: Optional[str] = None
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     quantity: Optional[int] = None
     status: Optional[str] = None
     user_id: Optional[str] = None
@@ -800,7 +800,7 @@ class ProductNotificationsInternal(CamelBaseModel):
     id: int
     email: Optional[str] = None
     phone: Optional[str] = None
-    product_id: str
+    product_id: int
     status: Optional[str] = "active"
     user_id: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -809,19 +809,19 @@ class ProductNotificationsInternal(CamelBaseModel):
 class ProductNotificationsInternalCreate(FlatCamelBaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     status: Optional[str] = None
     user_id: Optional[str] = None
 
 class ProductNotificationsInternalUpdate(FlatCamelBaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     status: Optional[str] = None
     user_id: Optional[str] = None
 
 class ProductReviewsInternalCreate(FlatCamelBaseModel):
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     rating: Optional[int] = None
     review_text: Optional[str] = None
     status: Optional[str] = None
@@ -830,7 +830,7 @@ class ProductReviewsInternalCreate(FlatCamelBaseModel):
     classification: Optional[str] = None
 
 class ProductReviewsInternalUpdate(FlatCamelBaseModel):
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     rating: Optional[int] = None
     review_text: Optional[str] = None
     status: Optional[str] = None
