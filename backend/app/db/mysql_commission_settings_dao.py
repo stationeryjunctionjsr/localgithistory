@@ -140,25 +140,35 @@ class MySQLCommissionSettingsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: CommissionSettingsInternalUpdate) -> Optional[CommissionSettings]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
+            return None
+        factory = self._factory()
+        if not factory:
             return None
             
         now = now_utc()
-        factory = self._factory()
+        updates = ["updated_at = :upd"]
+        params = {"id": id, "upd": now}
 
-        pct = existing.default_commission_pct
-        if update_data.default_commission_pct is not None:
-            pct = update_data.default_commission_pct
+        if "default_commission_pct" in update_data.model_fields_set:
+            updates.append("default_commission_pct = :pct")
+            params["pct"] = update_data.default_commission_pct
 
+        set_sql = ", ".join(updates)
+        has_children_update = False
         async with factory() as session:
-            await session.execute(
-                text(f"UPDATE {self.TABLE} SET default_commission_pct = :pct, updated_at = :upd WHERE id = :id"),
-                {"id": id, "pct": pct, "upd": now},
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
-            if update_data.tiers is not None:
-                await self._replace_children(session, id, update_data.tiers)
+            if "tiers" in update_data.model_fields_set:
+                has_children_update = True
+                await self._replace_children(session, id, update_data.tiers or [])
             await session.commit()
+            if result.rowcount == 0 and not has_children_update:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
             
         return await self.findById(id)
 

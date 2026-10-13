@@ -6,7 +6,7 @@ We still expose `_id` as numeric PK string for consistency with other DAOs in th
 """
 
 from typing import List, Optional
-from app.models.feature_flag import FeatureFlag
+from app.models.feature_flag import FeatureFlag, FeatureFlagUpdate
 
 from sqlalchemy import text
 
@@ -42,7 +42,7 @@ class MySQLFeatureFlagDAO:
         params = {}
         if id is not None:
             where_clauses.append("id = :id")
-            params["id"] = int(id) if str(id).isdigit() else None
+            params["id"] = id
         if flag_id is not None:
             where_clauses.append("flag_id = :flag_id")
             params["flag_id"] = flag_id
@@ -78,7 +78,7 @@ class MySQLFeatureFlagDAO:
         records = await self.findAll(id=id, flag_id=flag_id, name=name, enabled=enabled, category=category)
         return records[0] if records else None
 
-    async def findById(self, id: str) -> Optional[FeatureFlag]:
+    async def findById(self, id: int) -> Optional[FeatureFlag]:
         return await self.findOne(id=id)
 
     async def create(self, data: FeatureFlag) -> FeatureFlag:
@@ -109,60 +109,60 @@ class MySQLFeatureFlagDAO:
             )
             new_id = result.lastrowid
             await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, update_data: FeatureFlag) -> Optional[FeatureFlag]:
-        existing = await self.findById(id)
-        if not existing:
+    async def update(self, id: int, update_data: FeatureFlagUpdate) -> Optional[FeatureFlag]:
+        if not id:
             return None
-        
-        flag_id = update_data.flag_id if update_data.flag_id is not None else existing.flag_id
-        name = update_data.name if update_data.name is not None else existing.name
-        description = update_data.description if update_data.description is not None else existing.description
-        enabled = update_data.enabled if update_data.enabled is not None else existing.enabled
-        category = update_data.category if update_data.category is not None else existing.category
-
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
-        fid = int(id) if str(id).isdigit() else None
+        updates = ["updated_at = :updated_at"]
+        params = {"id": id, "updated_at": now}
+
+        if "flag_id" in update_data.model_fields_set:
+            updates.append("flag_id = :flag_id")
+            params["flag_id"] = update_data.flag_id
+
+        if "name" in update_data.model_fields_set:
+            updates.append("name = :name")
+            params["name"] = update_data.name
+
+        if "description" in update_data.model_fields_set:
+            updates.append("description = :description")
+            params["description"] = update_data.description
+
+        if "enabled" in update_data.model_fields_set:
+            updates.append("enabled = :enabled")
+            params["enabled"] = 1 if update_data.enabled else 0
+
+        if "category" in update_data.model_fields_set:
+            updates.append("category = :category")
+            params["category"] = update_data.category
+
+        set_sql = ", ".join(updates)
+
         async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    UPDATE {self.TABLE} SET
-                        flag_id = :flag_id,
-                        name = :name,
-                        description = :description,
-                        enabled = :enabled,
-                        category = :category,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": fid,
-                    "flag_id": flag_id,
-                    "name": name,
-                    "description": description,
-                    "enabled": 1 if (enabled if enabled is not None else True) else 0,
-                    "category": category,
-                    "updated_at": now,
-                },
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
             await session.commit()
+            if result.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        fid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": fid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0

@@ -1685,9 +1685,11 @@ async def create_order_service(
 
             # Build variant_combinations arg expected by decrement_stock_atomic
             variant_combos = None
-            if item.variant_attributes or item.variant_attributes:
+            if item.variant_attributes:
+                from app.models.product import VariantCombinationItem
                 variant_combos = [
-                    {"attributes": item.variant_attributes or item.variant_attributes, "quantity": item.quantity}]
+                    VariantCombinationItem(attributes=item.variant_attributes, quantity=item.quantity)
+                ]
 
             new_stock = await product_repository.decrement_stock_atomic(
                 str(item.product),

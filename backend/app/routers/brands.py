@@ -83,14 +83,9 @@ async def create_brand(data: BrandCreate, current_user: User = Depends(require_s
 
 
 @router.put("/{brand_id}", response_model=BrandResponse)
-async def update_brand(brand_id: str, data: BrandUpdate, current_user: User = Depends(require_super_admin)):
+async def update_brand(brand_id: int, data: BrandUpdate, current_user: User = Depends(require_super_admin)):
     from app.models.daos import BrandInternalUpdate
-    internal_data = BrandInternalUpdate(
-        name=data.name,
-        logo_url=data.logo_url,
-        show_in_mobile_homepage=data.show_in_mobile_homepage,
-        is_active=data.is_active,
-    )
+    internal_data = BrandInternalUpdate.model_validate(data.model_dump(exclude_unset=True))
     brand = await brand_repository.update(brand_id, internal_data)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
@@ -99,7 +94,7 @@ async def update_brand(brand_id: str, data: BrandUpdate, current_user: User = De
 
 
 @router.delete("/{brand_id}", response_model=MessageResponse)
-async def delete_brand(brand_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_brand(brand_id: int, current_user: User = Depends(require_super_admin)):
     ok = await brand_repository.delete(brand_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Brand not found")

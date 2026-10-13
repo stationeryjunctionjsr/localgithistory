@@ -25,6 +25,9 @@ class CustomerSegmentsRepository:
     async def get_by_id(self, segment_id: int) -> Optional[CustomerSegmentInternal]:
         return await self.storage.findById(segment_id)
 
+    async def has_user(self, segment_id: int, user_id: int) -> bool:
+        return await self.storage.has_user(segment_id, user_id)
+
     async def create(self, data: 'CustomerSegmentInternalCreate') -> CustomerSegmentInternal:
         now = datetime.datetime.now(timezone.utc).isoformat()
         # timestamps are handled in DAO

@@ -1,14 +1,17 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import List, Optional, Set, Union
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import (
     CouponInternal,
     CouponInternalCreate,
     CouponInternalUpdate,
+    CouponOverlapData,
+    CouponOverlapDetail,
     CouponQuantityTierInternal,
 )
+from app.models.product import Product, ProductFilter
 from app.models.schemas import (
     BxGyEvaluationResponse,
     CouponCreate,
@@ -20,7 +23,7 @@ from app.utils.logger import logger
 
 
 class OverlapConflictError(ValueError):
-    def __init__(self, overlap_data: Any) -> None:
+    def __init__(self, overlap_data: CouponOverlapData) -> None:
         self.overlap_data = overlap_data
         super().__init__("Similar discount already exists for overlapping products")
 
@@ -40,64 +43,30 @@ class CouponRepository:
         self._active_coupons_cache = None
         self._active_coupons_cache_time = None
         self._active_coupons_lock = asyncio.Lock()
-        self._categories_map = None
-        self._categories_map_time = None
-        self._brands_map = None
-        self._brands_map_time = None
-        self._collections_map = None
-        self._collections_map_time = None
 
     def invalidate_cache(self) -> None:
-        """Invalidate the automatic discounts cache and category/brand/collection maps"""
+        """Invalidate the automatic discounts cache"""
         self._active_automatic_discounts_cache = None
         self._active_automatic_discounts_cache_time = None
         self._active_coupons_cache = None
         self._active_coupons_cache_time = None
-        self._categories_map = None
-        self._categories_map_time = None
-        self._brands_map = None
-        self._brands_map_time = None
-        self._collections_map = None
-        self._collections_map_time = None
         logger.info("CouponRepository cache invalidated")
 
-    async def _get_category_name(self, cid: str) -> Optional[str]:
-        now = datetime.now(timezone.utc)
-        if (
-            self._categories_map is None
-            or not self._categories_map_time
-            or (now - self._categories_map_time).total_seconds() > 60
-        ):
-            cats = await self._category_storage.findAll()
-            self._categories_map = {str(c.id): (c.name if c.name is not None else "") for c in cats if "_id" in c}
-            self._categories_map_time = now
-        return (self._categories_map[str(cid)] if str(cid) in self._categories_map else None)
+    async def _get_category_name(self, cid: int) -> Optional[str]:
+        cat = await self._category_storage.findById(cid)
+        return cat.name if cat else None
 
-    async def _get_brand_name(self, bid: str) -> Optional[str]:
-        now = datetime.now(timezone.utc)
-        if self._brands_map is None or not self._brands_map_time or (now - self._brands_map_time).total_seconds() > 60:
-            brands = await self._brand_storage.findAll()
-            self._brands_map = {str(b.id): (b.name if b.name is not None else "") for b in brands if "_id" in b}
-            self._brands_map_time = now
-        return (self._brands_map[str(bid)] if str(bid) in self._brands_map else None)
+    async def _get_brand_name(self, bid: int) -> Optional[str]:
+        brand = await self._brand_storage.findById(bid)
+        return brand.name if brand else None
 
-    async def _get_collection_product_ids(self, cid: str) -> Optional[List[str]]:
-        now = datetime.now(timezone.utc)
-        if (
-            self._collections_map is None
-            or not self._collections_map_time
-            or (now - self._collections_map_time).total_seconds() > 60
-        ):
-            cols = await self._collection_storage.findAll()
-            self._collections_map = {
-                str(c.id): [str(pid) for pid in (c.product_ids if c.product_ids is not None else [])] for c in cols if "_id" in c
-            }
-            self._collections_map_time = now
-        return (self._collections_map[str(cid)] if str(cid) in self._collections_map else None)
+    async def _get_collection_product_ids(self, cid: int) -> Optional[List[int]]:
+        col = await self._collection_storage.findById(cid)
+        return col.product_ids if col else None
 
     async def _calculate_bxgy_discount(
         self, coupon: 'CouponInternal', cart_items: List[dict], product_repository, user_role: str, user_id: str
-    ) -> dict:
+    ) -> BxGyEvaluationResponse:
         applicable_item_type = (coupon.applicable_item_type if coupon.applicable_item_type is not None else "units")
         x_required = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else None
         y_required = int(coupon.buy_x_get_y_customer_gets_quantity) if coupon.buy_x_get_y_customer_gets_quantity is not None else None
@@ -341,103 +310,88 @@ class CouponRepository:
 
     async def _user_matches_behavior(
         self,
-        user_id: str,
+        user_id: int,
         behavior: Optional[str],
-        user_orders: Optional[List[dict]] = None,
+        user_orders: Optional[List['Order']] = None,
         has_app: Optional[bool] = None,
-        user_behavior_cache: Optional[dict] = None,
     ) -> bool:
         """Check if user matches discount user_behavior. For 'registered*' consider all users; for 'downloaded*' only app users."""
         if not behavior or behavior == "none":
             return True
 
-        if user_behavior_cache is not None:
-            cache_key = (user_id, behavior)
-            if cache_key in user_behavior_cache:
-                return user_behavior_cache[cache_key]
+        # Support multiple comma-separated behaviors / segments
+        behaviors = [b.strip() for b in behavior.split(",") if b.strip()]
+        matched_any = False
+        for single_behavior in behaviors:
+            if single_behavior.startswith("segment_"):
+                segment_id = int(single_behavior.removeprefix("segment_").strip())
+                from app.repositories.customer_segments_repository import customer_segments_repository
 
-        async def evaluate():
-            # Support multiple comma-separated behaviors / segments
-            behaviors = [b.strip() for b in behavior.split(",") if b.strip()]
-            matched_any = False
-            for single_behavior in behaviors:
-                if single_behavior.startswith("segment_"):
-                    segment_id = single_behavior[len("segment_") :]
-                    from app.repositories.customer_segments_repository import customer_segments_repository
+                if await customer_segments_repository.has_user(segment_id, user_id):
+                    matched_any = True
+                    break
+            else:
+                if user_orders is None:
+                    from app.repositories.order_repository import order_repository
 
-                    segment = await customer_segments_repository.get_by_id(segment_id)
-                    if segment and segment.user_ids:
-                        if str(user_id) in [str(x) for x in segment.user_ids]:
-                            matched_any = True
-                            break
-                else:
-                    nonlocal user_orders
-                    if user_orders is None:
-                        from app.repositories.order_repository import order_repository
+                    user_orders = await order_repository.findByUser(user_id)
 
-                        user_orders = await order_repository.findByUser(user_id)
+                order_count = len(user_orders)
 
-                    order_count = len(user_orders)
+                reference_date = datetime.now(timezone.utc)
+                three_months_ago = reference_date - timedelta(days=90)
 
-                    reference_date = datetime.now(timezone.utc)
-                    three_months_ago = reference_date - timedelta(days=90)
+                recent_count = 0
+                for o in user_orders:
+                    c_at = o.created_at
+                    if not c_at:
+                        continue
+                    try:
+                        if c_at.tzinfo:
+                            c_at = c_at.replace(tzinfo=None)
+                        if three_months_ago <= c_at <= reference_date:
+                            recent_count += 1
+                    except (ValueError, TypeError, AttributeError):
+                        logger.warning("Coupon eligibility: could not parse order createdAt %r; skipping.", c_at, exc_info=True)
+                        continue
 
-                    recent_count = 0
-                    for o in user_orders:
-                        c_at = o.created_at
-                        if not c_at:
-                            continue
-                        try:
-                            if c_at.tzinfo:
-                                c_at = c_at.replace(tzinfo=None)
-                            if three_months_ago <= c_at <= reference_date:
-                                recent_count += 1
-                        except (ValueError, TypeError, AttributeError):
-                            logger.warning("Coupon eligibility: could not parse order createdAt %r; skipping.", c_at_str, exc_info=True)
-                            continue
+                is_registered = True  # we're already in a flow with user_id
 
-                    is_registered = True  # we're already in a flow with user_id
+                if has_app is None:
+                    has_app = False
+                    try:
+                        device_storage = get_storage("deviceSubscriptions")
+                        devices = await device_storage.findAll(user_id=user_id)
+                        has_app = len(devices) > 0
+                    except Exception:
+                        logger.exception("Error checking for app usage for user")
 
-                    nonlocal has_app
-                    if has_app is None:
-                        has_app = False
-                        try:
-                            device_storage = get_storage("deviceSubscriptions")
-                            devices = await device_storage.findAll({"userId": str(user_id)})
-                            has_app = len(devices) > 0
-                        except Exception:
-                            logger.exception("Error checking for app usage for user")
+                if single_behavior == "registered_no_order" and is_registered and order_count == 0:
+                    matched_any = True
+                    break
+                elif single_behavior == "registered_one_order" and is_registered and order_count == 1:
+                    matched_any = True
+                    break
+                elif single_behavior == "regular_registered" and is_registered and recent_count >= 12:
+                    matched_any = True
+                    break
+                elif single_behavior == "registered_irregular" and is_registered and 3 < recent_count <= 9:
+                    matched_any = True
+                    break
+                elif single_behavior == "downloaded_no_order" and has_app and order_count == 0:
+                    matched_any = True
+                    break
+                elif single_behavior == "downloaded_one_order" and has_app and order_count == 1:
+                    matched_any = True
+                    break
+                elif single_behavior == "regular_app_user" and has_app and recent_count >= 12:
+                    matched_any = True
+                    break
+                elif single_behavior == "downloaded_irregular" and has_app and 3 < recent_count <= 9:
+                    matched_any = True
+                    break
 
-                    if single_behavior == "registered_no_order" and is_registered and order_count == 0:
-                        matched_any = True
-                        break
-                    elif single_behavior == "registered_one_order" and is_registered and order_count == 1:
-                        matched_any = True
-                        break
-                    elif single_behavior == "regular_registered" and is_registered and recent_count >= 12:
-                        matched_any = True
-                        break
-                    elif single_behavior == "registered_irregular" and is_registered and 3 < recent_count <= 9:
-                        matched_any = True
-                        break
-                    elif single_behavior == "downloaded_no_order" and has_app and order_count == 0:
-                        matched_any = True
-                        break
-                    elif single_behavior == "downloaded_one_order" and has_app and order_count == 1:
-                        matched_any = True
-                        break
-                    elif single_behavior == "regular_app_user" and has_app and recent_count >= 12:
-                        matched_any = True
-                        break
-                    elif single_behavior == "downloaded_irregular" and has_app and 3 < recent_count <= 9:
-                        matched_any = True
-                        break
-            return matched_any
-
-        result = await evaluate()
-        if user_behavior_cache is not None:
-            user_behavior_cache[cache_key] = result
-        return result
+        return matched_any
 
     async def create(self, coupon_data: Union[CouponCreate, CouponInternalCreate]) -> CouponInternal:
         method = (coupon_data.method if coupon_data.method is not None else "discount_code")
@@ -509,16 +463,16 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             if overlap:
                 if resolution == "overwrite":
                     # Add exclusions to existing coupons
-                    for detail in overlap["details"]:
-                        existing_coupon = await self.findById(detail["couponId"])
+                    for detail in overlap.details:
+                        existing_coupon = await self.findById(detail.coupon_id)
                         if existing_coupon:
                             excl = set(existing_coupon.excluded_product_ids or [])
-                            excl.update(detail["overlappingProductIds"])
-                            await self.storage.update(detail["couponId"], CouponInternalUpdate(excluded_product_ids=list(excl)))
+                            excl.update(detail.overlapping_product_ids)
+                            await self.storage.update(detail.coupon_id, CouponInternalUpdate(excluded_product_ids=list(excl)))
                 elif resolution == "retain":
                     # Add exclusions to current coupon
                     excl = set((coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None) or [])
-                    pids_to_exclude = set().union(*[set(d["overlappingProductIds"]) for d in overlap["details"]])
+                    pids_to_exclude = {pid for d in overlap.details for pid in d.overlapping_product_ids}
 
                     # Check if all targeted products are excluded/covered
                     targeted_pids = await self._get_affected_product_ids(coupon)
@@ -598,15 +552,12 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def incrementUsage(self, id: str, user_id: str) -> Optional[CouponInternal]:
+    async def incrementUsage(self, id: int, user_id: int) -> Optional[CouponInternal]:
         """Atomically increment used_count for a coupon.
 
         Uses a single SQL UPDATE (used_count = used_count + 1) so concurrent
         checkouts with the same coupon code cannot race past the max_uses limit.
         """
-        pk = int(id) if str(id).isdigit() else None
-        if pk is None:
-            return None
 
         from sqlalchemy import text
         from app.config.database import get_async_session_factory
@@ -628,14 +579,14 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     "SET used_count = used_count + 1, updated_at = UTC_TIMESTAMP() "
                     "WHERE id = :id"
                 ),
-                {"id": pk},
+                {"id": id},
             )
             
             # Upsert user usage atomically
             await session.execute(
                 text("INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :uid, 1) "
                      "ON DUPLICATE KEY UPDATE usage_count = usage_count + 1"),
-                {"id": pk, "uid": user_id}
+                {"id": id, "uid": user_id}
             )
             await session.commit()
 
@@ -777,14 +728,14 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 from app.repositories.user_repository import user_repository
 
                 user_record = await user_repository.findById(user_id)
-                if user_record and (user_record["address"] if "address" in user_record else None):
-                    shipping_address = (user_record["address"] if "address" in user_record else None)
+                if user_record and user_record.address:
+                    shipping_address = user_record.address
 
             if shipping_address:
-                pincode = (shipping_address["zipCode"] if "zipCode" in shipping_address else None) or (shipping_address["pincode"] if "pincode" in shipping_address else None)
+                pincode = shipping_address.zip_code or shipping_address.pincode
                 if not pincode:
                     return CouponValidationResponse(valid=False, message="Shipping address must include a pincode for this discount.")
-                allowed_pincodes = (coupon.shipping_pincodes if coupon.shipping_pincodes is not None else None) or []
+                allowed_pincodes = coupon.shipping_pincodes or []
                 if allowed_pincodes and str(pincode).strip() not in [str(p).strip() for p in allowed_pincodes]:
                     return CouponValidationResponse(valid=False, message=f"This shipping discount is not applicable for pincode {pincode}.")
             else:
@@ -932,7 +883,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     ]:
                         continue
 
-                if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
+                if coupon.type_of_discount == "shipping_discount":
                     addr = shipping_address
                     if not addr:
                         from app.repositories.user_repository import user_repository
@@ -942,10 +893,10 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                             addr = u.address
 
                     if addr:
-                        pincode = (addr["zipCode"] if "zipCode" in addr else None) or (addr["pincode"] if "pincode" in addr else None)
+                        pincode = addr.zip_code or addr.pincode
                         if not pincode:
                             continue
-                        allowed_pincodes = (coupon.shipping_pincodes if coupon.shipping_pincodes is not None else None) or []
+                        allowed_pincodes = coupon.shipping_pincodes or []
                         if allowed_pincodes and str(pincode).strip() not in [str(p).strip() for p in allowed_pincodes]:
                             continue
                     else:
@@ -1064,17 +1015,17 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             return set(pid for pid in eligible_collection_product_ids if pid not in excluded_product_ids)
 
         # Build query filters to load only matching products from database
-        query = {"is_active": True}
+        query_filter = ProductFilter(is_active=True)
         eligible_category_names = set()
         eligible_brand_names = set()
 
         if applies_to_type == "categories" and applies_to_value_ids:
             for cid in applies_to_value_ids:
                 cat = await self._category_storage.findById(cid)
-                if cat and (cat["name"] if "name" in cat else None):
-                    eligible_category_names.add((cat["name"] if "name" in cat else None).strip())
+                if cat and cat.name:
+                    eligible_category_names.add(cat.name.strip())
             if eligible_category_names:
-                query["categories"] = ",".join(eligible_category_names)
+                query_filter.categories = ",".join(eligible_category_names)
             else:
                 return set()
         elif applies_to_type == "brands" and applies_to_value_ids:
@@ -1083,15 +1034,15 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 if brand and brand.name:
                     eligible_brand_names.add(brand.name.strip())
             if eligible_brand_names:
-                query["brand"] = ",".join(eligible_brand_names)
+                query_filter.brand = ",".join(eligible_brand_names)
             else:
                 return set()
         elif applies_to_type == "subCategories" and applies_to_value_ids:
             if len(applies_to_value_ids) == 1:
-                query["subCategory"] = applies_to_value_ids[0]
+                query_filter.sub_category = applies_to_value_ids[0]
 
         # Fetch only filtered subset of products
-        products = await product_repository.findAll(query)
+        products = await product_repository.findAll(query_filter)
 
         affected = set()
         for p in products:
@@ -1116,7 +1067,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
         return affected
 
-    async def check_discount_overlap(self, coupon_data: CouponInternal, exclude_coupon_id: Optional[str] = None) -> Optional[CouponValidationResponse]:
+    async def check_discount_overlap(self, coupon_data: CouponInternal, exclude_coupon_id: Optional[str] = None) -> Optional[CouponOverlapData]:
         from app.models.daos_flat import CouponInternalCreate
         """Identify conflicting active coupons and return affected product count."""
         if not (coupon_data.is_active if coupon_data.is_active is not None else True):
@@ -1129,7 +1080,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         conflicting_candidates = [
             c
             for c in all_coupons
-            if any(r in (c.applicable_roles or []) for r in roles) and str(c.id) != str(exclude_coupon_id)
+            if any(r in (c.applicable_roles or []) for r in roles) and (exclude_coupon_id is None or c.id != exclude_coupon_id)
         ]
 
         new_affected_ids = await self._get_affected_product_ids(coupon_data)
@@ -1151,7 +1102,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
         applicable_item_type = coupon_data.applicable_item_type or "units"
 
-        overlaps = []
+        overlaps: List[CouponOverlapDetail] = []
         for c in conflicting_candidates:
             c_type = c.type_of_discount or "product_discount"
             if c_type != type_of_discount:
@@ -1180,16 +1131,16 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
             if intersection:
                 overlaps.append(
-                    {
-                        "couponId": str(c.id),
-                        "displayId": c.code or "",
-                        "overlappingProductIds": list(intersection),
-                    }
+                    CouponOverlapDetail(
+                        coupon_id=str(c.id),
+                        display_id=c.code or "",
+                        overlapping_product_ids=list(intersection),
+                    )
                 )
 
         if overlaps:
-            total_overlapping_products = len(set().union(*[set(o["overlappingProductIds"]) for o in overlaps]))
-            return CouponValidationResponse(valid=True, totalOverlappingProducts=total_overlapping_products, details=overlaps)
+            total_overlapping_products = len({pid for o in overlaps for pid in o.overlapping_product_ids})
+            return CouponOverlapData(total_overlapping_products=total_overlapping_products, details=overlaps)
         return None
 
     async def get_active_coupons(self) -> List[CouponInternal]:
@@ -1300,11 +1251,10 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
     async def get_applicable_discounts_for_product(
         self,
-        product: Any,
+        product: Product,
         role: str,
         user_id: Optional[str] = None,
-        all_coupons: Optional[List[dict]] = None,
-        user_behavior_cache: Optional[dict] = None,
+        all_coupons: Optional[List[CouponInternal]] = None,
     ) -> List[CouponInternal]:
         """Find other active discounts applicable to this product, excluding the default highest automatic product discount"""
         if all_coupons is None:
@@ -1345,7 +1295,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                             and (
                                 not user_id
                                 or not await self._user_matches_behavior(
-                                    user_id, behavior, user_behavior_cache=user_behavior_cache
+                                    user_id, behavior
                                 )
                             )
                         ):
@@ -1367,7 +1317,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         # Step 2: Gather all other applicable coupons
         applicable = []
         for c in all_coupons:
-            if default_auto_discount and str(c.id) == str((default_auto_discount["_id"] if "_id" in default_auto_discount else None)):
+            if default_auto_discount and c.id == default_auto_discount.id:
                 continue
 
             try:
@@ -1393,7 +1343,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 and behavior != "none"
                 and (
                     not user_id
-                    or not await self._user_matches_behavior(user_id, behavior, user_behavior_cache=user_behavior_cache)
+                    or not await self._user_matches_behavior(user_id, behavior)
                 )
             ):
                 continue

@@ -14,13 +14,13 @@ async def test_price_search_scoring():
 
     # Test numeric price search token '50'
     res_50 = await product_repository._weighted_search(products, "50")
-    assert len(res_50["products"]) > 0
-    pids_50 = [p["_id"] if isinstance(p, dict) else p.id for p in res_50["products"]]
+    assert len(res_50.products) > 0
+    pids_50 = [p.id for p in res_50.products]
     assert "2" in pids_50
 
     # Test price expression 'under 300'
     res_under = await product_repository._weighted_search(products, "under 300")
-    pids_under = [p["_id"] if isinstance(p, dict) else p.id for p in res_under["products"]]
+    pids_under = [p.id for p in res_under.products]
     assert "1" in pids_under or "2" in pids_under
     assert "3" not in pids_under
 

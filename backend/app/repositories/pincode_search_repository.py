@@ -1,8 +1,13 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
-from app.models.pincode_searches import PincodeSearches
+from app.models.pincode_searches import (
+    PincodeSearches,
+    PincodeSearchListResponse,
+    PincodeSearchStatsResponse,
+    PincodeStatItem,
+)
 from app.utils.logger import logger
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -60,13 +65,13 @@ class PincodeSearchRepository:
         search: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> PincodeSearchListResponse:
         """Fetch paginated pincode search logs with optional filters."""
         try:
             all_records = await self.storage.findAll() or []
         except Exception as e:
             logger.error("Failed to fetch pincode searches: %s", str(e), exc_info=True)
-            return {"items": [], "total": 0, "page": page, "limit": limit, "pages": 0}
+            return PincodeSearchListResponse(items=[], searches=[], total=0, total_count=0, page=page, limit=limit, pages=0)
 
         # Sort newest first
         all_records.sort(key=lambda r: r.searched_at or r.created_at or "", reverse=True)
@@ -105,28 +110,23 @@ class PincodeSearchRepository:
 
         pages = (total + limit - 1) // limit if limit > 0 else 1
 
-        return {
-            "items": paginated,
-            "total": total,
-            "page": page,
-            "limit": limit,
-            "pages": pages,
-        }
+        return PincodeSearchListResponse(
+            items=paginated,
+            searches=paginated,
+            total=total,
+            total_count=total,
+            page=page,
+            limit=limit,
+            pages=pages,
+        )
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> PincodeSearchStatsResponse:
         """Get summary analytics on pincode searches for Super Admin."""
         try:
             all_records = await self.storage.findAll() or []
         except Exception as e:
             logger.error("Failed to fetch pincode search stats: %s", str(e), exc_info=True)
-            return {
-                "totalSearches": 0,
-                "uniquePincodes": 0,
-                "serviceableSearches": 0,
-                "unserviceableSearches": 0,
-                "topUnserviceablePincodes": [],
-                "topSearchedPincodes": [],
-            }
+            return PincodeSearchStatsResponse()
 
         total_searches = len(all_records)
         unique_pins = set()
@@ -151,11 +151,11 @@ class PincodeSearchRepository:
                         "city": r.city,
                         "state": r.state,
                         "count": 0,
-                        "lastSearchedAt": r.searched_at,
+                        "last_searched_at": r.searched_at,
                     }
                 unserviceable_freq[pin]["count"] += 1
-                unserviceable_freq[pin]["lastSearchedAt"] = max(
-                    unserviceable_freq[pin]["lastSearchedAt"] or "", r.searched_at or ""
+                unserviceable_freq[pin]["last_searched_at"] = max(
+                    unserviceable_freq[pin]["last_searched_at"] or "", r.searched_at or ""
                 )
 
             if pin not in overall_freq:
@@ -163,28 +163,47 @@ class PincodeSearchRepository:
                     "pincode": pin,
                     "city": r.city,
                     "state": r.state,
-                    "isServiceable": is_serv,
+                    "is_serviceable": is_serv,
                     "count": 0,
-                    "lastSearchedAt": r.searched_at,
+                    "last_searched_at": r.searched_at,
                 }
             overall_freq[pin]["count"] += 1
-            overall_freq[pin]["lastSearchedAt"] = max(
-                overall_freq[pin]["lastSearchedAt"] or "", r.searched_at or ""
+            overall_freq[pin]["last_searched_at"] = max(
+                overall_freq[pin]["last_searched_at"] or "", r.searched_at or ""
             )
 
-        top_unserviceable = sorted(unserviceable_freq.values(), key=lambda x: x["count"], reverse=True)[:10]
-        top_searched = sorted(overall_freq.values(), key=lambda x: x["count"], reverse=True)[:10]
+        top_unserviceable = [
+            PincodeStatItem(
+                pincode=x["pincode"],
+                city=x["city"],
+                state=x["state"],
+                count=x["count"],
+                last_searched_at=x["last_searched_at"],
+            )
+            for x in sorted(unserviceable_freq.values(), key=lambda x: x["count"], reverse=True)[:10]
+        ]
+        top_searched = [
+            PincodeStatItem(
+                pincode=x["pincode"],
+                city=x["city"],
+                state=x["state"],
+                is_serviceable=x["is_serviceable"],
+                count=x["count"],
+                last_searched_at=x["last_searched_at"],
+            )
+            for x in sorted(overall_freq.values(), key=lambda x: x["count"], reverse=True)[:10]
+        ]
 
-        return {
-            "totalSearches": total_searches,
-            "uniquePincodes": len(unique_pins),
-            "uniquePincodesCount": len(unique_pins),
-            "serviceableSearches": serviceable_count,
-            "unserviceableSearches": unserviceable_count,
-            "topUnserviceablePincodes": top_unserviceable,
-            "topSearchedPincodes": top_searched,
-            "topPincodes": top_searched,
-        }
+        return PincodeSearchStatsResponse(
+            total_searches=total_searches,
+            unique_pincodes=len(unique_pins),
+            unique_pincodes_count=len(unique_pins),
+            serviceable_searches=serviceable_count,
+            unserviceable_searches=unserviceable_count,
+            top_unserviceable_pincodes=top_unserviceable,
+            top_searched_pincodes=top_searched,
+            top_pincodes=top_searched,
+        )
 
 
 pincode_search_repository = PincodeSearchRepository()

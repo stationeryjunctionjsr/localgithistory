@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List
 from pydantic import Field, AliasChoices
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
@@ -62,5 +62,61 @@ class ApplicableDiscountSnippet(CamelBaseModel):
     code: Optional[str] = None
     description: Optional[str] = None
 
+
+class WeightedSearchResult(CamelBaseModel):
+    products: List[Product] = Field(default_factory=list)
+    used_fuzzy: bool = False
+    suggested_query: Optional[str] = None
+
+
+class ProductFacets(CamelBaseModel):
+    brands: List[str] = Field(default_factory=list)
+    categories: List[str] = Field(default_factory=list)
+    sub_categories: List[str] = Field(default_factory=list)
+    collections: List[str] = Field(default_factory=list)
+
+
+class VariantCombinationItem(CamelBaseModel):
+    attributes: dict[str, str] = Field(default_factory=dict)
+    quantity: int = 1
+
+
+class ProductFilter(CamelBaseModel):
+    id: Optional[int] = None
+    search: Optional[str] = None
+    category: Optional[str] = None
+    categories: Optional[str] = None
+    sub_category: Optional[str] = None
+    brand: Optional[str] = None
+    brands: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    popularity: Optional[str] = None
+    collection: Optional[str] = None
+    category_tag: Optional[str] = None
+    min_discount: Optional[float] = None
+    allowed_seller_ids: Optional[List[str]] = None
+    my_seller_id: Optional[str] = None
+    seller_ids: Optional[List[str]] = None
+    allowed_ids: Optional[List[int]] = None
+    role: str = "customer"
+    user_id: Optional[str] = None
+    sort: Optional[str] = None
+    sort_by: Optional[str] = None
+    is_active: Optional[bool] = None
+    include_inactive: bool = False
+    availability: Optional[str] = None
+    sku: Optional[str] = None
+    name: Optional[str] = None
+    limit: Optional[int] = None
+
+
+ProductCatalogQuery = ProductFilter
+
+
 from app.models.schemas import QuantityTier
 Product.model_rebuild()
+WeightedSearchResult.model_rebuild()
+ProductCatalogQuery.model_rebuild()
+
+

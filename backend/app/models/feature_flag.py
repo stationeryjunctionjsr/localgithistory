@@ -4,7 +4,7 @@ from app.models.base import CamelBaseModel
 
 
 class FeatureFlag(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     flag_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -15,7 +15,8 @@ class FeatureFlag(CamelBaseModel):
 
 
 class FeatureFlagCreate(CamelBaseModel):
-    id: str
+    id: Optional[str] = None
+    flag_id: Optional[str] = None
     name: str
     description: Optional[str] = ""
     enabled: Optional[bool] = False
@@ -23,6 +24,7 @@ class FeatureFlagCreate(CamelBaseModel):
 
 
 class FeatureFlagUpdate(CamelBaseModel):
+    flag_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     enabled: Optional[bool] = None

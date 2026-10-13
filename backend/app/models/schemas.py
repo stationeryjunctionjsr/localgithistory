@@ -1858,7 +1858,7 @@ class AnalyticsEventCreate(CamelBaseModel):
     session_id: Optional[str] = None
     source: Optional[str] = None
     filter_name: Optional[str] = None
-    filter_value: Optional[str] = None
+    filter_value: Optional[Union[str, int]] = None
     category: Optional[str] = None
     payload: Optional[AnalyticsEventPayload] = None
     search_term: Optional[str] = None

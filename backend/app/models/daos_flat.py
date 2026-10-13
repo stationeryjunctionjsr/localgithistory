@@ -666,6 +666,15 @@ class CouponInternalUpdate(FlatCamelBaseModel):
     applies_to_value_ids: Optional[List[str]] = None
     excluded_product_ids: Optional[List[str]] = None
 
+class CouponOverlapDetail(FlatCamelBaseModel):
+    coupon_id: str
+    display_id: str
+    overlapping_product_ids: List[str]
+
+class CouponOverlapData(FlatCamelBaseModel):
+    total_overlapping_products: int
+    details: List[CouponOverlapDetail]
+
 class PromoStripsInternalCreate(FlatCamelBaseModel):
     is_active: Optional[bool] = None
     text: Optional[str] = None

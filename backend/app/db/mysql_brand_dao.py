@@ -110,52 +110,52 @@ class MySQLBrandDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: 'BrandInternalUpdate') -> Optional[BrandResponse]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
-
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
-        bid = id
         
         updates = ["updated_at = :updated_at"]
-        params = {"id": bid, "updated_at": now}
+        params = {"id": id, "updated_at": now}
 
-        if update_data.name is not None:
+        if "name" in update_data.model_fields_set:
             updates.append("name = :name")
             params["name"] = update_data.name
-            
-            if update_data.slug is None:
+            if "slug" not in update_data.model_fields_set and update_data.name is not None:
                 updates.append("slug = :slug")
                 params["slug"] = update_data.name.lower().replace(" ", "-")
 
-        if update_data.slug is not None:
+        if "slug" in update_data.model_fields_set:
             updates.append("slug = :slug")
             params["slug"] = update_data.slug
-            
-        if update_data.logoUrl is not None:
+
+        if "logo_url" in update_data.model_fields_set:
             updates.append("image_url = :image_url")
-            params["image_url"] = update_data.logoUrl
-            
-        if update_data.showInMobileHomepage is not None:
+            params["image_url"] = update_data.logo_url
+
+        if "show_in_mobile_homepage" in update_data.model_fields_set:
             updates.append("show_in_mobile_homepage = :show_in_mobile_homepage")
-            params["show_in_mobile_homepage"] = 1 if update_data.showInMobileHomepage else 0
-            
-        if update_data.is_active is not None:
+            params["show_in_mobile_homepage"] = 1 if update_data.show_in_mobile_homepage else 0
+
+        if "is_active" in update_data.model_fields_set:
             updates.append("is_active = :is_active")
             params["is_active"] = 1 if update_data.is_active else 0
 
         set_sql = ", ".join(updates)
 
         async with factory() as session:
-            await session.execute(
-                text(f"UPDATE sj_brands SET {set_sql} WHERE id = :id"),
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(bid)
+            if result.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
         factory = self._factory()

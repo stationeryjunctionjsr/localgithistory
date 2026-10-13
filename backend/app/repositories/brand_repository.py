@@ -22,7 +22,7 @@ class BrandRepository:
         items = await self.storage.findAll(is_active=is_active, slug=slug, name=name)
         return sorted(items, key=lambda x: (x.name or "").lower())
 
-    async def findById(self, id: str) -> Optional[Brand]:
+    async def findById(self, id: int) -> Optional[Brand]:
         return await self.storage.findById(id)
 
     async def findActive(self) -> List[Brand]:
@@ -32,10 +32,10 @@ class BrandRepository:
     async def create(self, data: "BrandInternalCreate") -> Brand:
         return await self.storage.create(data)
 
-    async def update(self, id: str, data: "BrandInternalUpdate") -> Optional[Brand]:
+    async def update(self, id: int, data: "BrandInternalUpdate") -> Optional[Brand]:
         return await self.storage.update(id, data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

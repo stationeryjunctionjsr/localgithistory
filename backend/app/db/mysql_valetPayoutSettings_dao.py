@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_valet_payout_settings with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -10,15 +10,6 @@ from app.models.daos_flat import (
     ValetPayoutSettingsInternalCreate,
     ValetPayoutSettingsInternalUpdate,
 )
-
-
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
 
 
 class MySQLValetPayoutSettingsDAO:
@@ -36,46 +27,35 @@ class MySQLValetPayoutSettingsDAO:
             updated_at=row.updated_at,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ValetPayoutSettings]:
-        query = query or {}
-        where_clauses = []
-        params = {}
-        if "deliveryChargePerOrder" in query:
-            where_clauses.append("delivery_charge_per_order = :deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = query["deliveryChargePerOrder"]
-        if "returnPickupChargePerOrder" in query:
-            where_clauses.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = query["returnPickupChargePerOrder"]
-
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+    async def findAll(self) -> List[ValetPayoutSettings]:
         factory = self._factory()
+        if not factory:
+            return []
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
-                    params,
+                    text(f"SELECT * FROM {self.TABLE} ORDER BY id ASC")
                 )
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
-        if "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
-        records = await self.findAll(query)
+    async def findOne(self, id: Optional[int] = None) -> Optional[ValetPayoutSettings]:
+        if id is not None:
+            return await self.findById(id)
+        records = await self.findAll()
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[ValetPayoutSettings]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
         factory = self._factory()
+        if not factory:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
@@ -107,42 +87,48 @@ class MySQLValetPayoutSettingsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: ValetPayoutSettingsInternalUpdate) -> Optional[ValetPayoutSettings]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
+        factory = self._factory()
+        if not factory:
             return None
 
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if data.delivery_charge_per_order is not None:
+        params = {"id": id, "u": now}
+
+        if "delivery_charge_per_order" in data.model_fields_set:
             updates.append("delivery_charge_per_order = :deliveryChargePerOrder")
             params["deliveryChargePerOrder"] = data.delivery_charge_per_order
-        if data.return_pickup_charge_per_order is not None:
+
+        if "return_pickup_charge_per_order" in data.model_fields_set:
             updates.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
             params["returnPickupChargePerOrder"] = data.return_pickup_charge_per_order
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(id_val)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

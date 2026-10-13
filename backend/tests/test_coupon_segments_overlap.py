@@ -1,41 +1,41 @@
 import pytest
+from unittest.mock import AsyncMock
 from app.repositories.coupon_repository import coupon_repository
 from app.repositories.customer_segments_repository import customer_segments_repository
-from app.models.daos_flat import CustomerSegmentInternalCreate
+
 
 @pytest.mark.asyncio
 async def test_coupon_segments_overlap_and_multi_select():
-    # 1. Create segment A
-    segment_a_data = {"name": "Test Segment A", "type": "retail", "userIds": ["user_1", "user_3"]}
-    segment_a = await customer_segments_repository.create(CustomerSegmentInternalCreate(**segment_a_data))
-    segment_a_id = segment_a.id if hasattr(segment_a, "id") else str(segment_a["_id"])
+    # Segment 1 has users 101 and 103
+    # Segment 2 has users 102 and 103
+    async def mock_has_user(seg_id: int, uid: int) -> bool:
+        if seg_id == 1 and uid in (101, 103):
+            return True
+        if seg_id == 2 and uid in (102, 103):
+            return True
+        return False
 
-    # 2. Create segment B
-    segment_b_data = {"name": "Test Segment B", "type": "retail", "userIds": ["user_2", "user_3"]}
-    segment_b = await customer_segments_repository.create(CustomerSegmentInternalCreate(**segment_b_data))
-    segment_b_id = segment_b.id if hasattr(segment_b, "id") else str(segment_b["_id"])
+    orig_has_user = customer_segments_repository.has_user
+    customer_segments_repository.has_user = AsyncMock(side_effect=mock_has_user)
 
-    # 3. Create a comma-separated behavior string matching segment A and B
-    behavior_str = f"segment_{segment_a_id},segment_{segment_b_id}"
+    behavior_str = "segment_1,segment_2"
 
     try:
-        # Test evaluation of user_1 (only in segment A)
-        res_1 = await coupon_repository._user_matches_behavior("user_1", behavior_str)
+        # Test evaluation of user 101 (only in segment 1)
+        res_1 = await coupon_repository._user_matches_behavior(101, behavior_str)
         assert res_1 is True
 
-        # Test evaluation of user_2 (only in segment B)
-        res_2 = await coupon_repository._user_matches_behavior("user_2", behavior_str)
+        # Test evaluation of user 102 (only in segment 2)
+        res_2 = await coupon_repository._user_matches_behavior(102, behavior_str)
         assert res_2 is True
 
-        # Test evaluation of user_3 (overlapping, in both segment A and B)
-        res_3 = await coupon_repository._user_matches_behavior("user_3", behavior_str)
+        # Test evaluation of user 103 (overlapping, in both segment 1 and 2)
+        res_3 = await coupon_repository._user_matches_behavior(103, behavior_str)
         assert res_3 is True
 
-        # Test evaluation of user_4 (in neither segment)
-        res_4 = await coupon_repository._user_matches_behavior("user_4", behavior_str)
+        # Test evaluation of user 104 (in neither segment)
+        res_4 = await coupon_repository._user_matches_behavior(104, behavior_str)
         assert res_4 is False
 
     finally:
-        # Cleanup
-        await customer_segments_repository.delete(segment_a_id)
-        await customer_segments_repository.delete(segment_b_id)
+        customer_segments_repository.has_user = orig_has_user

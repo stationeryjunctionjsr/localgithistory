@@ -265,66 +265,70 @@ class MySQLDivisionDAO:
     async def update(
         self, id: int, item: DivisionInternalUpdate
     ) -> Optional[DivisionInternal]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
 
-        update_fields = []
-        params = {"id": existing.id}
+        update_fields = ["updated_at = :now"]
         now = now_utc()
+        params = {"id": id, "now": now}
 
-        if item.name is not None:
+        if "name" in item.model_fields_set:
             update_fields.append("name = :name")
-            params["name"] = item.name.strip()
-        if item.description is not None:
+            params["name"] = item.name.strip() if item.name else item.name
+        if "description" in item.model_fields_set:
             update_fields.append("description = :desc")
             params["desc"] = item.description
-        if item.image_url is not None:
+        if "image_url" in item.model_fields_set:
             update_fields.append("image_url = :img")
             params["img"] = item.image_url
-        if item.display_order is not None:
+        if "display_order" in item.model_fields_set:
             update_fields.append("display_order = :ord")
             params["ord"] = item.display_order
-        if item.is_active is not None:
+        if "is_active" in item.model_fields_set:
             update_fields.append("is_active = :act")
             params["act"] = 1 if item.is_active else 0
 
-        update_fields.append("updated_at = :now")
-        params["now"] = now
-
+        has_tags_update = "category_tag_ids" in item.model_fields_set
         factory = self._factory()
-        async with factory() as session:
-            if update_fields:
-                q = text(f"UPDATE {self.TABLE} SET {', '.join(update_fields)} WHERE id = :id")
-                await session.execute(q, params)
+        if not factory:
+            return None
 
-            if item.category_tag_ids is not None:
-                await self._sync_junction_tags(session, existing.id, item.category_tag_ids)
+        async with factory() as session:
+            q = text(f"UPDATE {self.TABLE} SET {', '.join(update_fields)} WHERE id = :id")
+            result = await session.execute(q, params)
+
+            if has_tags_update:
+                await self._sync_junction_tags(session, id, item.category_tag_ids or [])
 
             await session.commit()
+            if result.rowcount == 0 and not has_tags_update:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
 
-        return await self.findById(existing.id)
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             # 1. Unlink tags
             await session.execute(
                 text("UPDATE sj_category_tags SET division_id = NULL WHERE division_id = :did"),
-                {"did": existing.id},
+                {"did": id},
             )
             # 2. Delete junction rows
             await session.execute(
                 text("DELETE FROM sj_division_category_tags WHERE division_id = :did"),
-                {"did": existing.id},
+                {"did": id},
             )
             # 3. Delete division
-            await session.execute(
+            result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": existing.id},
+                {"id": id},
             )
             await session.commit()
-        return True
+            return result.rowcount > 0

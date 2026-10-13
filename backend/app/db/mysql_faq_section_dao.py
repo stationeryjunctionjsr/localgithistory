@@ -79,38 +79,41 @@ class MySQLFaqSectionDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: FaqSectionInternalUpdate) -> Optional[FaqSectionResponse]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
-            
         SessionLocal = get_async_session_factory()
         now = now_utc()
         
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
         
-        if update_data.title is not None:
+        if "title" in update_data.model_fields_set:
             updates.append("title = :title")
             params["title"] = update_data.title
-        if update_data.orderIndex is not None:
+        if "orderIndex" in update_data.model_fields_set or "order_index" in update_data.model_fields_set:
             updates.append("order_index = :oi")
             params["oi"] = update_data.orderIndex
-        if update_data.isActive is not None:
+        if "isActive" in update_data.model_fields_set or "is_active" in update_data.model_fields_set:
             updates.append("is_active = :ia")
             params["ia"] = 1 if update_data.isActive else 0
-        if update_data.icon is not None:
+        if "icon" in update_data.model_fields_set:
             updates.append("icon = :ic")
             params["ic"] = update_data.icon
             
+        has_items_update = "items" in update_data.model_fields_set
         async with SessionLocal() as session:
-            await session.execute(
+            result = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {','.join(updates)} WHERE id = :id"),
                 params
             )
             await session.commit()
+            if result.rowcount == 0 and not has_items_update:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
             
-        if update_data.items is not None:
-            await self._save_items(id, update_data.items)
+        if has_items_update:
+            await self._save_items(id, update_data.items or [])
             
         return await self.findById(id)
 

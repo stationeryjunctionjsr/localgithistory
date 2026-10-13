@@ -43,7 +43,7 @@ async def create_ad(ad_data: AdCreate, _: User = Depends(require_super_admin)) -
 
 
 @router.put("/{ad_id}", response_model=Ad)
-async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_super_admin)) -> Ad:
+async def update_ad(ad_id: int, ad_data: AdUpdate, _: User = Depends(require_super_admin)) -> Ad:
     updated = await storage.update(ad_id, ad_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Ad not found")
@@ -51,19 +51,19 @@ async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_sup
 
 
 @router.patch("/{ad_id}/status", response_model=MessageResponse)
-async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: User = Depends(require_super_admin)) -> MessageResponse:
+async def update_ad_status(ad_id: int, payload: AdStatusUpdate, _: User = Depends(require_super_admin)) -> MessageResponse:
     status = payload.status
     if not status:
         raise HTTPException(status_code=400, detail="Status is required")
         
-    updated = await storage.update(ad_id, payload)
+    updated = await storage.update(ad_id, AdUpdate(status=status))
     if not updated:
         raise HTTPException(status_code=404, detail="Ad not found")
     return MessageResponse(message=f"Ad status updated to {status}")
 
 
 @router.delete("/{ad_id}", response_model=MessageResponse)
-async def delete_ad(ad_id: str, _: User = Depends(require_super_admin)) -> MessageResponse:
+async def delete_ad(ad_id: int, _: User = Depends(require_super_admin)) -> MessageResponse:
     success = await storage.delete(ad_id)
     if not success:
         raise HTTPException(status_code=404, detail="Ad not found")
@@ -72,7 +72,7 @@ async def delete_ad(ad_id: str, _: User = Depends(require_super_admin)) -> Messa
 
 @router.post("/{ad_id}/track", response_model=MessageResponse)
 async def track_ad_event(
-    ad_id: str,
+    ad_id: int,
     event: AdEventPayload,
     current_user: Optional[User] = Depends(get_optional_user),
 ) -> MessageResponse:

@@ -85,7 +85,7 @@ class MySQLSchemesDAO:
             rows = result.fetchall()
             if not rows:
                 return []
-            roles_rows = await self._fetch_roles(session, [int(r.id) for r in rows])
+            roles_rows = await self._fetch_roles(session, [r.id for r in rows])
             return [self._map_to_schema(r, roles_rows) for r in rows]
 
     async def create(self, data: SchemeInternalCreate) -> Optional[SchemeInternal]:
@@ -140,63 +140,67 @@ class MySQLSchemesDAO:
             await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, data: SchemeInternalUpdate) -> Optional[SchemeInternal]:
-        existing = await self.findById(id)
-        if not existing:
+    async def update(self, id: int, data: SchemeInternalUpdate) -> Optional[SchemeInternal]:
+        if not id:
             return None
         factory = self._factory()
-        pid = int(existing.id)
+        if not factory:
+            return None
+
+        pid = id
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now_utc()}
 
-        if data.name is not None:
+        if "name" in data.model_fields_set:
             updates.append("name = :s_name")
             params["s_name"] = data.name
 
-        if data.description is not None:
+        if "description" in data.model_fields_set:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.discount_type is not None:
+        if "discount_type" in data.model_fields_set:
             updates.append("discount_type = :s_discount_type")
             params["s_discount_type"] = data.discount_type
 
-        if data.discount_value is not None:
+        if "discount_value" in data.model_fields_set:
             updates.append("discount_value = :s_discount_value")
             params["s_discount_value"] = data.discount_value
 
-        if data.min_purchase_amount is not None:
+        if "min_purchase_amount" in data.model_fields_set:
             updates.append("min_order_value = :s_min_purchase_amount")
             params["s_min_purchase_amount"] = data.min_purchase_amount
 
-        if data.valid_from is not None:
+        if "valid_from" in data.model_fields_set:
             updates.append("valid_from = :s_valid_from")
             params["s_valid_from"] = data.valid_from
 
-        if data.valid_until is not None:
+        if "valid_until" in data.model_fields_set:
             updates.append("valid_until = :s_valid_until")
             params["s_valid_until"] = data.valid_until
 
-        if data.is_active is not None:
+        if "is_active" in data.model_fields_set:
             updates.append("is_active = :s_is_active")
-            params["s_is_active"] = data.is_active
+            params["s_is_active"] = 1 if data.is_active else 0
 
-        if data.code is not None:
+        if "code" in data.model_fields_set:
             updates.append("code = :s_code")
             params["s_code"] = data.code
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+        has_roles_update = "applicable_roles" in data.model_fields_set
+        upd_sql = ", ".join(updates)
+
+        async with factory() as session:
+            result = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            if has_roles_update:
                 await self._replace_children(session, pid, data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, pid, data)
-                await session.commit()
+            await session.commit()
+            if result.rowcount == 0 and not has_roles_update:
+                existing = await self.findById(pid)
+                if not existing:
+                    return None
                 
         return await self.findById(pid)
 

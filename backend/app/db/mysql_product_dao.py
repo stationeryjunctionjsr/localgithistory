@@ -2,7 +2,6 @@
 MySQL DAO for sj_products (Fully Relational).
 """
 
-from typing import Dict
 from app.models.schemas import ProductSellerEntry, VariantOption
 import json
 
@@ -15,7 +14,7 @@ from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.db_utils import now_utc
 from app.models.daos import ProductInternalCreate, ProductInternalUpdate
-from app.models.product import Product
+from app.models.product import Product, ProductFilter, ProductCatalogQuery, ProductFacets
 
 
 class MySQLProductDAO:
@@ -60,124 +59,117 @@ class MySQLProductDAO:
             updated_at=r.updated_at
         )
 
-    def _build_query_conditions(self, query: dict) -> tuple[str, str, Dict]:
-        where_clauses = []
+    def _build_query_conditions(self, filter: Optional[ProductFilter] = None):
+        where_clauses: list[str] = []
         params = {}
         join_sql = ""
 
-        if "my_seller_id" in query:
-            my_seller_id = query["my_seller_id"]
-            join_sql = " JOIN sj_product_sellers ps ON ps.product_id = CONCAT('PDT-', p.id) "
-            where_clauses.append("ps.seller_id = :my_seller_id")
-            params["my_seller_id"] = str(my_seller_id)
-        elif "seller_ids" in query:
-            seller_ids = query["seller_ids"]
-            if not seller_ids:
-                where_clauses.append("1=0")
-            else:
+        if filter:
+            if filter.my_seller_id:
                 join_sql = " JOIN sj_product_sellers ps ON ps.product_id = CONCAT('PDT-', p.id) "
-                where_clauses.append("ps.is_active = 1")
-                where_clauses.append("ps.request_status = 'approved'")
-                s_placeholders = []
-                for i, sid in enumerate(seller_ids):
-                    p_name = f"sid_{i}"
-                    s_placeholders.append(f":{p_name}")
-                    params[p_name] = str(sid)
-                where_clauses.append(f"ps.seller_id IN ({', '.join(s_placeholders)})")
-
-        if "name" in query and query["name"]:
-            where_clauses.append("p.name = :name")
-            params["name"] = query["name"]
-
-        if "productIdFormatted" in query and query["productIdFormatted"]:
-            pf = str(query["productIdFormatted"]).strip()
-            if pf.startswith("PDT-"):
-                num_id = pf.replace("PDT-", "")
-                if num_id.isdigit():
-                    where_clauses.append("p.id = :productIdFormattedVal")
-                    params["productIdFormattedVal"] = int(num_id)
-            elif pf.isdigit():
-                where_clauses.append("p.id = :productIdFormattedVal")
-                params["productIdFormattedVal"] = int(pf)
-
-        if "category" in query and query["category"]:
-            where_clauses.append("p.category = :category")
-            params["category"] = query["category"]
-
-        if "sku" in query and query["sku"]:
-            where_clauses.append("p.sku = :sku")
-            params["sku"] = query["sku"]
-
-        if "categories" in query and query["categories"]:
-            cats = [c.strip() for c in query["categories"].split(",") if c.strip()]
-            if cats:
-                cat_params = {f"cat_{i}": c for i, c in enumerate(cats)}
-                params.update(cat_params)
-                cat_placeholders = ", ".join([f":{k}" for k in cat_params.keys()])
-                where_clauses.append(f"p.category IN ({cat_placeholders})")
-
-        if "subCategory" in query and query["subCategory"]:
-            where_clauses.append("p.sub_category = :subCategory")
-            params["subCategory"] = query["subCategory"]
-
-        if "brand" in query and query["brand"]:
-            brands = [b.strip().lower() for b in query["brand"].split(",") if b.strip()]
-            if brands:
-                brand_params = {f"brand_{i}": b for i, b in enumerate(brands)}
-                params.update(brand_params)
-                brand_placeholders = ", ".join([f":{k}" for k in brand_params.keys()])
-                where_clauses.append(f"LOWER(p.brand) IN ({brand_placeholders})")
-
-        if "search" in query and query["search"]:
-            term = query["search"].strip()
-            where_clauses.append("MATCH (name, brand, category) AGAINST (:search_term IN BOOLEAN MODE)")
-            boolean_term = " ".join(f"+{t}*" for t in term.split() if t.strip())
-            params["search_term"] = boolean_term
-
-        if "allowed_ids" in query:
-            allowed_ids = query["allowed_ids"]
-            if not allowed_ids:
-                where_clauses.append("1=0")
-            else:
-                id_list = [int(aid) for aid in allowed_ids]
-                chunks = [id_list[i : i + 999] for i in range(0, len(id_list), 999)]
-                chunk_sqls = []
-                for chunk_idx, chunk in enumerate(chunks):
-                    id_params = {f"aid_{chunk_idx}_{i}": aid for i, aid in enumerate(chunk)}
-                    params.update(id_params)
-                    id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
-                    chunk_sqls.append(f"p.id IN ({id_placeholders})")
-
-                if len(chunk_sqls) == 1:
-                    where_clauses.append(chunk_sqls[0])
+                where_clauses.append("ps.seller_id = :my_seller_id")
+                params["my_seller_id"] = filter.my_seller_id
+            elif filter.seller_ids:
+                seller_ids = filter.seller_ids
+                if not seller_ids:
+                    where_clauses.append("1=0")
                 else:
-                    where_clauses.append("(" + " OR ".join(chunk_sqls) + ")")
+                    join_sql = " JOIN sj_product_sellers ps ON ps.product_id = CONCAT('PDT-', p.id) "
+                    where_clauses.append("ps.is_active = 1")
+                    where_clauses.append("ps.request_status = 'approved'")
+                    s_placeholders = []
+                    for i, sid in enumerate(seller_ids):
+                        p_name = f"sid_{i}"
+                        s_placeholders.append(f":{p_name}")
+                        params[p_name] = sid
+                    where_clauses.append(f"ps.seller_id IN ({', '.join(s_placeholders)})")
 
-        if "isActive" in query:
-            is_active = 1 if query["isActive"] else 0
-            where_clauses.append("p.is_active = :isActive")
-            params["isActive"] = is_active
-        elif (query["includeInactive"] if "includeInactive" in query else None) is not True:
+            if filter.id is not None:
+                where_clauses.append("p.id = :id")
+                params["id"] = filter.id
+
+            if filter.name:
+                where_clauses.append("p.name = :name")
+                params["name"] = filter.name
+
+            if filter.category:
+                where_clauses.append("p.category = :category")
+                params["category"] = filter.category
+
+            if filter.sku:
+                where_clauses.append("p.sku = :sku")
+                params["sku"] = filter.sku
+
+            if filter.categories:
+                cats = [c.strip() for c in filter.categories.split(",") if c.strip()]
+                if cats:
+                    cat_params = {f"cat_{i}": c for i, c in enumerate(cats)}
+                    params.update(cat_params)
+                    cat_placeholders = ", ".join([f":{k}" for k in cat_params.keys()])
+                    where_clauses.append(f"p.category IN ({cat_placeholders})")
+
+            if filter.sub_category:
+                where_clauses.append("p.sub_category = :subCategory")
+                params["subCategory"] = filter.sub_category
+
+            if filter.brand:
+                brands = [b.strip().lower() for b in filter.brand.split(",") if b.strip()]
+                if brands:
+                    brand_params = {f"brand_{i}": b for i, b in enumerate(brands)}
+                    params.update(brand_params)
+                    brand_placeholders = ", ".join([f":{k}" for k in brand_params.keys()])
+                    where_clauses.append(f"LOWER(p.brand) IN ({brand_placeholders})")
+
+            if filter.search:
+                term = filter.search.strip()
+                where_clauses.append("MATCH (name, brand, category) AGAINST (:search_term IN BOOLEAN MODE)")
+                boolean_term = " ".join(f"+{t}*" for t in term.split() if t.strip())
+                params["search_term"] = boolean_term
+
+            if filter.allowed_ids is not None:
+                if not filter.allowed_ids:
+                    where_clauses.append("1=0")
+                else:
+                    chunks = [filter.allowed_ids[i : i + 999] for i in range(0, len(filter.allowed_ids), 999)]
+                    chunk_sqls = []
+                    for chunk_idx, chunk in enumerate(chunks):
+                        id_params = {f"aid_{chunk_idx}_{i}": aid for i, aid in enumerate(chunk)}
+                        params.update(id_params)
+                        id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
+                        chunk_sqls.append(f"p.id IN ({id_placeholders})")
+
+                    if len(chunk_sqls) == 1:
+                        where_clauses.append(chunk_sqls[0])
+                    else:
+                        where_clauses.append("(" + " OR ".join(chunk_sqls) + ")")
+
+            if filter.is_active is not None:
+                is_active = 1 if filter.is_active else 0
+                where_clauses.append("p.is_active = :isActive")
+                params["isActive"] = is_active
+            elif not filter.include_inactive:
+                where_clauses.append("p.is_active = 1")
+
+            price_col = "COALESCE(p.mrp_per_case, p.mrp)" if filter.role == "wholesaler" else "p.mrp"
+            if filter.min_price is not None:
+                where_clauses.append(f"{price_col} >= :minPrice")
+                params["minPrice"] = filter.min_price
+            if filter.max_price is not None:
+                where_clauses.append(f"{price_col} <= :maxPrice")
+                params["maxPrice"] = filter.max_price
+
+            availability = (filter.availability or "").strip().lower()
+            if availability == "available":
+                where_clauses.append("p.stock > 0")
+            elif availability == "stock_out":
+                where_clauses.append("p.stock <= 0")
+        else:
             where_clauses.append("p.is_active = 1")
-
-        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if (query["role"] if "role" in query else None) == "wholesaler" else "p.mrp"
-        if "minPrice" in query and query["minPrice"]:
-            where_clauses.append(f"{price_col} >= :minPrice")
-            params["minPrice"] = float(query["minPrice"])
-        if "maxPrice" in query and query["maxPrice"]:
-            where_clauses.append(f"{price_col} <= :maxPrice")
-            params["maxPrice"] = float(query["maxPrice"])
-
-        availability = ((query["availability"] if "availability" in query else None) or "").strip().lower()
-        if availability == "available":
-            where_clauses.append("p.stock > 0")
-        elif availability == "stock_out":
-            where_clauses.append("p.stock <= 0")
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return join_sql, where_sql, params
 
-    async def _fetch_children_for_products(self, session, pids: List[int]) -> Dict[int, dict]:
+    async def _fetch_children_for_products(self, session, pids: List[int]) -> dict[int, dict]:
         children_map = {
             pid: {"images": [], "videos": [], "tags": [], "variantAttributes": [], "variants": [], "details": {}, "sellers": []}
             for pid in pids
@@ -318,14 +310,16 @@ class MySQLProductDAO:
         # )
         return children_map
 
-    async def find_paginated(self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest"):
+    async def find_paginated(
+        self, filter: ProductFilter, skip: int = 0, limit: int = 50, sort: str = "newest"
+    ) -> tuple[List[Product], int]:
         factory = self._factory()
         if not factory:
             return [], 0
-        join_sql, where_sql, params = self._build_query_conditions(query)
+        join_sql, where_sql, params = self._build_query_conditions(filter)
         sort_sql = "ORDER BY p.created_at DESC"
         
-        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if (query["role"] if "role" in query else None) == "wholesaler" else "p.mrp"
+        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if filter.role == "wholesaler" else "p.mrp"
         
         if sort == "price_asc":
             sort_sql = f"ORDER BY ({price_col} IS NULL) ASC, {price_col} ASC"
@@ -355,11 +349,11 @@ class MySQLProductDAO:
 
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows], total_count
 
-    async def get_facets(self, query: dict) -> dict:
+    async def get_facets(self, filter: ProductFilter) -> ProductFacets:
         factory = self._factory()
         if not factory:
-            return {"brands": [], "categories": [], "subCategories": []}
-        join_sql, where_sql, params = self._build_query_conditions(query)
+            return ProductFacets()
+        join_sql, where_sql, params = self._build_query_conditions(filter)
         facet_sql = f"""
             SELECT 'brand' AS facet_type, p.brand AS val FROM {self.TABLE} p {join_sql}
                 WHERE {where_sql} AND p.brand IS NOT NULL GROUP BY p.brand
@@ -370,25 +364,27 @@ class MySQLProductDAO:
             SELECT 'subCategory', p.sub_category FROM {self.TABLE} p {join_sql}
                 WHERE {where_sql} AND p.sub_category IS NOT NULL GROUP BY p.sub_category
         """
-        facets: Dict[str, List[str]] = {"brands": [], "categories": [], "subCategories": []}
+        brands = []
+        categories = []
+        sub_categories = []
         async with factory() as session:
             for row in (await session.execute(text(facet_sql), params)).fetchall():
                 if row.facet_type == "brand":
-                    facets["brands"].append(row.val)
+                    brands.append(row.val)
                 elif row.facet_type == "category":
-                    facets["categories"].append(row.val)
+                    categories.append(row.val)
                 elif row.facet_type == "subCategory":
-                    facets["subCategories"].append(row.val)
-        facets["brands"].sort()
-        facets["categories"].sort()
-        facets["subCategories"].sort()
-        return facets
+                    sub_categories.append(row.val)
+        brands.sort()
+        categories.sort()
+        sub_categories.sort()
+        return ProductFacets(brands=brands, categories=categories, sub_categories=sub_categories)
 
-    async def findAll(self, query: Optional[dict] = None) -> List[Product]:
+    async def findAll(self, filter: Optional[ProductFilter] = None) -> List[Product]:
         factory = self._factory()
         if not factory:
             return []
-        join_sql, where_sql, params = self._build_query_conditions(query or {})
+        join_sql, where_sql, params = self._build_query_conditions(filter)
         async with factory() as session:
             rows = (
                 await session.execute(
@@ -404,10 +400,8 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows]
 
-    async def findOne(self, query: dict) -> Optional[Product]:
-        if set(query.keys()) in ({"_id"}, {"id"}):
-            return await self.findById((query["_id"] if "_id" in query else None) or (query["id"] if "id" in query else None))
-        records = await self.findAll(query)
+    async def findOne(self, filter: ProductFilter) -> Optional[Product]:
+        records = await self.findAll(filter)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[Product]:
@@ -518,19 +512,14 @@ class MySQLProductDAO:
         await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
         for seller in (data.sellers if data.sellers is not None else []):
             s_entry = ProductSellerEntry.model_validate(seller)
-            s_id = s_entry.seller_id
-            s_stock = s_entry.stock
-            s_active = s_entry.is_active
-            s_status = s_entry.request_status
-                        
             await session.execute(
                 text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
                 {
                     "pid_ext": f"PDT-{pid}", 
-                    "seller_id": str(s_id), 
-                    "stock": int(s_stock) if s_stock is not None else 0, 
-                    "is_active": 1 if s_active else 0, 
-                    "request_status": str(s_status) if s_status else "pending"
+                    "seller_id": s_entry.seller_id, 
+                    "stock": s_entry.stock if s_entry.stock is not None else 0, 
+                    "is_active": 1 if s_entry.is_active else 0, 
+                    "request_status": s_entry.request_status or "pending"
                 }
             )
 
@@ -681,16 +670,16 @@ class MySQLProductDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: dict) -> dict:
-        records = await self.findAll(query)
+    async def deleteMany(self, filter: Optional[ProductFilter] = None) -> int:
+        records = await self.findAll(filter)
         deleted = 0
         for r in records:
             if await self.delete(r.id):
                 deleted += 1
-        return {"deletedCount": deleted}
+        return deleted
 
-    async def count(self, query: Optional[dict] = None) -> int:
-        return len(await self.findAll(query))
+    async def count(self, filter: Optional[ProductFilter] = None) -> int:
+        return len(await self.findAll(filter))
 
     find_all = findAll
     find_by_id = findById

@@ -348,3 +348,374 @@ def test_category_and_banner_zero_anti_patterns():
     sig_delete = inspect.signature(cat_repo_mod.CategoryRepository.delete)
     assert sig_delete.parameters["id"].annotation is int, f"delete expected int, got {sig_delete.parameters['id'].annotation}"
 
+
+@pytest.mark.asyncio
+async def test_five_new_daos_targeted_dynamic_updates_and_zero_dict():
+    import app.db.mysql_brand_dao as brand_dao_mod
+    import app.db.mysql_feature_flag_dao as ff_dao_mod
+    import app.db.mysql_commission_settings_dao as comm_dao_mod
+    import app.db.mysql_faq_section_dao as faq_dao_mod
+    import app.db.mysql_division_dao as div_dao_mod
+    import app.repositories.brand_repository as brand_repo_mod
+    import app.repositories.feature_flag_repository as ff_repo_mod
+    import app.repositories.division_repository as div_repo_mod
+
+    from app.models.daos import BrandInternalUpdate
+    from app.models.feature_flag import FeatureFlagUpdate
+    from app.models.commission_settings import CommissionSettingsInternalUpdate
+    from app.models.faq_section import FaqSectionInternalUpdate
+    from app.models.division import DivisionInternalUpdate
+
+    # 1. AST Check: Zero reflection calls and zero dict in repo/dao signatures
+    modules_to_check = [
+        brand_dao_mod, ff_dao_mod, comm_dao_mod, faq_dao_mod, div_dao_mod,
+        brand_repo_mod, ff_repo_mod, div_repo_mod
+    ]
+    for mod in modules_to_check:
+        src = inspect.getsource(mod)
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "hasattr"}:
+                assert False, f"Found reflection call {node.func.id} in {mod.__name__}"
+            if isinstance(node, ast.FunctionDef):
+                for arg in node.args.args:
+                    if arg.annotation and isinstance(arg.annotation, ast.Name):
+                        assert arg.annotation.id not in {"dict", "Dict"}, f"Found dict/Dict parameter in {mod.__name__}.{node.name}"
+
+    import app.routers.feature_flags as ff_router_mod
+    assert "isdigit" not in inspect.getsource(ff_router_mod), "Found isdigit in feature_flags router"
+    assert "isdigit" not in inspect.getsource(ff_repo_mod), "Found isdigit in feature_flags repository"
+    assert "isdigit" not in inspect.getsource(ff_dao_mod), "Found isdigit in feature_flags DAO"
+
+    # Helper for DB mock
+    def setup_mock_db():
+        executed = []
+        mock_session = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.rowcount = 1
+
+        async def fake_exec(stmt, p=None):
+            executed.append((str(stmt), p or {}))
+            return mock_res
+
+        mock_session.execute = fake_exec
+        mock_session.commit = AsyncMock()
+
+        class MockCtx:
+            async def __aenter__(self):
+                return mock_session
+            async def __aexit__(self, *args):
+                pass
+
+        return executed, lambda: MockCtx()
+
+    # 2. Test MySQLBrandDAO dynamic update
+    b_dao = brand_dao_mod.MySQLBrandDAO()
+    b_exec, b_factory = setup_mock_db()
+    b_dao._factory = MagicMock(return_value=b_factory)
+    b_dao.findById = AsyncMock(return_value=MagicMock())
+    await b_dao.update(10, BrandInternalUpdate(name="Acme Corp"))
+    assert len(b_exec) == 1
+    sql, params = b_exec[0]
+    assert "name = :name" in sql
+    assert "slug = :slug" in sql
+    assert "image_url = :image_url" not in sql
+    assert "show_in_mobile_homepage = :show_in_mobile_homepage" not in sql
+    assert params["id"] == 10
+    assert params["name"] == "Acme Corp"
+    assert params["slug"] == "acme-corp"
+
+    # 3. Test MySQLFeatureFlagDAO dynamic update
+    ff_dao = ff_dao_mod.MySQLFeatureFlagDAO()
+    ff_exec, ff_factory = setup_mock_db()
+    ff_dao._factory = MagicMock(return_value=ff_factory)
+    ff_dao.findById = AsyncMock(return_value=MagicMock())
+    await ff_dao.update(20, FeatureFlagUpdate(enabled=True))
+    assert len(ff_exec) == 1
+    sql, params = ff_exec[0]
+    assert "enabled = :enabled" in sql
+    assert "name = :name" not in sql
+    assert "category = :category" not in sql
+    assert params["id"] == 20
+    assert params["enabled"] == 1
+
+    # 4. Test MySQLCommissionSettingsDAO dynamic update
+    c_dao = comm_dao_mod.MySQLCommissionSettingsDAO()
+    c_exec, c_factory = setup_mock_db()
+    c_dao._factory = MagicMock(return_value=c_factory)
+    c_dao.findById = AsyncMock(return_value=MagicMock())
+    await c_dao.update(30, CommissionSettingsInternalUpdate(default_commission_pct=12.5))
+    assert len(c_exec) == 1
+    sql, params = c_exec[0]
+    assert "default_commission_pct = :pct" in sql
+    assert params["id"] == 30
+    assert params["pct"] == 12.5
+
+    # 5. Test MySQLFaqSectionDAO dynamic update
+    faq_dao = faq_dao_mod.MySQLFaqSectionDAO()
+    faq_exec, faq_factory = setup_mock_db()
+    with patch("app.db.mysql_faq_section_dao.get_async_session_factory", return_value=faq_factory):
+        faq_dao.findById = AsyncMock(return_value=MagicMock())
+        await faq_dao.update(40, FaqSectionInternalUpdate(title="Billing FAQ"))
+        assert len(faq_exec) == 1
+        sql, params = faq_exec[0]
+        assert "title = :title" in sql
+        assert "order_index = :oi" not in sql
+        assert "is_active = :ia" not in sql
+        assert params["id"] == 40
+        assert params["title"] == "Billing FAQ"
+
+    # 6. Test MySQLDivisionDAO dynamic update
+    div_dao = div_dao_mod.MySQLDivisionDAO()
+    div_exec, div_factory = setup_mock_db()
+    div_dao._factory = MagicMock(return_value=div_factory)
+    div_dao.findById = AsyncMock(return_value=MagicMock())
+    await div_dao.update(50, DivisionInternalUpdate(name="Electronics Division", is_active=True))
+    assert len(div_exec) == 1
+    sql, params = div_exec[0]
+    assert "name = :name" in sql
+    assert "is_active = :act" in sql
+    assert "description = :desc" not in sql
+    assert "image_url = :img" not in sql
+    assert params["id"] == 50
+    assert params["name"] == "Electronics Division"
+    assert params["act"] == 1
+
+
+@pytest.mark.asyncio
+async def test_four_more_daos_targeted_dynamic_updates_and_zero_dict():
+    import app.db.mysql_ad_dao as ad_dao_mod
+    import app.db.mysql_categoryTags_dao as cat_tags_dao_mod
+    import app.db.mysql_schemes_dao as schemes_dao_mod
+    import app.db.mysql_searchTags_dao as search_tags_dao_mod
+    import app.routers.ads as ads_router_mod
+    import app.repositories.search_tag_repository as search_tag_repo_mod
+
+    from app.models.schemas import AdUpdate
+    from app.models.daos_flat import CategoryTagInternalUpdate, SchemeInternalUpdate, SearchTagInternalUpdate
+
+    # 1. AST Check: Zero reflection calls, zero dict in signatures, zero isdigit
+    modules_to_check = [
+        ad_dao_mod, cat_tags_dao_mod, schemes_dao_mod, search_tags_dao_mod,
+        ads_router_mod, search_tag_repo_mod
+    ]
+    for mod in modules_to_check:
+        src = inspect.getsource(mod)
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "hasattr"}:
+                assert False, f"Found reflection call {node.func.id} in {mod.__name__}"
+            if isinstance(node, ast.FunctionDef):
+                for arg in node.args.args:
+                    if arg.annotation and isinstance(arg.annotation, ast.Name):
+                        assert arg.annotation.id not in {"dict", "Dict"}, f"Found dict/Dict parameter in {mod.__name__}.{node.name}"
+
+    assert "isdigit" not in inspect.getsource(ads_router_mod), "Found isdigit in ads router"
+    assert "isdigit" not in inspect.getsource(ad_dao_mod), "Found isdigit in ad DAO"
+    assert "isdigit" not in inspect.getsource(cat_tags_dao_mod), "Found isdigit in categoryTags DAO"
+    assert "isdigit" not in inspect.getsource(schemes_dao_mod), "Found isdigit in schemes DAO"
+    assert "isdigit" not in inspect.getsource(search_tags_dao_mod), "Found isdigit in searchTags DAO"
+
+    # Helper for DB mock
+    def setup_mock_db():
+        executed = []
+        mock_session = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.rowcount = 1
+
+        async def fake_exec(stmt, p=None):
+            executed.append((str(stmt), p or {}))
+            return mock_res
+
+        mock_session.execute = fake_exec
+        mock_session.commit = AsyncMock()
+
+        class MockCtx:
+            async def __aenter__(self):
+                return mock_session
+            async def __aexit__(self, *args):
+                pass
+
+        return executed, lambda: MockCtx()
+
+    # 2. Test MySQLAdDAO targeted dynamic update
+    ad_dao = ad_dao_mod.MySQLAdDAO()
+    ad_exec, ad_factory = setup_mock_db()
+    ad_dao._factory = MagicMock(return_value=ad_factory)
+    ad_dao.findById = AsyncMock(return_value=MagicMock())
+    await ad_dao.update(101, AdUpdate(name="Flash Sale", status="active"))
+    assert len(ad_exec) == 1
+    sql, params = ad_exec[0]
+    assert "name = :name" in sql
+    assert "status = :status" in sql
+    assert "headline = :headline" not in sql
+    assert "image_url = :image_url" not in sql
+    assert params["id"] == 101
+    assert params["name"] == "Flash Sale"
+    assert params["status"] == "active"
+
+    # 3. Test MySQLCategoryTagsDAO targeted dynamic update
+    ct_dao = cat_tags_dao_mod.MySQLCategoryTagsDAO()
+    ct_exec, ct_factory = setup_mock_db()
+    ct_dao._factory = MagicMock(return_value=ct_factory)
+    ct_dao.findById = AsyncMock(return_value=MagicMock())
+    await ct_dao.update(202, CategoryTagInternalUpdate(name="Trending Tag"))
+    assert len(ct_exec) == 1
+    sql, params = ct_exec[0]
+    assert "name = :name" in sql
+    assert "description = :desc" not in sql
+    assert "is_active = :act" not in sql
+    assert params["id"] == 202
+    assert params["name"] == "Trending Tag"
+
+    # 4. Test MySQLSchemesDAO targeted dynamic update
+    sc_dao = schemes_dao_mod.MySQLSchemesDAO()
+    sc_exec, sc_factory = setup_mock_db()
+    sc_dao._factory = MagicMock(return_value=sc_factory)
+    sc_dao.findById = AsyncMock(return_value=MagicMock())
+    await sc_dao.update(303, SchemeInternalUpdate(name="Monsoon Scheme"))
+    assert len(sc_exec) == 1
+    sql, params = sc_exec[0]
+    assert "name = :s_name" in sql
+    assert "cashback_percentage = :cashback_percentage" not in sql
+    assert params["id"] == 303
+    assert params["s_name"] == "Monsoon Scheme"
+
+    # 5. Test MySQLSearchTagsDAO targeted dynamic update without child updates
+    st_dao = search_tags_dao_mod.MySQLSearchTagsDAO()
+    st_exec, st_factory = setup_mock_db()
+    st_dao._factory = MagicMock(return_value=st_factory)
+    st_dao.findById = AsyncMock(return_value=MagicMock())
+    await st_dao.update(404, SearchTagInternalUpdate(name="Summer Collection"))
+    # Only 1 query: UPDATE, no child table operations
+    assert len(st_exec) == 1
+    sql, params = st_exec[0]
+    assert "name = :s_name" in sql
+    assert "type = :s_type" not in sql
+    assert "is_active = :s_is_active" not in sql
+    assert params["id"] == 404
+    assert params["s_name"] == "Summer Collection"
+
+    # 6. Test MySQLSearchTagsDAO targeted dynamic update WITH child updates
+    st_exec2, st_factory2 = setup_mock_db()
+    st_dao._factory = MagicMock(return_value=st_factory2)
+    st_dao.findById = AsyncMock(return_value=MagicMock())
+    await st_dao.update(404, SearchTagInternalUpdate(categories=["cat1", "cat2"]))
+    # UPDATE query + DELETE categories + INSERT cat1 + INSERT cat2
+    assert len(st_exec2) == 4
+    cat_del_sql = st_exec2[1][0]
+    assert "DELETE FROM sj_search_tag_categories" in cat_del_sql
+    cat_ins_sql = st_exec2[2][0]
+    assert "INSERT INTO sj_search_tag_categories" in cat_ins_sql
+
+
+@pytest.mark.asyncio
+async def test_settings_and_content_daos_targeted_dynamic_updates_and_zero_dict():
+    import app.db.mysql_aboutUs_dao as about_dao_mod
+    import app.db.mysql_privacyPolicy_dao as privacy_dao_mod
+    import app.db.mysql_systemSettings_dao as sys_dao_mod
+    import app.db.mysql_valetPayoutSettings_dao as valet_payout_dao_mod
+
+    from app.models.daos_flat import (
+        AboutUsInternalUpdate,
+        PrivacyPolicyInternalUpdate,
+        ValetPayoutSettingsInternalUpdate,
+    )
+    from app.models.system_settings import SystemSettingsUpdate
+
+    # 1. AST Check: Zero reflection calls, zero dict in signatures, zero isdigit
+    modules_to_check = [about_dao_mod, privacy_dao_mod, sys_dao_mod, valet_payout_dao_mod]
+    for mod in modules_to_check:
+        src = inspect.getsource(mod)
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "hasattr"}:
+                assert False, f"Found reflection call {node.func.id} in {mod.__name__}"
+            if isinstance(node, ast.FunctionDef):
+                for arg in node.args.args:
+                    if arg.annotation and isinstance(arg.annotation, ast.Name):
+                        assert arg.annotation.id not in {"dict", "Dict"}, f"Found dict/Dict parameter in {mod.__name__}.{node.name}"
+
+        assert "isdigit" not in src, f"Found isdigit in {mod.__name__}"
+
+    # Helper for DB mock
+    def setup_mock_db():
+        executed = []
+        mock_session = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.rowcount = 1
+
+        async def fake_exec(stmt, p=None):
+            executed.append((str(stmt), p or {}))
+            return mock_res
+
+        mock_session.execute = fake_exec
+        mock_session.commit = AsyncMock()
+
+        class MockCtx:
+            async def __aenter__(self):
+                return mock_session
+            async def __aexit__(self, *args):
+                pass
+
+        return executed, lambda: MockCtx()
+
+    # 2. Test MySQLAboutUsDAO targeted dynamic update
+    about_dao = about_dao_mod.MySQLAboutUsDAO()
+    about_exec, about_factory = setup_mock_db()
+    about_dao._factory = MagicMock(return_value=about_factory)
+    about_dao.findById = AsyncMock(return_value=MagicMock())
+    await about_dao.update(1, AboutUsInternalUpdate(title="About Us New"))
+    assert len(about_exec) == 1
+    sql, params = about_exec[0]
+    assert "title = :title" in sql
+    assert "content = :content" not in sql
+    assert "version = :version" not in sql
+    assert "is_published = :isPublished" not in sql
+    assert params["id"] == 1
+    assert params["title"] == "About Us New"
+
+    # 3. Test MySQLPrivacyPolicyDAO targeted dynamic update
+    privacy_dao = privacy_dao_mod.MySQLPrivacyPolicyDAO()
+    p_exec, p_factory = setup_mock_db()
+    privacy_dao._factory = MagicMock(return_value=p_factory)
+    privacy_dao.findById = AsyncMock(return_value=MagicMock())
+    await privacy_dao.update(1, PrivacyPolicyInternalUpdate(version="2.0"))
+    assert len(p_exec) == 1
+    sql, params = p_exec[0]
+    assert "version = :version" in sql
+    assert "content = :content" not in sql
+    assert "effective_date = :effectiveDate" not in sql
+    assert "is_active = :isActive" not in sql
+    assert params["id"] == 1
+    assert params["version"] == "2.0"
+
+    # 4. Test MySQLSystemSettingsDAO targeted dynamic update
+    sys_dao = sys_dao_mod.MySQLSystemSettingsDAO()
+    s_exec, s_factory = setup_mock_db()
+    sys_dao._factory = MagicMock(return_value=s_factory)
+    sys_dao.findById = AsyncMock(return_value=MagicMock())
+    await sys_dao.update(1, SystemSettingsUpdate(maintenance_mode=True))
+    assert len(s_exec) == 1
+    sql, params = s_exec[0]
+    assert "maintenance_mode = :maintenanceMode" in sql
+    assert "allow_signups = :allowSignups" not in sql
+    assert "max_upload_size_mb = :maxUploadSizeMb" not in sql
+    assert "default_currency = :defaultCurrency" not in sql
+    assert "timezone = :timezone" not in sql
+    assert params["id"] == 1
+    assert params["maintenanceMode"] == 1
+
+    # 5. Test MySQLValetPayoutSettingsDAO targeted dynamic update
+    valet_dao = valet_payout_dao_mod.MySQLValetPayoutSettingsDAO()
+    v_exec, v_factory = setup_mock_db()
+    valet_dao._factory = MagicMock(return_value=v_factory)
+    valet_dao.findById = AsyncMock(return_value=MagicMock())
+    await valet_dao.update(1, ValetPayoutSettingsInternalUpdate(delivery_charge_per_order=45.0))
+    assert len(v_exec) == 1
+    sql, params = v_exec[0]
+    assert "delivery_charge_per_order = :deliveryChargePerOrder" in sql
+    assert "return_pickup_charge_per_order = :returnPickupChargePerOrder" not in sql
+    assert params["id"] == 1
+    assert params["deliveryChargePerOrder"] == 45.0
+

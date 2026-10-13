@@ -155,8 +155,8 @@ async def update_division(
         if not division:
             raise HTTPException(status_code=404, detail="Division not found")
 
-        update_data = DivisionInternalUpdate()
-        has_updates = False
+        if not division_update.model_fields_set:
+            raise HTTPException(status_code=400, detail="No fields to update")
 
         if division_update.name is not None:
             existing = await division_repository.findByName(division_update.name)
@@ -165,32 +165,11 @@ async def update_division(
                 raise HTTPException(
                     status_code=400, detail="Division with this name already exists"
                 )
-            update_data.name = division_update.name.strip()
-            has_updates = True
+            division_update.name = division_update.name.strip()
 
-        if division_update.description is not None:
-            update_data.description = division_update.description
-            has_updates = True
-
-        if division_update.image_url is not None:
-            update_data.image_url = division_update.image_url
-            has_updates = True
-
-        if division_update.display_order is not None:
-            update_data.display_order = division_update.display_order
-            has_updates = True
-
-        if division_update.is_active is not None:
-            update_data.is_active = division_update.is_active
-            has_updates = True
-
-        if division_update.category_tag_ids is not None:
-            update_data.category_tag_ids = division_update.category_tag_ids
-            has_updates = True
-
-        if not has_updates:
-            raise HTTPException(status_code=400, detail="No fields to update")
-
+        update_data = DivisionInternalUpdate.model_validate(
+            division_update.model_dump(exclude_unset=True)
+        )
         updated_division = await division_repository.update(division_id, update_data)
         _invalidate_division_caches()
         return updated_division

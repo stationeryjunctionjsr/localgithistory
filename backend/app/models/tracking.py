@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 from pydantic import Field
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
@@ -17,7 +17,7 @@ class Tracking(CamelBaseModel):
     page: Optional[str] = None
     reason: Optional[str] = None
     filter_type: Optional[str] = None
-    filter_value: Optional[str] = None
+    filter_value: Optional[Union[str, int]] = None
     cart_value: Optional[float] = None
     is_returning: Optional[bool] = None
     source: Optional[str] = None

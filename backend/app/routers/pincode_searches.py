@@ -1,6 +1,6 @@
+from app.models.pincode_searches import PincodeSearchListResponse
+from app.models.schemas import MessageResponse, PincodeSearchStatsResponse
 from app.models.user import User
-from typing import List
-from app.models.schemas import MessageResponse, PincodeSearchResponse, PincodeSearchStatsResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -11,8 +11,8 @@ from app.utils.auth import require_super_admin
 router = APIRouter(prefix="/admin/pincode-searches", tags=["admin-pincode-searches"])
 
 
-@router.get("", response_model=List[PincodeSearchResponse])
-@router.get("/", response_model=List[PincodeSearchResponse])
+@router.get("", response_model=PincodeSearchListResponse)
+@router.get("/", response_model=PincodeSearchListResponse)
 async def get_pincode_searches(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),

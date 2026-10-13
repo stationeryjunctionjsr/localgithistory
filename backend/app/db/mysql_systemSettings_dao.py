@@ -1,20 +1,11 @@
 """
 Strict SQLAlchemy DAO for sj_system_settings with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
 from app.models.system_settings import SystemSettingsResponse, SystemSettingsUpdate
-
-
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
 
 
 class MySQLSystemSettingsDAO:
@@ -35,28 +26,24 @@ class MySQLSystemSettingsDAO:
             updated_at=row.updated_at.isoformat() if row.updated_at else None,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[SystemSettingsResponse]:
-        query = query or {}
+    async def findAll(
+        self,
+        maintenance_mode: Optional[bool] = None,
+        allow_signups: Optional[bool] = None,
+    ) -> List[SystemSettingsResponse]:
         where_clauses = []
         params = {}
-        if "maintenanceMode" in query:
+        if maintenance_mode is not None:
             where_clauses.append("maintenance_mode = :maintenanceMode")
-            params["maintenanceMode"] = 1 if query["maintenanceMode"] else 0
-        if "allowSignups" in query:
+            params["maintenanceMode"] = 1 if maintenance_mode else 0
+        if allow_signups is not None:
             where_clauses.append("allow_signups = :allowSignups")
-            params["allowSignups"] = 1 if query["allowSignups"] else 0
-        if "maxUploadSizeMb" in query:
-            where_clauses.append("max_upload_size_mb = :maxUploadSizeMb")
-            params["maxUploadSizeMb"] = _to_int(query["maxUploadSizeMb"])
-        if "defaultCurrency" in query:
-            where_clauses.append("default_currency = :defaultCurrency")
-            params["defaultCurrency"] = query["defaultCurrency"]
-        if "timezone" in query:
-            where_clauses.append("timezone = :timezone")
-            params["timezone"] = query["timezone"]
+            params["allowSignups"] = 1 if allow_signups else 0
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
+        if not factory:
+            return []
         async with factory() as session:
             rows = (
                 await session.execute(
@@ -66,24 +53,23 @@ class MySQLSystemSettingsDAO:
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[SystemSettingsResponse]:
-        if "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
-        records = await self.findAll(query)
+    async def findOne(self, id: Optional[int] = None) -> Optional[SystemSettingsResponse]:
+        if id is not None:
+            return await self.findById(id)
+        records = await self.findAll()
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[SystemSettingsResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
         factory = self._factory()
+        if not factory:
+            return None
         async with factory() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
@@ -127,51 +113,60 @@ class MySQLSystemSettingsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: SystemSettingsUpdate) -> Optional[SystemSettingsResponse]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
+        factory = self._factory()
+        if not factory:
             return None
 
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if data.maintenance_mode is not None:
+        params = {"id": id, "u": now}
+
+        if "maintenance_mode" in data.model_fields_set:
             updates.append("maintenance_mode = :maintenanceMode")
             params["maintenanceMode"] = 1 if data.maintenance_mode else 0
-        if data.allow_signups is not None:
+
+        if "allow_signups" in data.model_fields_set:
             updates.append("allow_signups = :allowSignups")
             params["allowSignups"] = 1 if data.allow_signups else 0
-        if data.max_upload_size_mb is not None:
+
+        if "max_upload_size_mb" in data.model_fields_set:
             updates.append("max_upload_size_mb = :maxUploadSizeMb")
             params["maxUploadSizeMb"] = data.max_upload_size_mb
-        if data.default_currency is not None:
+
+        if "default_currency" in data.model_fields_set:
             updates.append("default_currency = :defaultCurrency")
             params["defaultCurrency"] = data.default_currency
-        if data.timezone is not None:
+
+        if "timezone" in data.model_fields_set:
             updates.append("timezone = :timezone")
             params["timezone"] = data.timezone
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
-        return await self.findById(id_val)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0

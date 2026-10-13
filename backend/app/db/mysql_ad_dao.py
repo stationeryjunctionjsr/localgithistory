@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 from app.models.ad import Ad
 from app.models.schemas import AdCreate, AdUpdate, AdSummaryResponse
 
@@ -197,61 +197,75 @@ class MySQLAdDAO:
             await session.commit()
         return await self.findById(new_id)
 
-    async def update(self, id: int, update_data: Union[Ad, AdUpdate]) -> Optional[Ad]:
-        existing = await self.findById(id)
-        if not existing:
+    async def update(self, id: int, update_data: AdUpdate) -> Optional[Ad]:
+        if not id:
+            return None
+        factory = self._factory()
+        if not factory:
             return None
 
-        data = update_data
         now = now_utc()
-        
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
 
-        if data.name is not None: updates.append("name = :name"); params["name"] = data.name
-        if data.platform is not None: updates.append("platform = :platform"); params["platform"] = data.platform
-        if data.objective is not None: updates.append("objective = :objective"); params["objective"] = data.objective
-        if data.status is not None: updates.append("status = :status"); params["status"] = data.status
-        if data.budget_daily is not None: updates.append("budget_daily = :budget_daily"); params["budget_daily"] = data.budget_daily
-        if data.budget_total is not None: updates.append("budget_total = :budget_total"); params["budget_total"] = data.budget_total
-        if data.currency is not None: updates.append("currency = :currency"); params["currency"] = data.currency
-        if data.start_date is not None: updates.append("start_date = :start_date"); params["start_date"] = data.start_date
-        if data.end_date is not None: updates.append("end_date = :end_date"); params["end_date"] = data.end_date
-        if data.target_url is not None: updates.append("target_url = :target_url"); params["target_url"] = data.target_url
-        if data.headline is not None: updates.append("headline = :headline"); params["headline"] = data.headline
-        if data.description is not None: updates.append("description = :description"); params["description"] = data.description
-        if data.image_url is not None: updates.append("image_url = :image_url"); params["image_url"] = data.image_url
-        if data.google_campaign_id is not None: updates.append("google_campaign_id = :google_campaign_id"); params["google_campaign_id"] = data.google_campaign_id
-        if data.google_ad_group_id is not None: updates.append("google_ad_group_id = :google_ad_group_id"); params["google_ad_group_id"] = data.google_ad_group_id
-        if data.meta_campaign_id is not None: updates.append("meta_campaign_id = :meta_campaign_id"); params["meta_campaign_id"] = data.meta_campaign_id
-        if data.meta_ad_set_id is not None: updates.append("meta_ad_set_id = :meta_ad_set_id"); params["meta_ad_set_id"] = data.meta_ad_set_id
-        if data.utm_source is not None: updates.append("utm_source = :utm_source"); params["utm_source"] = data.utm_source
-        if data.utm_medium is not None: updates.append("utm_medium = :utm_medium"); params["utm_medium"] = data.utm_medium
-        if data.utm_campaign is not None: updates.append("utm_campaign = :utm_campaign"); params["utm_campaign"] = data.utm_campaign
-        if data.google_conversion_id is not None: updates.append("google_conversion_id = :google_conversion_id"); params["google_conversion_id"] = data.google_conversion_id
-        if data.google_conversion_label is not None: updates.append("google_conversion_label = :google_conversion_label"); params["google_conversion_label"] = data.google_conversion_label
-        if data.meta_pixel_id is not None: updates.append("meta_pixel_id = :meta_pixel_id"); params["meta_pixel_id"] = data.meta_pixel_id
-        if data.notes is not None: updates.append("notes = :notes"); params["notes"] = data.notes
-        if data.launched_at is not None: updates.append("launched_at = :launched_at"); params["launched_at"] = data.launched_at
+        if "name" in update_data.model_fields_set: updates.append("name = :name"); params["name"] = update_data.name
+        if "platform" in update_data.model_fields_set: updates.append("platform = :platform"); params["platform"] = update_data.platform
+        if "objective" in update_data.model_fields_set: updates.append("objective = :objective"); params["objective"] = update_data.objective
+        if "status" in update_data.model_fields_set: updates.append("status = :status"); params["status"] = update_data.status
+        if "budget_daily" in update_data.model_fields_set: updates.append("budget_daily = :budget_daily"); params["budget_daily"] = update_data.budget_daily
+        if "budget_total" in update_data.model_fields_set: updates.append("budget_total = :budget_total"); params["budget_total"] = update_data.budget_total
+        if "currency" in update_data.model_fields_set: updates.append("currency = :currency"); params["currency"] = update_data.currency
+        if "start_date" in update_data.model_fields_set: updates.append("start_date = :start_date"); params["start_date"] = update_data.start_date
+        if "end_date" in update_data.model_fields_set: updates.append("end_date = :end_date"); params["end_date"] = update_data.end_date
+        if "target_url" in update_data.model_fields_set: updates.append("target_url = :target_url"); params["target_url"] = update_data.target_url
+        if "headline" in update_data.model_fields_set: updates.append("headline = :headline"); params["headline"] = update_data.headline
+        if "description" in update_data.model_fields_set: updates.append("description = :description"); params["description"] = update_data.description
+        if "image_url" in update_data.model_fields_set: updates.append("image_url = :image_url"); params["image_url"] = update_data.image_url
+        if "google_campaign_id" in update_data.model_fields_set: updates.append("google_campaign_id = :google_campaign_id"); params["google_campaign_id"] = update_data.google_campaign_id
+        if "google_ad_group_id" in update_data.model_fields_set: updates.append("google_ad_group_id = :google_ad_group_id"); params["google_ad_group_id"] = update_data.google_ad_group_id
+        if "meta_campaign_id" in update_data.model_fields_set: updates.append("meta_campaign_id = :meta_campaign_id"); params["meta_campaign_id"] = update_data.meta_campaign_id
+        if "meta_ad_set_id" in update_data.model_fields_set: updates.append("meta_ad_set_id = :meta_ad_set_id"); params["meta_ad_set_id"] = update_data.meta_ad_set_id
+        if "utm_source" in update_data.model_fields_set: updates.append("utm_source = :utm_source"); params["utm_source"] = update_data.utm_source
+        if "utm_medium" in update_data.model_fields_set: updates.append("utm_medium = :utm_medium"); params["utm_medium"] = update_data.utm_medium
+        if "utm_campaign" in update_data.model_fields_set: updates.append("utm_campaign = :utm_campaign"); params["utm_campaign"] = update_data.utm_campaign
+        if "google_conversion_id" in update_data.model_fields_set: updates.append("google_conversion_id = :google_conversion_id"); params["google_conversion_id"] = update_data.google_conversion_id
+        if "google_conversion_label" in update_data.model_fields_set: updates.append("google_conversion_label = :google_conversion_label"); params["google_conversion_label"] = update_data.google_conversion_label
+        if "meta_pixel_id" in update_data.model_fields_set: updates.append("meta_pixel_id = :meta_pixel_id"); params["meta_pixel_id"] = update_data.meta_pixel_id
+        if "notes" in update_data.model_fields_set: updates.append("notes = :notes"); params["notes"] = update_data.notes
+        if "launched_at" in update_data.model_fields_set: updates.append("launched_at = :launched_at"); params["launched_at"] = update_data.launched_at
 
-        # Handle flat stats
-        if data.stat_impressions is not None: updates.append("stat_impressions = :st_impressions"); params["st_impressions"] = data.stat_impressions
-        if data.stat_clicks is not None: updates.append("stat_clicks = :st_clicks"); params["st_clicks"] = data.stat_clicks
-        if data.stat_leads is not None: updates.append("stat_leads = :st_leads"); params["st_leads"] = data.stat_leads
-        if data.stat_purchases is not None: updates.append("stat_purchases = :st_purchases"); params["st_purchases"] = data.stat_purchases
-        if data.stat_add_to_cart is not None: updates.append("stat_add_to_cart = :st_add_to_cart"); params["st_add_to_cart"] = data.stat_add_to_cart
-        if data.stat_conversions is not None: updates.append("stat_conversions = :st_conversions"); params["st_conversions"] = data.stat_conversions
-        if data.stat_conversion_value is not None: updates.append("stat_conversion_value = :st_conversion_value"); params["st_conversion_value"] = data.stat_conversion_value
-        if data.stat_ctr is not None: updates.append("stat_ctr = :st_ctr"); params["st_ctr"] = data.stat_ctr
-        if data.stat_cvr is not None: updates.append("stat_cvr = :st_cvr"); params["st_cvr"] = data.stat_cvr
+        # Stats
+        if "stat_impressions" in update_data.model_fields_set: updates.append("stat_impressions = :st_impressions"); params["st_impressions"] = update_data.stat_impressions
+        if "stat_clicks" in update_data.model_fields_set: updates.append("stat_clicks = :st_clicks"); params["st_clicks"] = update_data.stat_clicks
+        if "stat_leads" in update_data.model_fields_set: updates.append("stat_leads = :st_leads"); params["st_leads"] = update_data.stat_leads
+        if "stat_purchases" in update_data.model_fields_set: updates.append("stat_purchases = :st_purchases"); params["st_purchases"] = update_data.stat_purchases
+        if "stat_add_to_cart" in update_data.model_fields_set: updates.append("stat_add_to_cart = :st_add_to_cart"); params["st_add_to_cart"] = update_data.stat_add_to_cart
+        if "stat_conversions" in update_data.model_fields_set: updates.append("stat_conversions = :st_conversions"); params["st_conversions"] = update_data.stat_conversions
+        if "stat_conversion_value" in update_data.model_fields_set: updates.append("stat_conversion_value = :st_conversion_value"); params["st_conversion_value"] = update_data.stat_conversion_value
+        if "stat_ctr" in update_data.model_fields_set: updates.append("stat_ctr = :st_ctr"); params["st_ctr"] = update_data.stat_ctr
+        if "stat_cvr" in update_data.model_fields_set: updates.append("stat_cvr = :st_cvr"); params["st_cvr"] = update_data.stat_cvr
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            SessionLocal = self._factory()
-            async with SessionLocal() as session:
-                await session.execute(text(f"UPDATE sj_ads SET {upd_sql} WHERE id = :id"), params)
-                await session.commit()
+        upd_sql = ", ".join(updates)
+        async with factory() as session:
+            result = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            await session.commit()
+            if result.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
                 
         return await self.findById(id)
+
+    async def delete(self, id: int) -> bool:
+        factory = self._factory()
+        if not factory or not id:
+            return False
+        async with factory() as session:
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": id},
+            )
+            await session.commit()
+            return result.rowcount > 0
 
 

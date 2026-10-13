@@ -4,9 +4,7 @@ from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 
-if TYPE_CHECKING:
-        from app.models.schemas import FeatureFlag
-
+from app.models.feature_flag import FeatureFlag, FeatureFlagUpdate
 
 
 class FeatureFlagRepository:
@@ -17,52 +15,40 @@ class FeatureFlagRepository:
         self,
         enabled: Optional[bool] = None,
         category: Optional[str] = None,
-    ) -> List['FeatureFlag']:
+    ) -> List[FeatureFlag]:
         """Get all feature flags, optionally filtered"""
         return await self.storage.findAll(enabled=enabled, category=category)
 
-    async def find_by_id(self, flag_id: str) -> Optional['FeatureFlag']:
-        """Find feature flag by _id"""
-        return await self.storage.findById(flag_id)
+    async def find_by_id(self, id: int) -> Optional[FeatureFlag]:
+        """Find feature flag by PK id"""
+        return await self.storage.findById(id)
 
     async def find_one(
         self,
-        id: Optional[str] = None,
+        id: Optional[int] = None,
         flag_id: Optional[str] = None,
-    ) -> Optional['FeatureFlag']:
+    ) -> Optional[FeatureFlag]:
         """Find one feature flag matching filters"""
         return await self.storage.findOne(id=id, flag_id=flag_id)
 
-    async def find_by_flag_id(self, flag_id: str) -> Optional['FeatureFlag']:
+    async def find_by_flag_id(self, flag_id: str) -> Optional[FeatureFlag]:
         """Find feature flag by flag_id"""
         return await self.storage.findOne(flag_id=flag_id)
 
-    async def create(self, flag_data: 'FeatureFlag') -> 'FeatureFlag':
+    async def create(self, flag_data: FeatureFlag) -> FeatureFlag:
         """Create a new feature flag"""
-        flags = await self.find_all()
-        max_id = 0
-        for f in flags:
-            try:
-                fid = int(f.id) if f.id is not None else 0
-                max_id = max(max_id, fid)
-            except (ValueError, TypeError):
-                continue
-
-        flag_data.id = str(max_id + 1)
         now = datetime.now(timezone.utc)
         flag_data.created_at = now
         flag_data.updated_at = now
-
         return await self.storage.create(flag_data)
 
-    async def update(self, flag_id: str, update_data: 'FeatureFlag') -> Optional['FeatureFlag']:
+    async def update(self, id: int, update_data: FeatureFlagUpdate) -> Optional[FeatureFlag]:
         """Update a feature flag"""
-        update_data.updated_at = datetime.now(timezone.utc)
-        return await self.storage.update(flag_id, update_data)
+        return await self.storage.update(id, update_data)
 
-    async def delete(self, flag_id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         """Delete a feature flag"""
-        return await self.storage.delete(flag_id)
+        return await self.storage.delete(id)
 
     async def is_enabled(self, flag_id: str) -> bool:
         """Check if a feature flag is enabled"""

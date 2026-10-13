@@ -5,7 +5,7 @@ from app.models.schemas import AdStats
 from app.models.base import CamelBaseModel
 
 class Ad(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = None
     platform: Optional[str] = None
     objective: Optional[str] = None

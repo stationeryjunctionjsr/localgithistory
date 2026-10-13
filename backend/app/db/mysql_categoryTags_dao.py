@@ -40,7 +40,7 @@ class MySQLCategoryTagsDAO:
         division_name = None
         if div_id is not None and div_rows:
             for d in div_rows:
-                if int(d.id) == int(div_id):
+                if d.id == div_id:
                     division_name = d.name
                     break
         category_count = 0
@@ -79,7 +79,7 @@ class MySQLCategoryTagsDAO:
 
         # 1. Fetch division / head names
         div_ids = list({
-            int(r.division_id or r.category_head_id)
+            (r.division_id if r.division_id is not None else r.category_head_id)
             for r in rows
             if (r.division_id is not None or r.category_head_id is not None)
         })
@@ -177,7 +177,7 @@ class MySQLCategoryTagsDAO:
         target_did = division_id if division_id is not None else category_head_id
         if target_did is not None:
             clauses.append("(division_id = :did OR category_head_id = :did)")
-            params["did"] = int(target_did)
+            params["did"] = target_did
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
@@ -216,7 +216,7 @@ class MySQLCategoryTagsDAO:
         if target_did is not None:
             cols.append("division_id")
             cols.append("category_head_id")
-            params["did"] = int(target_did)
+            params["did"] = target_did
 
         col_sql = ", ".join(cols)
         val_parts = [":c", ":u"]
@@ -234,18 +234,18 @@ class MySQLCategoryTagsDAO:
             new_id = result.lastrowid
 
             # Sync junction tables
-            if target_did is not None:
+            if target_did:
                 try:
                     await session.execute(
                         text("INSERT IGNORE INTO sj_division_category_tags (division_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
-                        {"did": int(target_did), "tid": int(new_id), "now": now},
+                        {"did": target_did, "tid": new_id, "now": now},
                     )
                 except Exception:
                     pass
                 try:
                     await session.execute(
                         text("INSERT IGNORE INTO sj_category_head_category_tags (category_head_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
-                        {"did": int(target_did), "tid": int(new_id), "now": now},
+                        {"did": target_did, "tid": new_id, "now": now},
                     )
                 except Exception:
                     pass
@@ -254,42 +254,43 @@ class MySQLCategoryTagsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: CategoryTagInternalUpdate) -> Optional[CategoryTagInternal]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
 
         factory = self._factory()
+        if not factory:
+            return None
         now = now_utc()
         tag_id = id
 
         updates = ["updated_at = :u"]
         params = {"id": tag_id, "u": now}
 
-        if update_data.name is not None:
+        if "name" in update_data.model_fields_set:
             updates.append("name = :name")
-            params["name"] = update_data.name.strip()
+            params["name"] = update_data.name.strip() if update_data.name else update_data.name
 
-        if update_data.description is not None:
+        if "description" in update_data.model_fields_set:
             updates.append("description = :desc")
             params["desc"] = update_data.description
 
-        if update_data.is_active is not None:
+        if "is_active" in update_data.model_fields_set:
             updates.append("is_active = :act")
             params["act"] = 1 if update_data.is_active else 0
 
-        target_did = update_data.division_id if update_data.division_id is not None else update_data.category_head_id
-        if target_did is not None:
-            div_val = int(target_did) if target_did != 0 else None
+        has_div_update = ("division_id" in update_data.model_fields_set or "category_head_id" in update_data.model_fields_set)
+        target_did = update_data.division_id if "division_id" in update_data.model_fields_set else update_data.category_head_id
+        if has_div_update:
             updates.append("division_id = :did")
             updates.append("category_head_id = :did")
-            params["did"] = div_val
+            params["did"] = target_did if target_did else None
 
         upd_sql = ", ".join(updates)
         async with factory() as session:
-            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            result = await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
 
             # Sync junction tables
-            if target_did is not None:
+            if has_div_update:
                 await session.execute(
                     text("DELETE FROM sj_division_category_tags WHERE category_tag_id = :tid"),
                     {"tid": tag_id},
@@ -298,23 +299,27 @@ class MySQLCategoryTagsDAO:
                     text("DELETE FROM sj_category_head_category_tags WHERE category_tag_id = :tid"),
                     {"tid": tag_id},
                 )
-                if target_did != 0:
+                if target_did:
                     try:
                         await session.execute(
                             text("INSERT INTO sj_division_category_tags (division_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
-                            {"did": int(target_did), "tid": tag_id, "now": now},
+                            {"did": target_did, "tid": tag_id, "now": now},
                         )
                     except Exception:
                         pass
                     try:
                         await session.execute(
                             text("INSERT INTO sj_category_head_category_tags (category_head_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
-                            {"did": int(target_did), "tid": tag_id, "now": now},
+                            {"did": target_did, "tid": tag_id, "now": now},
                         )
                     except Exception:
                         pass
 
             await session.commit()
+            if result.rowcount == 0 and not has_div_update:
+                existing = await self.findById(tag_id)
+                if not existing:
+                    return None
 
         return await self.findById(tag_id)
 

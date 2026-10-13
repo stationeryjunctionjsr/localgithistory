@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_about_us with native integer IDs and Pydantic models.
 """
-from typing import Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -26,25 +26,28 @@ class MySQLAboutUsDAO:
             updated_at=row.updated_at,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[AboutUs]:
-        query = query or {}
+    async def findAll(
+        self,
+        title: Optional[str] = None,
+        is_published: Optional[bool] = None,
+        version: Optional[str] = None,
+    ) -> List[AboutUs]:
         where_clauses = []
         params = {}
-        if "title" in query:
+        if title is not None:
             where_clauses.append("title = :title")
-            params["title"] = query["title"]
-        if "content" in query:
-            where_clauses.append("content = :content")
-            params["content"] = query["content"]
-        if "version" in query:
-            where_clauses.append("version = :version")
-            params["version"] = query["version"]
-        if "isPublished" in query:
+            params["title"] = title
+        if is_published is not None:
             where_clauses.append("is_published = :isPublished")
-            params["isPublished"] = 1 if query["isPublished"] else 0
+            params["isPublished"] = 1 if is_published else 0
+        if version is not None:
+            where_clauses.append("version = :version")
+            params["version"] = version
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
+        if not factory:
+            return []
         async with factory() as session:
             rows = (
                 await session.execute(
@@ -54,10 +57,16 @@ class MySQLAboutUsDAO:
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[AboutUs]:
-        if "id" in query:
-            return await self.findById(int(query["id"]))
-        records = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[int] = None,
+        title: Optional[str] = None,
+        is_published: Optional[bool] = None,
+        version: Optional[str] = None,
+    ) -> Optional[AboutUs]:
+        if id is not None:
+            return await self.findById(id)
+        records = await self.findAll(title=title, is_published=is_published, version=version)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[AboutUs]:
@@ -106,37 +115,52 @@ class MySQLAboutUsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: AboutUsInternalUpdate) -> Optional[AboutUs]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
+        factory = self._factory()
+        if not factory:
+            return None
+
         now = now_utc()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
-        if data.title is not None:
+
+        if "title" in data.model_fields_set:
             updates.append("title = :title")
             params["title"] = data.title
-        if data.content is not None:
+
+        if "content" in data.model_fields_set:
             updates.append("content = :content")
             params["content"] = data.content
-        if data.version is not None:
+
+        if "version" in data.model_fields_set:
             updates.append("version = :version")
             params["version"] = data.version
-        if data.is_published is not None:
+
+        if "is_published" in data.model_fields_set:
             updates.append("is_published = :isPublished")
             params["isPublished"] = 1 if data.is_published else 0
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
+        if not id:
+            return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

@@ -13,9 +13,9 @@ class MySQLCustomerSegmentDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r, user_ids: List[str]) -> CustomerSegmentInternal:
+    def _map_to_schema(self, r, user_ids: List[int]) -> CustomerSegmentInternal:
         return CustomerSegmentInternal(
-            id=str(r.id),
+            id=r.id,
             type=r.type,
             name=r.name,
             description=r.description,
@@ -39,15 +39,15 @@ class MySQLCustomerSegmentDAO:
             updated_at=r.updated_at,
         )
 
-    async def _fetch_user_ids(self, segment_id: int) -> List[str]:
+    async def _fetch_user_ids(self, segment_id: int) -> List[int]:
         SessionLocal = self._factory()
         async with SessionLocal() as session:
             result = await session.execute(
                 text("SELECT user_id FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": segment_id}
             )
-            return [str(r.user_id) for r in result.fetchall()]
+            return [int(r.user_id) for r in result.fetchall()]
 
-    async def _save_user_ids(self, segment_id: int, user_ids: List[str]):
+    async def _save_user_ids(self, segment_id: int, user_ids: List[int]):
         if user_ids is None: return
         SessionLocal = self._factory()
         async with SessionLocal() as session:
@@ -55,11 +55,24 @@ class MySQLCustomerSegmentDAO:
                 text("DELETE FROM sj_customer_segment_users WHERE segment_id = :sid"), {"sid": segment_id}
             )
             if user_ids:
-                params = [{"sid": segment_id, "uid": str(uid)} for uid in user_ids]
+                params = [{"sid": segment_id, "uid": int(uid)} for uid in user_ids]
                 await session.execute(
                     text("INSERT INTO sj_customer_segment_users (segment_id, user_id) VALUES (:sid, :uid)"), params
                 )
             await session.commit()
+
+    async def has_user(self, segment_id: int, user_id: int) -> bool:
+        SessionLocal = self._factory()
+        async with SessionLocal() as session:
+            result = await session.execute(
+                text(
+                    "SELECT 1 FROM sj_customer_segment_users "
+                    "WHERE segment_id = :sid AND user_id = :uid "
+                    "LIMIT 1"
+                ),
+                {"sid": segment_id, "uid": user_id},
+            )
+            return result.scalar() is not None
 
     async def findById(self, id: int) -> Optional[CustomerSegmentInternal]:
         SessionLocal = self._factory()

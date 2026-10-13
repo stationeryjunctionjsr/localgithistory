@@ -129,7 +129,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list):
     if not available_valets:
         return None
     sys_storage = get_storage('systemSettings')
-    sys_settings = await sys_storage.findById('global_settings')
+    sys_settings = await sys_storage.findById(1)
     global_max = int(sys_settings.max_concurrent_orders or 1) if sys_settings else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     available_valet_ids = [str(v.id) for v in available_valets]
@@ -231,7 +231,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     if not available_valets:
         return None
     sys_storage = get_storage('systemSettings')
-    sys_settings = await sys_storage.findById('global_settings')
+    sys_settings = await sys_storage.findById(1)
     global_max = int(sys_settings.max_concurrent_orders or 1) if sys_settings else 1
     BUSY_STATUSES = ['pending_valet', 'shipped', 'return_pickup']
     ACTIVE_RETURN_STATUSES = ['pending_valet', 'assigned']

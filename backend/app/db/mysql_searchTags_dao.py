@@ -114,43 +114,43 @@ class MySQLSearchTagsDAO:
             
         return await self.findById(new_id)
 
-    async def update(self, id: int, update_data: 'SearchTagInternalUpdate') -> 'SearchTagInternal':
-        existing = await self.findById(id)
-        if not existing:
+    async def update(self, id: int, update_data: SearchTagInternalUpdate) -> Optional[SearchTagInternal]:
+        if not id:
             return None
         factory = self._factory()
-        pid = existing.id
-        updates = ["updated_at = :u"]
-        params = {"id": pid, "u": now_utc()}
+        if not factory:
+            return None
 
-        if update_data.tag_id is not None:
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if "tag_id" in update_data.model_fields_set:
             updates.append("tag_id = :s_tag_id")
             params["s_tag_id"] = update_data.tag_id
 
-        if update_data.name is not None:
+        if "name" in update_data.model_fields_set:
             updates.append("name = :s_name")
             params["s_name"] = update_data.name
 
-        if update_data.type is not None:
+        if "type" in update_data.model_fields_set:
             updates.append("type = :s_type")
             params["s_type"] = update_data.type
 
-        if update_data.is_active is not None:
+        if "is_active" in update_data.model_fields_set:
             updates.append("is_active = :s_is_active")
-            params["s_is_active"] = update_data.is_active
+            params["s_is_active"] = 1 if update_data.is_active else 0
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, pid, update_data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, pid, update_data)
-                await session.commit()
+        child_fields = {"categories", "sub_categories", "brands", "collections", "product_ids", "excluded_product_ids"}
+        has_child_updates = bool(child_fields.intersection(update_data.model_fields_set))
+
+        upd_sql = ", ".join(updates)
+        async with factory() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            if has_child_updates:
+                await self._replace_children(session, id, update_data)
+            await session.commit()
                 
-        return await self.findById(pid)
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
         factory = self._factory()
@@ -238,7 +238,7 @@ class MySQLSearchTagsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Union[SearchTagInternalCreate, SearchTagInternalUpdate]):
 
-        if data.categories is not None:
+        if "categories" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": row_id})
             child_list = data.categories or []
 
@@ -246,7 +246,7 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.sub_categories is not None:
+        if "sub_categories" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": row_id})
             child_list = data.sub_categories or []
 
@@ -254,7 +254,7 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_subcats (parent_id, sub_category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.brands is not None:
+        if "brands" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": row_id})
             child_list = data.brands or []
 
@@ -262,7 +262,7 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_brands (parent_id, brand) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.collections is not None:
+        if "collections" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": row_id})
             child_list = data.collections or []
 
@@ -270,7 +270,7 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_collections (parent_id, collection) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.product_ids is not None:
+        if "product_ids" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": row_id})
             child_list = data.product_ids or []
 
@@ -278,7 +278,7 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.excluded_product_ids is not None:
+        if "excluded_product_ids" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": row_id})
             child_list = data.excluded_product_ids or []
 

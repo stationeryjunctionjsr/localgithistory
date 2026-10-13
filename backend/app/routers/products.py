@@ -78,11 +78,7 @@ class CSVProductPayload(BaseModel):
     variants: List[VariantOption] = Field(default_factory=list)
 
 
-class ProductFacets(BaseModel):
-    brands: List[str] = Field(default_factory=list)
-    categories: List[str] = Field(default_factory=list)
-    subCategories: List[str] = Field(default_factory=list)
-    collections: List[str] = Field(default_factory=list)
+from app.models.product import ProductFacets, ProductFilter
 
 
 router = APIRouter()
@@ -514,7 +510,7 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
 
 
 async def populate_product_discounts(
-    products_list: List[dict], role: str, user_id: Optional[str] = None, skinny: bool = False
+    products_list: List[Product], role: str, user_id: Optional[str] = None, skinny: bool = False
 ):
     from app.repositories.coupon_repository import coupon_repository, get_coupon_description
 
@@ -523,7 +519,6 @@ async def populate_product_discounts(
 
     # Pre-fetch all active coupons once to pass to bulk checks
     all_coupons = await coupon_repository.get_active_coupons()
-    user_behavior_cache = {}
 
     # Filter applicable ones for the current role and user (behavior matched)
     applicable_discounts = []
@@ -537,7 +532,7 @@ async def populate_product_discounts(
         behavior = c.userBehavior
         if behavior and behavior != "none":
             if not user_id or not await coupon_repository._user_matches_behavior(
-                user_id, behavior, user_behavior_cache=user_behavior_cache
+                user_id, behavior
             ):
                 continue
         applicable_discounts.append(c)
@@ -592,7 +587,7 @@ async def populate_product_discounts(
 
         # Get all other applicable discounts
         other_coupons = await coupon_repository.get_applicable_discounts_for_product(
-            p, role, user_id, all_coupons=all_coupons, user_behavior_cache=user_behavior_cache
+            p, role, user_id, all_coupons=all_coupons
         )
 
         # Find active quantity-based coupon if any
@@ -687,34 +682,22 @@ async def _get_public_products_cached(
       fulfillment_type == "pan_india"                         → Super Admin products only (3PL courier)
     """
     role = "customer"  # public endpoint is always customer role
-    query: dict = {}
-    if category:
-        query["category"] = category
-    if categories:
-        query["categories"] = categories
-    if subCategory:
-        query["subCategory"] = subCategory
-    if search:
-        query["search"] = search
-    if brand:
-        query["brand"] = brand
-    if collection:
-        query["collection"] = collection
-    if categoryTag:
-        query["categoryTag"] = categoryTag
-    if popularity:
-        query["popularity"] = popularity
-    if minDiscount:
-        query["minDiscount"] = minDiscount
-    if minPrice is not None:
-        query["minPrice"] = minPrice
-    if maxPrice is not None:
-        query["maxPrice"] = maxPrice
-    if availability:
-        query["availability"] = availability
-    if sort:
-        query["sort"] = sort
-    query["role"] = role
+    query_filter = ProductFilter(
+        category=category,
+        categories=categories,
+        sub_category=subCategory,
+        search=search,
+        brand=brand,
+        collection=collection,
+        category_tag=categoryTag,
+        popularity=popularity,
+        min_discount=minDiscount,
+        min_price=minPrice,
+        max_price=maxPrice,
+        availability=availability,
+        sort=sort,
+        role=role,
+    )
 
     # Seller filter based on fulfillment_type
     if fulfillment_type == "hyperlocal" and zone_id is not None:
@@ -722,20 +705,20 @@ async def _get_public_products_cached(
         from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
         seller_id_set = await get_seller_ids_for_zone_id(zone_id)
         if seller_id_set is not None:
-            query["allowed_seller_ids"] = list(seller_id_set)
+            query_filter.allowed_seller_ids = list(seller_id_set)
     else:
         # Pan-India / unzoned: only Super Admin (1P) products are visible via 3PL courier
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
-            query["allowed_seller_ids"] = [sa_id]
+            query_filter.allowed_seller_ids = [sa_id]
 
     if page > 1:
         includeFacets = False
 
     start_index = (page - 1) * limit
     products, total_count, facets, used_fuzzy, suggested_query = await product_repository.get_catalog(
-        query, skip=start_index, limit=limit, sort=sort, include_facets=includeFacets
+        query_filter, skip=start_index, limit=limit, sort=sort, include_facets=includeFacets
     )
 
     await populate_product_discounts(products, role, skinny=skinny)
@@ -894,56 +877,42 @@ async def _get_products_cached(
     N×Q cache entries with zero benefit.  The route handler passes "" for user_id in
     those cases so all such requests share one cache slot per query combination.
     """
-    query: dict = {}
-    if category:
-        query["category"] = category
-    if categories:
-        query["categories"] = categories
-    if subCategory:
-        query["subCategory"] = subCategory
-    if search:
-        query["search"] = search
-    if brand:
-        query["brand"] = brand
-    if collection:
-        query["collection"] = collection
-    if categoryTag:
-        query["categoryTag"] = categoryTag
-    if popularity:
-        query["popularity"] = popularity
-    if minDiscount:
-        query["minDiscount"] = minDiscount
-    if minPrice is not None:
-        query["minPrice"] = minPrice
-    if maxPrice is not None:
-        query["maxPrice"] = maxPrice
-    if availability:
-        query["availability"] = availability
-    if sort:
-        query["sort"] = sort
+    query_filter = ProductFilter(
+        category=category,
+        categories=categories,
+        sub_category=subCategory,
+        search=search,
+        brand=brand,
+        collection=collection,
+        category_tag=categoryTag,
+        popularity=popularity,
+        min_discount=minDiscount,
+        min_price=minPrice,
+        max_price=maxPrice,
+        availability=availability,
+        sort=sort,
+        role=effective_role,
+        user_id=user_id or None,
+    )
     if status == "active":
-        query["is_active"] = True
+        query_filter.is_active = True
     elif status == "inactive":
-        query["is_active"] = False
+        query_filter.is_active = False
     elif status == "all":
-        query["includeInactive"] = True
-
-    query["role"] = effective_role
-    if user_id:
-        query["user_id"] = user_id
+        query_filter.include_inactive = True
 
     if fulfillment_mode in ("courier", "pan_india"):
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
-            query["allowed_seller_ids"] = [sa_id]
+            query_filter.allowed_seller_ids = [sa_id]
     elif effective_role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
-            query["allowed_seller_ids"] = [sa_id]
+            query_filter.allowed_seller_ids = [sa_id]
     elif effective_role == "seller" and myProducts:
-        query["my_seller_id"] = user_id
+        query_filter.my_seller_id = user_id
     elif pincode:
         # Retail customer with a pincode but no explicit fulfillment_mode set.
         # get_retail_seller_set applies the hyperlocal / pan-india decision:
@@ -952,13 +921,13 @@ async def _get_products_cached(
         from app.repositories.zone_seller_cache import get_retail_seller_set
         seller_id_set, _mode, _zone_id = await get_retail_seller_set(pincode, subtract_unavailable=False)
         if seller_id_set is not None:
-            query["allowed_seller_ids"] = list(seller_id_set)
+            query_filter.allowed_seller_ids = list(seller_id_set)
 
     _include_facets = includeFacets if page == 1 else False
 
     start_index = (page - 1) * limit
     products, total_count, facets, used_fuzzy, suggested_query = await product_repository.get_catalog(
-        query, skip=start_index, limit=limit, sort=sort, include_facets=_include_facets
+        query_filter, skip=start_index, limit=limit, sort=sort, include_facets=_include_facets
     )
 
     await populate_product_discounts(products, effective_role, user_id=user_id or None, skinny=skinny)

@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_privacy_policy with native integer IDs and Pydantic models.
 """
-from typing import Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -26,25 +26,28 @@ class MySQLPrivacyPolicyDAO:
             updated_at=row.updated_at,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[PrivacyPolicy]:
-        query = query or {}
+    async def findAll(
+        self,
+        version: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        effective_date: Optional[str] = None,
+    ) -> List[PrivacyPolicy]:
         where_clauses = []
         params = {}
-        if "version" in query:
+        if version is not None:
             where_clauses.append("version = :version")
-            params["version"] = query["version"]
-        if "content" in query:
-            where_clauses.append("content = :content")
-            params["content"] = query["content"]
-        if "effectiveDate" in query:
-            where_clauses.append("effective_date = :effectiveDate")
-            params["effectiveDate"] = query["effectiveDate"]
-        if "isActive" in query:
+            params["version"] = version
+        if is_active is not None:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if query["isActive"] else 0
+            params["isActive"] = 1 if is_active else 0
+        if effective_date is not None:
+            where_clauses.append("effective_date = :effectiveDate")
+            params["effectiveDate"] = effective_date
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
+        if not factory:
+            return []
         async with factory() as session:
             rows = (
                 await session.execute(
@@ -54,10 +57,16 @@ class MySQLPrivacyPolicyDAO:
             ).fetchall()
         return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[PrivacyPolicy]:
-        if "id" in query:
-            return await self.findById(int(query["id"]))
-        records = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[int] = None,
+        version: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        effective_date: Optional[str] = None,
+    ) -> Optional[PrivacyPolicy]:
+        if id is not None:
+            return await self.findById(id)
+        records = await self.findAll(version=version, is_active=is_active, effective_date=effective_date)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[PrivacyPolicy]:
@@ -106,37 +115,52 @@ class MySQLPrivacyPolicyDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: PrivacyPolicyInternalUpdate) -> Optional[PrivacyPolicy]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
+        factory = self._factory()
+        if not factory:
+            return None
+
         now = now_utc()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
-        if data.version is not None:
+
+        if "version" in data.model_fields_set:
             updates.append("version = :version")
             params["version"] = data.version
-        if data.content is not None:
+
+        if "content" in data.model_fields_set:
             updates.append("content = :content")
             params["content"] = data.content
-        if data.effective_date is not None:
+
+        if "effective_date" in data.model_fields_set:
             updates.append("effective_date = :effectiveDate")
             params["effectiveDate"] = data.effective_date
-        if data.is_active is not None:
+
+        if "is_active" in data.model_fields_set:
             updates.append("is_active = :isActive")
             params["isActive"] = 1 if data.is_active else 0
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
         async with factory() as session:
-            await session.execute(
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
             await session.commit()
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
+        if not id:
+            return False
         factory = self._factory()
+        if not factory:
+            return False
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

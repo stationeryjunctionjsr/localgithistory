@@ -417,3 +417,105 @@ def test_user_and_sub_order_cleanups_integrity():
     assert inspect.signature(MySQLSubOrderDAO.findByParentOrder).parameters["parent_order_id"].annotation == int
     assert inspect.signature(SubOrderRepository.findByParentOrder).parameters["parent_order_id"].annotation == int
     assert "parent_order_number" not in inspect.getsource(MySQLSubOrderDAO.findByParentOrder)
+
+
+def test_product_and_coupon_pydantic_refactor_integrity():
+    import inspect
+    from typing import Optional, List, Tuple
+    from app.models.product import Product, ProductFilter, ProductCatalogQuery, ProductFacets
+    from app.db.mysql_product_dao import MySQLProductDAO
+    from app.repositories.product_repository import ProductRepository
+    from app.repositories.coupon_repository import CouponRepository, OverlapConflictError
+    from app.models.daos_flat import CouponOverlapData, CouponOverlapDetail
+
+    # 1. ProductFilter & ProductCatalogQuery typing and pure integer ID
+    assert ProductCatalogQuery is ProductFilter
+    assert ProductFilter.model_fields["allowed_ids"].annotation == Optional[List[int]]
+    assert ProductFilter.model_fields["id"].annotation == Optional[int]
+    assert ProductFilter.model_fields["seller_ids"].annotation == Optional[List[str]]
+    assert ProductFilter.model_fields["my_seller_id"].annotation == Optional[str]
+    assert "product_id_formatted" not in ProductFilter.model_fields, "ProductFilter must not have legacy product_id_formatted"
+
+    filt = ProductFilter(id=456)
+    assert filt.id == 456
+
+    # 2. MySQLProductDAO signatures and SQL condition builder integrity
+    dao_cond_src = inspect.getsource(MySQLProductDAO._build_query_conditions)
+    assert "productIdFormattedVal" not in dao_cond_src, "MySQLProductDAO must not use productIdFormattedVal"
+    assert "str(sid)" not in dao_cond_src, "MySQLProductDAO must not string-cast sid"
+    assert "int(num_id)" not in dao_cond_src, "MySQLProductDAO must not cast num_id in query builder"
+    assert "int(pf)" not in dao_cond_src, "MySQLProductDAO must not cast pf in query builder"
+    assert "[int(aid) for aid in allowed_ids]" not in dao_cond_src, "allowed_ids must already be List[int]"
+
+    # deleteMany returns native int count
+    assert inspect.signature(MySQLProductDAO.deleteMany).return_annotation == int
+    # find_paginated accepts ProductFilter and returns tuple[List[Product], int]
+    assert inspect.signature(MySQLProductDAO.find_paginated).parameters["filter"].annotation == ProductFilter
+    assert inspect.signature(MySQLProductDAO.find_paginated).return_annotation == tuple[List[Product], int]
+    # get_facets accepts ProductFilter and returns ProductFacets
+    assert inspect.signature(MySQLProductDAO.get_facets).parameters["filter"].annotation == ProductFilter
+    assert inspect.signature(MySQLProductDAO.get_facets).return_annotation == ProductFacets
+
+    # 3. ProductRepository get_catalog contract
+    get_cat_sig = inspect.signature(ProductRepository.get_catalog)
+    assert get_cat_sig.parameters["filter"].annotation == ProductFilter
+    assert get_cat_sig.return_annotation == Tuple[List[Product], int, ProductFacets, bool, Optional[str]]
+    get_cat_src = inspect.getsource(ProductRepository.get_catalog)
+    assert "query.copy()" not in get_cat_src
+    assert 'query["' not in get_cat_src
+    assert "Union[" not in get_cat_src
+
+    # 4. CouponRepository overlap & user behavior caching integrity
+    check_overlap_sig = inspect.signature(CouponRepository.check_discount_overlap)
+    assert check_overlap_sig.return_annotation == Optional[CouponOverlapData]
+    overlap_src = inspect.getsource(CouponRepository.check_discount_overlap)
+    assert "set().union(" not in overlap_src, "No star unpacking in check_discount_overlap"
+    assert "user_behavior_cache" not in inspect.signature(CouponRepository.get_applicable_discounts_for_product).parameters
+    assert "user_behavior_cache" not in inspect.signature(CouponRepository._user_matches_behavior).parameters
+
+    coupon_repo_src = inspect.getsource(CouponRepository)
+    assert "_user_behavior_cache" not in coupon_repo_src, "CouponRepository must not have internal _user_behavior_cache dict"
+    assert "_categories_map" not in coupon_repo_src, "CouponRepository must not have in-memory _categories_map dict"
+    assert "_brands_map" not in coupon_repo_src, "CouponRepository must not have in-memory _brands_map dict"
+    assert "_collections_map" not in coupon_repo_src, "CouponRepository must not have in-memory _collections_map dict"
+    assert "str(c.id) == str(default_auto_discount.id)" not in coupon_repo_src, "Must compare c.id == default_auto_discount.id directly"
+    assert "str(user_id).isdigit()" not in coupon_repo_src, "No defensive isdigit checks on user_id"
+    assert "uid = int(user_id)" not in coupon_repo_src, "No defensive uid assignment"
+    assert "segment.user_ids" not in coupon_repo_src, "Must not scan segment.user_ids in memory"
+    assert "customer_segments_repository.has_user" in coupon_repo_src, "Must delegate to customer_segments_repository.has_user"
+
+    # 5. CustomerSegmentsRepository & MySQLCustomerSegmentDAO has_user relational pushdown
+    from app.repositories.customer_segments_repository import CustomerSegmentsRepository
+    from app.db.mysql_customer_segment_dao import MySQLCustomerSegmentDAO
+
+    assert inspect.signature(CustomerSegmentsRepository.has_user).parameters["segment_id"].annotation == int
+    assert inspect.signature(CustomerSegmentsRepository.has_user).parameters["user_id"].annotation == int
+    assert inspect.signature(MySQLCustomerSegmentDAO.has_user).parameters["segment_id"].annotation == int
+    assert inspect.signature(MySQLCustomerSegmentDAO.has_user).parameters["user_id"].annotation == int
+    dao_has_user_src = inspect.getsource(MySQLCustomerSegmentDAO.has_user)
+    assert "SELECT 1 FROM sj_customer_segment_users" in dao_has_user_src
+    assert "LIMIT 1" in dao_has_user_src
+    assert "str(" not in dao_has_user_src, "has_user must not string-cast segment_id or user_id"
+
+
+@pytest.mark.asyncio
+async def test_coupon_user_matches_segment_behavior_relational():
+    from unittest.mock import AsyncMock
+    from app.repositories.coupon_repository import coupon_repository
+    from app.repositories.customer_segments_repository import customer_segments_repository
+
+    orig_has_user = customer_segments_repository.has_user
+    try:
+        customer_segments_repository.has_user = AsyncMock(side_effect=lambda seg_id, uid: seg_id == 5 and uid == 100)
+
+        # Matched segment
+        matched = await coupon_repository._user_matches_behavior(100, "segment_5")
+        assert matched is True
+
+        # Unmatched segment
+        unmatched = await coupon_repository._user_matches_behavior(200, "segment_5")
+        assert unmatched is False
+    finally:
+        customer_segments_repository.has_user = orig_has_user
+
+

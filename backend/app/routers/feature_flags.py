@@ -61,7 +61,7 @@ async def check_feature_flag(flag_id: str):
     """Check if a feature is enabled (Public endpoint)"""
     try:
         is_enabled = await feature_flag_repository.is_enabled(flag_id)
-        return FeatureFlag(id=flag_id, flag_id=flag_id, enabled=is_enabled)
+        return FeatureFlag(flag_id=flag_id, enabled=is_enabled)
     except Exception as e:
         logger.error("Error checking feature flag: %s", str(e), exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
@@ -72,7 +72,13 @@ async def check_feature_flag(flag_id: str):
 async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User = Depends(require_super_admin)):
     """Create new feature flag (Super Admin only)"""
     try:
-        existing = await feature_flag_repository.find_by_flag_id(flag_data.id)
+        business_key = flag_data.flag_id or flag_data.id
+        if not business_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Feature flag ID is required"
+            )
+
+        existing = await feature_flag_repository.find_by_flag_id(business_key)
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Feature flag with this ID already exists"
@@ -80,7 +86,7 @@ async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User =
 
         new_flag = await feature_flag_repository.create(
             FeatureFlag(
-                flag_id=flag_data.id,
+                flag_id=business_key,
                 name=flag_data.name,
                 description=flag_data.description,
                 enabled=flag_data.enabled if flag_data.enabled is not None else False,
@@ -103,19 +109,10 @@ async def update_feature_flag(
     """Update feature flag (Super Admin only)"""
     try:
         flag = await feature_flag_repository.find_by_flag_id(flag_id)
-        if not flag:
+        if not flag or flag.id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        updated = await feature_flag_repository.update(
-            flag.id,
-            FeatureFlag(
-                flag_id=flag_id,
-                name=update_data.name,
-                description=update_data.description,
-                enabled=update_data.enabled,
-                category=update_data.category,
-            ),
-        )
+        updated = await feature_flag_repository.update(flag.id, update_data)
         return updated
     except HTTPException:
         raise
@@ -129,12 +126,12 @@ async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require
     """Toggle feature flag (Super Admin only)"""
     try:
         flag = await feature_flag_repository.find_by_flag_id(flag_id)
-        if not flag:
+        if not flag or flag.id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
         updated = await feature_flag_repository.update(
             flag.id,
-            FeatureFlag(enabled=not flag.enabled),
+            FeatureFlagUpdate(enabled=not flag.enabled),
         )
         return updated
     except HTTPException:
@@ -149,7 +146,7 @@ async def delete_feature_flag(flag_id: str, current_user: User = Depends(require
     """Delete feature flag (Super Admin only)"""
     try:
         flag = await feature_flag_repository.find_by_flag_id(flag_id)
-        if not flag:
+        if not flag or flag.id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
         await feature_flag_repository.delete(flag.id)

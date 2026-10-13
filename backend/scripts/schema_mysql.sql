@@ -472,12 +472,15 @@ CREATE TABLE `sj_coupons` (
 
 CREATE TABLE `sj_customer_segment_users` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `segment_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `user_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `segment_id` int NOT NULL,
+  `user_id` int NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_segment_id` (`segment_id`),
-  CONSTRAINT `fk_segment_id` FOREIGN KEY (`segment_id`) REFERENCES `sj_customer_segments` (`external_id`) ON DELETE CASCADE
+  KEY `fk_segment_user_id` (`user_id`),
+  UNIQUE KEY `uq_segment_user` (`segment_id`, `user_id`),
+  CONSTRAINT `fk_segment_id` FOREIGN KEY (`segment_id`) REFERENCES `sj_customer_segments` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_segment_user_id` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_customer_segments` (
