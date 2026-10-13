@@ -21,11 +21,11 @@ class MySQLProductNotificationsDAO:
     def _map_to_schema(self, row) -> ProductNotificationsInternal:
         return ProductNotificationsInternal(
             id=row.id,
-            product_id=str(row.product_id),
-            user_id=str(row.user_id) if row.user_id is not None else None,
-            email=str(row.email) if row.email is not None else None,
-            phone=str(row.phone) if row.phone is not None else None,
-            status=str(row.status) if row.status is not None else "active",
+            product_id=row.product_id,
+            user_id=row.user_id,
+            email=row.email,
+            phone=row.phone,
+            status=row.status or "active",
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -45,19 +45,19 @@ class MySQLProductNotificationsDAO:
         params = {}
         if product_id is not None:
             where_clauses.append("product_id = :productId")
-            params["productId"] = str(product_id)
+            params["productId"] = product_id
         if user_id is not None:
             where_clauses.append("user_id = :userId")
-            params["userId"] = str(user_id)
+            params["userId"] = user_id
         if email is not None:
             where_clauses.append("email = :email")
-            params["email"] = str(email)
+            params["email"] = email
         if phone is not None:
             where_clauses.append("phone = :phone")
-            params["phone"] = str(phone)
+            params["phone"] = phone
         if status is not None:
             where_clauses.append("status = :status")
-            params["status"] = str(status)
+            params["status"] = status
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:

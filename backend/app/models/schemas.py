@@ -428,7 +428,7 @@ class BundleItemResponse(CamelBaseModel):
 
 class BundleResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: str
+    id: int
     name: str
     description: Optional[str] = None
     price: float

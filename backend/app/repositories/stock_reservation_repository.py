@@ -42,7 +42,7 @@ class StockReservationRepository:
     async def get_reserved_quantity(self, product_id: str, exclude_user_id: Optional[str] = None) -> int:
         """Returns the total active, non-expired reserved quantity for a product."""
         batch = await self.get_batch_reservations([product_id], exclude_user_id=exclude_user_id)
-        return batch.get_reserved_for_product(str(product_id))
+        return batch.get_reserved_for_product(product_id)
 
     async def get_batch_reservations(
         self, product_ids: List[str], exclude_user_id: Optional[str] = None
@@ -65,7 +65,7 @@ class StockReservationRepository:
     async def get_user_reservations(self, user_id: str) -> List[StockReservation]:
         """Returns all active, non-expired reservations for a user."""
         await self.ensure_table_exists()
-        all_res = await self.storage.findAll(user_id=str(user_id), status="active")
+        all_res = await self.storage.findAll(user_id=user_id, status="active")
 
         active_res = []
         now = datetime.now(timezone.utc)
@@ -88,9 +88,9 @@ class StockReservationRepository:
 
         from app.models.daos_flat import StockReservationsInternalCreate
         reservation_data = StockReservationsInternalCreate(
-            product_id=str(product_id),
-            user_id=str(user_id),
-            quantity=int(quantity),
+            product_id=product_id,
+            user_id=user_id,
+            quantity=quantity,
             status="active",
             expires_at=expires_at.isoformat() + "Z",
         )
@@ -109,9 +109,9 @@ class StockReservationRepository:
         """Marks active reservations for a user as released."""
         await self.ensure_table_exists()
         active_res = await self.storage.findAll(
-            user_id=str(user_id),
+            user_id=user_id,
             status="active",
-            product_id=str(product_id) if product_id else None,
+            product_id=product_id if product_id else None,
         )
         for res in active_res:
             await self.storage.update(res.id, StockReservationsInternalUpdate(status="released"))
@@ -121,9 +121,9 @@ class StockReservationRepository:
         """Marks active reservations for a user as fulfilled (order placed)."""
         await self.ensure_table_exists()
         active_res = await self.storage.findAll(
-            user_id=str(user_id),
+            user_id=user_id,
             status="active",
-            product_id=str(product_id) if product_id else None,
+            product_id=product_id if product_id else None,
         )
         now = datetime.now(timezone.utc)
 
@@ -138,16 +138,7 @@ class StockReservationRepository:
     async def cleanup_expired(self) -> None:
         """Finds and marks all expired reservations as 'expired'."""
         await self.ensure_table_exists()
-        active_res = await self.storage.findAll(status="active")
-
-        now = datetime.now(timezone.utc)
-        expired_count = 0
-
-        for res in active_res:
-            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) <= now:
-                await self.storage.update(res.id, StockReservationsInternalUpdate(status="expired"))
-                expired_count += 1
-
+        expired_count = await self.storage.cleanup_expired()
         if expired_count > 0:
             logger.info("Cleaned up %d expired stock reservations", expired_count)
 
@@ -236,7 +227,7 @@ class StockReservationRepository:
             quantity,
             ttl_minutes,
         )
-        return await self.storage.findById(str(new_id))
+        return await self.storage.findById(new_id)
 
 
 # ── MULTI-VM STOCK RESERVATION (commented out — already handled by DB-level lock) ──

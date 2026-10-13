@@ -44,7 +44,7 @@ class MySQLBundleDAO:
 
     async def _map_row(self, row) -> BundleResponse:
         return BundleResponse(
-            id=str(row.id),
+            id=row.id,
             name=row.name,
             description=row.description,
             price=float(row.price) if row.price is not None else 0.0,

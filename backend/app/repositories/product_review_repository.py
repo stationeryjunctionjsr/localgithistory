@@ -74,7 +74,7 @@ class ProductReviewRepository:
 
     async def find_approved_by_product(self, product_id: str) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
-        return await self.storage.findAll(product_id=str(product_id), status="approved")
+        return await self.storage.findAll(product_id=product_id, status="approved")
 
     async def findById(self, id: int) -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()

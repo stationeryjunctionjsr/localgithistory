@@ -22,10 +22,10 @@ class MySQLStockReservationsDAO:
     def _map_to_schema(self, row) -> StockReservation:
         return StockReservation(
             id=row.id,
-            productId=str(row.product_id),
-            userId=str(row.user_id) if row.user_id is not None else None,
-            quantity=int(row.quantity),
-            status=str(row.status),
+            productId=row.product_id,
+            userId=row.user_id,
+            quantity=row.quantity or 0,
+            status=row.status or "active",
             expiresAt=row.expires_at,
             createdAt=row.created_at,
             updatedAt=row.updated_at,
@@ -42,14 +42,14 @@ class MySQLStockReservationsDAO:
         now = now_utc()
 
         placeholders = [f":pid_{i}" for i in range(len(product_ids))]
-        params = {f"pid_{i}": str(pid) for i, pid in enumerate(product_ids)}
+        params = {f"pid_{i}": pid for i, pid in enumerate(product_ids)}
         params["status"] = "active"
         params["now"] = now
 
         user_clause = ""
         if exclude_user_id:
             user_clause = "AND (user_id IS NULL OR user_id != :exclude_uid)"
-            params["exclude_uid"] = str(exclude_user_id)
+            params["exclude_uid"] = exclude_user_id
 
         sql = f"""
             SELECT product_id, SUM(quantity) as total_reserved
@@ -64,7 +64,7 @@ class MySQLStockReservationsDAO:
             rows = (await session.execute(text(sql), params)).fetchall()
             return [
                 ProductReservedStock(
-                    product_id=str(r.product_id),
+                    product_id=r.product_id,
                     reserved_quantity=int(r.total_reserved or 0),
                 )
                 for r in rows
@@ -83,13 +83,13 @@ class MySQLStockReservationsDAO:
         params = {}
         if product_id is not None:
             where_clauses.append("product_id = :productId")
-            params["productId"] = str(product_id)
+            params["productId"] = product_id
         if user_id is not None:
             where_clauses.append("user_id = :userId")
-            params["userId"] = str(user_id)
+            params["userId"] = user_id
         if status is not None:
             where_clauses.append("status = :status")
-            params["status"] = str(status)
+            params["status"] = status
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
@@ -233,3 +233,16 @@ class MySQLStockReservationsDAO:
             )
             await session.commit()
             return res.rowcount > 0
+
+    async def cleanup_expired(self) -> int:
+        now = now_utc()
+        factory = self._factory()
+        if not factory:
+            return 0
+        async with factory() as session:
+            res = await session.execute(
+                text(f"UPDATE {self.TABLE} SET status = 'expired', updated_at = :now WHERE status = 'active' AND expires_at <= :now"),
+                {"now": now},
+            )
+            await session.commit()
+            return res.rowcount or 0

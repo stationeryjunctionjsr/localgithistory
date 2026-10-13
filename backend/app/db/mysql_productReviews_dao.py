@@ -21,11 +21,11 @@ class MySQLProductReviewsDAO:
     def _map_to_schema(self, row) -> ProductReviewResponse:
         return ProductReviewResponse(
             id=row.id,
-            productId=str(row.product_id),
-            userId=str(row.user_id),
+            productId=row.product_id,
+            userId=row.user_id,
             rating=row.rating or 0,
-            reviewText=str(row.review_text) if row.review_text is not None else None,
-            status=str(row.status) if row.status is not None else "pending",
+            reviewText=row.review_text,
+            status=row.status or "pending",
             createdAt=row.created_at,
             updatedAt=row.updated_at,
         )
@@ -44,16 +44,16 @@ class MySQLProductReviewsDAO:
         params = {}
         if product_id is not None:
             where_clauses.append("product_id = :productId")
-            params["productId"] = str(product_id)
+            params["productId"] = product_id
         if user_id is not None:
             where_clauses.append("user_id = :userId")
-            params["userId"] = str(user_id)
+            params["userId"] = user_id
         if rating is not None:
             where_clauses.append("rating = :rating")
             params["rating"] = rating
         if status is not None:
             where_clauses.append("status = :status")
-            params["status"] = str(status)
+            params["status"] = status
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         async with factory() as session:
@@ -143,11 +143,11 @@ class MySQLProductReviewsDAO:
 
         if "product_id" in data.model_fields_set:
             updates.append("product_id = :productId")
-            params["productId"] = str(data.product_id) if data.product_id is not None else None
+            params["productId"] = data.product_id
 
         if "user_id" in data.model_fields_set:
             updates.append("user_id = :userId")
-            params["userId"] = str(data.user_id) if data.user_id is not None else None
+            params["userId"] = data.user_id
 
         if "rating" in data.model_fields_set:
             updates.append("rating = :rating")
