@@ -23,15 +23,12 @@ class MySQLEmailOtpDAO:
     def SEND_LOG_TABLE(self):
         return "sj_email_otp_send_log"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def find_active_otp(self, email: str, device_key: str = "default") -> Optional[EmailOtp]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     SELECT id, email, device_key, otp_code, verify_attempts,
@@ -65,12 +62,12 @@ class MySQLEmailOtpDAO:
         otp_code: str,
         valid_seconds: int,
     ) -> EmailOtp:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         expires = now + timedelta(seconds=valid_seconds)
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE}
@@ -97,11 +94,11 @@ class MySQLEmailOtpDAO:
         )
 
     async def update_last_sent(self, otp_id: int) -> None:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET last_sent_at = :now WHERE id = :id"),
                 {"now": now, "id": otp_id},
@@ -109,10 +106,10 @@ class MySQLEmailOtpDAO:
             await session.commit()
 
     async def increment_attempts(self, otp_id: int) -> None:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET verify_attempts = verify_attempts + 1 WHERE id = :id"),
                 {"id": otp_id},
@@ -120,10 +117,10 @@ class MySQLEmailOtpDAO:
             await session.commit()
 
     async def delete_otp(self, otp_id: int) -> None:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": otp_id},
@@ -131,11 +128,11 @@ class MySQLEmailOtpDAO:
             await session.commit()
 
     async def cleanup_expired(self) -> int:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return 0
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE expires_at <= :now"),
                 {"now": now},
@@ -146,11 +143,11 @@ class MySQLEmailOtpDAO:
     # --- Send log (user-level hourly rate limit) ---
 
     async def record_send(self, email: str) -> None:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"INSERT INTO {self.SEND_LOG_TABLE} (email, sent_at) VALUES (:email, :sent_at)"),
                 {"email": email.lower(), "sent_at": now},
@@ -158,11 +155,11 @@ class MySQLEmailOtpDAO:
             await session.commit()
 
     async def count_sends_in_window(self, email: str, window_seconds: int) -> int:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return 0
         threshold = now_utc() - timedelta(seconds=window_seconds)
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT COUNT(*) FROM {self.SEND_LOG_TABLE} WHERE email = :email AND sent_at >= :threshold"),
                 {"email": email.lower(), "threshold": threshold},
@@ -170,11 +167,11 @@ class MySQLEmailOtpDAO:
             return result.scalar() or 0
 
     async def cleanup_old_send_logs(self, window_seconds: int) -> int:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return 0
         threshold = now_utc() - timedelta(seconds=window_seconds)
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.SEND_LOG_TABLE} WHERE sent_at < :threshold"),
                 {"threshold": threshold},

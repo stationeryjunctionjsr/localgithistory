@@ -32,14 +32,11 @@ class MySQLSavedForLaterDAO:
     def TABLE(self) -> str:
         return "sj_saved_for_later"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def _get_items_for_user(self, user_id: str) -> List[SavedForLaterItem]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT product_id, saved_at FROM {self.TABLE} WHERE user_id = :uid ORDER BY saved_at"),
                 {"uid": user_id},
@@ -59,15 +56,15 @@ class MySQLSavedForLaterDAO:
         return SavedForLater(id=user_id, user=user_id, items=items)
 
     async def findAll(self, user: Optional[str] = None) -> List[SavedForLater]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
 
         if user:
             items = await self._get_items_for_user(str(user))
             return [self._map_to_schema(str(user), items)]
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT user_id, product_id, saved_at FROM {self.TABLE} ORDER BY user_id, saved_at")
             )
@@ -99,15 +96,15 @@ class MySQLSavedForLaterDAO:
         return await self.findOne(user=id)
 
     async def create(self, data: SavedForLater) -> SavedForLater:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             raise RuntimeError("MySQL not configured")
         user_id = str((data.user if data.user is not None else ""))
         items = data.items or []
         if not user_id:
             raise ValueError("user is required")
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             for item in items:
                 product_id = item.product
                 if not product_id:
@@ -132,20 +129,19 @@ class MySQLSavedForLaterDAO:
         return await self.findOne(user=user_id)
 
     async def update(self, id: str, update_data: SavedForLater) -> Optional[SavedForLater]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
         user_id = str(id)
         items = update_data.items
         if items is None:
             return await self.findOne(user=user_id)
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
                 {"uid": user_id},
             )
-            await session.commit()
             for item in items:
                 product_id = item.product or item.product_id
                 if not product_id:
@@ -170,10 +166,10 @@ class MySQLSavedForLaterDAO:
         return await self.findOne(user=user_id)
 
     async def delete(self, id: str) -> bool:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
                 {"uid": str(id)},
@@ -182,10 +178,10 @@ class MySQLSavedForLaterDAO:
             return result.rowcount > 0
 
     async def count(self, user: Optional[str] = None) -> int:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return 0
-        async with factory() as session:
+        async with async_session() as session:
             if user:
                 result = await session.execute(
                     text(f"SELECT COUNT(DISTINCT user_id) FROM {self.TABLE} WHERE user_id = :uid"),
