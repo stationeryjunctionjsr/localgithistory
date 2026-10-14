@@ -229,3 +229,46 @@ class MySQLStockReservationsDAO:
             )
             await session.commit()
             return res.rowcount or 0
+
+    async def release_user_reservations(self, user_id: str, product_id: Optional[int] = None) -> int:
+        """Direct bulk SQL update marking active reservations as released."""
+        now = now_utc()
+        where_clauses = ["user_id = :userId", "status = 'active'"]
+        params = {"userId": user_id, "now": now}
+        if product_id is not None:
+            where_clauses.append("product_id = :productId")
+            params["productId"] = product_id
+        where_sql = " AND ".join(where_clauses)
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            res = await session.execute(
+                text(f"UPDATE {self.TABLE} SET status = 'released', updated_at = :now WHERE {where_sql}"),
+                params,
+            )
+            await session.commit()
+            return res.rowcount or 0
+
+    async def fulfill_user_reservations(self, user_id: str, product_id: Optional[int] = None) -> int:
+        """Direct bulk SQL update marking active reservations as fulfilled (or expired if past TTL)."""
+        now = now_utc()
+        where_clauses = ["user_id = :userId", "status = 'active'"]
+        params = {"userId": user_id, "now": now}
+        if product_id is not None:
+            where_clauses.append("product_id = :productId")
+            params["productId"] = product_id
+        where_sql = " AND ".join(where_clauses)
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            res = await session.execute(
+                text(
+                    f"""
+                    UPDATE {self.TABLE}
+                    SET status = CASE WHEN expires_at > :now THEN 'fulfilled' ELSE 'expired' END,
+                        updated_at = :now
+                    WHERE {where_sql}
+                    """
+                ),
+                params,
+            )
+            await session.commit()
+            return res.rowcount or 0

@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -54,6 +54,7 @@ class MySQLActivitiesDAO:
         session_id: Optional[str] = None,
         action: Optional[str] = None,
         is_guest: Optional[bool] = None,
+        created_after: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[ActivityInternal]:
         clauses = []
@@ -70,6 +71,9 @@ class MySQLActivitiesDAO:
         if is_guest is not None:
             clauses.append("is_guest = :is_guest")
             params["is_guest"] = 1 if is_guest else 0
+        if created_after is not None:
+            clauses.append("created_at >= :created_after")
+            params["created_after"] = created_after
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         limit_sql = f" LIMIT {int(limit)}" if limit else ""

@@ -3,11 +3,51 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
+from pathlib import Path
+import json
+import time
+from datetime import timedelta
 from app.models.daos import OrderFilter
+from app.utils.logger import logger
 
 from app.utils.cache import cache
 
 from app.db.storage_factory import get_storage
+
+IST = timezone(timedelta(hours=5, minutes=30))
+_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+_ANALYTICS_CACHE_PATH = _DATA_DIR / "analytics_reports_cache.json"
+_analytics_reports_cache_store = None
+_analytics_reports_cache_ts = 0.0
+
+def _get_current_ist_timestamp() -> str:
+    now_ist = datetime.now(IST)
+    return now_ist.strftime("%d %b %Y, %I:%M %p IST")
+
+def _read_analytics_reports_cache() -> Optional[Dict[str, Any]]:
+    global _analytics_reports_cache_store, _analytics_reports_cache_ts
+    now = time.monotonic()
+    if _analytics_reports_cache_store is not None and (now - _analytics_reports_cache_ts) < 60:
+        return _analytics_reports_cache_store
+    try:
+        if _ANALYTICS_CACHE_PATH.exists():
+            data = json.loads(_ANALYTICS_CACHE_PATH.read_text(encoding="utf-8"))
+            _analytics_reports_cache_store = data
+            _analytics_reports_cache_ts = now
+            return data
+    except Exception:
+        logger.exception("Error reading analytics reports cache")
+    return None
+
+def _write_analytics_reports_cache(data: Dict[str, Any]) -> None:
+    global _analytics_reports_cache_store, _analytics_reports_cache_ts
+    _analytics_reports_cache_store = data
+    _analytics_reports_cache_ts = time.monotonic()
+    try:
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _ANALYTICS_CACHE_PATH.write_text(json.dumps(data, default=str), encoding="utf-8")
+    except Exception:
+        logger.exception("Error writing analytics reports cache")
 
 
 class AnalyticsRepository:
@@ -90,36 +130,7 @@ class AnalyticsRepository:
     async def get_kpi_metrics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict:
         """Get KPI metrics: Gross sales, Returning customer rate, Orders fulfilled, Orders"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        await self.user_storage.findAll()
-
-        # Gross sales (total revenue)
-        gross_sales = sum(order.total for order in orders)
-
-        # Orders
-        total_orders = len(orders)
-
-        # Orders fulfilled (completed orders)
-        orders_fulfilled = len([o for o in orders if o.status in ["delivered", "completed", "dispatched"]])
-
-        # Returning customer rate
-        user_order_counts = defaultdict(int)
-        for order in orders:
-            user_id = order.user
-            if user_id:
-                user_order_counts[user_id] += 1
-
-        returning_customers = len([uid for uid, count in user_order_counts.items() if count > 1])
-        total_customers = len(user_order_counts)
-        returning_customer_rate = (returning_customers / total_customers * 100) if total_customers > 0 else 0
-
-        return {
-            "gross_sales": gross_sales,
-            "returning_customer_rate": round(returning_customer_rate, 2),
-            "orders_fulfilled": orders_fulfilled,
-            "orders": total_orders,
-        }
+        return await self.order_storage.get_kpi_stats(order_filter)
 
     def _filter_by_seller(self, orders: list, seller_id: Optional[str]) -> list:
         """Filter orders to those belonging to a specific seller.
@@ -1531,30 +1542,70 @@ class AnalyticsRepository:
 
         return sorted(result, key=lambda x: x["inventoryValue"], reverse=True)
 
+    async def precompute_dashboard_reports(self, ist_timestamp: Optional[str] = None) -> Dict[str, Any]:
+        """Precomputes the heavy reporting metrics and writes to the cache."""
+        from app.repositories.tracking_repository import tracking_repository
+
+        ist_ts = ist_timestamp or _get_current_ist_timestamp()
+        top_products = await self.get_sales_by_product(None, None, 10)
+        top_wholesalers = await self.get_top_users_by_revenue("wholesaler", None, None, 10)
+        top_customers = await self.get_top_users_by_revenue("customer", None, None, 10)
+        most_searched = await tracking_repository.getMostSearched(10, None, None)
+        most_viewed = await tracking_repository.getMostViewed(10, None, None)
+
+        payload = {
+            "last_updated_at_ist": ist_ts,
+            "topProducts": top_products,
+            "topWholesalers": top_wholesalers,
+            "topCustomers": top_customers,
+            "mostSearched": [s.model_dump() for s in most_searched],
+            "mostViewed": [v.model_dump() for v in most_viewed],
+        }
+        _write_analytics_reports_cache(payload)
+        return payload
+
     async def get_dashboard_data(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> Dict:
-        """Aggregated dashboard stats for the admin panel."""
+        """Aggregated dashboard stats for the admin panel.
+        Live orders, users, and product metrics are pushed to SQL.
+        Reporting and analytics sections use scheduled 6-hour cache.
+        """
         from app.repositories.tracking_repository import tracking_repository
 
         _order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(_order_filter)
-        users = await self.user_storage.findAll()
-        products = await self.product_storage.findAll()
 
-        total_orders = len(orders)
-        total_revenue = sum(o.total for o in orders)
-        total_products = len(products)
-        total_customers = sum(1 for u in users if u.role == "customer")
-        total_wholesalers = sum(1 for u in users if u.role == "wholesaler")
-        total_valets = sum(1 for u in users if u.role == "valet")
+        # 1. LIVE Orders Data (via SQL pushdown)
+        total_orders, total_revenue = await self.order_storage.get_summary_stats(_order_filter)
 
-        top_products = await self.get_sales_by_product(start_date, end_date, 10)
-        top_wholesalers = await self.get_top_users_by_revenue("wholesaler", start_date, end_date, 10)
-        top_customers = await self.get_top_users_by_revenue("customer", start_date, end_date, 10)
+        # 2. LIVE Users Data (via SQL pushdown)
+        user_counts = await self.user_storage.get_user_counts_by_role()
+        total_customers = user_counts.get("customer", 0)
+        total_wholesalers = user_counts.get("wholesaler", 0)
+        total_valets = user_counts.get("valet", 0)
 
-        most_searched = await tracking_repository.getMostSearched(10, start_date, end_date)
-        most_viewed = await tracking_repository.getMostViewed(10, start_date, end_date)
+        # 3. LIVE Products Count (via SQL pushdown)
+        total_products = await self.product_storage.get_active_products_count()
+
+        # 4. REPORTING & ANALYTICS (Stale / Scheduled Cache)
+        last_updated_at_ist = None
+        if not start_date and not end_date:
+            cached = _read_analytics_reports_cache()
+            if not cached:
+                cached = await self.precompute_dashboard_reports()
+            top_products = cached.get("topProducts", [])
+            top_wholesalers = cached.get("topWholesalers", [])
+            top_customers = cached.get("topCustomers", [])
+            most_searched = cached.get("mostSearched", [])
+            most_viewed = cached.get("mostViewed", [])
+            last_updated_at_ist = cached.get("last_updated_at_ist")
+        else:
+            top_products = await self.get_sales_by_product(start_date, end_date, 10)
+            top_wholesalers = await self.get_top_users_by_revenue("wholesaler", start_date, end_date, 10)
+            top_customers = await self.get_top_users_by_revenue("customer", start_date, end_date, 10)
+            most_searched = await tracking_repository.getMostSearched(10, start_date, end_date)
+            most_viewed = await tracking_repository.getMostViewed(10, start_date, end_date)
+            last_updated_at_ist = _get_current_ist_timestamp()
 
         from app.routers.analytics import DashboardDataResponse, DashboardStats
         return DashboardDataResponse(
@@ -1571,6 +1622,7 @@ class AnalyticsRepository:
             topCustomers=top_customers,
             mostSearched=most_searched,
             mostViewed=most_viewed,
+            lastUpdatedAtIST=last_updated_at_ist,
         )
 
     async def get_bundle_performance_report(self) -> Dict:

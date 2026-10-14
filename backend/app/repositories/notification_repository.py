@@ -82,23 +82,9 @@ class NotificationRepository:
     async def markAsRead(self, id: int) -> Optional[NotificationInternal]:
         return await self.update(id, NotificationInternalUpdate(is_read=True))
 
-    async def markAllAsRead(self) -> int:
-        """Mark all unread notifications as read and acknowledged"""
-        update_model = NotificationInternalUpdate(is_read=True, is_acknowledged=True, updated_at=self._get_timestamp())
-        unread_notifs = await self.storage.findAll(NotificationFilter(is_read=False))
-        count1 = 0
-        for n in unread_notifs:
-            await self.storage.update(n.id, update_model)
-            count1 += 1
-
-        unack_notifs = await self.storage.findAll(NotificationFilter(is_acknowledged=False))
-        count2 = 0
-        for n in unack_notifs:
-            if n.id not in [u.id for u in unread_notifs]:
-                await self.storage.update(n.id, update_model)
-                count2 += 1
-
-        return count1 + count2
+    async def markAllAsRead(self, user_id: Optional[int] = None) -> int:
+        """Mark all unread notifications as read and acknowledged via single SQL update"""
+        return await self.storage.mark_all_as_read(user_id=user_id)
 
     async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)

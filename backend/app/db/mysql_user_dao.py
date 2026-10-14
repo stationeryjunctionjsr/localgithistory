@@ -248,6 +248,16 @@ class MySQLUserDAO:
                 await session.rollback()
                 raise
 
+    async def get_user_counts_by_role(self) -> Dict[str, int]:
+        """Returns dict of role -> count via direct SQL pushdown without loading user rows."""
+        factory = self._factory()
+        if not factory:
+            return {}
+        async with factory() as session:
+            q = text(f"SELECT role, COUNT(*) AS count FROM {self.TABLE} GROUP BY role")
+            rows = (await session.execute(q)).fetchall()
+            return {r.role: r.count for r in rows if r.role}
+
     async def findByEmail(self, email: str) -> Optional[User]:
         factory = self._factory()
         if not factory or not email:

@@ -345,9 +345,9 @@ class MySQLProductDAO:
             params["skip"] = skip
             params["limit"] = limit
             rows = (await session.execute(text(query_sql), params)).fetchall()
-            children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
+            children_map = await self._fetch_children_for_products(session, [r.id for r in rows])
 
-        return [self._row_to_product(r, children_map[int(r.id)]) for r in rows], total_count
+        return [self._row_to_product(r, children_map[r.id]) for r in rows], total_count
 
     async def get_facets(self, filter: ProductFilter) -> ProductFacets:
         factory = self._factory()
@@ -380,6 +380,15 @@ class MySQLProductDAO:
         sub_categories.sort()
         return ProductFacets(brands=brands, categories=categories, sub_categories=sub_categories)
 
+    async def get_active_products_count(self) -> int:
+        """Returns count of active products directly via SQL pushdown without loading products."""
+        factory = self._factory()
+        if not factory:
+            return 0
+        async with factory() as session:
+            q = text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE is_active = 1")
+            return (await session.execute(q)).scalar() or 0
+
     async def findAll(self, filter: Optional[ProductFilter] = None) -> List[Product]:
         factory = self._factory()
         if not factory:
@@ -397,8 +406,8 @@ class MySQLProductDAO:
                     params,
                 )
             ).fetchall()
-            children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
-        return [self._row_to_product(r, children_map[int(r.id)]) for r in rows]
+            children_map = await self._fetch_children_for_products(session, [r.id for r in rows])
+        return [self._row_to_product(r, children_map[r.id]) for r in rows]
 
     async def findOne(self, filter: ProductFilter) -> Optional[Product]:
         records = await self.findAll(filter)

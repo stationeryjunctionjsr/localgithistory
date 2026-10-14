@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -198,3 +198,14 @@ class MySQLDeviceSubscriptionsDAO:
                     text("INSERT INTO sj_device_keys (parent_id, key_name, key_value) VALUES (:id, :v0, :v1)"),
                     params,
                 )
+
+    async def get_distinct_registered_user_ids(self) -> tuple[set[int], bool]:
+        """Fetch distinct user IDs from registered devices directly via SQL."""
+        factory = self._factory()
+        if not factory:
+            return set(), False
+        async with factory() as session:
+            rows = (await session.execute(text(f"SELECT DISTINCT user_id FROM {self.TABLE}"))).fetchall()
+            user_ids = {r.user_id for r in rows if r.user_id is not None}
+            has_guest = any(r.user_id is None for r in rows)
+            return user_ids, has_guest

@@ -208,6 +208,71 @@ class MySQLOrderDAO:
 
             return [self.__map_to_schema(r, items_rows, declines_rows) for r in rows]
 
+    async def get_summary_stats(self, filter: Optional[OrderFilter] = None) -> tuple[int, float]:
+        """Returns (total_orders, total_revenue) via direct SQL aggregate without loading records."""
+        factory = self._factory()
+        if not factory:
+            return 0, 0.0
+        where_sql, params = self._build_query_conditions(filter)
+        async with factory() as session:
+            q = text(f"SELECT COUNT(*) AS total_orders, COALESCE(SUM(total), 0.0) AS total_revenue FROM {self.TABLE} WHERE {where_sql}")
+            res = (await session.execute(q, params)).fetchone()
+            if not res:
+                return 0, 0.0
+            return res.total_orders or 0, float(res.total_revenue or 0.0)
+
+    async def get_kpi_stats(self, filter: Optional[OrderFilter] = None) -> Dict[str, Any]:
+        """Direct SQL pushdown for KPI metrics: gross sales, total orders, fulfilled orders, returning customer rate."""
+        factory = self._factory()
+        if not factory:
+            return {
+                "gross_sales": 0.0,
+                "returning_customer_rate": 0.0,
+                "orders_fulfilled": 0,
+                "orders": 0,
+            }
+        where_sql, params = self._build_query_conditions(filter)
+        async with factory() as session:
+            q = text(
+                f"""
+                SELECT 
+                    COALESCE(SUM(total), 0.0) AS gross_sales,
+                    COUNT(*) AS total_orders,
+                    COUNT(CASE WHEN status IN ('delivered', 'completed', 'dispatched') THEN 1 END) AS orders_fulfilled
+                FROM {self.TABLE}
+                WHERE {where_sql}
+                """
+            )
+            agg = (await session.execute(q, params)).fetchone()
+            gross_sales = float(agg.gross_sales or 0.0) if agg else 0.0
+            total_orders = agg.total_orders or 0 if agg else 0
+            orders_fulfilled = agg.orders_fulfilled or 0 if agg else 0
+
+            q_returning = text(
+                f"""
+                SELECT 
+                    COUNT(DISTINCT user_id) AS total_customers,
+                    COUNT(DISTINCT CASE WHEN order_count > 1 THEN user_id END) AS returning_customers
+                FROM (
+                    SELECT user_id, COUNT(*) AS order_count
+                    FROM {self.TABLE}
+                    WHERE {where_sql} AND user_id IS NOT NULL
+                    GROUP BY user_id
+                ) t
+                """
+            )
+            ret_res = (await session.execute(q_returning, params)).fetchone()
+            tot_cust = ret_res.total_customers or 0 if ret_res else 0
+            ret_cust = ret_res.returning_customers or 0 if ret_res else 0
+            rate = round((ret_cust / tot_cust * 100), 2) if tot_cust > 0 else 0.0
+
+            return {
+                "gross_sales": round(gross_sales, 2),
+                "returning_customer_rate": rate,
+                "orders_fulfilled": orders_fulfilled,
+                "orders": total_orders,
+            }
+
     async def findOne(self, filter: Optional[OrderFilter] = None) -> Optional[Order]:
         records = await self.findAll(filter)
         return records[0] if records else None

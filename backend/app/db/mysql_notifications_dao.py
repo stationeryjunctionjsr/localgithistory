@@ -131,6 +131,23 @@ class MySQLNotificationsDAO:
 
         return await self.findById(id)
 
+    async def mark_all_as_read(self, user_id: Optional[int] = None) -> int:
+        factory = self._factory()
+        now = now_utc()
+        where_clauses = ["(is_read = 0 OR is_acknowledged = 0)"]
+        params = {"u": now}
+        if user_id is not None:
+            where_clauses.append("user_id = :uid")
+            params["uid"] = user_id
+        where_sql = " AND ".join(where_clauses)
+        async with factory() as session:
+            result = await session.execute(
+                text(f"UPDATE {self.TABLE} SET is_read = 1, is_acknowledged = 1, updated_at = :u WHERE {where_sql}"),
+                params,
+            )
+            await session.commit()
+            return result.rowcount or 0
+
     async def delete(self, id: int) -> bool:
         factory = self._factory()
         if not factory or not id:

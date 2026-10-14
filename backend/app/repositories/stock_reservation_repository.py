@@ -106,34 +106,18 @@ class StockReservationRepository:
         return created
 
     async def release_user_reservations(self, user_id: str, product_id: Optional[int] = None) -> None:
-        """Marks active reservations for a user as released."""
+        """Marks active reservations for a user as released via direct SQL update."""
         await self.ensure_table_exists()
-        active_res = await self.storage.findAll(
-            user_id=user_id,
-            status="active",
-            product_id=product_id,
-        )
-        for res in active_res:
-            await self.storage.update(res.id, StockReservationsInternalUpdate(status="released"))
-            logger.info("Released stock reservation %s for user %s", res.id, user_id)
+        released_count = await self.storage.release_user_reservations(user_id=user_id, product_id=product_id)
+        if released_count > 0:
+            logger.info("Released %d stock reservations for user %s", released_count, user_id)
 
     async def fulfill_user_reservations(self, user_id: str, product_id: Optional[int] = None) -> None:
-        """Marks active reservations for a user as fulfilled (order placed)."""
+        """Marks active reservations for a user as fulfilled (or expired) via direct SQL update."""
         await self.ensure_table_exists()
-        active_res = await self.storage.findAll(
-            user_id=user_id,
-            status="active",
-            product_id=product_id,
-        )
-        now = datetime.now(timezone.utc)
-
-        for res in active_res:
-            # Only fulfill if not already expired
-            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
-                await self.storage.update(res.id, StockReservationsInternalUpdate(status="fulfilled"))
-                logger.info("Fulfilled stock reservation %s for user %s", res.id, user_id)
-            else:
-                await self.storage.update(res.id, StockReservationsInternalUpdate(status="expired"))
+        fulfilled_count = await self.storage.fulfill_user_reservations(user_id=user_id, product_id=product_id)
+        if fulfilled_count > 0:
+            logger.info("Fulfilled %d stock reservations for user %s", fulfilled_count, user_id)
 
     async def cleanup_expired(self) -> None:
         """Finds and marks all expired reservations as 'expired'."""
