@@ -12,6 +12,7 @@ from app.db.db_utils import now_utc
 
 
 from app.models.base import CamelBaseModel
+from app.models.analytics_schemas import SalesOverTimeResponse
 
 
 class OrderSummaryStats(CamelBaseModel):
@@ -1131,6 +1132,63 @@ class MySQLOrderDAO:
             ]
 
         return product_stats, sorted(states), sorted(cities)
+
+    async def get_sales_over_time_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        group_by: str = "hour",
+        seller_id: Optional[str] = None,
+    ) -> List[SalesOverTimeResponse]:
+        fmt = "%Y-%m-%d %H:00" if group_by == "hour" else ("%Y-%m" if group_by == "month" else "%Y-%m-%d")
+
+        where_clauses = ["created_at IS NOT NULL"]
+        params = {"fmt": fmt}
+
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = f"AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = {self.TABLE}.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                DATE_FORMAT(created_at, :fmt) AS period,
+                COALESCE(SUM(total), 0.0) AS sales,
+                COUNT(*) AS order_count
+            FROM {self.TABLE}
+            WHERE {where_sql} {seller_clause}
+            GROUP BY period
+            ORDER BY period ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            result = []
+            for r in rows:
+                sales = round(float(r.sales or 0.0), 2)
+                cnt = r.order_count or 0
+                aov = round(sales / cnt, 2) if cnt > 0 else 0.0
+                result.append(
+                    SalesOverTimeResponse(
+                        period=r.period,
+                        sales=sales,
+                        orderCount=cnt,
+                        aov=aov,
+                    )
+                )
+            return result
+
 
 
 
