@@ -307,7 +307,7 @@ class MySQLSubOrderDAO:
 
             await session.commit()
 
-        return await self.findById(int(new_id))
+        return await self.findById(new_id)
 
     async def update(self, id: int, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
         factory = get_async_session_factory()

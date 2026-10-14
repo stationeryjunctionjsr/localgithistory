@@ -1,7 +1,7 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from app.models.daos import OrderFilter
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
-from typing import Any, List, Optional, Set, Tuple, NamedTuple, TypedDict, Union
+from typing import Any, List, Optional, Set, Tuple, NamedTuple, TypedDict
 import logging
 from datetime import datetime
 
@@ -549,21 +549,17 @@ class MySQLOrderDAO:
                 )
                 return existing, False
 
-    async def update(self, id: Union[int, str], update_data: 'OrderInternalUpdate') -> Optional[Order]:
-        if id is None:
-            return None
-        try:
-            oid = int(id)
-        except (ValueError, TypeError):
+    async def update(self, id: int, update_data: OrderInternalUpdate) -> Optional[Order]:
+        if not id:
             return None
 
         fields = update_data.model_fields_set
         if not fields:
-            return await self.findById(oid)
+            return await self.findById(id)
 
         now = now_utc()
         updates = ["updated_at = :updated_at"]
-        params: dict[str, Any] = {"id": oid, "updated_at": now}
+        params = {"id": id, "updated_at": now}
 
         if "user" in fields:
             raw_uid = update_data.user
@@ -758,42 +754,38 @@ class MySQLOrderDAO:
                     rowcount = result.rowcount
 
                 if "items" in fields:
-                    await self._sync_items(session, oid, update_data.items or [])
+                    await self._sync_items(session, id, update_data.items or [])
                 if "valet_decline_history" in fields:
-                    await self._sync_valet_declines(session, oid, update_data.valet_decline_history or [])
+                    await self._sync_valet_declines(session, id, update_data.valet_decline_history or [])
 
                 await session.commit()
 
                 if rowcount == 0 and not has_child_updates:
-                    existing = await self.findById(oid)
+                    existing = await self.findById(id)
                     if not existing:
                         return None
             except Exception:
                 await session.rollback()
                 raise
 
-        return await self.findById(oid)
+        return await self.findById(id)
 
-    async def delete(self, id: Union[int, str]) -> bool:
-        if id is None:
-            return False
-        try:
-            oid = int(id)
-        except (ValueError, TypeError):
+    async def delete(self, id: int) -> bool:
+        if not id:
             return False
         async_session = get_async_session_factory()
         async with async_session() as session:
             await session.execute(
                 text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
-                {"order_id": oid},
+                {"order_id": id},
             )
             await session.execute(
                 text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
-                {"order_id": oid},
+                {"order_id": id},
             )
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": oid},
+                {"id": id},
             )
             await session.commit()
             return result.rowcount > 0
