@@ -298,12 +298,10 @@ class SessionInternalCreate(CamelBaseModel):
 class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     id: Optional[int] = None
-    user: Optional[str] = None
     user_id: Optional[int] = None
     device_info: Optional[DeviceSnippet] = None
     ip_address: Optional[str] = None
     is_active: Optional[bool] = None
-    sales_count: Optional[int] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
     last_active_at: Optional[datetime] = None

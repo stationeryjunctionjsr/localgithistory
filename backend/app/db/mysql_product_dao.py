@@ -422,10 +422,10 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [id])
         return self._row_to_product(row, children_map[id])
 
-    async def findByIds(self, ids: List[str]) -> List[Product]:
+    async def findByIds(self, ids: List[int]) -> List[Product]:
         if not ids:
             return []
-        return await self.findAll({"allowed_ids": ids})
+        return await self.findAll(ProductFilter(allowed_ids=ids))
 
     async def _replace_children(self, session, pid: int, data: 'CamelBaseModel'):
         fields_set = data.model_fields_set

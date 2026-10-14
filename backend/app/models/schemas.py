@@ -126,7 +126,7 @@ class ProductSellerEntry(CamelBaseModel):
 class ItemSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     id: Optional[str] = None
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     product: Optional[str] = None
     quantity: Optional[int] = None
     sell_as_case: Optional[bool] = None

@@ -72,17 +72,25 @@ class CouponRepository:
         y_required = int(coupon.buy_x_get_y_customer_gets_quantity) if coupon.buy_x_get_y_customer_gets_quantity is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
-        cart_pids = [str(item.product_id) for item in cart_items if item.product_id]
+        cart_pids = []
+        for item in cart_items:
+            it_pid = item.product_id if hasattr(item, "product_id") else item.get("product_id") or item.get("productId") if isinstance(item, dict) else None
+            if it_pid is not None:
+                try:
+                    cart_pids.append(int(it_pid))
+                except (ValueError, TypeError):
+                    continue
         if cart_pids:
             products_list = await product_repository.findByIds(cart_pids)
-            product_map = {str(p.id): p for p in products_list if p.id}
+            product_map = {p.product_id: p for p in products_list if p.product_id}
+            product_map.update({str(p.id): p for p in products_list if p.id})
         else:
             product_map = {}
 
         elements = []
         for idx, item in enumerate(cart_items):
-            pid = str(item.product_id)
-            product = (product_map[pid] if pid in product_map else None)
+            it_pid = item.product_id if hasattr(item, "product_id") else item.get("product_id") or item.get("productId") if isinstance(item, dict) else None
+            product = product_map.get(it_pid) or product_map.get(str(it_pid))
             if not product:
                 continue
             qty = int(item.quantity or 0)

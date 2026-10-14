@@ -1,14 +1,13 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from app.models.daos import OrderFilter
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
-from typing import Any, List, Optional, Set, Tuple, NamedTuple, TypedDict
+from typing import Any, List, Optional, Set, Tuple
 import logging
 from datetime import datetime
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.config.settings import settings
 from app.db.db_utils import now_utc
 
 
@@ -41,7 +40,7 @@ class MySQLOrderDAO:
         if items_rows:
             order.items = [
                 ItemSnippet(
-                    product_id=str(ir.product_id),
+                    product_id=ir.product_id,
                     quantity=int(ir.quantity) if ir.quantity is not None else 0,
                     price=float(ir.price) if ir.price is not None else 0.0,
                 )
@@ -268,11 +267,7 @@ class MySQLOrderDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[Order]:
-        if id is None:
-            return None
-        try:
-            pid = int(id)
-        except (ValueError, TypeError):
+        if not id:
             return None
         async_session = get_async_session_factory()
         async with async_session() as session:
@@ -290,7 +285,7 @@ class MySQLOrderDAO:
                     WHERE id = :id
                     """
                 ),
-                {"id": pid},
+                {"id": id},
             )
             row = result.fetchone()
             if not row:
@@ -309,12 +304,7 @@ class MySQLOrderDAO:
         if not ids:
             return []
 
-        int_ids = []
-        for i in ids:
-            try:
-                int_ids.append(int(i))
-            except (ValueError, TypeError):
-                continue
+        int_ids = [i for i in ids if i]
         if not int_ids:
             return []
 
@@ -384,12 +374,8 @@ class MySQLOrderDAO:
             {"order_id": order_id},
         )
         for it in items or []:
-            pid_raw = it.product_id if it.product_id is not None else it.product
-            if pid_raw is None:
-                continue
-            try:
-                pid = int(pid_raw)
-            except (ValueError, TypeError):
+            pid = it.product_id
+            if pid is None:
                 continue
             qty = (it.quantity if it.quantity is not None else 0) or 0
             price = (it.price if it.price is not None else 0) or 0
@@ -440,12 +426,7 @@ class MySQLOrderDAO:
 
         async_session = get_async_session_factory()
         now = now_utc()
-        uid = None
-        if data.user is not None:
-            try:
-                uid = int(data.user)
-            except (ValueError, TypeError):
-                uid = None
+        uid = data.user
 
         async with async_session() as session:
             result = await session.execute(

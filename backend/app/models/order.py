@@ -23,7 +23,7 @@ class Order(CamelBaseModel):
     session_id: Optional[str] = None
     id: str = Field(default="")
     order_number: Optional[str] = None
-    user: Optional[str] = Field(None, alias='user_id')
+    user: Optional[int] = Field(None, alias='user_id')
     status: Optional[str] = None
     total: Optional[float] = None
     subtotal: Optional[float] = None
@@ -136,7 +136,7 @@ from typing import Any, Dict, List, Optional
 class OrderInternalCreate(CamelBaseModel):
     order_number: Optional[str] = None
     user_role: Optional[str] = None
-    user: str
+    user: int
     session_id: Optional[str] = None
     items: List['OrderItem'] = Field(default_factory=list)
     subtotal: float
@@ -218,7 +218,7 @@ class OrderInternalCreate(CamelBaseModel):
 
 class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
 
-    user: Optional[str] = Field(None, alias='user_id')
+    user: Optional[int] = Field(None, alias='user_id')
     order_number: Optional[str] = None
     subtotal: Optional[float] = None
     tax: Optional[float] = None

@@ -174,10 +174,6 @@ class MySQLSessionDAO:
         if "user_id" in update_data.model_fields_set:
             updates.append("user_id = :user_id")
             params["user_id"] = update_data.user_id
-        elif "user" in update_data.model_fields_set:
-            updates.append("user_id = :user_id")
-            uid = update_data.user
-            params["user_id"] = int(uid) if uid and str(uid).isdigit() else None
 
         if "refresh_token_id" in update_data.model_fields_set:
             updates.append("refresh_token_id = :refresh_token_id")

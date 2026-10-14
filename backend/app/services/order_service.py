@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.base import CamelBaseModel
 from app.models.daos import NotificationInternalCreate, BundleInternalUpdate
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
-from app.models.product import Product
+from app.models.product import Product, ProductFilter
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
 from app.models.user import User, UserFilter
 from app.models.schemas import (
@@ -236,20 +236,16 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     if not orders:
         return []
 
-    user_ids = set()
-    valet_ids = set()
-    product_ids = set()
-    order_ids = set()
+    user_ids: set[int] = set()
+    valet_ids: set[int] = set()
+    product_ids: set[int] = set()
+    order_ids: set[str] = set()
 
     # 1. Collect all unique IDs across all orders
     for order in orders:
         if order.user:
-            try:
-                user_ids.add(int(order.user))
-            except (ValueError, TypeError):
-                pass
+            user_ids.add(order.user)
 
-        # Order.assigned_valet is the snake_case Pydantic field (alias: assignedValet)
         if order.assigned_valet:
             try:
                 valet_ids.add(int(order.assigned_valet))
@@ -260,15 +256,14 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
             order_ids.add(str(order.id))
 
         for item in order.items if order.items else []:
-            pid = item.product_id or item.product
-            if pid:
-                product_ids.add(pid)
+            if item.product_id:
+                product_ids.add(item.product_id)
 
     # 2. Fetch all required users, valets, products, and payments in parallel
     users_task = get_storage("users").findAll(UserFilter(allowed_ids=list(
         user_ids.union(valet_ids)))) if user_ids.union(valet_ids) else None
     products_task = get_storage("products").findAll(
-        {"allowed_ids": list(product_ids)}) if product_ids else None
+        ProductFilter(allowed_ids=list(product_ids))) if product_ids else None
     payments_task = get_storage("payments").findAll(
         allowed_order_ids=list(order_ids)) if order_ids else None
 
@@ -278,18 +273,11 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     payments_list = await payments_task if payments_task else []
 
     # 3. Build lookup maps
-    users_map = {}
-    for u in users_list:
-        if u.id:
-            users_map[u.id] = u
-            users_map[str(u.id)] = u
+    users_map = {u.id: u for u in users_list if u.id}
+    users_map.update({str(u.id): u for u in users_list if u.id})
 
-    products_map = {}
-    for p in products_list:
-        if p.product_id:
-            products_map[str(p.product_id)] = p
-        if p.id:
-            products_map[str(p.id)] = p
+    products_map = {p.product_id: p for p in products_list if p.product_id}
+    products_map.update({p.id: p for p in products_list if p.id})
 
     payments_map = {}
     for p in payments_list:
@@ -303,26 +291,17 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     # 4. Construct fully populated responses
     populated = []
     for order in orders:
-        o_user = str(order.user) if order.user else None
-        user = users_map[o_user] if o_user and o_user in users_map else None
-
-        # assigned_valet is the snake_case Pydantic field on Order
-        o_valet = str(order.assigned_valet) if order.assigned_valet else None
-        valet = users_map[o_valet] if o_valet and o_valet in users_map else None
+        user = users_map.get(order.user)
+        valet = users_map.get(order.assigned_valet)
 
         o_id = str(order.id) if order.id else None
-        payment_entries = payments_map[o_id] if o_id and o_id in payments_map else [
-        ]
+        payment_entries = payments_map.get(o_id, [])
 
         o_items = order.items if order.items else []
         populated_items = []
 
         for i_dict in o_items:
-            # i_dict is a Pydantic ItemSnippet (OrderItem)
-            # .product holds the product ID reference; .product_id is the alternate field
-            pid = str(i_dict.product) if i_dict.product else (
-                str(i_dict.product_id) if i_dict.product_id else None)
-            product = products_map[pid] if pid and pid in products_map else None
+            product = products_map.get(i_dict.product_id)
 
             # stockStatus, taxRate, taxAmount are not stored in sj_order_items (DB has
             # only product_id, quantity, price) — they are None until the DB schema
@@ -590,15 +569,14 @@ async def create_order_service(
     # Pre-load all products referenced in cart items in a single batch query (eliminates N+1)
     _cart_product_ids = list(
         {
-            str(item.product or item.product_id)
-            for item in cart_items
-            if item.product or item.product_id
+            item.product for item in cart_items if item.product
         }
     )
     _cart_products_list = (
-        await product_repository.findByIds(list(_cart_product_ids)) if _cart_product_ids else []
+        await product_repository.findByIds(_cart_product_ids) if _cart_product_ids else []
     )
-    _cart_products_map = {str(p.id): p for p in _cart_products_list}
+    _cart_products_map = {p.product_id: p for p in _cart_products_list}
+    _cart_products_map.update({str(p.id): p for p in _cart_products_list})
 
     # For courier orders, verify all cart products belong to 1P Super Admin warehouse
     if fulfillment_type == "courier":
@@ -615,8 +593,7 @@ async def create_order_service(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        p = (_cart_products_map[str(item.product or item.product_id)] if str(
-            item.product or item.product_id) in _cart_products_map else None)
+        p = _cart_products_map.get(item.product) or _cart_products_map.get(str(item.product))
         if p:
             qty = (item.quantity if item.quantity is not None else 0)
             sell_as_case = (
@@ -781,8 +758,7 @@ async def create_order_service(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        product = (_cart_products_map[str(item.product or item.product_id)] if str(
-            item.product or item.product_id) in _cart_products_map else None)
+        product = _cart_products_map.get(item.product) or _cart_products_map.get(str(item.product))
         if not product:
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product or item.product_id}"
@@ -1490,8 +1466,7 @@ async def create_order_service(
             session_id=current_user.session_id,
             items=[
                 OrderItem(
-                    product_id=str(i.product),
-                    product=str(i.product),
+                    product_id=i.product,
                     quantity=i.quantity,
                     price=i.price,
                     name=i.product_name,

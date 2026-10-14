@@ -897,7 +897,7 @@ class ProductRepository:
             p = (await self._attach_category_gst([p]))[0]
         return p
 
-    async def findByIds(self, ids: List[str]) -> List[Product]:
+    async def findByIds(self, ids: List[int]) -> List[Product]:
         if not ids:
             return []
         products = await self.storage.findByIds(ids)

@@ -1,7 +1,7 @@
 from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional, List
-from pydantic import Field, AliasChoices
+from pydantic import Field
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
 from app.models.schemas import VariantOption, ProductSellerEntry, ProductDetails
