@@ -18,8 +18,6 @@ class MySQLWishlistDAO:
     def TABLE(self):
         return "sj_wishlists"
 
-    def _factory(self):
-        return get_async_session_factory()
 
     def _map_to_schema(self, r, items_rows=None) -> Wishlist:
         w = Wishlist.model_validate(r)
@@ -64,10 +62,6 @@ class MySQLWishlistDAO:
         id: Optional[int] = None,
         user: Optional[int] = None,
     ) -> List[Wishlist]:
-        factory = self._factory()
-        if not factory:
-            return []
-
         where_clauses = []
         params = {}
         if id is not None:
@@ -78,7 +72,8 @@ class MySQLWishlistDAO:
             params["user_id"] = user
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT * FROM {self.TABLE} {where_sql} ORDER BY id ASC"), params
             )
@@ -98,12 +93,12 @@ class MySQLWishlistDAO:
         return await self.findOne(id=id)
 
     async def create(self, data: 'WishlistInternalCreate') -> Optional[Wishlist]:
-        factory = self._factory()
         now = now_utc()
         user_id = data.user
         items = (data.items if data.items is not None else [])
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -126,44 +121,50 @@ class MySQLWishlistDAO:
     async def update(self, id: int, update_data: 'WishlistInternalUpdate') -> Optional[Wishlist]:
         if not id:
             return None
-        existing = await self.findById(id)
-        if not existing:
-            return None
 
-        factory = self._factory()
         now = now_utc()
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now}
+        if "user" in update_data.model_fields_set:
+            updates.append("user_id = :user_id")
+            params["user_id"] = update_data.user
 
-        async with factory() as session:
-            await session.execute(
-                text(f"UPDATE {self.TABLE} SET updated_at = :u WHERE id = :id"), {"id": id, "u": now}
+        set_sql = ", ".join(updates)
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            res = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"), params
             )
-            if update_data.items is not None:
+            if res.rowcount == 0:
+                chk = await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE id = :id"), {"id": id})
+                if not chk.fetchone():
+                    return None
+
+            if "items" in update_data.model_fields_set and update_data.items is not None:
                 await self._replace_items(session, id, update_data.items)
             await session.commit()
 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": id})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
 
     async def deleteMany(self, user: Optional[int] = None) -> int:
-        factory = self._factory()
-        if not factory:
-            return 0
         where_clauses = []
         params = {}
         if user is not None:
             where_clauses.append("user_id = :user_id")
             params["user_id"] = user
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(
                 text(f"DELETE FROM sj_wishlist_items WHERE wishlist_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
                 params,
