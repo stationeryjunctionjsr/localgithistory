@@ -1635,19 +1635,18 @@ class AnalyticsRepository:
         from app.repositories.bundle_repository import bundle_repository
         
         bundles = await bundle_repository.findAll()
-        bundle_map = {str(b.id): b for b in bundles if b.id}
+        valid_bundles = [b for b in bundles if b.id]
         
         # Initialize stats map
-        # { bundle_id: { "order_count": int, "copies_sold": int, "revenue": float, "monthly": { "YYYY-MM": revenue } } }
         stats = {
-            bid: {
+            str(b.id): {
                 "bundle": b,
                 "order_count": 0,
                 "copies_sold": 0,
                 "revenue": 0.0,
                 "monthly": defaultdict(float)
             }
-            for bid, b in bundle_map.items()
+            for b in valid_bundles
         }
         
         # Fetch all completed orders
@@ -1675,9 +1674,10 @@ class AnalyticsRepository:
                     order_bundles[b_id].append(item)
                     
             for b_id, b_items in order_bundles.items():
-                if b_id not in stats or b_id not in bundle_map:
+                b_str = str(b_id)
+                if b_str not in stats:
                     continue
-                b_def = bundle_map[b_id]
+                b_def = stats[b_str]["bundle"]
                     
                 b_specs = (b_def["items"] if "items" in b_def else [])
                 copies = 1
@@ -1900,7 +1900,6 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
         users = await self.user_storage.findAll()
-        user_map = {u.id: u for u in users}
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -1938,13 +1937,9 @@ class AnalyticsRepository:
             else:
                 segment = "Dormant"
 
-            if uid in user_map:
-                user = user_map[uid]
-                user_name = user.name
-                user_email = user.email
-            else:
-                user_name = "Unknown"
-                user_email = "Unknown"
+            user = next((u for u in users if u.id == uid), None) if uid else None
+            user_name = user.name if user and user.name else "Unknown"
+            user_email = user.email if user and user.email else "Unknown"
             result.append(
                 {
                     "userId": uid,
@@ -2023,7 +2018,6 @@ class AnalyticsRepository:
             orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
 
         users = await self.user_storage.findAll()
-        user_map = {u.id: u for u in users}
 
         result = []
         for order in orders:
@@ -2039,7 +2033,8 @@ class AnalyticsRepository:
             shipping = float(order.shipping or order.delivery_charge or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
-            customer_name = user_map[order.user].name if (order.user and order.user in user_map) else "Unknown"
+            user = next((u for u in users if u.id == order.user), None) if order.user else None
+            customer_name = user.name if user and user.name else "Unknown"
             result.append(
                 {
                     "orderId": order.id,
