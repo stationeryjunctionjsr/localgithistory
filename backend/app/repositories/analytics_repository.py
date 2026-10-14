@@ -162,25 +162,20 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         return await self.order_storage.get_kpi_stats(order_filter)
 
-    def _filter_by_seller(self, orders: list, seller_id: Optional[str]) -> list:
-        """Filter orders to those belonging to a specific seller.
-
-        Orders are associated with sellers via sub-orders (order.sub_orders[].seller_id)
-        or directly via order.seller_id for single-seller orders.  A None seller_id
-        means no restriction (super-admin view — return everything).
-        """
+    def _filter_by_seller(self, orders: list, seller_id: Optional[int]) -> list:
+        """Filter orders to those belonging to a specific seller."""
         if not seller_id:
             return orders
         filtered = []
         for order in orders:
-            # Direct seller_id field on order (single-seller path)
-            if order.seller_id and str(order.seller_id) == seller_id:
+            if order.seller_id == seller_id:
                 filtered.append(order)
                 continue
-            # Sub-order path: any sub-order belonging to this seller makes the order relevant
             sub_orders = order.sub_orders or []
-            if any(str(so.seller_id) == seller_id for so in sub_orders if so.seller_id):
-                filtered.append(order)
+            for so in sub_orders:
+                if so.seller_id == seller_id:
+                    filtered.append(order)
+                    break
         return filtered
 
     @cache.ttl_cache(ttl=300)
@@ -189,7 +184,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         group_by: str = "hour",
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Get sales over time, grouped by hour, day, or month"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -337,7 +332,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 10,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Get top products by sales"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -563,7 +558,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 10,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[ProductsSellThroughResponse]:
         """Get products by sell-through rate"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -1068,7 +1063,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Aggregate returns/refund requests with order value and status."""
         from app.repositories.return_request_repository import return_request_repository
@@ -1120,7 +1115,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Aggregate order count and revenue by payment method."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -1155,7 +1150,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 20,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Aggregate revenue, quantity and order count by product category."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -1189,7 +1184,7 @@ class AnalyticsRepository:
         return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[str] = None) -> List[InventoryAlertResponse]:
+    async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[int] = None) -> List[InventoryAlertResponse]:
         """Return products whose current stock is at or below `threshold`."""
         products = await self.product_storage.findAll()
         # Filter products by seller if scoped
@@ -1202,7 +1197,7 @@ class AnalyticsRepository:
             if stock <= threshold:
                 result.append(
                     InventoryAlertResponse(
-                        productId=str(product.id),
+                        productId=product.id,
                         name=product.name,
                         sku=product.sku,
                         category=product.category or "Uncategorized",
@@ -1218,7 +1213,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Calculate fulfillment times for completed/delivered orders."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -1267,7 +1262,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Aggregate coupon usage: how many orders used each coupon and total discount given."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -1306,7 +1301,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 100,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Aggregate sales by shipping address city/state."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -1488,7 +1483,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 50,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[TopReturnedProductsResponse]:
         """Find products that are returned the most."""
         from app.repositories.return_request_repository import return_request_repository
@@ -1497,7 +1492,7 @@ class AnalyticsRepository:
         products = await self.product_storage.findAll()
 
         class ProductReturnStat(BaseModel):
-            product_id: str
+            product_id: int
             product_name: str
             category: str
             return_count: int = 0
@@ -1521,10 +1516,10 @@ class AnalyticsRepository:
                 if seller_id and (not prod or not prod.has_seller(seller_id)):
                     continue
 
-                stat = next((r for r in return_stats if r.product_id == str(pid)), None)
+                stat = next((r for r in return_stats if r.product_id == pid), None)
                 if not stat:
                     stat = ProductReturnStat(
-                        product_id=str(pid),
+                        product_id=pid,
                         product_name=prod.name if prod else "Unknown Product",
                         category=prod.category if prod else "Uncategorized",
                     )
@@ -1549,7 +1544,7 @@ class AnalyticsRepository:
         ]
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_value_by_category(self, seller_id: Optional[str] = None) -> List[InventoryValueByCategoryResponse]:
+    async def get_inventory_value_by_category(self, seller_id: Optional[int] = None) -> List[InventoryValueByCategoryResponse]:
         """Calculate total tied up capital in inventory grouped by category."""
         products = await self.product_storage.findAll()
         if seller_id:
@@ -1769,7 +1764,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Daily session count and unique visitor count from tracking data."""
         sessions = await self.tracking_storage.find_by_date_range("session", start_date, end_date)
@@ -1793,7 +1788,7 @@ class AnalyticsRepository:
         ]
 
     @cache.ttl_cache(ttl=30)
-    async def get_active_visitors_now(self, seller_id: Optional[str] = None) -> List[Dict]:
+    async def get_active_visitors_now(self, seller_id: Optional[int] = None) -> List[Dict]:
         """Count of unique sessions active in the last 15 minutes."""
         from datetime import timedelta
 
@@ -1828,7 +1823,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Search terms whose sessions never produced a product_click event."""
         searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
@@ -1864,7 +1859,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Percentage of sessions that searched AND placed an order."""
         searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
@@ -1893,7 +1888,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[Dict]:
         """Daily bounce rate: sessions with only 1 page view / total sessions."""
         page_views = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
@@ -1933,7 +1928,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[RFMSegmentsResponse]:
         """RFM segmentation: Champions, Loyal, Promising, At Risk, Dormant."""
         from datetime import timedelta
@@ -2007,7 +2002,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[CustomerFrequencyResponse]:
         """Split of one-time vs repeat buyers with revenue per group."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -2063,14 +2058,14 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[NetSalesResponse]:
         """Per-order breakdown: gross sales → discounts → tax → shipping → net sales."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
 
         if seller_id:
-            orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
+            orders = [o for o in orders if o.seller_id == seller_id]
 
         users = await self.user_storage.findAll()
 
@@ -2092,7 +2087,7 @@ class AnalyticsRepository:
             customer_name = user.name if user and user.name else "Unknown"
             result.append(
                 NetSalesResponse(
-                    orderId=str(order.id),
+                    orderId=order.id,
                     orderNumber=order.order_number,
                     customerName=customer_name,
                     grossSales=round(subtotal, 2),
@@ -2112,7 +2107,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[SalesHeatmapResponse]:
         """Order volume and revenue grouped by day-of-week (0=Mon) and hour-of-day (0-23)."""
         DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -2121,7 +2116,7 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll(order_filter)
 
         if seller_id:
-            orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
+            orders = [o for o in orders if o.seller_id == seller_id]
 
         class HeatmapStat(BaseModel):
             dow: int
@@ -2157,7 +2152,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[InventoryRunwayResponse]:
         """Days of stock remaining per product based on 30-day average daily sales velocity."""
         from datetime import timedelta
@@ -2272,7 +2267,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[DiscountsAuditResponse]:
         """Per-order line-item audit: coupon code, discount type/value, gross, discount applied, net."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
@@ -2320,7 +2315,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[ProductsPctSoldResponse]:
         """Units sold in the period as a % of current stock (sell-through by quantity)."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)

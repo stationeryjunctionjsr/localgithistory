@@ -26,7 +26,7 @@ class SubOrder(CamelBaseModel):
     sub_order_number: Optional[str] = Field(default=None)
     parent_order_id: Optional[str] = Field(default=None)
     parent_order_number: Optional[str] = Field(default=None)
-    seller_id: Optional[str] = Field(default=None)
+    seller_id: Optional[int] = Field(default=None)
     seller_name: Optional[str] = Field(default=None)
     user_id: Optional[str] = Field(default=None)
     subtotal: Optional[float] = None
@@ -107,7 +107,7 @@ class SubOrderInternalCreate(CamelBaseModel):
     sub_order_number: str
     parent_order_id: str
     parent_order_number: str
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     seller_name: str = ""
     user: str
     items: List[SubOrderItem] = Field(default_factory=list)
@@ -171,7 +171,7 @@ class SubOrderInternalUpdate(CamelBaseModel):
 
 class SubOrderFilter(CamelBaseModel):
     id: Optional[int] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     parent_order_id: Optional[str] = None
     status: Optional[str] = None
     commission_status: Optional[str] = None

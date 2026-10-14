@@ -32,7 +32,7 @@ class Order(CamelBaseModel):
     discount: Optional[float] = None
     order_type: Optional[str] = None
     payment_status: Optional[str] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     payment_method: Optional[str] = None
     upi_payment_screenshot: Optional[str] = None
     ship_name: Optional[str] = None

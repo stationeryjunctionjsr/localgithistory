@@ -1987,10 +1987,10 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             return [
                 SalesHeatmapResponse(
-                    dayOfWeek=DAY_NAMES[int(r.dow)],
-                    hour=int(r.hr),
-                    orderCount=int(r.order_count),
-                    revenue=round(float(r.revenue or 0.0), 2),
+                    dayOfWeek=DAY_NAMES[r.dow],
+                    hour=r.hr,
+                    orderCount=r.order_count,
+                    revenue=round(r.revenue or 0.0, 2),
                 )
                 for r in rows
                 if r.dow is not None and r.hr is not None
@@ -2048,16 +2048,16 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             return [
                 NetSalesResponse(
-                    orderId=str(r.order_id),
-                    orderNumber=str(r.order_number),
+                    orderId=r.order_id,
+                    orderNumber=r.order_number,
                     createdAt=str(r.created_at) if r.created_at else "",
-                    customerName=str(r.customer_name),
-                    status=str(r.status),
-                    grossSales=round(float(r.gross_sales or 0.0), 2),
-                    discount=round(float(r.discount or 0.0), 2),
-                    tax=round(float(r.tax or 0.0), 2),
-                    shipping=round(float(r.shipping or 0.0), 2),
-                    netSales=round(float(r.net_sales or 0.0), 2),
+                    customerName=r.customer_name,
+                    status=r.status,
+                    grossSales=round(r.gross_sales or 0.0, 2),
+                    discount=round(r.discount or 0.0, 2),
+                    tax=round(r.tax or 0.0, 2),
+                    shipping=round(r.shipping or 0.0, 2),
+                    netSales=r.net_sales or 0.0,
                 )
                 for r in rows
             ]
@@ -2101,12 +2101,12 @@ class MySQLOrderDAO:
             new_orders, new_rev = 0, 0.0
             ret_orders, ret_rev = 0, 0.0
             for r in rows:
-                if str(r.customer_type) == "New Customers":
-                    new_orders = int(r.order_count or 0)
-                    new_rev = round(float(r.revenue or 0.0), 2)
+                if r.customer_type == "New Customers":
+                    new_orders = r.order_count or 0
+                    new_rev = round(r.revenue or 0.0, 2)
                 else:
-                    ret_orders = int(r.order_count or 0)
-                    ret_rev = round(float(r.revenue or 0.0), 2)
+                    ret_orders = r.order_count or 0
+                    ret_rev = round(r.revenue or 0.0, 2)
 
             return [
                 NewVsReturningCustomerSalesResponse(customerType="New Customers", orderCount=new_orders, revenue=new_rev),
@@ -2160,14 +2160,14 @@ class MySQLOrderDAO:
             one_cust, one_orders, one_rev = 0, 0, 0.0
             rep_cust, rep_orders, rep_rev = 0, 0, 0.0
             for r in rows:
-                if str(r.buyer_type) == "One-Time Buyers":
-                    one_cust = int(r.customers or 0)
-                    one_orders = int(r.total_orders or 0)
-                    one_rev = round(float(r.total_revenue or 0.0), 2)
+                if r.buyer_type == "One-Time Buyers":
+                    one_cust = r.customers or 0
+                    one_orders = r.total_orders or 0
+                    one_rev = round(r.total_revenue or 0.0, 2)
                 else:
-                    rep_cust = int(r.customers or 0)
-                    rep_orders = int(r.total_orders or 0)
-                    rep_rev = round(float(r.total_revenue or 0.0), 2)
+                    rep_cust = r.customers or 0
+                    rep_orders = r.total_orders or 0
+                    rep_rev = round(r.total_revenue or 0.0, 2)
 
             total_customers = one_cust + rep_cust
             one_pct = round(one_cust / total_customers * 100, 1) if total_customers else 0.0
@@ -2237,9 +2237,9 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             result: List[RFMSegmentsResponse] = []
             for r in rows:
-                recency = int(r.recency_days or 0)
-                freq = int(r.order_count or 0)
-                spend = round(float(r.total_spend or 0.0), 2)
+                recency = r.recency_days or 0
+                freq = r.order_count or 0
+                spend = round(r.total_spend or 0.0, 2)
 
                 if recency <= 30 and freq >= 5:
                     segment = "Champion"
@@ -2254,9 +2254,9 @@ class MySQLOrderDAO:
 
                 result.append(
                     RFMSegmentsResponse(
-                        userId=str(r.user_id),
-                        name=str(r.name),
-                        email=str(r.email),
+                        userId=r.user_id,
+                        name=r.name,
+                        email=r.email,
                         segment=segment,
                         recencyDays=recency,
                         orderCount=freq,

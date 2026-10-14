@@ -109,7 +109,7 @@ class UserSnippet(CamelBaseModel):
 
 class ProductSellerEntry(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    seller_id: str
+    seller_id: int
     stock: int = 0
     is_active: bool = False
     request_status: str = "pending"

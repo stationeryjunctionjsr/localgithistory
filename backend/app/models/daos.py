@@ -155,7 +155,7 @@ class BannerFilter(CamelBaseModel):
 
 class SellerPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     amount: Optional[float] = 0.0
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
@@ -175,7 +175,7 @@ class SellerPayoutInternalCreate(CamelBaseModel):
 
 class SellerPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     amount: Optional[float] = None
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
@@ -408,7 +408,7 @@ class ProductInternalCreate(CamelBaseModel):
     images: List[str] = []
     is_active: bool = True
     is_system: bool = False
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     sku: Optional[str] = None
     category: Optional[str] = None
     sub_category: Optional[str] = None
@@ -446,7 +446,7 @@ class ProductInternalCreate(CamelBaseModel):
     reviews: Optional[int] = None
     is_exclusive: Optional[bool] = None
     collection: Optional[str] = None
-    catalog_seller_ids: Optional[List[str]] = None
+    catalog_seller_ids: Optional[List[int]] = None
 
 class ProductInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -475,7 +475,7 @@ class ProductInternalUpdate(CamelBaseModel):
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
     updated_at: Optional[datetime] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     weight_grams: Optional[int] = None
     length_cm: Optional[float] = None
     width_cm: Optional[float] = None
@@ -585,7 +585,7 @@ class ReturnRequestInternalCreate(CamelBaseModel):
     upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = "pending"
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_config_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
@@ -610,7 +610,7 @@ class ReturnRequestInternalUpdate(CamelBaseModel):
     upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_config_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
@@ -636,7 +636,7 @@ class ReturnRequestInternal(CamelBaseModel):
     upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = "pending"
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_config_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
