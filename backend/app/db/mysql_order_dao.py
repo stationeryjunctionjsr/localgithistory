@@ -1098,9 +1098,9 @@ class MySQLOrderDAO:
             cities = set()
             for r in geo_res.fetchall():
                 if r.state:
-                    states.add(str(r.state))
+                    states.add(r.state)
                 if r.city:
-                    cities.add(str(r.city))
+                    cities.add(r.city)
 
             state_cond = ""
             city_cond = ""
