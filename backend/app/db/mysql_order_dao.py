@@ -28,6 +28,11 @@ from app.models.analytics_schemas import (
     FulfillmentTimeReportResponse,
     CouponUsageReportResponse,
     SalesByLocationReportResponse,
+    SalesHeatmapResponse,
+    NetSalesResponse,
+    NewVsReturningCustomerSalesResponse,
+    CustomerFrequencyResponse,
+    RFMSegmentsResponse,
 )
 
 
@@ -1941,6 +1946,326 @@ class MySQLOrderDAO:
                 )
                 for r in rows
             ]
+
+    async def get_sales_heatmap_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[SalesHeatmapResponse]:
+        DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        where_clauses = ["created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = f"AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = {self.TABLE}.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                WEEKDAY(created_at) AS dow,
+                HOUR(created_at) AS hr,
+                COUNT(*) AS order_count,
+                COALESCE(SUM(total), 0.0) AS revenue
+            FROM {self.TABLE}
+            WHERE {where_sql} {seller_clause}
+            GROUP BY dow, hr
+            ORDER BY dow ASC, hr ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SalesHeatmapResponse(
+                    dayOfWeek=DAY_NAMES[int(r.dow)],
+                    hour=int(r.hr),
+                    orderCount=int(r.order_count),
+                    revenue=round(float(r.revenue or 0.0), 2),
+                )
+                for r in rows
+                if r.dow is not None and r.hr is not None
+            ]
+
+    async def get_net_sales_by_order_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[NetSalesResponse]:
+        where_clauses = ["o.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        limit_sql = ""
+        if limit is not None:
+            limit_sql = "LIMIT :limit"
+            params["limit"] = limit
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                CAST(o.id AS CHAR) AS order_id,
+                COALESCE(o.order_number, '') AS order_number,
+                COALESCE(u.name, 'Unknown') AS customer_name,
+                COALESCE(o.subtotal, 0.0) AS gross_sales,
+                COALESCE(o.discount, 0.0) AS discount,
+                COALESCE(o.tax, 0.0) AS tax,
+                COALESCE(o.shipping, o.delivery_charge, 0.0) AS shipping,
+                ROUND(COALESCE(o.subtotal, 0.0) - COALESCE(o.discount, 0.0) + COALESCE(o.tax, 0.0) + COALESCE(o.shipping, o.delivery_charge, 0.0), 2) AS net_sales,
+                COALESCE(o.status, '') AS status,
+                o.created_at AS created_at
+            FROM {self.TABLE} o
+            LEFT JOIN sj_users u ON u.id = o.user_id
+            WHERE {where_sql} {seller_clause}
+            ORDER BY o.created_at DESC
+            {limit_sql}
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                NetSalesResponse(
+                    orderId=str(r.order_id),
+                    orderNumber=str(r.order_number),
+                    createdAt=str(r.created_at) if r.created_at else "",
+                    customerName=str(r.customer_name),
+                    status=str(r.status),
+                    grossSales=round(float(r.gross_sales or 0.0), 2),
+                    discount=round(float(r.discount or 0.0), 2),
+                    tax=round(float(r.tax or 0.0), 2),
+                    shipping=round(float(r.shipping or 0.0), 2),
+                    netSales=round(float(r.net_sales or 0.0), 2),
+                )
+                for r in rows
+            ]
+
+    async def get_new_vs_returning_customer_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[NewVsReturningCustomerSalesResponse]:
+        where_clauses = ["o.status NOT IN ('cancelled', 'declined')"]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            WITH user_order_counts AS (
+                SELECT user_id, COUNT(*) AS total_orders
+                FROM {self.TABLE}
+                WHERE user_id IS NOT NULL
+                GROUP BY user_id
+            )
+            SELECT 
+                CASE WHEN uoc.total_orders = 1 THEN 'New Customers' ELSE 'Returning Customers' END AS customer_type,
+                COUNT(o.id) AS order_count,
+                COALESCE(SUM(o.total), 0.0) AS revenue
+            FROM {self.TABLE} o
+            JOIN user_order_counts uoc ON uoc.user_id = o.user_id
+            WHERE {where_sql}
+            GROUP BY customer_type
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            new_orders, new_rev = 0, 0.0
+            ret_orders, ret_rev = 0, 0.0
+            for r in rows:
+                if str(r.customer_type) == "New Customers":
+                    new_orders = int(r.order_count or 0)
+                    new_rev = round(float(r.revenue or 0.0), 2)
+                else:
+                    ret_orders = int(r.order_count or 0)
+                    ret_rev = round(float(r.revenue or 0.0), 2)
+
+            return [
+                NewVsReturningCustomerSalesResponse(customerType="New Customers", orderCount=new_orders, revenue=new_rev),
+                NewVsReturningCustomerSalesResponse(customerType="Returning Customers", orderCount=ret_orders, revenue=ret_rev),
+            ]
+
+    async def get_customer_frequency_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[CustomerFrequencyResponse]:
+        where_clauses = ["o.user_id IS NOT NULL", "o.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = f"AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            WITH customer_period_orders AS (
+                SELECT 
+                    o.user_id,
+                    COUNT(o.id) AS order_cnt,
+                    COALESCE(SUM(o.total), 0.0) AS user_rev
+                FROM {self.TABLE} o
+                WHERE {where_sql} {seller_clause}
+                GROUP BY o.user_id
+            )
+            SELECT 
+                CASE WHEN order_cnt = 1 THEN 'One-Time Buyers' ELSE 'Repeat Buyers' END AS buyer_type,
+                COUNT(user_id) AS customers,
+                COALESCE(SUM(order_cnt), 0) AS total_orders,
+                COALESCE(SUM(user_rev), 0.0) AS total_revenue
+            FROM customer_period_orders
+            GROUP BY buyer_type
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            one_cust, one_orders, one_rev = 0, 0, 0.0
+            rep_cust, rep_orders, rep_rev = 0, 0, 0.0
+            for r in rows:
+                if str(r.buyer_type) == "One-Time Buyers":
+                    one_cust = int(r.customers or 0)
+                    one_orders = int(r.total_orders or 0)
+                    one_rev = round(float(r.total_revenue or 0.0), 2)
+                else:
+                    rep_cust = int(r.customers or 0)
+                    rep_orders = int(r.total_orders or 0)
+                    rep_rev = round(float(r.total_revenue or 0.0), 2)
+
+            total_customers = one_cust + rep_cust
+            one_pct = round(one_cust / total_customers * 100, 1) if total_customers else 0.0
+            rep_pct = round(rep_cust / total_customers * 100, 1) if total_customers else 0.0
+            rep_avg = round(rep_orders / rep_cust, 1) if rep_cust else 0.0
+
+            return [
+                CustomerFrequencyResponse(
+                    type="One-Time Buyers",
+                    customers=one_cust,
+                    customerPct=one_pct,
+                    orders=one_orders,
+                    avgOrders=1.0,
+                    revenue=one_rev,
+                ),
+                CustomerFrequencyResponse(
+                    type="Repeat Buyers",
+                    customers=rep_cust,
+                    customerPct=rep_pct,
+                    orders=rep_orders,
+                    avgOrders=rep_avg,
+                    revenue=rep_rev,
+                ),
+            ]
+
+    async def get_rfm_segments_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[RFMSegmentsResponse]:
+        where_clauses = ["o.user_id IS NOT NULL", "o.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        limit_sql = ""
+        if limit is not None:
+            limit_sql = "LIMIT :limit"
+            params["limit"] = limit
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                CAST(o.user_id AS CHAR) AS user_id,
+                COALESCE(u.name, 'Unknown') AS name,
+                COALESCE(u.email, 'Unknown') AS email,
+                COUNT(o.id) AS order_count,
+                COALESCE(SUM(o.total), 0.0) AS total_spend,
+                GREATEST(0, DATEDIFF(NOW(), MAX(o.created_at))) AS recency_days,
+                MAX(o.created_at) AS last_order
+            FROM {self.TABLE} o
+            LEFT JOIN sj_users u ON u.id = o.user_id
+            WHERE {where_sql}
+            GROUP BY o.user_id, u.name, u.email
+            ORDER BY total_spend DESC
+            {limit_sql}
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            result: List[RFMSegmentsResponse] = []
+            for r in rows:
+                recency = int(r.recency_days or 0)
+                freq = int(r.order_count or 0)
+                spend = round(float(r.total_spend or 0.0), 2)
+
+                if recency <= 30 and freq >= 5:
+                    segment = "Champion"
+                elif recency <= 60 and freq >= 3:
+                    segment = "Loyal"
+                elif recency <= 90 and freq >= 2:
+                    segment = "Promising"
+                elif recency <= 180:
+                    segment = "At Risk"
+                else:
+                    segment = "Dormant"
+
+                result.append(
+                    RFMSegmentsResponse(
+                        userId=str(r.user_id),
+                        name=str(r.name),
+                        email=str(r.email),
+                        segment=segment,
+                        recencyDays=recency,
+                        orderCount=freq,
+                        totalSpend=spend,
+                        lastOrder=str(r.last_order) if r.last_order else None,
+                    )
+                )
+            return result
+
 
 
 

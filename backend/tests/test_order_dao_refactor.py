@@ -184,3 +184,104 @@ def test_map_to_schema_direct_row_hydration():
     assert len(mapped.valet_decline_history) == 1
     assert mapped.valet_decline_history[0].valet_id == "valet_a"
     assert mapped.valet_decline_history[0].reason == "traffic"
+
+
+@pytest.mark.asyncio
+async def test_new_batch_sql_pushdown_dao_methods():
+    dao = MySQLOrderDAO()
+
+    class FakeRow:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+    mock_session = AsyncMock()
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
+        # 1. get_sales_heatmap_stats
+        mock_res1 = MagicMock()
+        mock_res1.fetchall.return_value = [FakeRow(dow=0, hr=14, order_count=5, revenue=500.0)]
+        mock_session.execute.return_value = mock_res1
+        heatmap = await dao.get_sales_heatmap_stats()
+        assert len(heatmap) == 1
+        assert heatmap[0].dayOfWeek == "Monday"
+        assert heatmap[0].hour == 14
+        assert heatmap[0].orderCount == 5
+        assert heatmap[0].revenue == 500.0
+
+        # 2. get_net_sales_by_order_stats
+        mock_res2 = MagicMock()
+        mock_res2.fetchall.return_value = [
+            FakeRow(
+                order_id="1",
+                order_number="ORD-1",
+                customer_name="Alice",
+                gross_sales=100.0,
+                discount=10.0,
+                tax=5.0,
+                shipping=15.0,
+                net_sales=110.0,
+                status="delivered",
+                created_at="2026-10-15 10:00:00",
+            )
+        ]
+        mock_session.execute.return_value = mock_res2
+        net_sales = await dao.get_net_sales_by_order_stats()
+        assert len(net_sales) == 1
+        assert net_sales[0].orderId == "1"
+        assert net_sales[0].customerName == "Alice"
+        assert net_sales[0].netSales == 110.0
+
+        # 3. get_new_vs_returning_customer_stats
+        mock_res3 = MagicMock()
+        mock_res3.fetchall.return_value = [
+            FakeRow(customer_type="New Customers", order_count=10, revenue=1000.0),
+            FakeRow(customer_type="Returning Customers", order_count=20, revenue=3000.0),
+        ]
+        mock_session.execute.return_value = mock_res3
+        new_vs_ret = await dao.get_new_vs_returning_customer_stats()
+        assert len(new_vs_ret) == 2
+        assert new_vs_ret[0].customerType == "New Customers"
+        assert new_vs_ret[0].orderCount == 10
+        assert new_vs_ret[1].customerType == "Returning Customers"
+        assert new_vs_ret[1].revenue == 3000.0
+
+        # 4. get_customer_frequency_stats
+        mock_res4 = MagicMock()
+        mock_res4.fetchall.return_value = [
+            FakeRow(buyer_type="One-Time Buyers", customers=5, total_orders=5, total_revenue=500.0),
+            FakeRow(buyer_type="Repeat Buyers", customers=5, total_orders=15, total_revenue=2000.0),
+        ]
+        mock_session.execute.return_value = mock_res4
+        freq = await dao.get_customer_frequency_stats()
+        assert len(freq) == 2
+        assert freq[0].type == "One-Time Buyers"
+        assert freq[0].customers == 5
+        assert freq[0].customerPct == 50.0
+        assert freq[1].type == "Repeat Buyers"
+        assert freq[1].avgOrders == 3.0
+
+        # 5. get_rfm_segments_stats
+        mock_res5 = MagicMock()
+        mock_res5.fetchall.return_value = [
+            FakeRow(
+                user_id="u1",
+                name="Bob",
+                email="bob@example.com",
+                order_count=6,
+                total_spend=1500.0,
+                recency_days=10,
+                last_order="2026-10-10",
+            )
+        ]
+        mock_session.execute.return_value = mock_res5
+        rfm = await dao.get_rfm_segments_stats()
+        assert len(rfm) == 1
+        assert rfm[0].userId == "u1"
+        assert rfm[0].segment == "Champion"
+        assert rfm[0].recencyDays == 10
+        assert rfm[0].orderCount == 6
+
+
