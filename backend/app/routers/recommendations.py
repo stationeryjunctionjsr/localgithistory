@@ -5,7 +5,7 @@ import asyncio
 import time as _time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Query
 from app.models.product import Product
 from pydantic import BaseModel
 
@@ -102,15 +102,17 @@ async def get_recommendations(
         if not user_id:
             now = _time.monotonic()
             guest_key = f"guest_{location_key}_{tag_key or 'all'}"
-            entry = _guest_rec_cache.get(guest_key)
-            if entry and now < entry[1]:
-                return entry[0]
+            if guest_key in _guest_rec_cache:
+                entry = _guest_rec_cache[guest_key]
+                if now < entry[1]:
+                    return entry[0]
 
             async with _guest_rec_lock:
                 # Re-check after acquiring lock
-                entry = _guest_rec_cache.get(guest_key)
-                if entry and now < entry[1]:
-                    return entry[0]
+                if guest_key in _guest_rec_cache:
+                    entry = _guest_rec_cache[guest_key]
+                    if now < entry[1]:
+                        return entry[0]
 
                 result = await recommendation_repository.get_recommendation_components(
                     user_id=None, role=None, seller_id_set=seller_id_set, category_tag=tag_key
@@ -217,16 +219,14 @@ async def get_favourites_page(
         ranked_products = await product_storage.findAll(ProductFilter(allowed_ids=needed_ids, is_active=True))
     else:
         ranked_products = []
-    product_map: dict[int, Product] = {p.id: p for p in ranked_products if p.id}
+    products_by_id = {p.id: p for p in ranked_products if p.id}
+    ordered_products = [products_by_id[pid] for pid, _ in ranked_ids if pid in products_by_id]
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
     sub_categories_seen: set = set()
     brands_seen: set = set()
-    for pid, _ in ranked_ids:
-        p = product_map.get(pid)
-        if not p:
-            continue
+    for p in ordered_products:
         if p.category:
             categories_seen.add(p.category)
         if p.sub_category:
@@ -243,10 +243,7 @@ async def get_favourites_page(
     if available is not None:
         want_available = available.lower() == "true"
 
-    for pid, _score in ranked_ids:
-        p = product_map.get(pid)
-        if not p:
-            continue
+    for p in ordered_products:
         # Product-level filters
         if category_lower and (p.category or "").lower() != category_lower:
             continue
@@ -340,6 +337,7 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
 async def track_recommendation_event(
     body: RecommendationEventBody,
     request: Request,
+    x_session_id: Optional[str] = Header(None, alias="x-session-id"),
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
@@ -349,7 +347,7 @@ async def track_recommendation_event(
     - add_to_cart: user added a recommended product to cart.
     Stored in activities so you can measure: section views vs product views vs add-to-cart and tune the algorithm.
     """
-    session_id = request.headers.get("x-session-id")
+    session_id = x_session_id
     if not session_id:
         raise HTTPException(status_code=400, detail="x-session-id header is required")
     if body.eventType not in ("section_view", "product_view", "add_to_cart"):

@@ -1,25 +1,24 @@
 from app.models.user import User
 from app.models.schemas import BulkUpdateResponse, MessageResponse, NotificationMetadata
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime
 
-from pydantic import Field
 from app.models.base import CamelBaseModel
 
 class NotificationResponse(CamelBaseModel):
     id: int
-    user_id: Union[str, int] = Field(..., alias="userId")
+    user_id: str
     type: str
     title: str
     message: str
-    is_read: bool = Field(default=False, alias="isRead")
-    is_acknowledged: bool = Field(default=False, alias="isAcknowledged")
+    is_read: bool = False
+    is_acknowledged: bool = False
     metadata: Optional[NotificationMetadata] = None
-    created_at: Optional[Union[datetime, str]] = Field(default=None, alias="createdAt")
-    updated_at: Optional[Union[datetime, str]] = Field(default=None, alias="updatedAt")
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class UnreadCountResponse(CamelBaseModel):
-    unread_count: int = Field(default=0, alias="unreadCount")
+    unread_count: int = 0
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -45,7 +44,7 @@ async def get_notifications(
         from app.models.daos import NotificationFilter
         filters = NotificationFilter()
         if current_user.role != "super_admin":
-            filters.userId = current_user.id
+            filters.user_id = str(current_user.id)
 
         if isRead is not None:
             filters.isRead = isRead
@@ -70,7 +69,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
         from app.models.daos import NotificationFilter
         filters = NotificationFilter(is_read=False)
         if current_user.role != "super_admin":
-            filters.userId = current_user.id
+            filters.user_id = str(current_user.id)
             
         notifications = await notification_repository.findAll(filters)
         return UnreadCountResponse(unread_count=len(notifications))
@@ -96,11 +95,7 @@ async def _get_and_verify_notification(notification_id: int, current_user: User)
         raise HTTPException(status_code=404, detail="Notification not found")
         
     if current_user.role != "super_admin":
-        try:
-            notif_uid = int(notification.user_id) if notification.user_id is not None else None
-        except (ValueError, TypeError):
-            notif_uid = None
-        if notif_uid != current_user.id:
+        if notification.user_id != str(current_user.id):
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
             
     return notification

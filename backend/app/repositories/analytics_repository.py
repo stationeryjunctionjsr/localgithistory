@@ -342,16 +342,16 @@ class AnalyticsRepository:
         for order in orders:
             for item in order.items:
                 product_id = item.product or item.product_id
-                if not product_id:
+                if not product_id or product_id not in product_map:
                     continue
 
-                product = product_map.get(product_id)
+                product = product_map[product_id]
                 quantity = item.quantity
                 subtotal = (item.price * item.quantity)
 
                 product_sales[product_id].quantity += quantity
                 product_sales[product_id].revenue += subtotal
-                product_sales[product_id].name = product.name if product else "Unknown Product"
+                product_sales[product_id].name = product.name
 
         result = [
             {
@@ -796,7 +796,7 @@ class AnalyticsRepository:
         for t in page_view_events:
             sid = t.session_id
             if sid in session_ids:
-                page_views_by_session[sid] = page_views_by_session.get(sid, 0) + 1
+                page_views_by_session[sid] += 1
         page_counts = list(page_views_by_session.values())
         average_pages_per_session = round(sum(page_counts) / len(page_counts), 2) if page_counts else None
 
@@ -861,9 +861,9 @@ class AnalyticsRepository:
 
         result = []
         for uid, revenue in user_revenue.items():
-            user = user_map.get(uid)
-            if not user:
+            if uid not in user_map:
                 continue
+            user = user_map[uid]
             if role and user.role != role:
                 continue
 
@@ -902,9 +902,9 @@ class AnalyticsRepository:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         for uid, u_orders in user_orders_map.items():
-            user = user_map.get(uid)
-            if not user:
+            if uid not in user_map:
                 continue
+            user = user_map[uid]
             if role and user.role != role:
                 continue
 
@@ -1068,13 +1068,15 @@ class AnalyticsRepository:
             if end_date and created and created > end_date:
                 continue
 
-            order = order_map.get(ret.order_id)
+            if ret.order_id not in order_map or ret.userId not in user_map:
+                continue
+            order = order_map[ret.order_id]
             # Seller scoping: skip returns not belonging to this seller
-            if seller_id and order:
+            if seller_id:
                 order_in_scope = self._filter_by_seller([order], seller_id)
                 if not order_in_scope:
                     continue
-            user = user_map.get(ret.userId)
+            user = user_map[ret.userId]
             items = ret.items
             refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
 
@@ -1082,9 +1084,9 @@ class AnalyticsRepository:
                 {
                     "returnId": ret.id,
                     "orderId": ret.order_id,
-                    "orderTotal": order.total if order else 0.0,
-                    "userName": user.name if user else "Unknown",
-                    "userEmail": user.email if user else "Unknown",
+                    "orderTotal": order.total,
+                    "userName": user.name,
+                    "userEmail": user.email,
                     "status": ret.status,
                     "refundValue": round(refund_value, 2),
                     "itemCount": len(items),
@@ -1093,7 +1095,7 @@ class AnalyticsRepository:
                 }
             )
 
-        result.sort(key=lambda x: x.get("createdAt") or "", reverse=True)
+        result.sort(key=lambda x: x["createdAt"] or "", reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)
@@ -1149,8 +1151,10 @@ class AnalyticsRepository:
         for order in orders:
             for item in order.items:
                 product_id = item.product or item.product_id
-                product = product_map.get(product_id)
-                category = (product.category if product else None) or "Uncategorized"
+                if product_id and product_id in product_map:
+                    category = product_map[product_id].category or "Uncategorized"
+                else:
+                    category = "Uncategorized"
 
                 if category not in category_stats:
                     category_stats[category] = {"revenue": 0.0, "quantity": 0, "orders": set()}
@@ -1227,12 +1231,12 @@ class AnalyticsRepository:
             if delta_hours < 0:
                 continue
 
-            user = user_map.get(order.user)
+            user_name = user_map[order.user].name if (order.user and order.user in user_map) else "Unknown"
             result.append(
                 {
                     "orderId": order.id,
                     "orderNumber": order.order_number,
-                    "userName": user.name if user else "Unknown",
+                    "userName": user_name,
                     "status": status,
                     "fulfillmentHours": delta_hours,
                     "fulfillmentDays": round(delta_hours / 24, 1),
@@ -1403,12 +1407,10 @@ class AnalyticsRepository:
 
         result = []
         for (prod_a_id, prod_b_id), count in pair_counts.items():
-            product_a = product_map.get(prod_a_id)
-            product_b = product_map.get(prod_b_id)
-
-            # Skip if products are deleted/missing
-            if not product_a or not product_b:
+            if prod_a_id not in product_map or prod_b_id not in product_map:
                 continue
+            product_a = product_map[prod_a_id]
+            product_b = product_map[prod_b_id]
 
             result.append(
                 {
@@ -1496,8 +1498,7 @@ class AnalyticsRepository:
                 if not pid:
                     continue
 
-                prod = product_map.get(pid)
-                if seller_id and prod and str(prod.seller_id) != seller_id:
+                if seller_id and pid in product_map and str(product_map[pid].seller_id) != seller_id:
                     continue
 
                 if pid not in product_returns:
@@ -1515,12 +1516,18 @@ class AnalyticsRepository:
 
         result = []
         for pid, stats in product_returns.items():
-            product = product_map.get(pid)
+            if pid in product_map:
+                product = product_map[pid]
+                product_name = product.name
+                category = product.category
+            else:
+                product_name = "Unknown Product"
+                category = "Uncategorized"
             result.append(
                 {
                     "productId": pid,
-                    "productName": product.name if product else "Unknown Product",
-                    "category": product.category if product else "Uncategorized",
+                    "productName": product_name,
+                    "category": category,
                     "returnCount": stats["returnCount"],
                     "quantityReturned": stats["quantityReturned"],
                     "revenueLost": round(stats["revenueLost"], 2),
@@ -1633,12 +1640,12 @@ class AnalyticsRepository:
                 totalOrders=total_orders,
                 totalRevenue=round(total_revenue, 2),
             ),
-            topProducts=top_products,
-            topWholesalers=top_wholesalers,
-            topCustomers=top_customers,
-            mostSearched=most_searched,
-            mostViewed=most_viewed,
-            lastUpdatedAtIST=last_updated_at_ist,
+            top_products=top_products,
+            top_wholesalers=top_wholesalers,
+            top_customers=top_customers,
+            most_searched=most_searched,
+            most_viewed=most_viewed,
+            last_updated_at_ist=last_updated_at_ist,
         )
 
     async def get_bundle_performance_report(self) -> Dict:
@@ -1689,11 +1696,9 @@ class AnalyticsRepository:
                     order_bundles[b_id].append(item)
                     
             for b_id, b_items in order_bundles.items():
-                if b_id not in stats:
+                if b_id not in stats or b_id not in bundle_map:
                     continue
-                b_def = bundle_map.get(b_id)
-                if not b_def:
-                    continue
+                b_def = bundle_map[b_id]
                     
                 b_specs = (b_def["items"] if "items" in b_def else [])
                 copies = 1
@@ -1954,12 +1959,18 @@ class AnalyticsRepository:
             else:
                 segment = "Dormant"
 
-            user = user_map.get(uid)
+            if uid in user_map:
+                user = user_map[uid]
+                user_name = user.name
+                user_email = user.email
+            else:
+                user_name = "Unknown"
+                user_email = "Unknown"
             result.append(
                 {
                     "userId": uid,
-                    "name": user.name if user else "Unknown",
-                    "email": user.email if user else "Unknown",
+                    "name": user_name,
+                    "email": user_email,
                     "segment": segment,
                     "recencyDays": recency_days,
                     "orderCount": freq,
@@ -2049,12 +2060,12 @@ class AnalyticsRepository:
             shipping = float(order.shipping or order.delivery_charge or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
-            user = user_map.get(order.user)
+            customer_name = user_map[order.user].name if (order.user and order.user in user_map) else "Unknown"
             result.append(
                 {
                     "orderId": order.id,
                     "orderNumber": order.order_number,
-                    "customerName": user.name if user else "Unknown",
+                    "customerName": customer_name,
                     "grossSales": round(subtotal, 2),
                     "discount": round(discount, 2),
                     "tax": round(tax, 2),
@@ -2065,7 +2076,7 @@ class AnalyticsRepository:
                 }
             )
 
-        return sorted(result, key=lambda x: x.get("createdAt") or "", reverse=True)
+        return sorted(result, key=lambda x: x["createdAt"] or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_heatmap(
@@ -2235,7 +2246,7 @@ class AnalyticsRepository:
                 continue  # skip orders with no discount at all
 
             coupon_info = order.couponInfo or {}
-            user = user_map.get(order.user)
+            customer_name = user_map[order.user].name if (order.user and order.user in user_map) else "Unknown"
             gross = float(order.subtotal or order.total or 0)
             net = round(gross - discount, 2)
 
@@ -2243,7 +2254,7 @@ class AnalyticsRepository:
                 {
                     "orderId": order.id,
                     "orderNumber": order.order_number,
-                    "customerName": user.name if user else "Unknown",
+                    "customerName": customer_name,
                     "couponCode": order.coupon_code or "—",
                     "discountType": coupon_info.discountType,
                     "discountValue": coupon_info.discountValue,
@@ -2255,7 +2266,7 @@ class AnalyticsRepository:
                 }
             )
 
-        return sorted(result, key=lambda x: x.get("createdAt") or "", reverse=True)
+        return sorted(result, key=lambda x: x["createdAt"] or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_products_pct_sold(

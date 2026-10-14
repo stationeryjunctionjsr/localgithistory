@@ -202,7 +202,7 @@ class MySQLNotificationsDAO:
                     meta_obj.courier_partner = v
         return NotificationInternal(
             id=r.id,
-            user_id=str(r.user_id),
+            user_id=r.user_id,
             type=r.type,
             title=r.title,
             message=r.message,
