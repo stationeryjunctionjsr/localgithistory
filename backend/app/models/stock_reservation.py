@@ -1,19 +1,20 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import Field, ConfigDict
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+from app.models.base import CamelBaseModel
 
-class StockReservation(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+
+class StockReservation(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
 
     id: int
-    product_id: int = Field(alias="productId")
-    user_id: Optional[str] = Field(default=None, alias="userId")
+    product_id: int
+    user_id: Optional[str] = None
     quantity: int
     status: str
-    expires_at: Optional[datetime] = Field(default=None, alias="expiresAt")
-    created_at: Optional[datetime] = Field(default=None, alias="createdAt")
-    updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
+    expires_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class ProductReservedStock(BaseModel):
