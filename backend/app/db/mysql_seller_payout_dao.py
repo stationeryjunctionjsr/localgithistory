@@ -11,17 +11,14 @@ from app.db.db_utils import now_utc
 class MySQLSellerPayoutDAO:
     TABLE = "sj_seller_payouts"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_row(self, row) -> SellerPayoutDetailResponse:
         return SellerPayoutDetailResponse.model_validate(row)
 
     async def _fetch_sub_orders(self, payout_id: int) -> List[int]:
-        factory = self._factory()
-        if not factory or not payout_id:
+        if not payout_id:
             return []
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (await session.execute(
                 text("SELECT CAST(sub_order_id AS SIGNED) AS sub_order_id FROM sj_seller_payout_sub_orders WHERE payout_id = :id"),
                 {"id": payout_id}
@@ -48,8 +45,8 @@ class MySQLSellerPayoutDAO:
             params["seller_id"] = seller_id
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id DESC"),
@@ -73,10 +70,10 @@ class MySQLSellerPayoutDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[SellerPayoutDetailResponse]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
@@ -91,7 +88,6 @@ class MySQLSellerPayoutDAO:
         return record
 
     async def create(self, data: SellerPayoutInternalCreate) -> SellerPayoutDetailResponse:
-        factory = self._factory()
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -127,7 +123,8 @@ class MySQLSellerPayoutDAO:
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -141,54 +138,65 @@ class MySQLSellerPayoutDAO:
     async def update(self, id: int, update_data: SellerPayoutInternalUpdate) -> Optional[SellerPayoutDetailResponse]:
         if not id:
             return None
-        existing = await self.findById(id)
-        if not existing:
-            return None
-        
         now = now_utc()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now}
 
-        def _handle_field(api_k, db_k, new_val, existing_val, is_date=False):
-            if new_val is not None:
-                updates.append(f"{db_k} = :{api_k}")
-                params[api_k] = _parse_dt(new_val) if is_date else new_val
-            else:
-                if existing_val is not None:
-                    updates.append(f"{db_k} = :{api_k}")
-                    params[api_k] = _parse_dt(existing_val) if is_date else existing_val
-
-        _handle_field("seller_id", "seller_id", update_data.seller_id, existing.seller_id)
-        _handle_field("amount", "amount", update_data.amount, existing.amount)
-        _handle_field("period_start", "period_start", update_data.period_start, existing.period_start, True)
-        _handle_field("period_end", "period_end", update_data.period_end, existing.period_end, True)
-        _handle_field("status", "status", update_data.status, existing.status)
-        _handle_field("payment_method", "payment_method", update_data.payment_method, existing.payment_method)
-        _handle_field("payment_reference", "payment_reference", update_data.payment_reference, existing.payment_reference)
-        _handle_field("admin_paid_at", "admin_paid_at", update_data.admin_paid_at, existing.admin_paid_at, True)
-        _handle_field("admin_paid_by", "admin_paid_by", update_data.admin_paid_by, existing.admin_paid_by)
-        _handle_field("seller_received_at", "seller_received_at", update_data.seller_received_at, existing.seller_received_at, True)
-        _handle_field("notes", "notes", update_data.notes, existing.notes)
-
-        sub_orders = update_data.sub_order_ids if update_data.sub_order_ids is not None else existing.sub_order_ids
+        if "seller_id" in update_data.model_fields_set:
+            updates.append("seller_id = :seller_id")
+            params["seller_id"] = update_data.seller_id
+        if "amount" in update_data.model_fields_set:
+            updates.append("amount = :amount")
+            params["amount"] = update_data.amount
+        if "period_start" in update_data.model_fields_set:
+            updates.append("period_start = :period_start")
+            params["period_start"] = _parse_dt(update_data.period_start)
+        if "period_end" in update_data.model_fields_set:
+            updates.append("period_end = :period_end")
+            params["period_end"] = _parse_dt(update_data.period_end)
+        if "status" in update_data.model_fields_set:
+            updates.append("status = :status")
+            params["status"] = update_data.status
+        if "payment_method" in update_data.model_fields_set:
+            updates.append("payment_method = :payment_method")
+            params["payment_method"] = update_data.payment_method
+        if "payment_reference" in update_data.model_fields_set:
+            updates.append("payment_reference = :payment_reference")
+            params["payment_reference"] = update_data.payment_reference
+        if "admin_paid_at" in update_data.model_fields_set:
+            updates.append("admin_paid_at = :admin_paid_at")
+            params["admin_paid_at"] = _parse_dt(update_data.admin_paid_at)
+        if "admin_paid_by" in update_data.model_fields_set:
+            updates.append("admin_paid_by = :admin_paid_by")
+            params["admin_paid_by"] = update_data.admin_paid_by
+        if "seller_received_at" in update_data.model_fields_set:
+            updates.append("seller_received_at = :seller_received_at")
+            params["seller_received_at"] = _parse_dt(update_data.seller_received_at)
+        if "notes" in update_data.model_fields_set:
+            updates.append("notes = :notes")
+            params["notes"] = update_data.notes
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
-        async with factory() as session:
-            await session.execute(
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
-            if sub_orders is not None:
-                await self._save_sub_orders(session, id, sub_orders)
+            if "sub_order_ids" in update_data.model_fields_set:
+                await self._save_sub_orders(session, id, update_data.sub_order_ids or [])
             await session.commit()
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

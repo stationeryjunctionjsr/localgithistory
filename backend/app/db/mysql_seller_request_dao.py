@@ -21,9 +21,6 @@ class MySQLSellerRequestDAO:
     def TABLE(self):
         return "sj_seller_requests"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_row(self, r, attachments: List[str], responses: List[SellerRequestResponseItem]) -> SellerRequest:
         sr = SellerRequest.model_validate(r)
         sr.user = str(r.user_id) if r.user_id is not None else None
@@ -100,10 +97,6 @@ class MySQLSellerRequestDAO:
         subject: Optional[str] = None,
         request_number: Optional[str] = None,
     ) -> List[SellerRequest]:
-        factory = self._factory()
-        if not factory:
-            return []
-
         where_clauses = []
         params = {}
         if id is not None:
@@ -129,7 +122,8 @@ class MySQLSellerRequestDAO:
             params["request_number"] = str(request_number)
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     SELECT id, request_number, user_id, subject, description, category,
@@ -170,10 +164,8 @@ class MySQLSellerRequestDAO:
     async def findById(self, id: int) -> Optional[SellerRequest]:
         if not id:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     SELECT id, request_number, user_id, subject, description, category,
@@ -201,9 +193,6 @@ class MySQLSellerRequestDAO:
             )
 
     async def create(self, data: 'SellerRequestInternalCreate') -> Optional[SellerRequest]:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
         now = now_utc()
         req_number = f"REQ-{now.strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
 
@@ -216,7 +205,8 @@ class MySQLSellerRequestDAO:
                 logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE} (
@@ -254,12 +244,9 @@ class MySQLSellerRequestDAO:
     async def update(self, id: int, update_data: 'SellerRequestInternalUpdate') -> Optional[SellerRequest]:
         if not id:
             return None
-        existing = await self.findById(id)
-        if not existing:
-            return None
 
         now = now_utc()
-        factory = self._factory()
+        async_session = get_async_session_factory()
 
         def to_dt(val):
             if not val:
@@ -270,59 +257,60 @@ class MySQLSellerRequestDAO:
                 logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
-        oid = id
         updates = ["updated_at = :updated_at"]
-        params = {"id": oid, "updated_at": now}
+        params = {"id": id, "updated_at": now}
 
-        if update_data.user is not None:
+        if "user" in update_data.model_fields_set:
             updates.append("user_id = :user_id")
             params["user_id"] = update_data.user
-        if update_data.subject is not None:
+        if "subject" in update_data.model_fields_set:
             updates.append("subject = :subject")
             params["subject"] = update_data.subject
-        if update_data.description is not None:
+        if "description" in update_data.model_fields_set:
             updates.append("description = :description")
             params["description"] = update_data.description
-        if update_data.category is not None:
+        if "category" in update_data.model_fields_set:
             updates.append("category = :category")
             params["category"] = update_data.category
-        if update_data.priority is not None:
+        if "priority" in update_data.model_fields_set:
             updates.append("priority = :priority")
             params["priority"] = update_data.priority
-        if update_data.status is not None:
+        if "status" in update_data.model_fields_set:
             updates.append("status = :status")
             params["status"] = update_data.status
-        if update_data.resolved_at is not None:
+        if "resolved_at" in update_data.model_fields_set:
             updates.append("resolved_at = :resolved_at")
             params["resolved_at"] = to_dt(update_data.resolved_at)
-        if update_data.closed_at is not None:
+        if "closed_at" in update_data.model_fields_set:
             updates.append("closed_at = :closed_at")
             params["closed_at"] = to_dt(update_data.closed_at)
             
         set_sql = ", ".join(updates)
 
-        async with factory() as session:
-            await session.execute(
+        async with async_session() as session:
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
-            if update_data.attachments is not None or update_data.responses is not None:
+            if "attachments" in update_data.model_fields_set or "responses" in update_data.model_fields_set:
                 await self._replace_children(
                     session,
-                    params["id"],
+                    id,
                     attachments=update_data.attachments,
                     responses=update_data.responses,
                 )
             await session.commit()
-        return await self.findById(oid)
+            if res.rowcount == 0:
+                existing = await self.findById(id)
+                if not existing:
+                    return None
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        factory = self._factory()
-        if not factory:
-            return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(
                 text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"),
                 {"rid": id},
