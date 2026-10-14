@@ -349,11 +349,10 @@ class SalesByChannelResponse(CamelBaseModel):
 class SalesByProductResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     product_id: str
-    productId: str
     name: str
-    productName: str
     quantity: int
     revenue: float
+
 
 
 class TopUsersReportResponse(CamelBaseModel):

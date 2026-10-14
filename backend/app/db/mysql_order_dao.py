@@ -17,6 +17,7 @@ from app.models.analytics_schemas import (
     SalesBreakdownResponse,
     AverageOrderValueResponse,
     SalesByChannelResponse,
+    SalesByProductResponse,
 )
 
 
@@ -1320,6 +1321,60 @@ class MySQLOrderDAO:
                 SalesByChannelResponse(channel="mobile_web", sales=0.0),
                 SalesByChannelResponse(channel="mobile_app", sales=0.0),
             ]
+
+    async def get_sales_by_product_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 10,
+        seller_id: Optional[str] = None,
+    ) -> List[SalesByProductResponse]:
+        where_clauses = ["o.status != 'cancelled'"]
+        params = {"limit": limit}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = f"AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                CAST(oi.product_id AS CHAR) AS product_id,
+                COALESCE(p.name, 'Unknown Product') AS product_name,
+                CAST(COALESCE(SUM(oi.quantity), 0) AS UNSIGNED) AS quantity,
+                COALESCE(SUM(oi.price * oi.quantity), 0.0) AS revenue
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            LEFT JOIN sj_products p ON p.id = oi.product_id
+            WHERE {where_sql} {seller_clause}
+            GROUP BY oi.product_id, p.name
+            ORDER BY quantity DESC, revenue DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SalesByProductResponse(
+                    product_id=r.product_id,
+                    name=r.product_name,
+                    quantity=r.quantity,
+                    revenue=round(float(r.revenue or 0.0), 2),
+                )
+                for r in rows
+            ]
+
 
 
 
