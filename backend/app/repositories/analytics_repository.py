@@ -1206,7 +1206,6 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll(order_filter)
         orders = self._filter_by_seller(orders, seller_id)
         users = await self.user_storage.findAll()
-        user_map = {u.id: u for u in users}
 
         TERMINAL_STATUSES = {"delivered", "completed", "cancelled", "returned"}
 
@@ -1226,7 +1225,8 @@ class AnalyticsRepository:
             if delta_hours < 0:
                 continue
 
-            user_name = user_map[order.user].name if (order.user and order.user in user_map) else "Unknown"
+            user = next((u for u in users if u.id == order.user), None) if order.user else None
+            user_name = user.name if user and user.name else "Unknown"
             result.append(
                 {
                     "orderId": order.id,
@@ -1374,7 +1374,6 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll(order_filter)
 
         products = await self.product_storage.findAll()
-        product_map = {p.id: p for p in products}
 
         pair_counts = defaultdict(int)
 
@@ -1402,10 +1401,10 @@ class AnalyticsRepository:
 
         result = []
         for (prod_a_id, prod_b_id), count in pair_counts.items():
-            if prod_a_id not in product_map or prod_b_id not in product_map:
+            product_a = next((p for p in products if p.id == prod_a_id), None) if prod_a_id else None
+            product_b = next((p for p in products if p.id == prod_b_id), None) if prod_b_id else None
+            if not product_a or not product_b:
                 continue
-            product_a = product_map[prod_a_id]
-            product_b = product_map[prod_b_id]
 
             result.append(
                 {
@@ -1431,7 +1430,6 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll(order_filter)
 
         sessions = await self.session_storage.findAll()
-        session_map = {s.session_id: s for s in sessions}
 
         stats = {
             "desktop": {"deviceType": "desktop", "revenue": 0.0, "orderCount": 0},
@@ -1446,8 +1444,9 @@ class AnalyticsRepository:
 
             session_id = order.session_id
             device_type = "unknown"
-            if session_id and session_id in session_map:
-                s_device = session_map[session_id].device or {}
+            session_obj = next((s for s in sessions if s.session_id == session_id), None) if session_id else None
+            if session_obj:
+                s_device = session_obj.device or {}
                 device_type = (s_device["type"] if "type" in s_device else "unknown").lower()
 
             if device_type not in stats:
@@ -1478,9 +1477,8 @@ class AnalyticsRepository:
         returns = await return_request_repository.findAll()
 
         products = await self.product_storage.findAll()
-        product_map = {p.id: p for p in products}
 
-        product_returns = {}
+        result = []
         for req in returns:
             created = self._parse_date(req.created_at)
             if start_date and created and created < start_date:
@@ -1493,41 +1491,27 @@ class AnalyticsRepository:
                 if not pid:
                     continue
 
-                if seller_id and pid in product_map and str(product_map[pid].seller_id) != seller_id:
+                prod = next((p for p in products if p.id == pid), None)
+                prod_seller = prod.sellers[0].seller_id if (prod and prod.sellers) else None
+                if seller_id and prod_seller and prod_seller != seller_id:
                     continue
 
-                if pid not in product_returns:
-                    product_returns[pid] = {
+                stat = next((r for r in result if r["productId"] == pid), None)
+                if not stat:
+                    stat = {
                         "productId": pid,
+                        "productName": prod.name if prod else "Unknown Product",
+                        "category": prod.category if prod else "Uncategorized",
                         "returnCount": 0,
                         "quantityReturned": 0,
                         "revenueLost": 0.0,
                     }
+                    result.append(stat)
 
-                product_returns[pid]["returnCount"] += 1
                 q = item.quantity
-                product_returns[pid]["quantityReturned"] += q
-                product_returns[pid]["revenueLost"] += q * item.price
-
-        result = []
-        for pid, stats in product_returns.items():
-            if pid in product_map:
-                product = product_map[pid]
-                product_name = product.name
-                category = product.category
-            else:
-                product_name = "Unknown Product"
-                category = "Uncategorized"
-            result.append(
-                {
-                    "productId": pid,
-                    "productName": product_name,
-                    "category": category,
-                    "returnCount": stats["returnCount"],
-                    "quantityReturned": stats["quantityReturned"],
-                    "revenueLost": round(stats["revenueLost"], 2),
-                }
-            )
+                stat["returnCount"] += 1
+                stat["quantityReturned"] += q
+                stat["revenueLost"] = round(stat["revenueLost"] + (q * item.price), 2)
 
         return sorted(result, key=lambda x: x["returnCount"], reverse=True)[:limit]
 
