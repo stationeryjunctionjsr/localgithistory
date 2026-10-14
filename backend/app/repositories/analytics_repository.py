@@ -890,7 +890,6 @@ class AnalyticsRepository:
         """Get order statistics for users, optionally filtered by role"""
         orders = await self.order_storage.findAll()
         users = await self.user_storage.findAll()
-        user_map = {u.id: u for u in users}
 
         user_orders_map = defaultdict(list)
         for order in orders:
@@ -903,9 +902,9 @@ class AnalyticsRepository:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         for uid, u_orders in user_orders_map.items():
-            if uid not in user_map:
+            user = next((u for u in users if u.id == uid), None)
+            if not user:
                 continue
-            user = user_map[uid]
             if role and user.role != role:
                 continue
 
