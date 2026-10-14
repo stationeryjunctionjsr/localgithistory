@@ -2,7 +2,7 @@ from typing import Any
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from pathlib import Path
 import json
 import time
@@ -35,6 +35,7 @@ from app.models.analytics_schemas import (
     AverageOrderValueResponse,
     SalesByChannelResponse,
     SalesByProductResponse,
+    VisitorsNowResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -109,18 +110,14 @@ class AnalyticsRepository:
             user_id=str(user_id) if user_id else None,
         )
 
-    def _parse_date(self, date_val: Optional[Union[str, datetime]]) -> Optional[datetime]:
-        """Parse date string or datetime object to datetime object"""
-        if not date_val:
+    def _parse_date(self, date_str: Optional[str]) -> Optional[datetime]:
+        """Parse date string to datetime object"""
+        if not date_str:
             return None
-        if isinstance(date_val, datetime):
-            return date_val
         try:
-            # Handle ISO format with or without Z
-            date_str = str(date_val).replace("Z", "+00:00")
-            return datetime.fromisoformat(date_str)
+            return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
         except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid date format: {date_val}") from e
+            raise ValueError(f"Invalid date format: {date_str}") from e
 
     def _to_naive_utc(self, dt: Optional[datetime]) -> Optional[datetime]:
         """Normalize to naive UTC for consistent arithmetic."""
@@ -205,7 +202,7 @@ class AnalyticsRepository:
         period_stats: List[PeriodSalesStat] = []
 
         for order in orders:
-            order_date = self._parse_date(order.created_at)
+            order_date = order.created_at
             if not order_date:
                 continue
 
@@ -307,7 +304,7 @@ class AnalyticsRepository:
         period_stats: List[OrderPeriodStat] = []
 
         for order in orders:
-            order_date = self._parse_date(order.created_at)
+            order_date = order.created_at
             if not order_date:
                 continue
 
@@ -429,7 +426,7 @@ class AnalyticsRepository:
 
         return [
             SalesByProductResponse(
-                product_id=str(stat.product_id),
+                product_id=stat.product_id,
                 name=stat.name,
                 quantity=stat.quantity,
                 revenue=round(stat.revenue, 2),
@@ -1841,7 +1838,7 @@ class AnalyticsRepository:
         ]
 
     @cache.ttl_cache(ttl=30)
-    async def get_active_visitors_now(self, seller_id: Optional[int] = None) -> List[Dict]:
+    async def get_active_visitors_now(self, seller_id: Optional[int] = None) -> VisitorsNowResponse:
         """Count of unique sessions active in the last 15 minutes."""
         from datetime import timedelta
 
@@ -1862,14 +1859,12 @@ class AnalyticsRepository:
             else:
                 guest.add(sid)
 
-        return [
-            {
-                "activeVisitors": len(active),
-                "loggedInSessions": len(logged_in),
-                "guestSessions": len(guest),
-                "windowMinutes": 15,
-            }
-        ]
+        return VisitorsNowResponse(
+            activeVisitors=len(active),
+            loggedInSessions=len(logged_in),
+            guestSessions=len(guest),
+            windowMinutes=15,
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_searches_with_no_clicks(
@@ -2117,8 +2112,7 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
 
-        if seller_id:
-            orders = [o for o in orders if o.seller_id == seller_id]
+        orders = self._filter_by_seller(orders, seller_id)
 
         users = await self.user_storage.findAll()
 
@@ -2168,8 +2162,7 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
 
-        if seller_id:
-            orders = [o for o in orders if o.seller_id == seller_id]
+        orders = self._filter_by_seller(orders, seller_id)
 
         class HeatmapStat(BaseModel):
             dow: int
@@ -2326,8 +2319,7 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
 
-        if seller_id:
-            orders = [o for o in orders if o.seller_id == seller_id]
+        orders = self._filter_by_seller(orders, seller_id)
 
         users = await self.user_storage.findAll()
 

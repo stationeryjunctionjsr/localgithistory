@@ -603,7 +603,7 @@ async def test_analytics_batch_5_methods_model_integrity():
         res_sbp = await analytics_repository.get_sales_by_product(seller_id=10)
         assert len(res_sbp) == 1
         assert isinstance(res_sbp[0], SalesByProductResponse)
-        assert res_sbp[0].product_id == "50"
+        assert res_sbp[0].product_id == 50
         assert res_sbp[0].name == "Notebook"
         assert res_sbp[0].quantity == 3
         assert res_sbp[0].revenue == 150.0

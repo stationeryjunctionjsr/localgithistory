@@ -1380,7 +1380,7 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             return [
                 SalesByProductResponse(
-                    product_id=int(r.product_id),
+                    product_id=r.product_id,
                     name=r.product_name,
                     quantity=r.quantity,
                     revenue=round(float(r.revenue or 0.0), 2),

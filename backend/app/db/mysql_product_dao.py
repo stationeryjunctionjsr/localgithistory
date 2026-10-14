@@ -246,19 +246,13 @@ class MySQLProductDAO:
             for r in res.fetchall():
                 # Convert PDT-123 back to 123
                 pid_int = int(r.product_id.replace("PDT-", ""))
-                sid_raw = r.seller_id
-                if isinstance(sid_raw, str):
-                    clean_sid = sid_raw.replace("USER-", "").replace("USR-", "")
-                    sid_val = int(clean_sid) if clean_sid.isdigit() else 0
-                else:
-                    sid_val = int(sid_raw)
                 children_map[pid_int]["sellers"].append(
                     ProductSellerEntry(
-                        sellerId=sid_val,
-                        stock=int(r.stock) if r.stock is not None else 0,
-                        isActive=bool(r.is_active),
-                        requestStatus=r.request_status,
-                        notes=None
+                        seller_id=r.seller_id,
+                        stock=r.stock or 0,
+                        is_active=r.is_active,
+                        request_status=r.request_status,
+                        notes=None,
                     )
                 )
 
