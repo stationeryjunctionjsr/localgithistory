@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
+from datetime import datetime
 from app.models.base import CamelBaseModel
 
 
@@ -24,8 +25,8 @@ class ItemsByUserTypeResponse(CamelBaseModel):
 class ReturnsReportResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     returnId: str
-    orderId: str
-    createdAt: str
+    orderId: int
+    createdAt: datetime
     status: str
     refundValue: float
     userName: str
@@ -53,7 +54,7 @@ class RevenueByCategoryResponse(CamelBaseModel):
 
 class InventoryAlertResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    productId: str
+    productId: int
     name: str
     sku: Optional[str] = None
     category: str
@@ -63,9 +64,9 @@ class InventoryAlertResponse(CamelBaseModel):
 
 class FulfillmentTimeReportResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    orderId: str
+    orderId: int
     orderNumber: str
-    createdAt: str
+    createdAt: datetime
     status: str
     orderTotal: float
     userName: str

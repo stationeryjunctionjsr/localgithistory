@@ -578,8 +578,8 @@ class ReturnRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     id: Optional[int] = None
     return_id: Optional[str] = None
-    order_id: Optional[str] = None
-    user_id: Optional[str] = None
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
     items: Optional[List['ReturnItemSchema']] = []
     payment_method: Optional[str] = None
     upi_payment_screenshot: Optional[str] = None
@@ -603,8 +603,8 @@ class ReturnRequestInternalCreate(CamelBaseModel):
 
 class ReturnRequestInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    order_id: Optional[str] = None
-    user_id: Optional[str] = None
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
     items: Optional[List['ReturnItemSchema']] = None
     payment_method: Optional[str] = None
     upi_payment_screenshot: Optional[str] = None
@@ -629,8 +629,8 @@ class ReturnRequestInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[int] = None
     return_id: Optional[str] = None
-    order_id: Optional[str] = None
-    user_id: Optional[str] = None
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
     items: Optional[List['ReturnItemSchema']] = []
     payment_method: Optional[str] = None
     upi_payment_screenshot: Optional[str] = None

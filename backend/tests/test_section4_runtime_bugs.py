@@ -57,9 +57,9 @@ def test_order_properties_and_decline_history():
 def test_return_request_properties_and_decline_history():
     """Verify ReturnRequestInternal native fields for cascade/revert workflows."""
     ret = ReturnRequestInternal(
-        id="1",
+        id=1,
         return_id="RET-202",
-        user_id="u456",
+        user_id=456,
         valet_cascade_count=1,
         valet_assigned_at="2026-10-12T00:00:00Z",
         valet_decline_history=[
@@ -67,7 +67,7 @@ def test_return_request_properties_and_decline_history():
         ],
     )
     assert ret.return_id == "RET-202"
-    assert ret.user_id == "u456"
+    assert ret.user_id == 456
     assert ret.valet_cascade_count == 1
     assert ret.valet_assigned_at == "2026-10-12T00:00:00Z"
     assert len(ret.valet_decline_history) == 1

@@ -1032,7 +1032,7 @@ class ActivityInternal(FlatCamelBaseModel):
         return self.user_id
 
 class ReturnRequestItemInternal(FlatCamelBaseModel):
-    product_id: str
+    product_id: int
     quantity: int
     reason: Optional[str] = None
 
@@ -1043,14 +1043,14 @@ class ReturnRequestValetDeclineInternal(FlatCamelBaseModel):
 class ReturnRequestInternal(FlatCamelBaseModel):
     id: Optional[int] = None
     return_id: Optional[str] = None
-    order_id: Optional[str] = None
-    user_id: Optional[str] = None
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
     payment_method: Optional[str] = None
     upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
     valet_id: Optional[str] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_config_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
@@ -1067,14 +1067,14 @@ class ReturnRequestInternal(FlatCamelBaseModel):
 class ReturnRequestInternalCreate(FlatCamelBaseModel):
     id: Optional[int] = None
     return_id: Optional[str] = None
-    order_id: Optional[str] = None
-    user_id: Optional[str] = None
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
     payment_method: Optional[str] = None
     upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
     valet_id: Optional[str] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_config_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
@@ -1097,7 +1097,7 @@ class ReturnRequestInternalUpdate(FlatCamelBaseModel):
     notes: Optional[str] = None
 
 class SellerAvailabilityInternalCreate(FlatCamelBaseModel):
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     status: Optional[str] = None
     start_at: Optional[str] = None
     end_at: Optional[str] = None
@@ -1105,22 +1105,22 @@ class SellerAvailabilityInternalCreate(FlatCamelBaseModel):
     created_by: Optional[str] = None
     cancelled_at: Optional[str] = None
     is_full_day: Optional[bool] = None
-    created_at: Optional[Union[datetime, str]] = None
-    updated_at: Optional[Union[datetime, str]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class SellerAvailabilityInternalUpdate(FlatCamelBaseModel):
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     status: Optional[str] = None
     start_at: Optional[str] = None
     end_at: Optional[str] = None
     reason: Optional[str] = None
     created_by: Optional[str] = None
     cancelled_at: Optional[str] = None
-    updated_at: Optional[Union[datetime, str]] = None
+    updated_at: Optional[datetime] = None
 
 class SellerAvailabilityFilter(FlatCamelBaseModel):
     id: Optional[int] = None
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     status: Optional[str] = None
     statuses: Optional[List[str]] = None
 

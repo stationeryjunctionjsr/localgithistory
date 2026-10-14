@@ -1801,9 +1801,9 @@ class MySQLOrderDAO:
         sql = text(
             f"""
             SELECT 
-                CAST(o.id AS CHAR) AS order_id,
+                o.id AS order_id,
                 COALESCE(o.order_number, '') AS order_number,
-                DATE_FORMAT(o.created_at, '%Y-%m-%dT%H:%i:%s') AS created_at,
+                o.created_at AS created_at,
                 o.status AS status,
                 COALESCE(o.total, 0.0) AS order_total,
                 COALESCE(u.name, 'Unknown') AS user_name,
@@ -2684,8 +2684,8 @@ class MySQLOrderDAO:
             f"""
             SELECT 
                 COALESCE(r.return_id, CAST(r.id AS CHAR)) AS return_id,
-                CAST(r.order_id AS CHAR) AS order_id,
-                COALESCE(DATE_FORMAT(r.created_at, '%Y-%m-%d %H:%i:%s'), '') AS created_at,
+                r.order_id AS order_id,
+                r.created_at AS created_at,
                 COALESCE(r.status, 'pending') AS status,
                 ROUND(COALESCE(SUM(COALESCE(ri.quantity, 1) * COALESCE(oi.price, p.mrp, 0.0)), 0.0), 2) AS refund_value,
                 COALESCE(u.name, 'Unknown') AS user_name,
@@ -2829,7 +2829,7 @@ class MySQLOrderDAO:
         sql = text(
             f"""
             SELECT 
-                CAST(p.id AS CHAR) AS product_id,
+                p.id AS product_id,
                 COALESCE(p.name, '') AS name,
                 p.sku,
                 COALESCE(NULLIF(p.category, ''), 'Uncategorized') AS category,

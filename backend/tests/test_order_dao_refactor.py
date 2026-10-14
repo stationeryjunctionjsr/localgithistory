@@ -460,8 +460,8 @@ async def test_pushdown_analytics_batch4():
         mock_res3.fetchall.return_value = [
             FakeRow(
                 return_id="RET-001",
-                order_id="101",
-                created_at="2026-10-15 10:00:00",
+                order_id=101,
+                created_at=datetime(2026, 10, 15, 10, 0, 0),
                 status="approved",
                 refund_value=150.0,
                 user_name="John Doe",
@@ -475,8 +475,8 @@ async def test_pushdown_analytics_batch4():
         returns = await dao.get_returns_report_stats()
         assert len(returns) == 1
         assert returns[0].returnId == "RET-001"
-        assert returns[0].orderId == "101"
-        assert returns[0].createdAt == "2026-10-15 10:00:00"
+        assert returns[0].orderId == 101
+        assert returns[0].createdAt == datetime(2026, 10, 15, 10, 0, 0)
         assert returns[0].status == "approved"
         assert returns[0].refundValue == 150.0
         assert returns[0].userName == "John Doe"
@@ -529,7 +529,7 @@ async def test_pushdown_analytics_batch4():
         mock_res6 = MagicMock()
         mock_res6.fetchall.return_value = [
             FakeRow(
-                product_id="p1",
+                product_id=1,
                 name="Notebook",
                 sku="NB-01",
                 category="Stationery",
@@ -540,7 +540,7 @@ async def test_pushdown_analytics_batch4():
         mock_session.execute.return_value = mock_res6
         alerts = await dao.get_inventory_alerts_stats(threshold=5)
         assert len(alerts) == 1
-        assert alerts[0].productId == "p1"
+        assert alerts[0].productId == 1
         assert alerts[0].name == "Notebook"
         assert alerts[0].sku == "NB-01"
         assert alerts[0].category == "Stationery"

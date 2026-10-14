@@ -159,12 +159,13 @@ def test_session_internal_models_cleaned():
 
 
 def test_return_request_models_purged():
-    ret_create = ReturnRequestInternalCreate(id=1, order_id="ord-1")
+    ret_create = ReturnRequestInternalCreate(id=1, order_id=1)
     assert ret_create.id == 1
-    assert ret_create.order_id == "ord-1"
+    assert ret_create.order_id == 1
 
-    ret_int = ReturnRequestInternal(id=2, order_id="ord-2")
+    ret_int = ReturnRequestInternal(id=2, order_id=2)
     assert ret_int.id == 2
+    assert ret_int.order_id == 2
 
 
 def test_customer_segment_and_notification_purged():
@@ -695,14 +696,14 @@ async def test_analytics_batch_6_methods_model_integrity():
     mock_return = ReturnRequestInternal(
         id=1,
         return_id="RET-001",
-        order_id="101",
-        user_id="5",
+        order_id=101,
+        user_id=5,
         status="approved",
         payment_method="card",
         created_at=datetime(2026, 3, 16, 12, 0, 0),
         items=[
             ReturnItemSchema(
-                product_id="50",
+                product_id=50,
                 quantity=1,
                 reason="Defective",
             )
@@ -727,10 +728,11 @@ async def test_analytics_batch_6_methods_model_integrity():
         assert len(res_ret) == 1
         assert isinstance(res_ret[0], ReturnsReportResponse)
         assert res_ret[0].returnId == "RET-001"
-        assert res_ret[0].orderId == "101"
+        assert res_ret[0].orderId == 101
         assert res_ret[0].userName == "Alice Smith"
         assert res_ret[0].itemCount == 1
         assert res_ret[0].paymentMethod == "card"
+        assert res_ret[0].createdAt == datetime(2026, 3, 16, 12, 0, 0)
 
         # 2. get_payment_methods_report
         res_pm = await analytics_repository.get_payment_methods_report(seller_id=10)
@@ -754,11 +756,12 @@ async def test_analytics_batch_6_methods_model_integrity():
         res_ft = await analytics_repository.get_fulfillment_time_report(seller_id=10)
         assert len(res_ft) == 1
         assert isinstance(res_ft[0], FulfillmentTimeReportResponse)
-        assert res_ft[0].orderId == "101"
+        assert res_ft[0].orderId == 101
         assert res_ft[0].orderNumber == "ORD-101"
         assert res_ft[0].userName == "Alice Smith"
         assert res_ft[0].fulfillmentHours == 4.0
         assert res_ft[0].orderTotal == 250.0
+        assert res_ft[0].createdAt == datetime(2026, 3, 15, 10, 0, 0)
     finally:
         analytics_repository.order_storage.findAll = orig_order_findAll
         analytics_repository.product_storage.findAll = orig_product_findAll

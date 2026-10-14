@@ -1128,16 +1128,13 @@ class AnalyticsRepository:
 
         result: List[ReturnsReportResponse] = []
         for ret in all_returns:
-            created = ret.created_at
-            if isinstance(created, str):
-                created = self._parse_date(created)
-            if start_date and created and created < start_date:
+            if start_date and ret.created_at and ret.created_at < start_date:
                 continue
-            if end_date and created and created > end_date:
+            if end_date and ret.created_at and ret.created_at > end_date:
                 continue
 
-            order = next((o for o in orders if str(o.id) == str(ret.order_id)), None) if ret.order_id else None
-            user = next((u for u in users if str(u.id) == str(ret.user_id)), None) if ret.user_id else None
+            order = next((o for o in orders if o.id == ret.order_id), None) if ret.order_id else None
+            user = next((u for u in users if u.id == ret.user_id), None) if ret.user_id else None
             if not order or not user:
                 continue
             # Seller scoping: skip returns not belonging to this seller
@@ -1145,27 +1142,18 @@ class AnalyticsRepository:
                 order_in_scope = self._filter_by_seller([order], seller_id)
                 if not order_in_scope:
                     continue
-            items = ret.items or []
-            refund_value = 0.0
-            for item in items:
-                order_item = next(
-                    (oi for oi in (order.items or []) if str(oi.product_id or oi.product) == str(item.product_id)),
-                    None,
-                )
-                unit_price = (
-                    getattr(item, "subtotal", None)
-                    or getattr(item, "price", None)
-                    or (order_item.price if order_item else None)
-                    or 0.0
-                )
-                refund_value += float(unit_price) * (item.quantity or 1)
 
-            created_at_str = ret.created_at.isoformat() if isinstance(ret.created_at, datetime) else (str(ret.created_at) if ret.created_at else "")
+            order_items = {oi.product_id: oi for oi in (order.items or []) if oi.product_id}
+            items = ret.items or []
+            refund_value = sum(
+                (order_items[item.product_id].price if item.product_id in order_items and order_items[item.product_id].price is not None else 0.0) * item.quantity
+                for item in items
+            )
 
             result.append(
                 ReturnsReportResponse(
-                    returnId=ret.return_id or (str(ret.id) if ret.id is not None else ""),
-                    orderId=str(order.id) if order.id is not None else "",
+                    returnId=ret.return_id or f"RET-{ret.id}",
+                    orderId=order.id,
                     orderTotal=order.total,
                     userName=user.name or "Unknown",
                     userEmail=user.email or "",
@@ -1173,11 +1161,11 @@ class AnalyticsRepository:
                     refundValue=round(refund_value, 2),
                     itemCount=len(items),
                     paymentMethod=ret.payment_method,
-                    createdAt=created_at_str,
+                    createdAt=ret.created_at,
                 )
             )
 
-        result.sort(key=lambda x: x.createdAt or "", reverse=True)
+        result.sort(key=lambda x: x.createdAt or datetime.min, reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)
@@ -1318,13 +1306,8 @@ class AnalyticsRepository:
             if status not in TERMINAL_STATUSES:
                 continue
 
-            created_raw = order.created_at
-            updated_raw = order.updated_at
-            created_dt = created_raw if isinstance(created_raw, datetime) else self._parse_date(created_raw)
-            updated_dt = updated_raw if isinstance(updated_raw, datetime) else self._parse_date(updated_raw)
-
-            created_dt = self._to_naive_utc(created_dt)
-            updated_dt = self._to_naive_utc(updated_dt)
+            created_dt = self._to_naive_utc(order.created_at)
+            updated_dt = self._to_naive_utc(order.updated_at)
 
             if not created_dt or not updated_dt:
                 continue
@@ -1337,18 +1320,18 @@ class AnalyticsRepository:
             user_name = user.name if user and user.name else "Unknown"
             result.append(
                 FulfillmentTimeReportResponse(
-                    orderId=str(order.id) if order.id is not None else "",
+                    orderId=order.id,
                     orderNumber=order.order_number or "",
                     userName=user_name,
                     status=status or "",
                     fulfillmentHours=delta_hours,
                     fulfillmentDays=round(delta_hours / 24, 1),
                     orderTotal=round(order.total or 0.0, 2),
-                    createdAt=order.created_at.isoformat() if isinstance(order.created_at, datetime) else str(order.created_at or ""),
+                    createdAt=order.created_at,
                 )
             )
 
-        result.sort(key=lambda x: x.createdAt or "", reverse=True)
+        result.sort(key=lambda x: x.createdAt or datetime.min, reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)

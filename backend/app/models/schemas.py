@@ -1114,15 +1114,15 @@ class ReturnSettingsUpdate(CamelBaseModel):
 
 
 class ReturnItemSchema(CamelBaseModel):
-    product_id: str
+    product_id: int
     quantity: int
     reason: str
 
 
 class ReturnRequestBase(CamelBaseModel):
-    order_id: str
+    order_id: int
     items: List[ReturnItemSchema]
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
     payment_method: str  # 'cod' or 'upi'
@@ -1143,10 +1143,10 @@ class ReturnRequestUpdate(CamelBaseModel):
 
 class ReturnRequestResponse(CamelBaseModel):
     id: int
-    order_id: str
-    user_id: str
+    order_id: int
+    user_id: int
     items: List[ItemSnippet]  # populated items
-    seller_id: Optional[str] = None
+    seller_id: Optional[int] = None
     delivery_slot_id: Optional[str] = None
     delivery_slot_date: Optional[str] = None
     payment_method: str
@@ -1169,9 +1169,9 @@ class ReturnRequestResponse(CamelBaseModel):
 
 class ReturnRequest(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    id: Optional[str] = Field(None)
-    order_id: Optional[str] = None
-    user_id: Optional[str] = None
+    id: Optional[int] = Field(None)
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
     valet_id: Optional[str] = None
     pending_valet_id: Optional[str] = None
     status: Optional[str] = None
@@ -1182,7 +1182,7 @@ class ReturnRequest(CamelBaseModel):
     delivery_charge: Optional[float] = 0.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    sellerId: Optional[str] = None
+    sellerId: Optional[int] = None
     deliverySlotId: Optional[str] = None
     deliverySlotDate: Optional[str] = None
     valetAssignedAt: Optional[str] = None
