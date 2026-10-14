@@ -567,8 +567,6 @@ async def create_order_service(
     _cart_products_list = (
         await product_repository.findByIds(_cart_product_ids) if _cart_product_ids else []
     )
-    _cart_products_map = {p.id: p for p in _cart_products_list}
-
     # For courier orders, verify all cart products belong to 1P Super Admin warehouse
     if fulfillment_type == "courier":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
@@ -584,8 +582,8 @@ async def create_order_service(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        if item.product in _cart_products_map:
-            p = _cart_products_map[item.product]
+        p = next((prod for prod in _cart_products_list if prod.id == item.product), None)
+        if p:
             qty = (item.quantity if item.quantity is not None else 0)
             sell_as_case = (
                 item.sell_as_case if item.sell_as_case is not None else False)
@@ -749,11 +747,11 @@ async def create_order_service(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        if item.product not in _cart_products_map:
+        product = next((prod for prod in _cart_products_list if prod.id == item.product), None)
+        if not product:
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product}"
             )
-        product = _cart_products_map[item.product]
         quantity = (item.quantity if item.quantity is not None else 0)
         sell_as_case = (
             item.sell_as_case if item.sell_as_case is not None else False)

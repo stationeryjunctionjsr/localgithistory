@@ -74,17 +74,13 @@ class CouponRepository:
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
         cart_pids = [item.product_id for item in cart_items if item.product_id]
-        if cart_pids:
-            products_list = await product_repository.findByIds(cart_pids)
-            product_map = {p.id: p for p in products_list if p.id}
-        else:
-            product_map = {}
+        products_list = (await product_repository.findByIds(cart_pids)) if cart_pids else []
 
         elements = []
         for idx, item in enumerate(cart_items):
-            if not item.product_id or item.product_id not in product_map:
+            product = next((p for p in products_list if p.id == item.product_id), None)
+            if not product:
                 continue
-            product = product_map[item.product_id]
             qty = int(item.quantity or 0)
             if qty <= 0:
                 continue

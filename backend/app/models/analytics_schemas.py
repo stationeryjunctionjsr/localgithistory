@@ -1,7 +1,10 @@
-from pydantic import BaseModel, ConfigDict
-from typing import List, Optional, Any, Dict
+from pydantic import BaseModel, ConfigDict, Field
+from typing import List, Optional
+from app.models.base import CamelBaseModel
 
-class UserOrderStatsResponse(BaseModel):
+
+class UserOrderStatsResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     userId: str
     name: str
     email: str
@@ -10,12 +13,16 @@ class UserOrderStatsResponse(BaseModel):
     daysSinceLastOrder: Optional[int] = None
     avgOrdersPerMonth: float
 
-class ItemsByUserTypeResponse(BaseModel):
+
+class ItemsByUserTypeResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     role: str
     views: int
     searches: int
 
-class ReturnsReportResponse(BaseModel):
+
+class ReturnsReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     returnId: str
     orderId: str
     createdAt: str
@@ -27,19 +34,25 @@ class ReturnsReportResponse(BaseModel):
     paymentMethod: Optional[str] = None
     orderTotal: Optional[float] = None
 
-class PaymentMethodsReportResponse(BaseModel):
+
+class PaymentMethodsReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     paymentMethod: str
     orderCount: int
     revenue: float
     avgOrderValue: float
 
-class RevenueByCategoryResponse(BaseModel):
+
+class RevenueByCategoryResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     category: str
     orderCount: int
     quantity: int
     revenue: float
 
-class InventoryAlertResponse(BaseModel):
+
+class InventoryAlertResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     productId: str
     name: str
     sku: Optional[str] = None
@@ -47,7 +60,9 @@ class InventoryAlertResponse(BaseModel):
     stock: int
     status: str
 
-class FulfillmentTimeReportResponse(BaseModel):
+
+class FulfillmentTimeReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     orderId: str
     orderNumber: str
     createdAt: str
@@ -57,7 +72,9 @@ class FulfillmentTimeReportResponse(BaseModel):
     fulfillmentHours: Optional[float] = None
     fulfillmentDays: Optional[float] = None
 
-class CouponUsageReportResponse(BaseModel):
+
+class CouponUsageReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     couponCode: str
     discountType: str
     discountValue: float
@@ -65,30 +82,40 @@ class CouponUsageReportResponse(BaseModel):
     totalDiscountGiven: float
     totalRevenue: float
 
-class SalesByLocationReportResponse(BaseModel):
+
+class SalesByLocationReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     location: str
     orderCount: int
     quantity: int
     revenue: float
 
-class NewVsReturningCustomerSalesResponse(BaseModel):
+
+class NewVsReturningCustomerSalesResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     customerType: str
     orderCount: int
     revenue: float
 
-class ItemsBoughtTogetherResponse(BaseModel):
+
+class ItemsBoughtTogetherResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     productAId: str
     productAName: str
     productBId: str
     productBName: str
     frequency: int
 
-class SalesByDeviceReportResponse(BaseModel):
+
+class SalesByDeviceReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     deviceType: str
     orderCount: int
     revenue: float
 
-class TopReturnedProductsResponse(BaseModel):
+
+class TopReturnedProductsResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     productId: str
     productName: str
     category: str
@@ -96,43 +123,57 @@ class TopReturnedProductsResponse(BaseModel):
     quantityReturned: int
     revenueLost: float
 
-class InventoryValueByCategoryResponse(BaseModel):
+
+class InventoryValueByCategoryResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     category: str
     productCount: int
     totalStock: int
     inventoryValue: float
 
-class SessionsOverTimeResponse(BaseModel):
+
+class SessionsOverTimeResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     period: str
     sessions: int
     visitors: int
     uniqueVisitors: int
 
-class VisitorsNowResponse(BaseModel):
+
+class VisitorsNowResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     windowMinutes: int
     activeVisitors: int
     loggedInSessions: int
     guestSessions: int
 
-class SearchesNoClicksResponse(BaseModel):
+
+class SearchesNoClicksResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     term: str
     searchCount: int
     totalResults: int
     avgResults: float
 
-class SearchConversionResponse(BaseModel):
+
+class SearchConversionResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     totalSearchSessions: int
     convertedSessions: int
     nonConvertedSessions: int
     conversionRate: float
 
-class BounceRateResponse(BaseModel):
+
+class BounceRateResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     period: str
     totalSessions: int
     bouncedSessions: int
     bounceRate: float
 
-class RFMSegmentsResponse(BaseModel):
+
+class RFMSegmentsResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     userId: str
     name: str
     email: str
@@ -142,7 +183,9 @@ class RFMSegmentsResponse(BaseModel):
     recencyDays: Optional[int] = None
     lastOrder: Optional[str] = None
 
-class CustomerFrequencyResponse(BaseModel):
+
+class CustomerFrequencyResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     type: str
     customers: int
     customerPct: float
@@ -150,7 +193,9 @@ class CustomerFrequencyResponse(BaseModel):
     avgOrders: float
     revenue: float
 
-class NetSalesResponse(BaseModel):
+
+class NetSalesResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     orderId: str
     orderNumber: str
     createdAt: str
@@ -162,13 +207,17 @@ class NetSalesResponse(BaseModel):
     shipping: float
     netSales: float
 
-class SalesHeatmapResponse(BaseModel):
+
+class SalesHeatmapResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     dayOfWeek: str
     hour: int
     orderCount: int
     revenue: float
 
-class InventoryRunwayResponse(BaseModel):
+
+class InventoryRunwayResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     productId: str
     name: str
     category: str
@@ -177,7 +226,9 @@ class InventoryRunwayResponse(BaseModel):
     avgDailySales: float
     daysRemaining: Optional[float] = None
 
-class DiscountsAuditResponse(BaseModel):
+
+class DiscountsAuditResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     orderId: str
     orderNumber: str
     createdAt: str
@@ -190,7 +241,9 @@ class DiscountsAuditResponse(BaseModel):
     discountValue: Optional[float] = None
     netAfterDiscount: float
 
-class ProductsPctSoldResponse(BaseModel):
+
+class ProductsPctSoldResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     productId: str
     name: str
     sku: Optional[str] = None
@@ -200,12 +253,16 @@ class ProductsPctSoldResponse(BaseModel):
     unitsSold: int
     pctSold: float
 
-class MonthlyRevenueItem(BaseModel):
+
+class MonthlyRevenueItem(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     month: str
     revenue: float
     orders: Optional[int] = None
 
-class BundlePerformanceReportResponse(BaseModel):
+
+class BundlePerformanceReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     bundleId: Optional[str] = None
     name: Optional[str] = None
     status: Optional[str] = None
@@ -216,7 +273,9 @@ class BundlePerformanceReportResponse(BaseModel):
     copiesSold: Optional[int] = None
     monthlyRevenue: Optional[List[MonthlyRevenueItem]] = None
 
-class SalesByChannelDetailedResponse(BaseModel):
+
+class SalesByChannelDetailedResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     channel: str
     channelLabel: str
     orderCount: int
@@ -224,7 +283,9 @@ class SalesByChannelDetailedResponse(BaseModel):
     revenuePct: float
     aov: float
 
-class AllReportsSummaryResponse(BaseModel):
+
+class AllReportsSummaryResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     searched_products: int
     viewed_products: int
     drop_off_points: int
@@ -251,3 +312,163 @@ class AllReportsSummaryResponse(BaseModel):
     top_returned_products: int
     inventory_value: int
     most_abandoned_products: int
+
+
+class SalesOverTimeResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    period: str
+    sales: float
+    orderCount: int
+    aov: float
+
+
+class SalesBreakdownResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    gross_sales: float
+    discounts: float
+    returns: float
+    net_sales: float
+    shipping_charges: float
+    return_fees: float
+    taxes: float
+    total_sales: float
+
+
+class AverageOrderValueResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    period: str
+    average_order_value: float
+
+
+class SalesByChannelResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    channel: str
+    sales: float
+
+
+class SalesByProductResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    product_id: str
+    productId: str
+    name: str
+    productName: str
+    quantity: int
+    revenue: float
+
+
+class TopUsersReportResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    userId: str
+    name: str
+    userName: str
+    email: str
+    userEmail: str
+    role: str
+    revenue: float
+    orderCount: int = Field(default=0)
+
+
+class ProductsSellThroughResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    product_id: str
+    name: str
+    sold: int
+    stock: int
+    sell_through_rate: float
+
+
+class CustomerCohortResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    cohort: str
+    months: List[int]
+
+
+class ConversionOrderStats(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    total_orders: int = 0
+    non_cancelled_orders: int = 0
+    completed_sessions: int = 0
+
+
+class FunnelStage(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    count: int
+    percentage: float
+    drop_percentage: float
+
+
+class FunnelStageNoDrop(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    count: int
+    percentage: float
+
+
+class ConversionRateResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    sessions: FunnelStageNoDrop
+    added_to_cart: FunnelStage
+    reached_checkout: FunnelStage
+    completed: FunnelStage
+    overall_conversion_rate: float
+
+
+class CheckoutFunnelResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    cart: FunnelStageNoDrop
+    shipping: FunnelStage
+    review: FunnelStage
+    payment: FunnelStage
+    completed: FunnelStage
+    overall_checkout_conversion: float
+
+
+class SessionsByDeviceResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    device: str
+    sessions: int
+
+
+class SessionsByLocationResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    location: str
+    sessions: int
+
+
+class SessionsByLandingPageResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    landing_page: str
+    sessions: int
+
+
+class DurationBucket(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    range: str
+    count: int
+
+
+class UserMetric(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    userId: str
+    name: str
+    email: str
+    averageSessionTimeSeconds: float
+    totalSessions: int
+
+
+class AllUserEngagementResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    duration_buckets: List[DurationBucket]
+    user_metrics: List[UserMetric]
+
+
+class UserEngagementResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    userId: Optional[str] = None
+    registrationDate: Optional[str] = None
+    totalSessions: Optional[int] = None
+    averageSessionTimeSeconds: Optional[float] = None
+    averageDaysBetweenSessions: Optional[float] = None
+    averagePagesPerSession: Optional[float] = None
+    sessionsWithOrder: Optional[int] = None
+    sessionOrderRate: Optional[float] = None
+    error: Optional[str] = None
