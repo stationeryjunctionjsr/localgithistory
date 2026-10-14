@@ -666,7 +666,6 @@ class AnalyticsRepository:
         users = await self.user_storage.findAll()
         sessions = await self.session_storage.findAll()
 
-        user_map = {u.id: u for u in users}
         valid_sessions = [s for s in sessions if not s.is_guest]
 
         user_durations = defaultdict(list)
@@ -692,7 +691,8 @@ class AnalyticsRepository:
         buckets = {"0-60s": 0, "60-300s": 0, "300-600s": 0, "600s+": 0}
 
         user_metrics = []
-        for uid in user_map.keys():
+        for u in users:
+            uid = u.id
             durations = (user_durations[uid] if uid in user_durations else [])
             avg_duration = sum(durations) / len(durations) if durations else 0
 
@@ -709,8 +709,8 @@ class AnalyticsRepository:
             user_metrics.append(
                 {
                     "userId": uid,
-                    "name": user_map[uid].name if user_map[uid].name else "Unknown",
-                    "email": user_map[uid].email if user_map[uid].email else "Unknown",
+                    "name": u.name if u.name else "Unknown",
+                    "email": u.email if u.email else "Unknown",
                     "averageSessionTimeSeconds": round(avg_duration, 2),
                     "totalSessions": (user_session_counts[uid] if uid in user_session_counts else 0),
                 }
