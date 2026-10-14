@@ -15,13 +15,13 @@ class MySQLContactsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[ContactInternal]:
         if not id:
             return None
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -42,7 +42,10 @@ class MySQLContactsDAO:
         if id:
             return await self.findById(id)
         if email:
-            async with self._factory()() as session:
+            async_session = get_async_session_factory()
+            if not async_session:
+                return None
+            async with async_session() as session:
                 q = text(f"SELECT * FROM {self.TABLE} WHERE email = :email LIMIT 1")
                 result = await session.execute(q, {"email": email})
                 row = result.fetchone()
@@ -61,7 +64,10 @@ class MySQLContactsDAO:
         self,
         is_active: Optional[bool] = None,
     ) -> List[ContactInternal]:
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return []
+        async with async_session() as session:
             clauses = []
             params = {}
 
@@ -91,7 +97,9 @@ class MySQLContactsDAO:
             ]
 
     async def create(self, data: ContactInternalCreate) -> ContactInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -126,7 +134,7 @@ class MySQLContactsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -135,34 +143,40 @@ class MySQLContactsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: ContactInternalUpdate) -> Optional[ContactInternal]:
-        factory = self._factory()
-        updates = ["updated_at = :u"]
-        params = {"u": now_utc()}
+        async_session = get_async_session_factory()
+        if not async_session or not id:
+            return None
 
-        if update_data.email is not None:
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
+        updates = ["updated_at = :u"]
+        params = {"u": now_utc(), "pk": id}
+
+        if "email" in fields:
             updates.append("email = :email")
             params["email"] = update_data.email
 
-        if update_data.description is not None:
+        if "description" in fields:
             updates.append("description = :description")
             params["description"] = update_data.description
 
-        if update_data.is_active is not None:
+        if "is_active" in fields:
             updates.append("is_active = :is_active")
             params["is_active"] = 1 if update_data.is_active else 0
 
-        if update_data.display_order is not None:
+        if "display_order" in fields:
             updates.append("display_order = :display_order")
             params["display_order"] = update_data.display_order
 
-        if update_data.social_media is not None:
+        if "social_media" in fields:
             updates.append("social_media = :social_media")
-            params["social_media"] = update_data.social_media.model_dump_json()
+            params["social_media"] = update_data.social_media.model_dump_json() if update_data.social_media is not None else None
 
         upd_sql = ", ".join(updates)
-        params["pk"] = id
 
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
             await self._replace_children(session, id, update_data)
             await session.commit()
@@ -170,10 +184,10 @@ class MySQLContactsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": id})
             await session.execute(text("DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": id})
             result = await session.execute(
@@ -226,7 +240,8 @@ class MySQLContactsDAO:
         return res_addresses.fetchall(), res_phones.fetchall()
 
     async def _replace_children(self, session, row_id: int, data: Union[ContactInternalCreate, ContactInternalUpdate]):
-        if data.addresses is not None:
+        fields = data.model_fields_set
+        if "addresses" in fields and data.addresses is not None:
             await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": row_id})
             for item in data.addresses:
                 await session.execute(
@@ -234,7 +249,7 @@ class MySQLContactsDAO:
                     {"id": row_id, "v": item}
                 )
 
-        if data.phone_numbers is not None:
+        if "phone_numbers" in fields and data.phone_numbers is not None:
             await session.execute(text("DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": row_id})
             for item in data.phone_numbers:
                 await session.execute(

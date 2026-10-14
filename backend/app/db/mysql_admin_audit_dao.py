@@ -19,9 +19,6 @@ logger = logging.getLogger(__name__)
 class MySQLAdminAuditDAO:
     TABLE = "sj_admin_audit_log"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def log(
         self,
         *,
@@ -34,13 +31,13 @@ class MySQLAdminAuditDAO:
         ip_address: Optional[str] = None,
     ) -> None:
         """Insert one audit row. Fire-and-forget — failures are logged, never raised."""
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return
         now: datetime = now_utc()
         summary_json: Optional[str] = json.dumps(change_summary, default=str) if change_summary else None
         try:
-            async with factory() as session:
+            async with async_session() as session:
                 await session.execute(
                     text(
                         f"""

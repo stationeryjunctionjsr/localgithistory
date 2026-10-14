@@ -12,9 +12,6 @@ class MySQLAnalyticsSessionDAO:
     def TABLE(self):
         return "sj_analytics_sessions"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def create_session(self, session_data: AnalyticsSessionCreate) -> Optional[AnalyticsSessionResponse]:
         query = f"""
             INSERT IGNORE INTO {self.TABLE}
@@ -38,9 +35,11 @@ class MySQLAnalyticsSessionDAO:
             "end_time": session_data.start_time
         }
         
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
         try:
-            async with factory() as session:
+            async with async_session() as session:
                 await session.execute(text(query), params)
                 await session.commit()
             return await self.get_session(session_data.session_id)
@@ -60,9 +59,11 @@ class MySQLAnalyticsSessionDAO:
             "session_id": session_id
         }
         
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            return False
         try:
-            async with factory() as session:
+            async with async_session() as session:
                 res = await session.execute(text(query), params)
                 await session.commit()
                 return res.rowcount > 0
@@ -72,9 +73,11 @@ class MySQLAnalyticsSessionDAO:
 
     async def get_session(self, session_id: str) -> Optional[AnalyticsSessionResponse]:
         query = f"SELECT * FROM {self.TABLE} WHERE session_id = :session_id LIMIT 1"
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
         try:
-            async with factory() as session:
+            async with async_session() as session:
                 res = await session.execute(text(query), {"session_id": session_id})
                 row = res.fetchone()
                 if row:
