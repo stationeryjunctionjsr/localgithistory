@@ -270,8 +270,6 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     payments_list = await payments_task if payments_task else []
 
     # 3. Build lookup maps
-    products_map = {p.id: p for p in products_list if p.id}
-
     payments_map = {}
     for p in payments_list:
         if p.order_id is not None:
@@ -290,16 +288,16 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
         o_items = order.items if order.items else []
         populated_items = []
 
-        for i_dict in o_items:
-            product = products_map[i_dict.product_id] if i_dict.product_id in products_map else None
+        for item in o_items:
+            product = next((p for p in products_list if p.id == item.product_id), None) if item.product_id else None
 
             # stockStatus, taxRate, taxAmount are not stored in sj_order_items (DB has
             # only product_id, quantity, price) — they are None until the DB schema
             # is extended and ItemSnippet gains those columns.
             p_item = PopulatedOrderItemResponse(
                 product=product,
-                quantity=i_dict.quantity,
-                price=i_dict.price,
+                quantity=item.quantity,
+                price=item.price,
                 stock_status=None,
                 tax_rate=None,
                 tax_amount=None,
