@@ -27,14 +27,13 @@ class MySQLDeliveryZonesDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[DeliveryZoneInternal]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             params = {"id": id}
             result = await session.execute(q, params)
@@ -49,10 +48,12 @@ class MySQLDeliveryZonesDAO:
             )
 
     async def findByPincode(self, pincode: str, is_active: bool = True) -> Optional[DeliveryZoneInternal]:
-        factory = self._factory()
-        if not factory or not pincode:
+        if not pincode:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"""
                 SELECT z.* FROM {self.TABLE} z
                 JOIN sj_delivery_zone_pincodes p ON z.id = p.parent_id
@@ -71,10 +72,10 @@ class MySQLDeliveryZonesDAO:
             )
             
     async def findAll(self, is_active: Optional[bool] = None) -> List[DeliveryZoneInternal]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             if is_active is not None:
                 sql = f"SELECT * FROM {self.TABLE} WHERE is_active = :act ORDER BY id ASC"
                 params = {"act": 1 if is_active else 0}
@@ -117,7 +118,9 @@ class MySQLDeliveryZonesDAO:
             ]
 
     async def create(self, data: DeliveryZoneInternalCreate) -> DeliveryZoneInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -137,7 +140,7 @@ class MySQLDeliveryZonesDAO:
 
         if data.urgent_delivery_available is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgent_delivery_available"] = data.urgent_delivery_available
+            params["s_urgent_delivery_available"] = 1 if data.urgent_delivery_available else 0
 
         if data.customer_type is not None:
             cols.append("customer_type")
@@ -145,7 +148,7 @@ class MySQLDeliveryZonesDAO:
 
         if data.is_active is not None:
             cols.append("is_active")
-            params["s_is_active"] = data.is_active
+            params["s_is_active"] = 1 if data.is_active else 0
 
         if data.delivery_charge is not None:
             cols.append("delivery_charge")
@@ -166,7 +169,7 @@ class MySQLDeliveryZonesDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([f":{k}" for k in params.keys()])
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -175,68 +178,71 @@ class MySQLDeliveryZonesDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: DeliveryZoneInternalUpdate) -> Optional[DeliveryZoneInternal]:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session or not id:
+            return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"pk": id, "u": now_utc()}
         data = update_data
 
-        if data.name is not None:
+        if "name" in fields:
             updates.append("name = :s_name")
             params["s_name"] = data.name
 
-        if data.description is not None:
+        if "description" in fields:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.default_capacity is not None:
+        if "default_capacity" in fields:
             updates.append("default_capacity = :s_default_capacity")
             params["s_default_capacity"] = data.default_capacity
 
-        if data.urgent_delivery_available is not None:
+        if "urgent_delivery_available" in fields:
             updates.append("urgent_delivery_available = :s_urgent_delivery_available")
-            params["s_urgent_delivery_available"] = data.urgent_delivery_available
+            params["s_urgent_delivery_available"] = 1 if data.urgent_delivery_available else 0
 
-        if data.customer_type is not None:
+        if "customer_type" in fields:
             updates.append("customer_type = :s_customer_type")
             params["s_customer_type"] = data.customer_type
 
-        if data.is_active is not None:
+        if "is_active" in fields:
             updates.append("is_active = :s_is_active")
-            params["s_is_active"] = data.is_active
+            params["s_is_active"] = 1 if data.is_active else 0
 
-        if data.delivery_charge is not None:
+        if "delivery_charge" in fields:
             updates.append("delivery_charge = :s_delivery_charge")
             params["s_delivery_charge"] = data.delivery_charge
 
-        if data.min_cart_value is not None:
+        if "min_cart_value" in fields:
             updates.append("min_cart_value = :s_min_cart_value")
             params["s_min_cart_value"] = data.min_cart_value
 
-        if data.urgent_delivery_charge is not None:
+        if "urgent_delivery_charge" in fields:
             updates.append("urgent_delivery_charge = :s_urgent_delivery_charge")
             params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
 
-        if data.apply_default_charge is not None:
+        if "apply_default_charge" in fields:
             updates.append("apply_default_charge = :s_apply_default_charge")
             params["s_apply_default_charge"] = 1 if data.apply_default_charge else 0
 
-        async with factory() as session:
-            upd_where = "id = :pk"
-
-            if len(updates) > 1:
-                upd_sql = ", ".join(updates)
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
-            
+        async with async_session() as session:
+            upd_sql = ", ".join(updates)
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
             await self._replace_children(session, id, data)
             await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": id})
             await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": id})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
@@ -281,7 +287,8 @@ class MySQLDeliveryZonesDAO:
         return pincodes, tiers
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate]):
-        if data.pincodes is not None:
+        fields = data.model_fields_set
+        if "pincodes" in fields and data.pincodes is not None:
             await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
             if data.pincodes:
                 pin_params = [{"parent_id": row_id, "pincode": str(item)} for item in data.pincodes]
@@ -290,7 +297,7 @@ class MySQLDeliveryZonesDAO:
                     pin_params,
                 )
 
-        if data.tiers is not None:
+        if "tiers" in fields and data.tiers is not None:
             await session.execute(text("DELETE FROM sj_delivery_zone_tiers WHERE parent_id = :id"), {"id": row_id})
             if data.tiers:
                 tier_params = [

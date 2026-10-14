@@ -33,13 +33,13 @@ class MySQLDeliverySlotsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[DeliverySlotConfigInternal]:
         if not id:
             return None
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             params = {"id": id}
             result = await session.execute(q, params)
@@ -89,7 +89,10 @@ class MySQLDeliverySlotsDAO:
         limit_sql = f" LIMIT {int(limit)}" if limit else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC{limit_sql}"
 
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return []
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -113,7 +116,9 @@ class MySQLDeliverySlotsDAO:
             ]
 
     async def create(self, data: DeliverySlotConfigInternalCreate) -> DeliverySlotConfigInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -143,7 +148,7 @@ class MySQLDeliverySlotsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -152,41 +157,46 @@ class MySQLDeliverySlotsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: DeliverySlotConfigInternalUpdate) -> Optional[DeliverySlotConfigInternal]:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session or not id:
+            return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"pk": id, "u": now_utc()}
 
-        if update_data.segment is not None:
+        if "segment" in fields:
             updates.append("segment = :segment")
             params["segment"] = update_data.segment
 
-        if update_data.date is not None:
+        if "date" in fields:
             updates.append("date = :date")
             params["date"] = update_data.date
 
-        if update_data.zone_id is not None:
+        if "zone_id" in fields:
             updates.append("zone_id = :zone_id")
             params["zone_id"] = update_data.zone_id
 
-        if update_data.is_active is not None:
+        if "is_active" in fields:
             updates.append("is_active = :is_active")
             params["is_active"] = 1 if update_data.is_active else 0
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
-            upd_where = "id = :pk"
-
-            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
+        async with async_session() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
             await self._replace_children(session, id, update_data)
             await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             params = {"id": id}
 
             await session.execute(text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"), params)
@@ -212,7 +222,8 @@ class MySQLDeliverySlotsDAO:
         return [_parse_slot_row(r) for r in res_slots.fetchall()]
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliverySlotConfigInternalCreate, DeliverySlotConfigInternalUpdate]):
-        if data.slots is not None:
+        fields = data.model_fields_set
+        if "slots" in fields and data.slots is not None:
             await session.execute(text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"), {"id": row_id})
             if data.slots:
                 params = [
