@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from app.models.base import CamelBaseModel
 
 from app.repositories.order_repository import order_repository
 from app.repositories.product_repository import product_repository
@@ -18,8 +19,8 @@ router = APIRouter()
 
 
 # --- Customer Schemas ---
-class ReviewCreate(BaseModel):
-    productId: str
+class ReviewCreate(CamelBaseModel):
+    product_id: int
     rating: int = Field(..., ge=1, le=5)
     comment: str
     classification: str
@@ -43,7 +44,7 @@ class ClassificationUpdate(BaseModel):
 async def create_review(review_data: ReviewCreate, current_user: User = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
     user_id = current_user.id
-    product_id = int(review_data.productId)
+    product_id = review_data.product_id
 
     # 1. Verify that the product exists
     product = await product_repository.findById(product_id)
@@ -102,7 +103,7 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
 
 @router.get("/product/{product_id}", response_model=List[ProductReviewResponse])
 @cache.ttl_cache(ttl=600.0)
-async def get_product_reviews(product_id: str):
+async def get_product_reviews(product_id: int):
     """Retrieve all approved reviews for a product."""
     reviews = await product_review_repository.find_approved_by_product(product_id)
 
