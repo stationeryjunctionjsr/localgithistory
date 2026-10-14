@@ -64,9 +64,9 @@ class MySQLCartDAO:
             except (TypeError, ValueError):
                 pass
         return CartItemInternal(
-            id=str(ir.id),
-            product=int(ir.product_id) if ir.product_id is not None else None,
-            quantity=int(ir.quantity),
+            id=ir.id,
+            product=ir.product_id,
+            quantity=ir.quantity,
             sell_as_case=bool(ir.sell_as_case),
             bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
             bundle_name=str(ir.bundle_name) if ir.bundle_name else None,

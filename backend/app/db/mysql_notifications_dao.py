@@ -56,7 +56,7 @@ class MySQLNotificationsDAO:
         if filters:
             if filters.user_id is not None:
                 clauses.append("user_id = :user_id")
-                params["user_id"] = str(filters.user_id)
+                params["user_id"] = filters.user_id
             if filters.is_read is not None:
                 clauses.append("is_read = :is_read")
                 params["is_read"] = 1 if filters.is_read else 0
@@ -91,7 +91,7 @@ class MySQLNotificationsDAO:
         params = {
             "c": now,
             "u": now,
-            "user_id": str(data.user_id),
+            "user_id": data.user_id,
             "type": data.type,
             "title": data.title,
             "message": data.message,
@@ -137,7 +137,7 @@ class MySQLNotificationsDAO:
         params = {"u": now}
         if user_id is not None:
             where_clauses.append("user_id = :uid")
-            params["uid"] = str(user_id)
+            params["uid"] = user_id
         where_sql = " AND ".join(where_clauses)
         async_session = get_async_session_factory()
         async with async_session() as session:
@@ -198,14 +198,9 @@ class MySQLNotificationsDAO:
                     meta_obj.parent_order_id = v
                 elif k in ("courier_partner", "courierPartner"):
                     meta_obj.courier_partner = v
-        raw_uid = r.user_id
-        try:
-            uid = int(raw_uid) if raw_uid is not None else 0
-        except (ValueError, TypeError):
-            uid = 0
         return NotificationInternal(
             id=r.id,
-            user_id=uid,
+            user_id=r.user_id,
             type=r.type,
             title=r.title,
             message=r.message,

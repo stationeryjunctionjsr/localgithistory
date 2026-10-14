@@ -31,7 +31,7 @@ from app.models.schemas import NotificationMetadata
 
 async def notify_user(
     *,
-    user_id: str,
+    user_id: int,
     notif_type: str,
     title: str,
     message: str,
@@ -86,14 +86,9 @@ async def notify_user(
                 type=notif_type,
             )
 
-        try:
-            numeric_uid = int(user_id)
-        except (ValueError, TypeError):
-            numeric_uid = 0
-
         await notification_repository.create(
             NotificationInternalCreate(
-                user_id=numeric_uid,
+                user_id=user_id,
                 type=notif_type,
                 title=title,
                 message=message,
