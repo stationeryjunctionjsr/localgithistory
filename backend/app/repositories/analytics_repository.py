@@ -36,6 +36,10 @@ from app.models.analytics_schemas import (
     SalesByChannelResponse,
     SalesByProductResponse,
     VisitorsNowResponse,
+    ReturnsReportResponse,
+    PaymentMethodsReportResponse,
+    RevenueByCategoryResponse,
+    FulfillmentTimeReportResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -1114,7 +1118,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[ReturnsReportResponse]:
         """Aggregate returns/refund requests with order value and status."""
         from app.repositories.return_request_repository import return_request_repository
 
@@ -1122,16 +1126,18 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll()
         users = await self.user_storage.findAll()
 
-        result = []
+        result: List[ReturnsReportResponse] = []
         for ret in all_returns:
-            created = self._parse_date(ret.created_at)
+            created = ret.created_at
+            if isinstance(created, str):
+                created = self._parse_date(created)
             if start_date and created and created < start_date:
                 continue
             if end_date and created and created > end_date:
                 continue
 
-            order = next((o for o in orders if o.id == ret.order_id), None) if ret.order_id else None
-            user = next((u for u in users if u.id == ret.userId), None) if ret.userId else None
+            order = next((o for o in orders if str(o.id) == str(ret.order_id)), None) if ret.order_id else None
+            user = next((u for u in users if str(u.id) == str(ret.user_id)), None) if ret.user_id else None
             if not order or not user:
                 continue
             # Seller scoping: skip returns not belonging to this seller
@@ -1139,25 +1145,39 @@ class AnalyticsRepository:
                 order_in_scope = self._filter_by_seller([order], seller_id)
                 if not order_in_scope:
                     continue
-            items = ret.items
-            refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
+            items = ret.items or []
+            refund_value = 0.0
+            for item in items:
+                order_item = next(
+                    (oi for oi in (order.items or []) if str(oi.product_id or oi.product) == str(item.product_id)),
+                    None,
+                )
+                unit_price = (
+                    getattr(item, "subtotal", None)
+                    or getattr(item, "price", None)
+                    or (order_item.price if order_item else None)
+                    or 0.0
+                )
+                refund_value += float(unit_price) * (item.quantity or 1)
+
+            created_at_str = ret.created_at.isoformat() if isinstance(ret.created_at, datetime) else (str(ret.created_at) if ret.created_at else "")
 
             result.append(
-                {
-                    "returnId": ret.id,
-                    "orderId": ret.order_id,
-                    "orderTotal": order.total,
-                    "userName": user.name,
-                    "userEmail": user.email,
-                    "status": ret.status,
-                    "refundValue": round(refund_value, 2),
-                    "itemCount": len(items),
-                    "paymentMethod": ret.payment_method,
-                    "createdAt": ret.created_at,
-                }
+                ReturnsReportResponse(
+                    returnId=ret.return_id or (str(ret.id) if ret.id is not None else ""),
+                    orderId=str(order.id) if order.id is not None else "",
+                    orderTotal=order.total,
+                    userName=user.name or "Unknown",
+                    userEmail=user.email or "",
+                    status=ret.status or "pending",
+                    refundValue=round(refund_value, 2),
+                    itemCount=len(items),
+                    paymentMethod=ret.payment_method,
+                    createdAt=created_at_str,
+                )
             )
 
-        result.sort(key=lambda x: x["createdAt"] or "", reverse=True)
+        result.sort(key=lambda x: x.createdAt or "", reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)
@@ -1166,33 +1186,41 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[PaymentMethodsReportResponse]:
         """Aggregate order count and revenue by payment method."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
         orders = self._filter_by_seller(orders, seller_id)
 
-        method_stats: dict = {}
+        class MethodStat(BaseModel):
+            payment_method: str
+            order_count: int = 0
+            revenue: float = 0.0
+
+        method_stats: List[MethodStat] = []
         for order in orders:
             method = order.payment_method or "unknown"
-            if method not in method_stats:
-                method_stats[method] = {"orderCount": 0, "revenue": 0.0, "avgOrderValue": 0.0}
-            method_stats[method]["orderCount"] += 1
-            method_stats[method]["revenue"] += order.total
+            stat = next((m for m in method_stats if m.payment_method == method), None)
+            if not stat:
+                stat = MethodStat(payment_method=method)
+                method_stats.append(stat)
+            stat.order_count += 1
+            stat.revenue += (order.total or 0.0)
 
-        result = []
-        for method, stats in method_stats.items():
-            count = stats["orderCount"]
+        result: List[PaymentMethodsReportResponse] = []
+        for s in method_stats:
+            rev = round(s.revenue, 2)
+            avg_aov = round(s.revenue / s.order_count, 2) if s.order_count > 0 else 0.0
             result.append(
-                {
-                    "paymentMethod": method,
-                    "orderCount": count,
-                    "revenue": round(stats["revenue"], 2),
-                    "avgOrderValue": round(stats["revenue"] / count, 2) if count > 0 else 0,
-                }
+                PaymentMethodsReportResponse(
+                    paymentMethod=s.payment_method,
+                    orderCount=s.order_count,
+                    revenue=rev,
+                    avgOrderValue=avg_aov,
+                )
             )
 
-        return sorted(result, key=lambda x: x["revenue"], reverse=True)
+        return sorted(result, key=lambda x: x.revenue, reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_revenue_by_category(
@@ -1201,37 +1229,48 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
         limit: int = 20,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[RevenueByCategoryResponse]:
         """Aggregate revenue, quantity and order count by product category."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
         orders = self._filter_by_seller(orders, seller_id)
         products = await self.product_storage.findAll()
 
-        category_stats: dict = {}
+        class CategoryStat(BaseModel):
+            category: str
+            revenue: float = 0.0
+            quantity: int = 0
+            order_ids: set[int] = Field(default_factory=set)
+
+        category_stats: List[CategoryStat] = []
         for order in orders:
-            for item in order.items:
-                product_id = item.product or item.product_id
-                product = next((p for p in products if p.id == product_id), None) if product_id else None
+            for item in (order.items or []):
+                prod_id = item.product_id or item.product
+                product = next((p for p in products if p.id == prod_id), None) if prod_id else None
                 category = (product.category or "Uncategorized") if product else "Uncategorized"
 
-                if category not in category_stats:
-                    category_stats[category] = {"revenue": 0.0, "quantity": 0, "orders": set()}
-                category_stats[category]["revenue"] += item.subtotal
-                category_stats[category]["quantity"] += item.quantity
-                category_stats[category]["orders"].add(order.id)
+                stat = next((cs for cs in category_stats if cs.category == category), None)
+                if not stat:
+                    stat = CategoryStat(category=category)
+                    category_stats.append(stat)
 
-        result = [
-            {
-                "category": cat,
-                "revenue": round(stats["revenue"], 2),
-                "quantity": stats["quantity"],
-                "orderCount": len(stats["orders"]),
-            }
-            for cat, stats in category_stats.items()
+                item_subtotal = item.subtotal if item.subtotal is not None else ((item.price or 0.0) * (item.quantity or 1))
+                stat.revenue += float(item_subtotal or 0.0)
+                stat.quantity += int(item.quantity or 0)
+                if order.id is not None:
+                    stat.order_ids.add(order.id)
+
+        result: List[RevenueByCategoryResponse] = [
+            RevenueByCategoryResponse(
+                category=s.category,
+                revenue=round(s.revenue, 2),
+                quantity=s.quantity,
+                orderCount=len(s.order_ids),
+            )
+            for s in category_stats
         ]
 
-        return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
+        return sorted(result, key=lambda x: x.revenue, reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
     async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[int] = None) -> List[InventoryAlertResponse]:
@@ -1264,7 +1303,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[FulfillmentTimeReportResponse]:
         """Calculate fulfillment times for completed/delivered orders."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -1273,14 +1312,19 @@ class AnalyticsRepository:
 
         TERMINAL_STATUSES = {"delivered", "completed", "cancelled", "returned"}
 
-        result = []
+        result: List[FulfillmentTimeReportResponse] = []
         for order in orders:
             status = order.status
             if status not in TERMINAL_STATUSES:
                 continue
 
-            created_dt = self._to_naive_utc(self._parse_date(order.created_at))
-            updated_dt = self._to_naive_utc(self._parse_date(order.updated_at))
+            created_raw = order.created_at
+            updated_raw = order.updated_at
+            created_dt = created_raw if isinstance(created_raw, datetime) else self._parse_date(created_raw)
+            updated_dt = updated_raw if isinstance(updated_raw, datetime) else self._parse_date(updated_raw)
+
+            created_dt = self._to_naive_utc(created_dt)
+            updated_dt = self._to_naive_utc(updated_dt)
 
             if not created_dt or not updated_dt:
                 continue
@@ -1292,19 +1336,19 @@ class AnalyticsRepository:
             user = next((u for u in users if u.id == order.user), None) if order.user else None
             user_name = user.name if user and user.name else "Unknown"
             result.append(
-                {
-                    "orderId": order.id,
-                    "orderNumber": order.order_number,
-                    "userName": user_name,
-                    "status": status,
-                    "fulfillmentHours": delta_hours,
-                    "fulfillmentDays": round(delta_hours / 24, 1),
-                    "orderTotal": order.total,
-                    "createdAt": order.created_at,
-                }
+                FulfillmentTimeReportResponse(
+                    orderId=str(order.id) if order.id is not None else "",
+                    orderNumber=order.order_number or "",
+                    userName=user_name,
+                    status=status or "",
+                    fulfillmentHours=delta_hours,
+                    fulfillmentDays=round(delta_hours / 24, 1),
+                    orderTotal=round(order.total or 0.0, 2),
+                    createdAt=order.created_at.isoformat() if isinstance(order.created_at, datetime) else str(order.created_at or ""),
+                )
             )
 
-        result.sort(key=lambda x: x["createdAt"] or "", reverse=True)
+        result.sort(key=lambda x: x.createdAt or "", reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)

@@ -612,3 +612,158 @@ async def test_analytics_batch_5_methods_model_integrity():
         analytics_repository.product_storage.findAll = orig_product_findAll
 
 
+@pytest.mark.asyncio
+async def test_analytics_batch_6_methods_model_integrity():
+    from app.repositories.analytics_repository import analytics_repository
+    from app.db.mysql_order_dao import MySQLOrderDAO
+    from app.models.analytics_schemas import (
+        ReturnsReportResponse,
+        PaymentMethodsReportResponse,
+        RevenueByCategoryResponse,
+        FulfillmentTimeReportResponse,
+    )
+    from app.models.order import Order
+    from app.models.product import Product
+    from app.models.user import User
+    from app.models.schemas import ItemSnippet as OrderItem, ProductSellerEntry
+    from app.models.daos import ReturnRequestInternal
+    from app.models.schemas import ReturnItemSchema
+    import inspect
+    from typing import Optional, List
+    from unittest.mock import AsyncMock
+    from datetime import datetime
+
+    # 1. Verify signatures and return annotations on analytics_repository
+    for method_name, expected_return in [
+        ("get_returns_report", List[ReturnsReportResponse]),
+        ("get_payment_methods_report", List[PaymentMethodsReportResponse]),
+        ("get_revenue_by_category", List[RevenueByCategoryResponse]),
+        ("get_fulfillment_time_report", List[FulfillmentTimeReportResponse]),
+    ]:
+        fn = getattr(analytics_repository, method_name)
+        sig = inspect.signature(fn)
+        assert sig.return_annotation == expected_return, f"{method_name} return must be {expected_return}"
+        assert sig.parameters["seller_id"].annotation == Optional[int], f"{method_name} seller_id must be Optional[int]"
+
+    # 2. Verify signatures in MySQLOrderDAO
+    for dao_method in [
+        "get_returns_report_stats",
+        "get_payment_methods_report_stats",
+        "get_revenue_by_category_stats",
+        "get_fulfillment_time_report_stats",
+    ]:
+        fn = getattr(MySQLOrderDAO, dao_method)
+        sig = inspect.signature(fn)
+        assert sig.parameters["seller_id"].annotation == Optional[int], f"{dao_method} seller_id must be Optional[int]"
+
+    # 3. Test runtime execution with mock data
+    mock_order = Order(
+        id=101,
+        order_number="ORD-101",
+        user=5,
+        total=250.0,
+        status="delivered",
+        seller_id=10,
+        payment_method="card",
+        created_at="2026-03-15T10:00:00",
+        updated_at="2026-03-15T14:00:00",
+        items=[
+            OrderItem(
+                product_id=50,
+                name="Notebook",
+                price=50.0,
+                quantity=5,
+                subtotal=250.0,
+            )
+        ],
+    )
+    mock_product = Product(
+        id=50,
+        product_id=50,
+        name="Notebook",
+        price=50.0,
+        stock=100,
+        category="Stationery",
+        sellers=[ProductSellerEntry(seller_id=10, request_status="approved")],
+    )
+    mock_user = User(
+        id=5,
+        name="Alice Smith",
+        email="alice@example.com",
+        role="customer",
+    )
+    mock_return = ReturnRequestInternal(
+        id=1,
+        return_id="RET-001",
+        order_id="101",
+        user_id="5",
+        status="approved",
+        payment_method="card",
+        created_at=datetime(2026, 3, 16, 12, 0, 0),
+        items=[
+            ReturnItemSchema(
+                product_id="50",
+                quantity=1,
+                reason="Defective",
+            )
+        ],
+    )
+
+    orig_order_findAll = analytics_repository.order_storage.findAll
+    orig_product_findAll = analytics_repository.product_storage.findAll
+    orig_user_findAll = analytics_repository.user_storage.findAll
+
+    from app.repositories.return_request_repository import return_request_repository
+    orig_return_findAll = return_request_repository.findAll
+
+    try:
+        analytics_repository.order_storage.findAll = AsyncMock(return_value=[mock_order])
+        analytics_repository.product_storage.findAll = AsyncMock(return_value=[mock_product])
+        analytics_repository.user_storage.findAll = AsyncMock(return_value=[mock_user])
+        return_request_repository.findAll = AsyncMock(return_value=[mock_return])
+
+        # 1. get_returns_report
+        res_ret = await analytics_repository.get_returns_report(seller_id=10)
+        assert len(res_ret) == 1
+        assert isinstance(res_ret[0], ReturnsReportResponse)
+        assert res_ret[0].returnId == "RET-001"
+        assert res_ret[0].orderId == "101"
+        assert res_ret[0].userName == "Alice Smith"
+        assert res_ret[0].itemCount == 1
+        assert res_ret[0].paymentMethod == "card"
+
+        # 2. get_payment_methods_report
+        res_pm = await analytics_repository.get_payment_methods_report(seller_id=10)
+        assert len(res_pm) == 1
+        assert isinstance(res_pm[0], PaymentMethodsReportResponse)
+        assert res_pm[0].paymentMethod == "card"
+        assert res_pm[0].orderCount == 1
+        assert res_pm[0].revenue == 250.0
+        assert res_pm[0].avgOrderValue == 250.0
+
+        # 3. get_revenue_by_category
+        res_cat = await analytics_repository.get_revenue_by_category(seller_id=10)
+        assert len(res_cat) == 1
+        assert isinstance(res_cat[0], RevenueByCategoryResponse)
+        assert res_cat[0].category == "Stationery"
+        assert res_cat[0].orderCount == 1
+        assert res_cat[0].quantity == 5
+        assert res_cat[0].revenue == 250.0
+
+        # 4. get_fulfillment_time_report
+        res_ft = await analytics_repository.get_fulfillment_time_report(seller_id=10)
+        assert len(res_ft) == 1
+        assert isinstance(res_ft[0], FulfillmentTimeReportResponse)
+        assert res_ft[0].orderId == "101"
+        assert res_ft[0].orderNumber == "ORD-101"
+        assert res_ft[0].userName == "Alice Smith"
+        assert res_ft[0].fulfillmentHours == 4.0
+        assert res_ft[0].orderTotal == 250.0
+    finally:
+        analytics_repository.order_storage.findAll = orig_order_findAll
+        analytics_repository.product_storage.findAll = orig_product_findAll
+        analytics_repository.user_storage.findAll = orig_user_findAll
+        return_request_repository.findAll = orig_return_findAll
+
+
+

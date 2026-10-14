@@ -1673,7 +1673,7 @@ class MySQLOrderDAO:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[PaymentMethodsReportResponse]:
         where_clauses = ["1=1"]
         params = {}
@@ -1723,7 +1723,7 @@ class MySQLOrderDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 20,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[RevenueByCategoryResponse]:
         where_clauses = ["1=1"]
         params = {"limit": limit}
@@ -1775,7 +1775,7 @@ class MySQLOrderDAO:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[FulfillmentTimeReportResponse]:
         where_clauses = [
             "o.status IN ('delivered', 'completed', 'cancelled', 'returned')",
