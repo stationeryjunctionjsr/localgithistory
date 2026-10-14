@@ -149,11 +149,8 @@ class MySQLUserDAO:
                     zone_items.append(UserZoneItem(user_id=r.user_id, zone_id=r.zone_id))
         return UserChildrenBatch(addresses=addr_items, zones=zone_items)
 
-    async def _replace_children(self, session, uid: int, data: User):
-        await session.execute(text('DELETE FROM sj_user_addresses WHERE user_id = :uid'), {'uid': uid})
-        await session.execute(text('DELETE FROM sj_seller_zones WHERE user_id = :uid'), {'uid': uid})
-        address = data.address
-        saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
+    async def _sync_primary_address(self, session, uid: int, address: Optional[AddressSnippet]) -> None:
+        await session.execute(text('DELETE FROM sj_user_addresses WHERE user_id = :uid AND is_primary = 1'), {'uid': uid})
         if address:
             params = {
                 'uid': uid,
@@ -170,32 +167,50 @@ class MySQLUserDAO:
                 'at': address.address,
                 'zc': address.zip_code,
             }
-            await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), params)
-        for a in saved_addresses:
-            if a != address:
-                a_params = {
-                    'uid': uid,
-                    'st': a.street,
-                    'c': a.city,
-                    's': a.state,
-                    'p': a.pincode,
-                    'ph': a.phone,
-                    'd': a.district,
-                    'co': a.country,
-                    'gl': a.google_location,
-                    'lat': a.latitude,
-                    'lon': a.longitude,
-                    'at': a.address,
-                    'zc': a.zip_code,
-                }
-                await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), a_params)
-        for zone_id in data.service_area_zones if data.service_area_zones is not None else []:
+            await session.execute(
+                text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'),
+                params
+            )
+
+    async def _sync_saved_addresses(self, session, uid: int, saved_addresses: Optional[list[AddressSnippet]], primary_address: Optional[AddressSnippet] = None) -> None:
+        await session.execute(text('DELETE FROM sj_user_addresses WHERE user_id = :uid AND is_primary = 0'), {'uid': uid})
+        for a in saved_addresses or []:
+            if primary_address and a == primary_address:
+                continue
+            a_params = {
+                'uid': uid,
+                'st': a.street,
+                'c': a.city,
+                's': a.state,
+                'p': a.pincode,
+                'ph': a.phone,
+                'd': a.district,
+                'co': a.country,
+                'gl': a.google_location,
+                'lat': a.latitude,
+                'lon': a.longitude,
+                'at': a.address,
+                'zc': a.zip_code,
+            }
+            await session.execute(
+                text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'),
+                a_params
+            )
+
+    async def _sync_seller_zones(self, session, uid: int, service_area_zones: Optional[list[int]]) -> None:
+        await session.execute(text('DELETE FROM sj_seller_zones WHERE user_id = :uid'), {'uid': uid})
+        for zone_id in service_area_zones or []:
             if zone_id is None:
                 continue
             name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE id = :zid LIMIT 1'), {'zid': zone_id})
             name_row = name_res.fetchone()
             zone_name = name_row.name if name_row else str(zone_id)
             await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': zone_id})
+
+    async def _replace_children(self, session, uid: int, data: User):
+        await self._sync_primary_address(session, uid, data.address)
+        await self._sync_saved_addresses(session, uid, data.saved_addresses, data.address)
+        await self._sync_seller_zones(session, uid, data.service_area_zones)
 
     async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> list[User]:
         async_session = get_async_session_factory()
@@ -525,107 +540,125 @@ class MySQLUserDAO:
                 await session.rollback()
                 raise e
     async def update(self, id: int, update_data: 'UserInternalUpdate') -> Optional[User]:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
-            
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         now = datetime.now(timezone.utc)
+        updates = ["updated_at = :updated_at"]
+        params = {"id_int": id, "updated_at": now}
+
+        if "name" in fields:
+            updates.append("name = :name")
+            params["name"] = update_data.name
+        if "email" in fields:
+            updates.append("email = :email")
+            params["email"] = update_data.email
+        if "password" in fields:
+            updates.append("password_hash = :password_hash")
+            params["password_hash"] = update_data.password
+        if "role" in fields:
+            updates.append("role = :role")
+            params["role"] = update_data.role
+        if "phone" in fields:
+            updates.append("phone = :phone")
+            params["phone"] = update_data.phone or None
+        if "company_name" in fields:
+            updates.append("company_name = :company_name")
+            params["company_name"] = update_data.company_name
+        if "gstin" in fields:
+            updates.append("gst_number = :gst_number")
+            params["gst_number"] = update_data.gstin
+        if "is_active" in fields:
+            updates.append("is_active = :is_active")
+            params["is_active"] = 1 if update_data.is_active else 0
+        if "approval_status" in fields:
+            updates.append("approval_status = :approval_status")
+            params["approval_status"] = update_data.approval_status
+        if "is_deactivated" in fields:
+            updates.append("is_deactivated = :is_deactivated")
+            params["is_deactivated"] = 1 if update_data.is_deactivated else 0
+        if "credit_limit" in fields:
+            updates.append("credit_limit = :credit_limit")
+            params["credit_limit"] = update_data.credit_limit if update_data.credit_limit is not None else 0
+        if "credit_used" in fields:
+            updates.append("credit_used = :credit_used")
+            params["credit_used"] = update_data.credit_used if update_data.credit_used is not None else 0
+        if "payment_terms" in fields:
+            updates.append("payment_terms = :payment_terms")
+            params["payment_terms"] = update_data.payment_terms
+        if "assigned_salesperson" in fields:
+            updates.append("assigned_salesperson = :assigned_salesperson")
+            params["assigned_salesperson"] = update_data.assigned_salesperson
+        if "is_email_verified" in fields:
+            updates.append("is_email_verified = :is_email_verified")
+            params["is_email_verified"] = 1 if update_data.is_email_verified else 0
+        if "referral_code" in fields:
+            updates.append("referral_code = :referral_code")
+            params["referral_code"] = update_data.referral_code
+        if "is_seller_admin" in fields:
+            updates.append("is_seller_admin = :is_seller_admin")
+            params["is_seller_admin"] = 1 if update_data.is_seller_admin else 0
+        if "is_on_duty" in fields:
+            updates.append("is_on_duty = :is_on_duty")
+            params["is_on_duty"] = 1 if update_data.is_on_duty else 0
+        if "commission_override_pct" in fields:
+            updates.append("commission_override_pct = :commission_override_pct")
+            params["commission_override_pct"] = update_data.commission_override_pct
+        if "upi_id" in fields:
+            updates.append("upi_id = :upi_id")
+            params["upi_id"] = update_data.upi_id
+        if "qr_code_url" in fields:
+            updates.append("qr_code_url = :qr_code_url")
+            params["qr_code_url"] = update_data.qr_code_url
+        if "bank_account_number" in fields:
+            updates.append("bank_account_number = :bank_account_number")
+            params["bank_account_number"] = update_data.bank_account_number
+        if "bank_ifsc_code" in fields:
+            updates.append("bank_ifsc_code = :bank_ifsc_code")
+            params["bank_ifsc_code"] = update_data.bank_ifsc_code
+        if "bank_account_holder" in fields:
+            updates.append("bank_account_holder = :bank_account_holder")
+            params["bank_account_holder"] = update_data.bank_account_holder
+        if "bank_name" in fields:
+            updates.append("bank_name = :bank_name")
+            params["bank_name"] = update_data.bank_name
+
+        has_child_updates = any(k in fields for k in ('address', 'saved_addresses', 'service_area_zones'))
         async_session = get_async_session_factory()
         if not async_session:
             return None
-        
-        # Manually extract fields from the Pydantic update_data model, falling back to existing dict
-        name = update_data.name if update_data.name is not None else existing.name
-        email = update_data.email if update_data.email is not None else existing.email
-        password_hash = update_data.password if update_data.password is not None else existing.password
-        role = update_data.role if update_data.role is not None else existing.role
-        phone = update_data.phone if update_data.phone is not None else existing.phone
-        company_name = update_data.company_name if update_data.company_name is not None else existing.company_name
-        is_active = update_data.is_active if update_data.is_active is not None else existing.is_active
-        approval_status = update_data.approval_status if update_data.approval_status is not None else existing.approval_status
-        gst_number = update_data.gstin if update_data.gstin is not None else None
-        is_deactivated = update_data.is_deactivated if update_data.is_deactivated is not None else existing.is_deactivated
-        credit_limit = update_data.credit_limit if update_data.credit_limit is not None else existing.credit_limit
-        credit_used = update_data.credit_used if update_data.credit_used is not None else existing.credit_used
-        payment_terms = update_data.payment_terms if update_data.payment_terms is not None else existing.payment_terms
-        assigned_salesperson = update_data.assigned_salesperson if update_data.assigned_salesperson is not None else existing.assigned_salesperson
-        is_email_verified = update_data.is_email_verified if update_data.is_email_verified is not None else existing.is_email_verified
-        referral_code = update_data.referral_code if update_data.referral_code is not None else existing.referral_code
-        is_seller_admin = update_data.is_seller_admin if update_data.is_seller_admin is not None else existing.is_seller_admin
-        is_on_duty = update_data.is_on_duty if update_data.is_on_duty is not None else existing.is_on_duty
-        commission_override_pct = update_data.commission_override_pct if update_data.commission_override_pct is not None else existing.commission_override_pct
-        upi_id = update_data.upi_id if update_data.upi_id is not None else existing.upi_id
-        qr_code_url = update_data.qr_code_url if update_data.qr_code_url is not None else existing.qr_code_url
-        bank_account_number = update_data.bank_account_number if update_data.bank_account_number is not None else existing.bank_account_number
-        bank_ifsc_code = update_data.bank_ifsc_code if update_data.bank_ifsc_code is not None else existing.bank_ifsc_code
-        bank_account_holder = update_data.bank_account_holder if update_data.bank_account_holder is not None else existing.bank_account_holder
-        bank_name = update_data.bank_name if update_data.bank_name is not None else existing.bank_name
+
         async with async_session() as session:
             try:
-                await session.execute(text('''
-                    UPDATE sj_users SET
-                        name = :name, email = :email, password_hash = :password_hash, role = :role, phone = :phone,
-                        company_name = :company_name, gst_number = :gst_number, is_active = :is_active, approval_status = :approval_status,
-                        is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
-                        payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
-                        is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
-                        is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct,
-                        upi_id = :upi_id, qr_code_url = :qr_code_url,
-                        bank_account_number = :bank_account_number, bank_ifsc_code = :bank_ifsc_code,
-                        bank_account_holder = :bank_account_holder, bank_name = :bank_name,
-                        updated_at = :updated_at
-                    WHERE id = :id_int
-                '''), {
-                    'id_int': existing.id,
-                    'name': name,
-                    'email': email,
-                    'password_hash': password_hash,
-                    'role': role,
-                    'phone': phone or None,
-                    'company_name': company_name,
-                    'gst_number': gst_number,
-                    'is_active': 1 if (is_active if is_active is not None else True) else 0,
-                    'approval_status': approval_status,
-                    'is_deactivated': 1 if is_deactivated else 0,
-                    'credit_limit': credit_limit if credit_limit is not None else 0,
-                    'credit_used': credit_used if credit_used is not None else 0,
-                    'payment_terms': payment_terms,
-                    'assigned_salesperson': assigned_salesperson,
-                    'is_email_verified': 1 if is_email_verified else 0,
-                    'referral_code': referral_code,
-                    'is_seller_admin': 1 if is_seller_admin else 0,
-                    'is_on_duty': 1 if is_on_duty else 0,
-                    'commission_override_pct': commission_override_pct,
-                    'upi_id': upi_id,
-                    'qr_code_url': qr_code_url,
-                    'bank_account_number': bank_account_number,
-                    'bank_ifsc_code': bank_ifsc_code,
-                    'bank_account_holder': bank_account_holder,
-                    'bank_name': bank_name,
-                    'updated_at': now
-                })
-            
-                child_keys = ['address', 'saved_addresses', 'service_area_zones']
-                has_child_updates = False
-                for k in child_keys:
-                    if k in update_data.model_fields_set:
-                        has_child_updates = True
-                        
-                if has_child_updates:
-                    fields_set = update_data.model_fields_set
-                    if "address" in fields_set:
-                        existing.address = update_data.address
-                    if "saved_addresses" in fields_set:
-                        existing.saved_addresses = update_data.saved_addresses
-                    if "service_area_zones" in fields_set:
-                        existing.service_area_zones = update_data.service_area_zones
-                            
-                    await self._replace_children(session, existing.id, existing)
-                
+                rowcount = 0
+                if len(updates) > 1:
+                    set_sql = ", ".join(updates)
+                    result = await session.execute(
+                        text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id_int"),
+                        params,
+                    )
+                    rowcount = result.rowcount
+
+                if "address" in fields:
+                    await self._sync_primary_address(session, id, update_data.address)
+                if "saved_addresses" in fields:
+                    await self._sync_saved_addresses(session, id, update_data.saved_addresses or [], update_data.address)
+                if "service_area_zones" in fields:
+                    await self._sync_seller_zones(session, id, update_data.service_area_zones or [])
+
                 await session.commit()
+
+                if rowcount == 0 and not has_child_updates:
+                    existing = await self.findById(id)
+                    if not existing:
+                        return None
             except Exception as e:
                 await session.rollback()
                 raise e
+
         return await self.findById(id)
     async def delete(self, id: int) -> bool:
         if not id:

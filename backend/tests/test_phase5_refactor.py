@@ -45,9 +45,10 @@ def test_zero_defaultdict_in_all_phase5_modules():
 
 
 def test_saved_for_later_dao_no_isinstance_in_to_ts():
-    source = inspect.getsource(saved_for_later_dao_mod._to_ts)
-    assert "isinstance" not in source, "Found isinstance in _to_ts"
-    assert "type(val) is not str" in source, "Expected exact type check in _to_ts"
+    from app.models.saved_for_later import SavedForLaterItem
+    item = SavedForLaterItem(created_at="2026-10-14T12:00:00Z")
+    assert item.created_at.tzinfo is None
+    assert not hasattr(saved_for_later_dao_mod, "_to_ts")
 
 
 @pytest.mark.asyncio

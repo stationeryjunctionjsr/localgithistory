@@ -43,9 +43,6 @@ class MySQLSubOrderDAO:
     def items_table_name(self) -> str:
         return "sj_sub_order_items"
 
-    def _get_session_factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, row, items_rows=None) -> SubOrder:
         sub = SubOrder.model_validate(row)
         if items_rows:
@@ -64,7 +61,7 @@ class MySQLSubOrderDAO:
         return sub
 
     async def findAll(self, filter_params: Optional[SubOrderFilter] = None, skip: int = 0, limit: int = 0) -> List[SubOrder]:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return []
 
@@ -110,7 +107,7 @@ class MySQLSubOrderDAO:
             return [self._map_to_schema(r, items_rows) for r in rows]
 
     async def findById(self, id: int) -> Optional[SubOrder]:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory or not id:
             return None
         async with factory() as session:
@@ -127,7 +124,7 @@ class MySQLSubOrderDAO:
             return self._map_to_schema(row, items_rows)
 
     async def findByParentOrder(self, parent_order_id: int) -> List[SubOrder]:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory or not parent_order_id:
             return []
         async with factory() as session:
@@ -149,7 +146,7 @@ class MySQLSubOrderDAO:
         return await self.findAll(f, skip=skip, limit=limit)
 
     async def count(self, filter_params: Optional[SubOrderFilter] = None) -> int:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return 0
         where_clauses = []
@@ -185,7 +182,7 @@ class MySQLSubOrderDAO:
             return result.scalar() or 0
 
     async def create(self, data: SubOrderInternalCreate) -> SubOrder:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
@@ -310,20 +307,10 @@ class MySQLSubOrderDAO:
 
             await session.commit()
 
-        return await self.findById(str(new_id))
-
-    def _parse_dt(self, dt_val):
-        if not dt_val:
-            return None
-        try:
-            return datetime.fromisoformat(dt_val.replace('Z', '+00:00'))
-        except AttributeError:
-            return dt_val
-        except (ValueError, TypeError):
-            return None
+        return await self.findById(int(new_id))
 
     async def update(self, id: int, update_data: SubOrderInternalUpdate) -> Optional[SubOrder]:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory or not id:
             return None
         row_id = id
@@ -337,19 +324,19 @@ class MySQLSubOrderDAO:
             params["status"] = data.status
         if data.shipped_at is not None:
             set_clauses.append("dispatched_at = :dispatched_at")
-            params["dispatched_at"] = self._parse_dt(data.shipped_at)
+            params["dispatched_at"] = data.shipped_at
         if data.delivered_at is not None:
             set_clauses.append("delivered_at = :delivered_at")
-            params["delivered_at"] = self._parse_dt(data.delivered_at)
+            params["delivered_at"] = data.delivered_at
         if data.cancelled_at is not None:
             set_clauses.append("cancelled_at = :cancelled_at")
-            params["cancelled_at"] = self._parse_dt(data.cancelled_at)
+            params["cancelled_at"] = data.cancelled_at
         if data.pickup_status is not None:
             set_clauses.append("pickup_status = :pickup_status")
             params["pickup_status"] = data.pickup_status
         if data.picked_up_at is not None:
             set_clauses.append("picked_up_at = :picked_up_at")
-            params["picked_up_at"] = self._parse_dt(data.picked_up_at)
+            params["picked_up_at"] = data.picked_up_at
         if data.commission_pct is not None:
             set_clauses.append("commission_pct = :commission_pct")
             params["commission_pct"] = data.commission_pct
@@ -384,7 +371,7 @@ class MySQLSubOrderDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory or not id:
             return False
         async with factory() as session:

@@ -63,9 +63,9 @@ class MySQLCommissionSettingsDAO:
         return out
 
     async def findById(self, id: int) -> Optional[CommissionSettings]:
-        factory = self._factory()
+        async_session = get_async_session_factory()
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT id, default_commission_pct, created_at, updated_at FROM {self.TABLE} WHERE id = :id"),
                 {"id": id}
@@ -113,10 +113,10 @@ class MySQLCommissionSettingsDAO:
             )
 
     async def create(self, data: CommissionSettingsInternalCreate) -> CommissionSettings:
-        factory = self._factory()
+        async_session = get_async_session_factory()
         now = now_utc()
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE} (default_commission_pct, created_at, updated_at) 
@@ -166,8 +166,13 @@ class MySQLCommissionSettingsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
+        if not id:
+            return False
         async_session = get_async_session_factory()
         async with async_session() as session:
+            await session.execute(
+                text("DELETE FROM sj_commission_settings_tiers WHERE setting_id = :id"), {"id": id}
+            )
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )

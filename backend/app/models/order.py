@@ -1,9 +1,7 @@
 from app.models.schemas import ItemSnippet as OrderItem, Address, ValetDeclineHistoryEntry
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Any, Dict
-from pydantic import BaseModel, Field
-from app.models.base import CamelBaseModel
-from pydantic import ConfigDict, AliasChoices
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices, field_validator
 from app.models.base import CamelBaseModel
 
 class OrderAddress(CamelBaseModel):
@@ -181,34 +179,42 @@ class OrderInternalCreate(CamelBaseModel):
     is_urgent_delivery: bool = False
     pending_valet_id: Optional[str] = None
     invoice_path: Optional[str] = None
-    invoice_generated_at: Optional[str] = None
-    valet_declined_at: Optional[str] = None
+    invoice_generated_at: Optional[datetime] = None
+    valet_declined_at: Optional[datetime] = None
     valet_decline_reason: Optional[str] = None
-    valet_cascade_count: Optional[int] = None
-    valet_assigned_at: Optional[str] = None
-    valet_accepted_at: Optional[str] = None
-    cancelled_by: Optional[str] = None
-    valet_assigned_at: Optional[str] = None
     valet_cascade_count: Optional[int] = 0
-    turnaround_hours: Optional[float] = None
-    shipped_at: Optional[str] = None
-    valet_decline_history: Optional[List[ValetDeclineHistoryEntry]] = None
-    delivered_at: Optional[str] = None
-    cod_payment_received: bool = False
-    cod_payment_received_at: Optional[str] = None
-    decline_reason: Optional[str] = None
-    cancelled_at: Optional[str] = None
+    valet_assigned_at: Optional[datetime] = None
+    valet_accepted_at: Optional[datetime] = None
     cancelled_by: Optional[str] = None
-    created_at: Optional[str] = None
+    turnaround_hours: Optional[float] = None
+    shipped_at: Optional[datetime] = None
+    valet_decline_history: Optional[List[ValetDeclineHistoryEntry]] = None
+    delivered_at: Optional[datetime] = None
+    cod_payment_received: bool = False
+    cod_payment_received_at: Optional[datetime] = None
+    decline_reason: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
     idempotency_key: Optional[str] = None
     fulfillment_type: str = "hyperlocal"
     courier_partner: Optional[str] = None
     tracking_id: Optional[str] = None
     awb_code: Optional[str] = None
     shipping_label_url: Optional[str] = None
-    estimated_delivery_date: Optional[str] = None
+    estimated_delivery_date: Optional[datetime] = None
     has_sub_orders: Optional[bool] = None
     sub_order_ids: Optional[List[int]] = None
+
+    @field_validator(
+        'invoice_generated_at', 'valet_declined_at', 'valet_assigned_at',
+        'valet_accepted_at', 'shipped_at', 'delivered_at', 'cod_payment_received_at',
+        'cancelled_at', 'created_at', 'estimated_delivery_date', mode='after'
+    )
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is not None and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
 
 class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
 
@@ -250,14 +256,14 @@ class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
     items: Optional[List['OrderItem']] = None
 
     status: Optional[str] = None
-    shipped_at: Optional[str] = None
+    shipped_at: Optional[datetime] = None
     valet_decline_history: Optional[List[ValetDeclineHistoryEntry]] = None
-    delivered_at: Optional[str] = None
+    delivered_at: Optional[datetime] = None
     payment_status: Optional[str] = None
     cod_payment_received: Optional[bool] = None
-    cod_payment_received_at: Optional[str] = None
+    cod_payment_received_at: Optional[datetime] = None
     turnaround_hours: Optional[float] = None
-    cancelled_at: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
     fulfillment_status: Optional[str] = None
     shipping: Optional[float] = None
     total: Optional[float] = None
@@ -265,24 +271,33 @@ class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
     decline_reason: Optional[str] = None
     pending_valet_id: Optional[str] = None
     invoice_path: Optional[str] = None
-    invoice_generated_at: Optional[str] = None
-    valet_declined_at: Optional[str] = None
+    invoice_generated_at: Optional[datetime] = None
+    valet_declined_at: Optional[datetime] = None
     valet_decline_reason: Optional[str] = None
     valet_cascade_count: Optional[int] = None
-    valet_assigned_at: Optional[str] = None
-    valet_accepted_at: Optional[str] = None
-    cancelled_by: Optional[str] = None
-    valet_assigned_at: Optional[str] = None
+    valet_assigned_at: Optional[datetime] = None
+    valet_accepted_at: Optional[datetime] = None
     cancelled_by: Optional[str] = None
     has_sub_orders: Optional[bool] = None
     sub_order_ids: Optional[List[int]] = None
     tracking_id: Optional[str] = None
     courier_partner: Optional[str] = None
-    tracking_updated_at: Optional[str] = None
+    tracking_updated_at: Optional[datetime] = None
     fulfillment_type: Optional[str] = None
     awb_code: Optional[str] = None
     shipping_label_url: Optional[str] = None
-    estimated_delivery_date: Optional[str] = None
+    estimated_delivery_date: Optional[datetime] = None
+
+    @field_validator(
+        'invoice_generated_at', 'valet_declined_at', 'valet_assigned_at',
+        'valet_accepted_at', 'shipped_at', 'delivered_at', 'cod_payment_received_at',
+        'cancelled_at', 'estimated_delivery_date', 'tracking_updated_at', mode='after'
+    )
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is not None and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
 
 from app.models.sub_order import SubOrder
 Order.model_rebuild()

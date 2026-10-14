@@ -38,9 +38,6 @@ class MySQLSellerAvailabilityDAO:
     def table_name(self) -> str:
         return "sj_seller_availability"
 
-    def _get_session_factory(self):
-        return get_async_session_factory()
-
     def __map_to_schema(self, row) -> SellerAvailability:
         return SellerAvailability.model_validate(row)
 
@@ -48,7 +45,7 @@ class MySQLSellerAvailabilityDAO:
         self,
         filters: Optional[SellerAvailabilityFilter] = None,
     ) -> list[SellerAvailability]:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return []
 
@@ -97,7 +94,7 @@ class MySQLSellerAvailabilityDAO:
         self,
         filters: Optional[SellerAvailabilityFilter] = None,
     ) -> int:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return 0
 
@@ -131,7 +128,7 @@ class MySQLSellerAvailabilityDAO:
             return int(result.scalar() or 0)
 
     async def create(self, data: SellerAvailabilityInternalCreate) -> SellerAvailability:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
@@ -161,7 +158,7 @@ class MySQLSellerAvailabilityDAO:
     async def update(
         self, id: int, update_data: SellerAvailabilityInternalUpdate
     ) -> Optional[SellerAvailability]:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory or not id:
             return None
         now = datetime.now(timezone.utc)
@@ -197,7 +194,7 @@ class MySQLSellerAvailabilityDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory or not id:
             return False
         async with factory() as session:
@@ -211,7 +208,7 @@ class MySQLSellerAvailabilityDAO:
         self, seller_id: str, as_of: Optional[datetime] = None
     ) -> bool:
         """Check whether a seller has an active unavailability window right now via indexed pushdown SQL."""
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return False
         check_time = as_of or datetime.now(timezone.utc)
@@ -231,7 +228,7 @@ class MySQLSellerAvailabilityDAO:
         self, as_of: Optional[datetime] = None
     ) -> set[str]:
         """Fetch all unique seller IDs currently within an unavailability window via pushdown SQL."""
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return set()
         check_time = as_of or datetime.now(timezone.utc)
@@ -251,7 +248,7 @@ class MySQLSellerAvailabilityDAO:
         """Find latest end_at timestamp across active windows for given sellers via pushdown SQL MAX()."""
         if not seller_ids:
             return None
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return None
         check_time = as_of or datetime.now(timezone.utc)
@@ -281,7 +278,7 @@ class MySQLSellerAvailabilityDAO:
         """Fetch map of seller_id -> latest end_at ISO string via pushdown SQL GROUP BY."""
         if not seller_ids:
             return {}
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return {}
         check_time = as_of or datetime.now(timezone.utc)
@@ -312,7 +309,7 @@ class MySQLSellerAvailabilityDAO:
         self, as_of: Optional[datetime] = None
     ) -> tuple[int, int]:
         """Advance scheduled -> active and active -> ended in atomic batch updates without row-by-row loops."""
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return 0, 0
         now = as_of or datetime.now(timezone.utc)
@@ -340,7 +337,7 @@ class MySQLSellerAvailabilityDAO:
         self, filters: Optional[SellerAvailabilityFilter] = None
     ) -> list[SellerAvailabilityEnriched]:
         """Fetch all availability windows joined with user details, sorted by start_at DESC via native SQL."""
-        factory = self._get_session_factory()
+        factory = get_async_session_factory()
         if not factory:
             return []
 

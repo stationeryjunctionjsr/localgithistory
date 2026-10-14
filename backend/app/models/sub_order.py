@@ -1,8 +1,8 @@
 from typing import Optional, List, Any, Dict, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
 if TYPE_CHECKING:
     from app.models.schemas import AddressSnippet as Address
-from pydantic import Field, BaseModel, computed_field
+from pydantic import Field, BaseModel, computed_field, ConfigDict, field_validator
 from app.models.base import CamelBaseModel
 
 class CouponInfo(CamelBaseModel):
@@ -148,11 +148,11 @@ class SubOrderInternalCreate(CamelBaseModel):
 class SubOrderInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     status: Optional[str] = None
-    shipped_at: Optional[str] = None
-    delivered_at: Optional[str] = None
-    cancelled_at: Optional[str] = None
+    shipped_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
     pickup_status: Optional[str] = None
-    picked_up_at: Optional[str] = None
+    picked_up_at: Optional[datetime] = None
     commission_pct: Optional[float] = None
     commission_amount: Optional[float] = None
     commission_status: Optional[str] = None
@@ -161,6 +161,13 @@ class SubOrderInternalUpdate(CamelBaseModel):
     courier_partner: Optional[str] = None
     tracking_id: Optional[str] = None
     awb_code: Optional[str] = None
+
+    @field_validator('shipped_at', 'delivered_at', 'cancelled_at', 'picked_up_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is not None and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
 
 class SubOrderFilter(CamelBaseModel):
     id: Optional[int] = None

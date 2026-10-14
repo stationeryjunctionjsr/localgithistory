@@ -1,12 +1,18 @@
 from app.models.base import CamelBaseModel
 from typing import List, Optional, Any
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.models.schemas import (
     VisibilityRuleSnippet, ProductDetails, VariantAttributes,
     NotificationMetadata, ProductSellerEntry, VariantOption
 )
 from app.models.seller_request import SellerRequestResponseItem
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _ensure_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
+    if v is not None and v.tzinfo is not None:
+        return v.astimezone(timezone.utc).replace(tzinfo=None)
+    return v
 
 class CartItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -34,11 +40,16 @@ class PaymentEntryInternal(CamelBaseModel):
     entry_id: Optional[int] = None
     amount: Optional[float] = 0.0
     payment_method: Optional[str] = None
-    paid_at: Optional[str] = None
+    paid_at: Optional[datetime] = None
     image: Optional[str] = None
     notes: Optional[str] = None
     verified: Optional[bool] = False
     created_at: Optional[datetime] = None
+
+    @field_validator('paid_at', 'created_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class PaymentInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -46,7 +57,7 @@ class PaymentInternalCreate(CamelBaseModel):
     user_id: Optional[str] = None
     user_id_formatted: Optional[str] = None
     customer_name: Optional[str] = None
-    order_date: Optional[str] = None
+    order_date: Optional[datetime] = None
     payment_method: Optional[str] = None
     amount_paid: Optional[float] = 0.0
     amount_remaining: Optional[float] = 0.0
@@ -56,13 +67,18 @@ class PaymentInternalCreate(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    @field_validator('order_date', 'created_at', 'updated_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
+
 class PaymentInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     order_id: Optional[str] = None
     user_id: Optional[str] = None
     user_id_formatted: Optional[str] = None
     customer_name: Optional[str] = None
-    order_date: Optional[str] = None
+    order_date: Optional[datetime] = None
     payment_method: Optional[str] = None
     amount_paid: Optional[float] = None
     amount_remaining: Optional[float] = None
@@ -71,6 +87,11 @@ class PaymentInternalUpdate(CamelBaseModel):
     payment_entries: Optional[List[PaymentEntryInternal]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    @field_validator('order_date', 'created_at', 'updated_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class VisibilityRuleInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -132,31 +153,41 @@ class SellerPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     seller_id: Optional[str] = None
     amount: Optional[float] = 0.0
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
     status: Optional[str] = 'pending_payment'
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
-    admin_paid_at: Optional[str] = None
+    admin_paid_at: Optional[datetime] = None
     admin_paid_by: Optional[str] = None
-    seller_received_at: Optional[str] = None
+    seller_received_at: Optional[datetime] = None
     notes: Optional[str] = None
     sub_order_ids: Optional[List[int]] = []
+
+    @field_validator('period_start', 'period_end', 'admin_paid_at', 'seller_received_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class SellerPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     seller_id: Optional[str] = None
     amount: Optional[float] = None
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
     status: Optional[str] = None
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
-    admin_paid_at: Optional[str] = None
+    admin_paid_at: Optional[datetime] = None
     admin_paid_by: Optional[str] = None
-    seller_received_at: Optional[str] = None
+    seller_received_at: Optional[datetime] = None
     notes: Optional[str] = None
     sub_order_ids: Optional[List[int]] = None
+
+    @field_validator('period_start', 'period_end', 'admin_paid_at', 'seller_received_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class ValetPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -164,15 +195,20 @@ class ValetPayoutInternalCreate(CamelBaseModel):
     amount: Optional[float] = 0.0
     delivery_count: Optional[int] = 0
     return_count: Optional[int] = 0
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
     status: Optional[str] = 'pending_payment'
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    admin_paid_at: Optional[str] = None
+    admin_paid_at: Optional[datetime] = None
     admin_paid_by: Optional[str] = None
-    valet_received_at: Optional[str] = None
+    valet_received_at: Optional[datetime] = None
+
+    @field_validator('period_start', 'period_end', 'admin_paid_at', 'valet_received_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class ValetPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -180,15 +216,20 @@ class ValetPayoutInternalUpdate(CamelBaseModel):
     amount: Optional[float] = None
     delivery_count: Optional[int] = None
     return_count: Optional[int] = None
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
     status: Optional[str] = None
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    admin_paid_at: Optional[str] = None
+    admin_paid_at: Optional[datetime] = None
     admin_paid_by: Optional[str] = None
-    valet_received_at: Optional[str] = None
+    valet_received_at: Optional[datetime] = None
+
+    @field_validator('period_start', 'period_end', 'admin_paid_at', 'valet_received_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class ValetAvailabilityInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -249,6 +290,11 @@ class SessionInternalCreate(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    @field_validator('last_active_at', 'revoked_at', 'created_at', 'updated_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
+
 class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     id: Optional[int] = None
@@ -270,13 +316,23 @@ class SessionInternalUpdate(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    @field_validator('last_active_at', 'revoked_at', 'created_at', 'updated_at', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
+
 
 class WishlistItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[int] = None
     product: int
     quantity: Optional[int] = 1
-    addedAt: Optional[str] = None
+    addedAt: Optional[datetime] = None
+
+    @field_validator('addedAt', mode='after')
+    @classmethod
+    def clean_dt(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return _ensure_naive_utc(v)
 
 class WishlistInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)

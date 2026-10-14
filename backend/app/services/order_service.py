@@ -261,10 +261,12 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
 
         for item in order.items if order.items else []:
             # ItemSnippet.product holds the product ID reference
-            pid = str(item.product) if item.product else (str(item.product_id) if item.product_id else None)
-
-            if pid and str(pid).isdigit():
-                product_ids.add(str(pid))
+            pid = item.product if item.product is not None else item.product_id
+            if pid is not None:
+                try:
+                    product_ids.add(int(pid))
+                except (ValueError, TypeError):
+                    pass
 
     # 2. Fetch all required users, valets, products, and payments in parallel
     users_task = get_storage("users").findAll(UserFilter(allowed_ids=list(

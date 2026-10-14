@@ -15,18 +15,6 @@ from app.config.settings import settings
 from app.db.db_utils import now_utc
 
 
-def _to_ts(value: Optional[Union[str, datetime]]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except AttributeError:
-        return value
-    except Exception as e:
-        logging.warning("mysql_session_dao._to_ts: could not parse timestamp %r: %s", value, e, exc_info=e)
-        return None
-
-
 class MySQLSessionDAO:
     @property
     def TABLE(self):
@@ -127,8 +115,8 @@ class MySQLSessionDAO:
                     "user_id": user_id,
                     "refresh_token_id": data.refresh_token_id,
                     "status": data.status,
-                    "last_active_at": _to_ts(data.last_active_at),
-                    "revoked_at": _to_ts(data.revoked_at),
+                    "last_active_at": data.last_active_at,
+                    "revoked_at": data.revoked_at,
                     "revoked_reason": data.revoked_reason,
                     "is_guest": 1 if data.is_guest else 0,
                     "comments": data.comment,
@@ -153,7 +141,11 @@ class MySQLSessionDAO:
             params["user_id"] = update_data.user_id
         elif "user" in update_data.model_fields_set:
             updates.append("user_id = :user_id")
-            params["user_id"] = int(update_data.user) if update_data.user is not None and str(update_data.user).isdigit() else None
+            uid = update_data.user
+            try:
+                params["user_id"] = int(uid) if uid is not None else None
+            except (ValueError, TypeError):
+                params["user_id"] = None
 
         if "refresh_token_id" in update_data.model_fields_set:
             updates.append("refresh_token_id = :refresh_token_id")
@@ -165,11 +157,11 @@ class MySQLSessionDAO:
 
         if "last_active_at" in update_data.model_fields_set:
             updates.append("last_active_at = :last_active_at")
-            params["last_active_at"] = _to_ts(update_data.last_active_at)
+            params["last_active_at"] = update_data.last_active_at
 
         if "revoked_at" in update_data.model_fields_set:
             updates.append("revoked_at = :revoked_at")
-            params["revoked_at"] = _to_ts(update_data.revoked_at)
+            params["revoked_at"] = update_data.revoked_at
 
         if "revoked_reason" in update_data.model_fields_set:
             updates.append("revoked_reason = :revoked_reason")

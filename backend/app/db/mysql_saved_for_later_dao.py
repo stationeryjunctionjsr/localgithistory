@@ -15,18 +15,6 @@ from app.config.settings import settings
 from app.db.db_utils import now_utc
 
 
-def _to_ts(val):
-    if val is None:
-        return None
-    if type(val) is not str:
-        return val
-    try:
-        return datetime.fromisoformat(val.replace("Z", "+00:00"))
-    except Exception as e:
-        logging.warning("mysql_saved_for_later_dao._to_ts: could not parse timestamp %r: %s", val, e, exc_info=e)
-        return None
-
-
 class MySQLSavedForLaterDAO:
     @property
     def TABLE(self) -> str:
@@ -109,7 +97,7 @@ class MySQLSavedForLaterDAO:
                 product_id = item.product
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.created_at) or now
+                saved_at = item.created_at or now
                 await session.execute(
                     text(
                         f"""
@@ -146,7 +134,7 @@ class MySQLSavedForLaterDAO:
                 product_id = item.product or item.product_id
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.created_at or item.saved_at) or now
+                saved_at = item.created_at or item.saved_at or now
                 await session.execute(
                     text(
                         f"""

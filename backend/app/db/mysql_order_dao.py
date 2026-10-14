@@ -1,7 +1,7 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from app.models.daos import OrderFilter
-from app.models.order import Order
-from typing import Any, List, Optional, Set, Tuple, NamedTuple, TypedDict
+from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
+from typing import Any, List, Optional, Set, Tuple, NamedTuple, TypedDict, Union
 import logging
 from datetime import datetime
 
@@ -25,16 +25,6 @@ class OrderKpiStats(CamelBaseModel):
     returning_customer_rate: float = 0.0
     orders_fulfilled: int = 0
     orders: int = 0
-
-
-def _to_ts(value: Optional[str]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception as e:
-        logging.warning("mysql_order_dao._to_ts: could not parse timestamp %r: %s", value, e, exc_info=e)
-        return None
 
 
 class MySQLOrderDAO:
@@ -388,7 +378,7 @@ class MySQLOrderDAO:
 
             return [self.__map_to_schema(r, items_rows, declines_rows) for r in rows]
 
-    async def _replace_children(self, session, order_id: int, items: List[ItemSnippet], declines: List[ValetDeclineHistoryEntry]) -> None:
+    async def _sync_items(self, session, order_id: int, items: Optional[List[ItemSnippet]]) -> None:
         await session.execute(
             text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
             {"order_id": order_id},
@@ -412,7 +402,8 @@ class MySQLOrderDAO:
                 ),
                 {"order_id": order_id, "product_id": pid, "quantity": qty, "price": price},
             )
-            
+
+    async def _sync_valet_declines(self, session, order_id: int, declines: Optional[List[ValetDeclineHistoryEntry]]) -> None:
         await session.execute(
             text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
             {"order_id": order_id},
@@ -422,6 +413,10 @@ class MySQLOrderDAO:
                 text("INSERT INTO sj_order_valet_declines (parent_id, valet_id, reason) VALUES (:order_id, :vid, :r)"),
                 {"order_id": order_id, "vid": str((d.valet_id if d.valet_id is not None else "")), "r": d.reason}
             )
+
+    async def _replace_children(self, session, order_id: int, items: List[ItemSnippet], declines: List[ValetDeclineHistoryEntry]) -> None:
+        await self._sync_items(session, order_id, items)
+        await self._sync_valet_declines(session, order_id, declines)
 
     async def ensure_idempotency_index(self) -> None:
         pass
@@ -517,14 +512,14 @@ class MySQLOrderDAO:
                     "assigned_valet": data.assigned_valet,
                     "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
                     "pending_valet_id": data.pending_valet_id,
-                    "valet_assigned_at": _to_ts(data.valet_assigned_at),
+                    "valet_assigned_at": data.valet_assigned_at,
                     "valet_cascade_count": data.valet_cascade_count or 0,
-                    "shipped_at": _to_ts(data.shipped_at),
-                    "delivered_at": _to_ts(data.delivered_at),
+                    "shipped_at": data.shipped_at,
+                    "delivered_at": data.delivered_at,
                     "cod_payment_received": 1 if data.cod_payment_received else 0,
-                    "cod_payment_received_at": _to_ts(data.cod_payment_received_at),
+                    "cod_payment_received_at": data.cod_payment_received_at,
                     "decline_reason": data.decline_reason,
-                    "cancelled_at": _to_ts(data.cancelled_at),
+                    "cancelled_at": data.cancelled_at,
                     "cancelled_by": data.cancelled_by,
                     "turnaround_hours": data.turnaround_hours,
                     "idempotency_key": data.idempotency_key,
@@ -533,8 +528,8 @@ class MySQLOrderDAO:
                     "tracking_id": data.tracking_id,
                     "awb_code": data.awb_code,
                     "shipping_label_url": data.shipping_label_url,
-                    "estimated_delivery_date": _to_ts(data.estimated_delivery_date),
-                    "created_at": _to_ts(data.created_at) or now,
+                    "estimated_delivery_date": data.estimated_delivery_date,
+                    "created_at": data.created_at or now,
                     "updated_at": now,
                 },
             )
@@ -554,139 +549,238 @@ class MySQLOrderDAO:
                 )
                 return existing, False
 
-    async def update(self, id: int, update_data: 'OrderInternalUpdate') -> Optional[Order]:
-        existing = await self.findById(id)
-        if not existing:
+    async def update(self, id: Union[int, str], update_data: 'OrderInternalUpdate') -> Optional[Order]:
+        if id is None:
             return None
-        now = now_utc()
-        oid = int(existing.id)
-        raw_user_id = update_data.user if update_data.user is not None else existing.user
-        uid = None
-        if raw_user_id is not None:
-            try:
-                uid = int(raw_user_id)
-            except (ValueError, TypeError):
-                uid = None
+        try:
+            oid = int(id)
+        except (ValueError, TypeError):
+            return None
 
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(oid)
+
+        now = now_utc()
+        updates = ["updated_at = :updated_at"]
+        params: dict[str, Any] = {"id": oid, "updated_at": now}
+
+        if "user" in fields:
+            raw_uid = update_data.user
+            uid = None
+            if raw_uid is not None:
+                try:
+                    uid = int(raw_uid)
+                except (ValueError, TypeError):
+                    uid = None
+            updates.append("user_id = :user_id")
+            params["user_id"] = uid
+        if "order_number" in fields:
+            updates.append("order_number = :order_number")
+            params["order_number"] = update_data.order_number
+        if "status" in fields:
+            updates.append("status = :status")
+            params["status"] = update_data.status
+        if "total" in fields:
+            updates.append("total = :total")
+            params["total"] = update_data.total
+        if "subtotal" in fields:
+            updates.append("subtotal = :subtotal")
+            params["subtotal"] = update_data.subtotal
+        if "tax" in fields:
+            updates.append("tax = :tax")
+            params["tax"] = update_data.tax
+        if "shipping" in fields:
+            updates.append("shipping = :shipping")
+            params["shipping"] = update_data.shipping
+        if "discount" in fields:
+            updates.append("discount = :discount")
+            params["discount"] = update_data.discount
+        if "order_type" in fields:
+            updates.append("order_type = :order_type")
+            params["order_type"] = update_data.order_type
+        if "payment_status" in fields:
+            updates.append("payment_status = :payment_status")
+            params["payment_status"] = update_data.payment_status
+        if "payment_method" in fields:
+            updates.append("payment_method = :payment_method")
+            params["payment_method"] = update_data.payment_method
+        if "upi_payment_screenshot" in fields:
+            updates.append("upi_payment_screenshot = :upi_payment_screenshot")
+            params["upi_payment_screenshot"] = update_data.upi_payment_screenshot
+        if "ship_name" in fields:
+            updates.append("ship_name = :ship_name")
+            params["ship_name"] = update_data.ship_name
+        if "ship_street" in fields:
+            updates.append("ship_street = :ship_street")
+            params["ship_street"] = update_data.ship_street
+        if "ship_city" in fields:
+            updates.append("ship_city = :ship_city")
+            params["ship_city"] = update_data.ship_city
+        if "ship_state" in fields:
+            updates.append("ship_state = :ship_state")
+            params["ship_state"] = update_data.ship_state
+        if "ship_pincode" in fields:
+            updates.append("ship_pincode = :ship_pincode")
+            params["ship_pincode"] = update_data.ship_pincode
+        if "ship_phone" in fields:
+            updates.append("ship_phone = :ship_phone")
+            params["ship_phone"] = update_data.ship_phone
+        if "ship_address" in fields:
+            updates.append("ship_address = :ship_address")
+            params["ship_address"] = update_data.ship_address
+        if "ship_district" in fields:
+            updates.append("ship_district = :ship_district")
+            params["ship_district"] = update_data.ship_district
+        if "ship_country" in fields:
+            updates.append("ship_country = :ship_country")
+            params["ship_country"] = update_data.ship_country
+        if "ship_google_location" in fields:
+            updates.append("ship_google_location = :ship_google_location")
+            params["ship_google_location"] = update_data.ship_google_location
+        if "ship_latitude" in fields:
+            updates.append("ship_latitude = :ship_latitude")
+            params["ship_latitude"] = update_data.ship_latitude
+        if "ship_longitude" in fields:
+            updates.append("ship_longitude = :ship_longitude")
+            params["ship_longitude"] = update_data.ship_longitude
+        if "bill_name" in fields:
+            updates.append("bill_name = :bill_name")
+            params["bill_name"] = update_data.bill_name
+        if "bill_street" in fields:
+            updates.append("bill_street = :bill_street")
+            params["bill_street"] = update_data.bill_street
+        if "bill_city" in fields:
+            updates.append("bill_city = :bill_city")
+            params["bill_city"] = update_data.bill_city
+        if "bill_state" in fields:
+            updates.append("bill_state = :bill_state")
+            params["bill_state"] = update_data.bill_state
+        if "bill_pincode" in fields:
+            updates.append("bill_pincode = :bill_pincode")
+            params["bill_pincode"] = update_data.bill_pincode
+        if "bill_phone" in fields:
+            updates.append("bill_phone = :bill_phone")
+            params["bill_phone"] = update_data.bill_phone
+        if "bill_address" in fields:
+            updates.append("bill_address = :bill_address")
+            params["bill_address"] = update_data.bill_address
+        if "bill_district" in fields:
+            updates.append("bill_district = :bill_district")
+            params["bill_district"] = update_data.bill_district
+        if "bill_country" in fields:
+            updates.append("bill_country = :bill_country")
+            params["bill_country"] = update_data.bill_country
+        if "bill_google_location" in fields:
+            updates.append("bill_google_location = :bill_google_location")
+            params["bill_google_location"] = update_data.bill_google_location
+        if "bill_latitude" in fields:
+            updates.append("bill_latitude = :bill_latitude")
+            params["bill_latitude"] = update_data.bill_latitude
+        if "bill_longitude" in fields:
+            updates.append("bill_longitude = :bill_longitude")
+            params["bill_longitude"] = update_data.bill_longitude
+        if "notes" in fields:
+            updates.append("notes = :notes")
+            params["notes"] = update_data.notes
+        if "printed_bill" in fields:
+            updates.append("printed_bill = :printed_bill")
+            params["printed_bill"] = 1 if update_data.printed_bill else 0
+        if "assigned_valet" in fields:
+            updates.append("assigned_valet = :assigned_valet")
+            params["assigned_valet"] = update_data.assigned_valet
+        if "pending_valet_id" in fields:
+            updates.append("pending_valet_id = :pending_valet_id")
+            params["pending_valet_id"] = update_data.pending_valet_id
+        if "valet_assigned_at" in fields:
+            updates.append("valet_assigned_at = :valet_assigned_at")
+            params["valet_assigned_at"] = update_data.valet_assigned_at
+        if "valet_cascade_count" in fields:
+            updates.append("valet_cascade_count = :valet_cascade_count")
+            params["valet_cascade_count"] = update_data.valet_cascade_count if update_data.valet_cascade_count is not None else 0
+        if "is_urgent_delivery" in fields:
+            updates.append("is_urgent_delivery = :is_urgent_delivery")
+            params["is_urgent_delivery"] = 1 if update_data.is_urgent_delivery else 0
+        if "shipped_at" in fields:
+            updates.append("shipped_at = :shipped_at")
+            params["shipped_at"] = update_data.shipped_at
+        if "delivered_at" in fields:
+            updates.append("delivered_at = :delivered_at")
+            params["delivered_at"] = update_data.delivered_at
+        if "cod_payment_received" in fields:
+            updates.append("cod_payment_received = :cod_payment_received")
+            params["cod_payment_received"] = 1 if update_data.cod_payment_received else 0
+        if "cod_payment_received_at" in fields:
+            updates.append("cod_payment_received_at = :cod_payment_received_at")
+            params["cod_payment_received_at"] = update_data.cod_payment_received_at
+        if "decline_reason" in fields:
+            updates.append("decline_reason = :decline_reason")
+            params["decline_reason"] = update_data.decline_reason
+        if "cancelled_at" in fields:
+            updates.append("cancelled_at = :cancelled_at")
+            params["cancelled_at"] = update_data.cancelled_at
+        if "cancelled_by" in fields:
+            updates.append("cancelled_by = :cancelled_by")
+            params["cancelled_by"] = update_data.cancelled_by
+        if "turnaround_hours" in fields:
+            updates.append("turnaround_hours = :turnaround_hours")
+            params["turnaround_hours"] = update_data.turnaround_hours
+        if "fulfillment_type" in fields:
+            updates.append("fulfillment_type = :fulfillment_type")
+            params["fulfillment_type"] = update_data.fulfillment_type
+        if "courier_partner" in fields:
+            updates.append("courier_partner = :courier_partner")
+            params["courier_partner"] = update_data.courier_partner
+        if "tracking_id" in fields:
+            updates.append("tracking_id = :tracking_id")
+            params["tracking_id"] = update_data.tracking_id
+        if "awb_code" in fields:
+            updates.append("awb_code = :awb_code")
+            params["awb_code"] = update_data.awb_code
+        if "shipping_label_url" in fields:
+            updates.append("shipping_label_url = :shipping_label_url")
+            params["shipping_label_url"] = update_data.shipping_label_url
+        if "estimated_delivery_date" in fields:
+            updates.append("estimated_delivery_date = :estimated_delivery_date")
+            params["estimated_delivery_date"] = update_data.estimated_delivery_date
+
+        has_child_updates = "items" in fields or "valet_decline_history" in fields
         async_session = get_async_session_factory()
         async with async_session() as session:
-            await session.execute(
-                text(
-                    f"""
-                    UPDATE {self.TABLE} SET
-                        user_id = :user_id,
-                        order_number = :order_number,
-                        status = :status,
-                        total = :total,
-                        subtotal = :subtotal,
-                        tax = :tax,
-                        shipping = :shipping,
-                        discount = :discount,
-                        order_type = :order_type,
-                        payment_status = :payment_status,
-                        payment_method = :payment_method,
-                        upi_payment_screenshot = :upi_payment_screenshot,
-                        ship_name = :ship_name, ship_street = :ship_street, ship_city = :ship_city, ship_state = :ship_state, ship_pincode = :ship_pincode, ship_phone = :ship_phone, ship_address = :ship_address, ship_district = :ship_district, ship_country = :ship_country, ship_google_location = :ship_google_location, ship_latitude = :ship_latitude, ship_longitude = :ship_longitude,
-                        bill_name = :bill_name, bill_street = :bill_street, bill_city = :bill_city, bill_state = :bill_state, bill_pincode = :bill_pincode, bill_phone = :bill_phone, bill_address = :bill_address, bill_district = :bill_district, bill_country = :bill_country, bill_google_location = :bill_google_location, bill_latitude = :bill_latitude, bill_longitude = :bill_longitude,
-                        notes = :notes,
-                        printed_bill = :printed_bill,
-                        assigned_valet = :assigned_valet,
-                        pending_valet_id = :pending_valet_id,
-                        valet_assigned_at = :valet_assigned_at,
-                        valet_cascade_count = :valet_cascade_count,
-                        is_urgent_delivery = :is_urgent_delivery,
-                        shipped_at = :shipped_at,
-                        delivered_at = :delivered_at,
-                        cod_payment_received = :cod_payment_received,
-                        cod_payment_received_at = :cod_payment_received_at,
-                        decline_reason = :decline_reason,
-                        cancelled_at = :cancelled_at,
-                        cancelled_by = :cancelled_by,
-                        turnaround_hours = :turnaround_hours,
-                        fulfillment_type = :fulfillment_type,
-                        courier_partner = :courier_partner,
-                        tracking_id = :tracking_id,
-                        awb_code = :awb_code,
-                        shipping_label_url = :shipping_label_url,
-                        estimated_delivery_date = :estimated_delivery_date,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": oid,
-                    "user_id": uid,
-                    "order_number": update_data.order_number if update_data.order_number is not None else existing.order_number,
-                    "status": update_data.status if update_data.status is not None else existing.status,
-                    "total": (update_data.total if update_data.total is not None else (existing.total if existing.total is not None else 0)),
-                    "subtotal": (update_data.subtotal if update_data.subtotal is not None else (existing.subtotal if existing.subtotal is not None else 0)),
-                    "tax": (update_data.tax if update_data.tax is not None else (existing.tax if existing.tax is not None else 0)),
-                    "shipping": (update_data.shipping if update_data.shipping is not None else (existing.shipping if existing.shipping is not None else 0)),
-                    "discount": (update_data.discount if update_data.discount is not None else (existing.discount if existing.discount is not None else 0)),
-                    "order_type": update_data.order_type if update_data.order_type is not None else existing.order_type,
-                    "payment_status": update_data.payment_status if update_data.payment_status is not None else existing.payment_status,
-                    "payment_method": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
-                    "upi_payment_screenshot": update_data.upi_payment_screenshot if update_data.upi_payment_screenshot is not None else existing.upi_payment_screenshot,
-                    "ship_name": update_data.ship_name if update_data.ship_name is not None else existing.ship_name,
-                    "ship_street": update_data.ship_street if update_data.ship_street is not None else existing.ship_street,
-                    "ship_city": update_data.ship_city if update_data.ship_city is not None else existing.ship_city,
-                    "ship_state": update_data.ship_state if update_data.ship_state is not None else existing.ship_state,
-                    "ship_pincode": update_data.ship_pincode if update_data.ship_pincode is not None else existing.ship_pincode,
-                    "ship_phone": update_data.ship_phone if update_data.ship_phone is not None else existing.ship_phone,
-                    "ship_address": update_data.ship_address if update_data.ship_address is not None else existing.ship_address,
-                    "ship_district": update_data.ship_district if update_data.ship_district is not None else existing.ship_district,
-                    "ship_country": update_data.ship_country if update_data.ship_country is not None else existing.ship_country,
-                    "ship_google_location": update_data.ship_google_location if update_data.ship_google_location is not None else existing.ship_google_location,
-                    "ship_latitude": update_data.ship_latitude if update_data.ship_latitude is not None else existing.ship_latitude,
-                    "ship_longitude": update_data.ship_longitude if update_data.ship_longitude is not None else existing.ship_longitude,
-                    "bill_name": update_data.bill_name if update_data.bill_name is not None else existing.bill_name,
-                    "bill_street": update_data.bill_street if update_data.bill_street is not None else existing.bill_street,
-                    "bill_city": update_data.bill_city if update_data.bill_city is not None else existing.bill_city,
-                    "bill_state": update_data.bill_state if update_data.bill_state is not None else existing.bill_state,
-                    "bill_pincode": update_data.bill_pincode if update_data.bill_pincode is not None else existing.bill_pincode,
-                    "bill_phone": update_data.bill_phone if update_data.bill_phone is not None else existing.bill_phone,
-                    "bill_address": update_data.bill_address if update_data.bill_address is not None else existing.bill_address,
-                    "bill_district": update_data.bill_district if update_data.bill_district is not None else existing.bill_district,
-                    "bill_country": update_data.bill_country if update_data.bill_country is not None else existing.bill_country,
-                    "bill_google_location": update_data.bill_google_location if update_data.bill_google_location is not None else existing.bill_google_location,
-                    "bill_latitude": update_data.bill_latitude if update_data.bill_latitude is not None else existing.bill_latitude,
-                    "bill_longitude": update_data.bill_longitude if update_data.bill_longitude is not None else existing.bill_longitude,
-                    "notes": update_data.notes if update_data.notes is not None else existing.notes,
-                    "printed_bill": 1 if (update_data.printed_bill if update_data.printed_bill is not None else existing.printed_bill) else 0,
-                    "assigned_valet": update_data.assigned_valet if update_data.assigned_valet is not None else existing.assigned_valet,
-                    "pending_valet_id": update_data.pending_valet_id if update_data.pending_valet_id is not None else existing.pending_valet_id,
-                    "valet_assigned_at": _to_ts(update_data.valet_assigned_at if update_data.valet_assigned_at is not None else existing.valet_assigned_at),
-                    "valet_cascade_count": update_data.valet_cascade_count if update_data.valet_cascade_count is not None else existing.valet_cascade_count or 0,
-                    
-                    "is_urgent_delivery": 1 if (update_data.is_urgent_delivery if update_data.is_urgent_delivery is not None else existing.is_urgent_delivery) else 0,
-                    "shipped_at": _to_ts(update_data.shipped_at if update_data.shipped_at is not None else existing.shipped_at),
-                    "delivered_at": _to_ts(update_data.delivered_at if update_data.delivered_at is not None else existing.delivered_at),
-                    "cod_payment_received": 1 if (update_data.cod_payment_received if update_data.cod_payment_received is not None else existing.cod_payment_received) else 0,
-                    "cod_payment_received_at": _to_ts(update_data.cod_payment_received_at if update_data.cod_payment_received_at is not None else existing.cod_payment_received_at),
-                    "decline_reason": update_data.decline_reason if update_data.decline_reason is not None else existing.decline_reason,
-                    "cancelled_at": _to_ts(update_data.cancelled_at if update_data.cancelled_at is not None else existing.cancelled_at),
-                    "cancelled_by": update_data.cancelled_by if update_data.cancelled_by is not None else existing.cancelled_by,
-                    "turnaround_hours": update_data.turnaround_hours if update_data.turnaround_hours is not None else existing.turnaround_hours,
-                    "fulfillment_type": update_data.fulfillment_type or existing.fulfillment_type or "hyperlocal",
-                    "courier_partner": update_data.courier_partner if update_data.courier_partner is not None else existing.courier_partner,
-                    "tracking_id": update_data.tracking_id if update_data.tracking_id is not None else existing.tracking_id,
-                    "awb_code": update_data.awb_code if update_data.awb_code is not None else existing.awb_code,
-                    "shipping_label_url": update_data.shipping_label_url if update_data.shipping_label_url is not None else existing.shipping_label_url,
-                    "estimated_delivery_date": _to_ts(update_data.estimated_delivery_date) if update_data.estimated_delivery_date is not None else existing.estimated_delivery_date,
-                    "updated_at": now,
-                },
-            )
-            await self._replace_children(session, oid, update_data.items if update_data.items is not None else existing.items or [], update_data.valet_decline_history if update_data.valet_decline_history is not None else existing.valet_decline_history or [])
-            await session.commit()
-        return await self.findById(id)
+            try:
+                rowcount = 0
+                if len(updates) > 1:
+                    set_sql = ", ".join(updates)
+                    result = await session.execute(
+                        text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                        params,
+                    )
+                    rowcount = result.rowcount
 
-    async def delete(self, id: str) -> bool:
-        if not id:
+                if "items" in fields:
+                    await self._sync_items(session, oid, update_data.items or [])
+                if "valet_decline_history" in fields:
+                    await self._sync_valet_declines(session, oid, update_data.valet_decline_history or [])
+
+                await session.commit()
+
+                if rowcount == 0 and not has_child_updates:
+                    existing = await self.findById(oid)
+                    if not existing:
+                        return None
+            except Exception:
+                await session.rollback()
+                raise
+
+        return await self.findById(oid)
+
+    async def delete(self, id: Union[int, str]) -> bool:
+        if id is None:
             return False
-        existing = await self.findById(id)
-        if not existing:
+        try:
+            oid = int(id)
+        except (ValueError, TypeError):
             return False
-        oid = int(existing.id)
         async_session = get_async_session_factory()
         async with async_session() as session:
             await session.execute(

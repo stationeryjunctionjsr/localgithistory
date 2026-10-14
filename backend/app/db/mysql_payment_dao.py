@@ -15,18 +15,6 @@ from app.config.settings import settings
 from app.db.db_utils import now_utc
 
 
-def _to_ts(val):
-    if val is None:
-        return None
-    if type(val) in (datetime, date):
-        return val
-    try:
-        return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-    except Exception as e:
-        logging.warning("mysql_payment_dao._to_ts: could not parse timestamp %r: %s", val, e, exc_info=e)
-        return None
-
-
 def _entry__map_to_schema(er) -> PaymentEntry:
     return PaymentEntry(
         entryId=er.entry_id,
@@ -180,7 +168,7 @@ class MySQLPaymentDAO:
             "user_id": data.user_id,
             "user_id_formatted": data.user_id_formatted,
             "customer_name": data.customer_name,
-            "order_date": _to_ts(data.order_date) or now,
+            "order_date": data.order_date or now,
             "payment_method": data.payment_method,
             "amount_paid": data.amount_paid,
             "amount_remaining": data.amount_remaining,
@@ -207,7 +195,7 @@ class MySQLPaymentDAO:
                     entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
                     amount = (entry.amount if entry.amount is not None else 0)
                     method = entry.payment_method or data.payment_method
-                    paid_at = _to_ts(entry.paid_at) or now
+                    paid_at = entry.paid_at or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -249,7 +237,7 @@ class MySQLPaymentDAO:
             params["customer_name"] = update_data.customer_name
         if "order_date" in update_data.model_fields_set:
             updates.append("order_date = :order_date")
-            params["order_date"] = _to_ts(update_data.order_date)
+            params["order_date"] = update_data.order_date
         if "payment_method" in update_data.model_fields_set:
             updates.append("payment_method = :payment_method")
             params["payment_method"] = update_data.payment_method
@@ -282,7 +270,7 @@ class MySQLPaymentDAO:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": id})
                 for idx, entry in enumerate(update_data.payment_entries):
                     entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
-                    paid_at = _to_ts(entry.paid_at) or now
+                    paid_at = entry.paid_at or now
                     method = entry.payment_method or (update_data.payment_method if "payment_method" in update_data.model_fields_set else None)
                     await session.execute(
                         text(
