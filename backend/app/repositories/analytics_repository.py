@@ -329,7 +329,6 @@ class AnalyticsRepository:
         orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
-        product_map = {p.id: p for p in products}
 
         from pydantic import BaseModel
         class ProductSalesStats(BaseModel):
@@ -342,10 +341,13 @@ class AnalyticsRepository:
         for order in orders:
             for item in order.items:
                 product_id = item.product or item.product_id
-                if not product_id or product_id not in product_map:
+                if not product_id:
                     continue
 
-                product = product_map[product_id]
+                product = next((p for p in products if p.id == product_id), None)
+                if not product:
+                    continue
+
                 quantity = item.quantity
                 subtotal = (item.price * item.quantity)
 
