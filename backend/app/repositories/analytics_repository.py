@@ -1633,26 +1633,24 @@ class AnalyticsRepository:
         Returns total copies sold, order count, total revenue, and monthly trends per bundle.
         """
         from app.repositories.bundle_repository import bundle_repository
-        
+        from app.models.bundle import Bundle
+        from app.models.analytics_schemas import MonthlyRevenueItem
+
         bundles = await bundle_repository.findAll()
         valid_bundles = [b for b in bundles if b.id]
-        
-        # Initialize stats map
-        stats = {
-            str(b.id): {
-                "bundle": b,
-                "order_count": 0,
-                "copies_sold": 0,
-                "revenue": 0.0,
-                "monthly": defaultdict(float)
-            }
-            for b in valid_bundles
-        }
-        
+
+        class BundleStat(BaseModel):
+            bundle: Bundle
+            order_count: int = 0
+            copies_sold: int = 0
+            revenue: float = 0.0
+            monthly_items: List[MonthlyRevenueItem] = Field(default_factory=list)
+
+        stats: List[BundleStat] = [BundleStat(bundle=b) for b in valid_bundles]
+
         # Fetch all completed orders
         orders = await self.order_storage.findAll(self._build_order_filter(status="completed"))
         for order in orders:
-            items = order.items
             order_date = order.created_at
             month_key = None
             if order_date:
@@ -1665,55 +1663,53 @@ class AnalyticsRepository:
                     month_key = dt.strftime("%Y-%m")
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid order date format: {order_date}") from e
-                    
-            # Group items by bundleId in this order
-            order_bundles = defaultdict(list)
-            for item in items:
-                b_id = item.bundle_id
-                if b_id:
-                    order_bundles[b_id].append(item)
-                    
-            for b_id, b_items in order_bundles.items():
-                b_str = str(b_id)
-                if b_str not in stats:
+
+            for stat in stats:
+                b_items = [item for item in order.items if item.bundle_id == stat.bundle.id]
+                if not b_items:
                     continue
-                b_def = stats[b_str]["bundle"]
-                    
-                b_specs = (b_def["items"] if "items" in b_def else [])
+
+                b_def = stat.bundle
+                b_specs = b_def.items
                 copies = 1
-                if b_specs and b_items:
+                if b_specs:
                     spec = b_specs[0]
-                    spec_qty = max(1, (spec["quantity"] if "quantity" in spec else 1) or 1)
-                    spec_pid = str((spec["productId"] if "productId" in spec else ""))
+                    spec_qty = max(1, spec.quantity or 1)
+                    spec_pid = spec.product_id
                     ref_item = next(
-                        (i for i in b_items if str(i.product) == spec_pid or str(i.product_id) == spec_pid),
+                        (i for i in b_items if i.product == spec_pid or i.product_id == spec_pid),
                         b_items[0]
                     )
-                    copies = max(1, (ref_item["quantity"] if "quantity" in ref_item else spec_qty) // spec_qty)
-                
-                b_price = (b_def["price"] if "price" in b_def else 0.0)
+                    ref_qty = ref_item.quantity or spec_qty
+                    copies = max(1, ref_qty // spec_qty)
+
+                b_price = b_def.price or 0.0
                 b_revenue = copies * b_price
-                
-                stats[b_id]["order_count"] += 1
-                stats[b_id]["copies_sold"] += copies
-                stats[b_id]["revenue"] += b_revenue
+
+                stat.order_count += 1
+                stat.copies_sold += copies
+                stat.revenue += b_revenue
                 if month_key:
-                    stats[b_id]["monthly"][month_key] += b_revenue
-                    
+                    m_item = next((m for m in stat.monthly_items if m.month == month_key), None)
+                    if not m_item:
+                        m_item = MonthlyRevenueItem(month=month_key, revenue=0.0)
+                        stat.monthly_items.append(m_item)
+                    m_item.revenue = round(m_item.revenue + b_revenue, 2)
+
         # Format the result
-        result = []
-        for b_id, data in stats.items():
-            b = data.bundle
-            result.append({
-                "bundleId": b_id,
-                "name": b.name,
-                "price": b.price,
-                "isActive": b.is_active,
-                "orderCount": data.order_count,
-                "copiesSold": data.copies_sold,
-                "totalRevenue": round(data.revenue, 2),
-                "monthlyRevenue": {k: round(v, 2) for k, v in data.monthly.items()}
-            })
+        result = [
+            {
+                "bundleId": s.bundle.id,
+                "name": s.bundle.name,
+                "price": s.bundle.price,
+                "isActive": s.bundle.is_active,
+                "orderCount": s.order_count,
+                "copiesSold": s.copies_sold,
+                "totalRevenue": round(s.revenue, 2),
+                "monthlyRevenue": s.monthly_items,
+            }
+            for s in stats
+        ]
             
         # Sort by revenue descending
         result.sort(key=lambda x: x["totalRevenue"], reverse=True)
@@ -1903,8 +1899,13 @@ class AnalyticsRepository:
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        # Per-customer stats
-        stats: dict = {}
+        class CustomerRfmStat(BaseModel):
+            user_id: int
+            last_order: datetime
+            count: int = 0
+            spend: float = 0.0
+
+        rfm_stats: List[CustomerRfmStat] = []
         for order in orders:
             uid = order.user
             if not uid:
@@ -1912,18 +1913,20 @@ class AnalyticsRepository:
             dt = self._to_naive_utc(self._parse_date(order.created_at))
             if not dt:
                 continue
-            if uid not in stats:
-                stats[uid] = {"lastOrder": dt, "count": 0, "spend": 0.0}
-            if dt > stats[uid]["lastOrder"]:
-                stats[uid]["lastOrder"] = dt
-            stats[uid]["count"] += 1
-            stats[uid]["spend"] += order.total
+            stat = next((s for s in rfm_stats if s.user_id == uid), None)
+            if not stat:
+                stat = CustomerRfmStat(user_id=uid, last_order=dt)
+                rfm_stats.append(stat)
+            if dt > stat.last_order:
+                stat.last_order = dt
+            stat.count += 1
+            stat.spend += (order.total or 0.0)
 
         result = []
-        for uid, data in stats.items():
-            recency_days = (now - data.lastOrder).days
-            freq = data.count
-            spend = round(data.spend, 2)
+        for stat in rfm_stats:
+            recency_days = (now - stat.last_order).days
+            freq = stat.count
+            spend = round(stat.spend, 2)
 
             # Simple rule-based RFM segment
             if recency_days <= 30 and freq >= 5:
@@ -1937,12 +1940,12 @@ class AnalyticsRepository:
             else:
                 segment = "Dormant"
 
-            user = next((u for u in users if u.id == uid), None) if uid else None
+            user = next((u for u in users if u.id == stat.user_id), None)
             user_name = user.name if user and user.name else "Unknown"
             user_email = user.email if user and user.email else "Unknown"
             result.append(
                 {
-                    "userId": uid,
+                    "userId": stat.user_id,
                     "name": user_name,
                     "email": user_email,
                     "segment": segment,
@@ -2107,32 +2110,40 @@ class AnalyticsRepository:
         products = await self.product_storage.findAll()
 
         if seller_id:
-            products = [p for p in products if str(p.seller_id) == str(seller_id)]
+            products = [
+                p for p in products
+                if p.sellers and p.sellers[0].seller_id == seller_id
+            ]
 
-        product_map = {p.id: p for p in products}
+        class ProductRunwayStat(BaseModel):
+            product: Any
+            units_sold_30d: int = 0
 
-        # Units sold per product in the last 30 days
-        units_sold: dict = defaultdict(int)
+        product_stats: List[ProductRunwayStat] = [ProductRunwayStat(product=p) for p in products]
+
         for order in orders:
             dt = self._to_naive_utc(self._parse_date(order.created_at))
             if not dt or dt < window_start:
                 continue
             for item in order.items:
-                pid = item.product or item.product_id
-                if pid and str(pid) in {str(k) for k in product_map}:
-                    units_sold[str(pid)] += item.quantity
+                pid = item.product_id or item.product
+                if not pid:
+                    continue
+                stat = next((s for s in product_stats if s.product.id == pid), None)
+                if stat:
+                    stat.units_sold_30d += (item.quantity or 0)
 
         result = []
-        for product in products:
-            pid = str(product.id)
+        for stat in product_stats:
+            product = stat.product
             stock = int(product.stock or 0)
-            sold_30d = (units_sold[pid] if pid in units_sold else 0)
+            sold_30d = stat.units_sold_30d
             avg_daily = round(sold_30d / 30, 2)
             days_remaining = round(stock / avg_daily) if avg_daily > 0 else None
 
             result.append(
                 {
-                    "productId": pid,
+                    "productId": str(product.id),
                     "name": product.name,
                     "category": product.category,
                     "currentStock": stock,
@@ -2206,10 +2217,9 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll(order_filter)
 
         if seller_id:
-            orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
+            orders = [o for o in orders if o.seller_id == seller_id]
 
         users = await self.user_storage.findAll()
-        user_map = {u.id: u for u in users}
 
         result = []
         for order in orders:
@@ -2219,8 +2229,9 @@ class AnalyticsRepository:
             if discount == 0 and not order.coupon_code:
                 continue  # skip orders with no discount at all
 
-            coupon_info = order.couponInfo or {}
-            customer_name = user_map[order.user].name if (order.user and order.user in user_map) else "Unknown"
+            coupon_info = order.couponInfo
+            customer = next((u for u in users if u.id == order.user), None) if order.user else None
+            customer_name = customer.name if (customer and customer.name) else "Unknown"
             gross = float(order.subtotal or order.total or 0)
             net = round(gross - discount, 2)
 
@@ -2230,8 +2241,8 @@ class AnalyticsRepository:
                     "orderNumber": order.order_number,
                     "customerName": customer_name,
                     "couponCode": order.coupon_code or "—",
-                    "discountType": coupon_info.discountType,
-                    "discountValue": coupon_info.discountValue,
+                    "discountType": coupon_info.discountType if coupon_info else None,
+                    "discountValue": coupon_info.discountValue if coupon_info else None,
                     "grossSales": round(gross, 2),
                     "discountApplied": round(discount, 2),
                     "netAfterDiscount": net,
