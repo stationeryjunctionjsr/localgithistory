@@ -21,7 +21,7 @@ class OrderAddress(CamelBaseModel):
 class Order(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     session_id: Optional[str] = None
-    id: str = Field(default="")
+    id: Optional[int] = None
     order_number: Optional[str] = None
     user: Optional[int] = Field(None, alias='user_id')
     status: Optional[str] = None
@@ -61,8 +61,8 @@ class Order(CamelBaseModel):
     bill_longitude: Optional[float] = None
     notes: Optional[str] = None
     printed_bill: bool = Field(default=False)
-    assigned_valet: Optional[str] = None
-    pending_valet_id: Optional[str] = None
+    assigned_valet: Optional[int] = None
+    pending_valet_id: Optional[int] = None
     valet_assigned_at: Optional[datetime] = None
     valet_cascade_count: Optional[int] = Field(default=0)
     is_urgent_delivery: bool = Field(default=False)
@@ -175,9 +175,9 @@ class OrderInternalCreate(CamelBaseModel):
     bill_longitude: Optional[float] = None
     notes: str = ""
     printed_bill: bool = False
-    assigned_valet: Optional[str] = None
+    assigned_valet: Optional[int] = None
     is_urgent_delivery: bool = False
-    pending_valet_id: Optional[str] = None
+    pending_valet_id: Optional[int] = None
     invoice_path: Optional[str] = None
     invoice_generated_at: Optional[datetime] = None
     valet_declined_at: Optional[datetime] = None
@@ -267,9 +267,9 @@ class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
     fulfillment_status: Optional[str] = None
     shipping: Optional[float] = None
     total: Optional[float] = None
-    assigned_valet: Optional[str] = None
+    assigned_valet: Optional[int] = None
     decline_reason: Optional[str] = None
-    pending_valet_id: Optional[str] = None
+    pending_valet_id: Optional[int] = None
     invoice_path: Optional[str] = None
     invoice_generated_at: Optional[datetime] = None
     valet_declined_at: Optional[datetime] = None

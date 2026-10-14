@@ -18,6 +18,7 @@ from app.models.schemas import (
     CouponUpdate,
     CouponValidationDetail,
     CouponValidationResponse,
+    ItemSnippet,
 )
 from app.utils.logger import logger
 
@@ -65,32 +66,23 @@ class CouponRepository:
         return col.product_ids if col else None
 
     async def _calculate_bxgy_discount(
-        self, coupon: 'CouponInternal', cart_items: List[dict], product_repository, user_role: str, user_id: str
+        self, coupon: 'CouponInternal', cart_items: List[ItemSnippet], product_repository, user_role: str, user_id: str
     ) -> BxGyEvaluationResponse:
         applicable_item_type = (coupon.applicable_item_type if coupon.applicable_item_type is not None else "units")
         x_required = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else None
         y_required = int(coupon.buy_x_get_y_customer_gets_quantity) if coupon.buy_x_get_y_customer_gets_quantity is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
-        cart_pids = []
-        for item in cart_items:
-            it_pid = item.product_id if hasattr(item, "product_id") else item.get("product_id") or item.get("productId") if isinstance(item, dict) else None
-            if it_pid is not None:
-                try:
-                    cart_pids.append(int(it_pid))
-                except (ValueError, TypeError):
-                    continue
+        cart_pids = [item.product_id for item in cart_items if item.product_id]
         if cart_pids:
             products_list = await product_repository.findByIds(cart_pids)
-            product_map = {p.product_id: p for p in products_list if p.product_id}
-            product_map.update({str(p.id): p for p in products_list if p.id})
+            product_map = {p.id: p for p in products_list if p.id}
         else:
             product_map = {}
 
         elements = []
         for idx, item in enumerate(cart_items):
-            it_pid = item.product_id if hasattr(item, "product_id") else item.get("product_id") or item.get("productId") if isinstance(item, dict) else None
-            product = product_map.get(it_pid) or product_map.get(str(it_pid))
+            product = product_map.get(item.product_id)
             if not product:
                 continue
             qty = int(item.quantity or 0)
@@ -665,7 +657,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         user_id: str,
         category: Optional[str] = None,
         payment_method: Optional[str] = None,
-        cart_items: Optional[List[dict]] = None,
+        cart_items: Optional[List[ItemSnippet]] = None,
         product_repository=None,
         shipping_address: Optional[dict] = None,
         shipping_charge: float = 0.0,
@@ -847,7 +839,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self,
         user_id: str,
         user_role: str,
-        cart_items: List[dict],
+        cart_items: List[ItemSnippet],
         product_repository,
         payment_method: Optional[str] = None,
         shipping_address: Optional[dict] = None,

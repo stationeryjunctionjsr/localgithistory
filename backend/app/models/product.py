@@ -8,7 +8,7 @@ from app.models.schemas import VariantOption, ProductSellerEntry, ProductDetails
 
 class Product(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    id: str 
+    id: int 
     product_id: int 
     product_id_formatted: Optional[str] = None
     name: str

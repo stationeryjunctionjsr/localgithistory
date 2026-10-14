@@ -24,7 +24,7 @@ class MySQLProductDAO:
 
     def _row_to_product(self, r, children: dict) -> Product:
         return Product(
-            id=str(r.id),
+            id=r.id,
             product_id=r.id,
             product_id_formatted=f"PDT-{r.id}",
             name=r.name,

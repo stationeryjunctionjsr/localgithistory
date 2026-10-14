@@ -88,7 +88,7 @@ async def test_cart_dao_direct_row_hydration():
     mock_item_row = SimpleNamespace(
         id=10,
         cart_id=1,
-        product_id="p100",
+        product_id=100,
         quantity=3,
         sell_as_case=0,
         bundle_id=None,
@@ -99,7 +99,7 @@ async def test_cart_dao_direct_row_hydration():
     cart = dao._map_to_schema(mock_cart_row, [mock_item_row])
     assert cart.id == 1
     assert len(cart.items) == 1
-    assert cart.items[0].product == "p100"
+    assert cart.items[0].product == 100
     assert cart.items[0].quantity == 3
 
 

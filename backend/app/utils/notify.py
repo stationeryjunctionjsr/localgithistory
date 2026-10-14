@@ -86,10 +86,14 @@ async def notify_user(
                 type=notif_type,
             )
 
+        try:
+            numeric_uid = int(user_id)
+        except (ValueError, TypeError):
+            numeric_uid = 0
+
         await notification_repository.create(
             NotificationInternalCreate(
-                id=str(uuid.uuid4()),
-                user_id=str(user_id),
+                user_id=numeric_uid,
                 type=notif_type,
                 title=title,
                 message=message,

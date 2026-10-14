@@ -239,7 +239,7 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     user_ids: set[int] = set()
     valet_ids: set[int] = set()
     product_ids: set[int] = set()
-    order_ids: set[str] = set()
+    order_ids: set[int] = set()
 
     # 1. Collect all unique IDs across all orders
     for order in orders:
@@ -247,13 +247,10 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
             user_ids.add(order.user)
 
         if order.assigned_valet:
-            try:
-                valet_ids.add(int(order.assigned_valet))
-            except (ValueError, TypeError):
-                pass
+            valet_ids.add(order.assigned_valet)
 
         if order.id:
-            order_ids.add(str(order.id))
+            order_ids.add(order.id)
 
         for item in order.items if order.items else []:
             if item.product_id:
@@ -274,19 +271,15 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
 
     # 3. Build lookup maps
     users_map = {u.id: u for u in users_list if u.id}
-    users_map.update({str(u.id): u for u in users_list if u.id})
 
-    products_map = {p.product_id: p for p in products_list if p.product_id}
-    products_map.update({p.id: p for p in products_list if p.id})
+    products_map = {p.id: p for p in products_list if p.id}
 
     payments_map = {}
     for p in payments_list:
-        # Payment.order_id is the declared Pydantic field (alias: orderId)
-        oid = str(p.order_id) if p.order_id else None
-        if oid:
-            if oid not in payments_map:
-                payments_map[oid] = []
-            payments_map[oid].append(p)
+        if p.order_id is not None:
+            if p.order_id not in payments_map:
+                payments_map[p.order_id] = []
+            payments_map[p.order_id].append(p)
 
     # 4. Construct fully populated responses
     populated = []
@@ -294,8 +287,7 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
         user = users_map.get(order.user)
         valet = users_map.get(order.assigned_valet)
 
-        o_id = str(order.id) if order.id else None
-        payment_entries = payments_map.get(o_id, [])
+        payment_entries = payments_map.get(order.id, [])
 
         o_items = order.items if order.items else []
         populated_items = []
@@ -575,8 +567,7 @@ async def create_order_service(
     _cart_products_list = (
         await product_repository.findByIds(_cart_product_ids) if _cart_product_ids else []
     )
-    _cart_products_map = {p.product_id: p for p in _cart_products_list}
-    _cart_products_map.update({str(p.id): p for p in _cart_products_list})
+    _cart_products_map = {p.id: p for p in _cart_products_list}
 
     # For courier orders, verify all cart products belong to 1P Super Admin warehouse
     if fulfillment_type == "courier":
@@ -593,7 +584,7 @@ async def create_order_service(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        p = _cart_products_map.get(item.product) or _cart_products_map.get(str(item.product))
+        p = _cart_products_map.get(item.product)
         if p:
             qty = (item.quantity if item.quantity is not None else 0)
             sell_as_case = (
@@ -758,10 +749,10 @@ async def create_order_service(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        product = _cart_products_map.get(item.product) or _cart_products_map.get(str(item.product))
+        product = _cart_products_map.get(item.product)
         if not product:
             raise HTTPException(
-                status_code=400, detail=f"Product not found: {item.product or item.product_id}"
+                status_code=400, detail=f"Product not found: {item.product}"
             )
         quantity = (item.quantity if item.quantity is not None else 0)
         sell_as_case = (

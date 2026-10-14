@@ -24,18 +24,7 @@ class NotificationRepository:
         if filters is None:
             filters = NotificationFilter()
 
-        # Build DB query to offload exact filtering
-        db_query = {}
-        if filters.userId:
-            db_query["userId"] = filters.userId
-        if filters.isRead is not None:
-            db_query["isRead"] = filters.isRead
-        if filters.isAcknowledged is not None:
-            db_query["isAcknowledged"] = filters.isAcknowledged
-        if filters.type:
-            db_query["type"] = filters.type
-
-        notifications = await self.storage.findAll(db_query)
+        notifications = await self.storage.findAll(filters=filters)
 
         if filters.start_date:
             start = datetime.fromisoformat(filters.start_date.replace("Z", "+00:00"))

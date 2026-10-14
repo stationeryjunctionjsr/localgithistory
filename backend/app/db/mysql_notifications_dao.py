@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.models.daos import (
+    NotificationFilter,
     NotificationInternal,
     NotificationInternalCreate,
     NotificationInternalUpdate,
@@ -37,37 +38,34 @@ class MySQLNotificationsDAO:
     async def findOne(
         self,
         id: Optional[int] = None,
-        user_id: Optional[str] = None,
-        type: Optional[str] = None,
-        is_read: Optional[bool] = None,
+        filters: Optional[NotificationFilter] = None,
     ) -> Optional[NotificationInternal]:
         if id:
             return await self.findById(id)
-        results = await self.findAll(user_id=user_id, type=type, is_read=is_read, limit=1)
+        results = await self.findAll(filters=filters, limit=1)
         return results[0] if results else None
 
     async def findAll(
         self,
-        user_id: Optional[str] = None,
-        is_read: Optional[bool] = None,
-        is_acknowledged: Optional[bool] = None,
-        type: Optional[str] = None,
+        filters: Optional[NotificationFilter] = None,
         limit: Optional[int] = None,
     ) -> List[NotificationInternal]:
         clauses = []
         params = {}
-        if user_id is not None:
-            clauses.append("user_id = :user_id")
-            params["user_id"] = user_id
-        if is_read is not None:
-            clauses.append("is_read = :is_read")
-            params["is_read"] = 1 if is_read else 0
-        if is_acknowledged is not None:
-            clauses.append("is_acknowledged = :is_ack")
-            params["is_ack"] = 1 if is_acknowledged else 0
-        if type is not None:
-            clauses.append("type = :type")
-            params["type"] = type
+
+        if filters:
+            if filters.user_id is not None:
+                clauses.append("user_id = :user_id")
+                params["user_id"] = str(filters.user_id)
+            if filters.is_read is not None:
+                clauses.append("is_read = :is_read")
+                params["is_read"] = 1 if filters.is_read else 0
+            if filters.is_acknowledged is not None:
+                clauses.append("is_acknowledged = :is_ack")
+                params["is_ack"] = 1 if filters.is_acknowledged else 0
+            if filters.type is not None:
+                clauses.append("type = :type")
+                params["type"] = filters.type
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         pagination_sql = ""
@@ -93,7 +91,7 @@ class MySQLNotificationsDAO:
         params = {
             "c": now,
             "u": now,
-            "user_id": data.user_id,
+            "user_id": str(data.user_id),
             "type": data.type,
             "title": data.title,
             "message": data.message,
@@ -133,13 +131,13 @@ class MySQLNotificationsDAO:
 
         return await self.findById(id)
 
-    async def mark_all_as_read(self, user_id: Optional[str] = None) -> int:
+    async def mark_all_as_read(self, user_id: Optional[int] = None) -> int:
         now = now_utc()
         where_clauses = ["(is_read = 0 OR is_acknowledged = 0)"]
         params = {"u": now}
         if user_id is not None:
             where_clauses.append("user_id = :uid")
-            params["uid"] = user_id
+            params["uid"] = str(user_id)
         where_sql = " AND ".join(where_clauses)
         async_session = get_async_session_factory()
         async with async_session() as session:
@@ -200,9 +198,14 @@ class MySQLNotificationsDAO:
                     meta_obj.parent_order_id = v
                 elif k in ("courier_partner", "courierPartner"):
                     meta_obj.courier_partner = v
+        raw_uid = r.user_id
+        try:
+            uid = int(raw_uid) if raw_uid is not None else 0
+        except (ValueError, TypeError):
+            uid = 0
         return NotificationInternal(
             id=r.id,
-            user_id=r.user_id,
+            user_id=uid,
             type=r.type,
             title=r.title,
             message=r.message,

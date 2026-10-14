@@ -41,15 +41,6 @@ async def validate_coupon(
 async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User = Depends(get_current_user)):
     """Validate discount using cart items; eligible subtotal is computed from items matching Applies to."""
     user_role = (current_user.role if current_user.role is not None else "customer")
-    cart_items = [
-        {
-            "product": it.product_id,
-            "productId": it.product_id,
-            "quantity": (it.quantity if it.quantity is not None else 0),
-            "sellAsCase": (it.sell_as_case if it.sell_as_case is not None else False),
-        }
-        for it in (body.items or [])
-    ]
     validation = await coupon_repository.validateCoupon(
         body.code,
         user_role,
@@ -57,7 +48,7 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User
         current_user.id,
         None,
         None,
-        cart_items=cart_items,
+        cart_items=body.items,
         product_repository=product_repository,
         shipping_address=body.shipping_address,
     )

@@ -125,14 +125,14 @@ def test_product_internal_create_forbids_extra_fields():
 
 
 def test_cart_item_internal_strict_fields():
-    item = CartItemInternal(id="item-123", product="prod-456", quantity=2)
+    item = CartItemInternal(id="item-123", product=456, quantity=2)
     assert item.id == "item-123"
-    assert item.product == "prod-456"
+    assert item.product == 456
     assert item.quantity == 2
     assert not hasattr(item, "id_")
 
     with pytest.raises(ValidationError):
-        CartItemInternal(product="prod-456", _id="legacy-id")
+        CartItemInternal(product=456, _id="legacy-id")
 
 
 def test_wishlist_item_internal_strict_fields():
@@ -172,12 +172,12 @@ def test_customer_segment_and_notification_purged():
     assert seg.id == "seg-1"
 
     notif_create = NotificationInternalCreate(
-        id=1, user_id="u1", type="order", title="Shipped", message="Your order shipped"
+        id=1, user_id=1, type="order", title="Shipped", message="Your order shipped"
     )
     assert notif_create.id == 1
 
     notif = NotificationInternal(
-        id=2, user_id="u1", type="order", title="Delivered", message="Order delivered", is_read=False, is_acknowledged=False
+        id=2, user_id=1, type="order", title="Delivered", message="Order delivered", is_read=False, is_acknowledged=False
     )
     assert notif.id == 2
 

@@ -7,7 +7,7 @@ from app.models.base import CamelBaseModel
 
 class NotificationResponse(CamelBaseModel):
     id: int
-    user_id: str
+    user_id: int
     type: str
     title: str
     message: str
@@ -44,7 +44,7 @@ async def get_notifications(
         from app.models.daos import NotificationFilter
         filters = NotificationFilter()
         if current_user.role != "super_admin":
-            filters.user_id = str(current_user.id)
+            filters.user_id = current_user.id
 
         if isRead is not None:
             filters.isRead = isRead
@@ -69,7 +69,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
         from app.models.daos import NotificationFilter
         filters = NotificationFilter(is_read=False)
         if current_user.role != "super_admin":
-            filters.user_id = str(current_user.id)
+            filters.user_id = current_user.id
             
         notifications = await notification_repository.findAll(filters)
         return UnreadCountResponse(unread_count=len(notifications))
@@ -95,7 +95,7 @@ async def _get_and_verify_notification(notification_id: int, current_user: User)
         raise HTTPException(status_code=404, detail="Notification not found")
         
     if current_user.role != "super_admin":
-        if notification.user_id != str(current_user.id):
+        if notification.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
             
     return notification

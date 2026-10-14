@@ -65,7 +65,7 @@ class MySQLCartDAO:
                 pass
         return CartItemInternal(
             id=str(ir.id),
-            product=str(ir.product_id),
+            product=int(ir.product_id) if ir.product_id is not None else None,
             quantity=int(ir.quantity),
             sell_as_case=bool(ir.sell_as_case),
             bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
@@ -142,7 +142,7 @@ class MySQLCartDAO:
                 ),
                 {
                     "cart_id": cart_id,
-                    "product_id": str(pid_raw),
+                    "product_id": pid_raw,
                     "quantity": qty,
                     "sell_as_case": sell_as_case,
                     "bundle_id": bundle_id,

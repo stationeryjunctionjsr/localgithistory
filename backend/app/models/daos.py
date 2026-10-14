@@ -17,13 +17,17 @@ def _ensure_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
 class CartItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     id: Optional[str] = None
-    product: Optional[str] = None
+    product: Optional[int] = None
     quantity: Optional[int] = 0
     sell_as_case: Optional[bool] = False
     bundle_id: Optional[str] = None
     bundle_name: Optional[str] = None
     price: Optional[float] = None
     variant_attributes: Optional[VariantAttributes] = None
+
+    @property
+    def product_id(self) -> Optional[int]:
+        return self.product
 
 class CartInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -674,7 +678,7 @@ class CustomerSegmentInternalUpdate(CamelBaseModel):
 
 class NotificationInternalCreate(CamelBaseModel):
     id: Optional[int] = None
-    user_id: str
+    user_id: int
     type: str
     title: str
     message: str
@@ -690,7 +694,7 @@ class NotificationInternalUpdate(CamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class NotificationFilter(CamelBaseModel):
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     is_read: Optional[bool] = None
     is_acknowledged: Optional[bool] = None
     type: Optional[str] = None
@@ -699,7 +703,7 @@ class NotificationFilter(CamelBaseModel):
 
 class NotificationInternal(CamelBaseModel):
     id: Optional[int] = None
-    user_id: str
+    user_id: int
     type: str
     title: str
     message: str

@@ -16,7 +16,7 @@ class PaymentEntry(CamelBaseModel):
 
 class Payment(CamelBaseModel):
     id: int 
-    order_id: Optional[str] = None
+    order_id: Optional[int] = None
     user_id: Optional[str] = None
     user_id_formatted: Optional[str] = None
     customer_name: Optional[str] = None
