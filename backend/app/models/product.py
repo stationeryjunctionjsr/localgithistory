@@ -55,6 +55,19 @@ class Product(CamelBaseModel):
     quantity_item_type: Optional[str] = None
     display_image: Optional[str] = None
 
+    @property
+    def seller_id(self) -> Optional[str]:
+        return self.sellers[0].seller_id if self.sellers else None
+
+    def has_seller(self, seller_id: Optional[str]) -> bool:
+        if not seller_id:
+            return True
+        target = str(seller_id)
+        for s in self.sellers:
+            if str(s.seller_id) == target:
+                return True
+        return False
+
 
 class ApplicableDiscountSnippet(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")

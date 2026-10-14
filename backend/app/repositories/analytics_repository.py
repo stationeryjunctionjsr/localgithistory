@@ -26,6 +26,11 @@ from app.models.analytics_schemas import (
     ProductsSellThroughResponse,
     MonthlyRevenueItem,
     BundlePerformanceReportResponse,
+    TopReturnedProductsResponse,
+    InventoryValueByCategoryResponse,
+    InventoryAlertResponse,
+    NetSalesResponse,
+    SalesHeatmapResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -1184,29 +1189,29 @@ class AnalyticsRepository:
         return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[str] = None) -> List[Dict]:
+    async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[str] = None) -> List[InventoryAlertResponse]:
         """Return products whose current stock is at or below `threshold`."""
         products = await self.product_storage.findAll()
         # Filter products by seller if scoped
         if seller_id:
-            products = [p for p in products if p.seller_id and str(p.seller_id) == seller_id]
+            products = [p for p in products if p.has_seller(seller_id)]
 
-        result = []
+        result: List[InventoryAlertResponse] = []
         for product in products:
             stock = product.stock or 0
             if stock <= threshold:
                 result.append(
-                    {
-                        "productId": product.id,
-                        "name": product.name,
-                        "sku": product.sku,
-                        "category": product.category,
-                        "stock": stock,
-                        "status": "out_of_stock" if stock == 0 else "low_stock",
-                    }
+                    InventoryAlertResponse(
+                        productId=str(product.id),
+                        name=product.name,
+                        sku=product.sku,
+                        category=product.category or "Uncategorized",
+                        stock=stock,
+                        status="out_of_stock" if stock == 0 else "low_stock",
+                    )
                 )
 
-        return sorted(result, key=lambda x: x["stock"])
+        return sorted(result, key=lambda x: x.stock)
 
     @cache.ttl_cache(ttl=300)
     async def get_fulfillment_time_report(
@@ -1484,15 +1489,22 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
         limit: int = 50,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[TopReturnedProductsResponse]:
         """Find products that are returned the most."""
         from app.repositories.return_request_repository import return_request_repository
 
         returns = await return_request_repository.findAll()
-
         products = await self.product_storage.findAll()
 
-        result = []
+        class ProductReturnStat(BaseModel):
+            product_id: str
+            product_name: str
+            category: str
+            return_count: int = 0
+            quantity_returned: int = 0
+            revenue_lost: float = 0.0
+
+        return_stats: List[ProductReturnStat] = []
         for req in returns:
             created = self._parse_date(req.created_at)
             if start_date and created and created < start_date:
@@ -1506,55 +1518,74 @@ class AnalyticsRepository:
                     continue
 
                 prod = next((p for p in products if p.id == pid), None)
-                prod_seller = prod.sellers[0].seller_id if (prod and prod.sellers) else None
-                if seller_id and prod_seller != seller_id:
+                if seller_id and (not prod or not prod.has_seller(seller_id)):
                     continue
 
-                stat = next((r for r in result if r["productId"] == pid), None)
+                stat = next((r for r in return_stats if r.product_id == str(pid)), None)
                 if not stat:
-                    stat = {
-                        "productId": pid,
-                        "productName": prod.name if prod else "Unknown Product",
-                        "category": prod.category if prod else "Uncategorized",
-                        "returnCount": 0,
-                        "quantityReturned": 0,
-                        "revenueLost": 0.0,
-                    }
-                    result.append(stat)
+                    stat = ProductReturnStat(
+                        product_id=str(pid),
+                        product_name=prod.name if prod else "Unknown Product",
+                        category=prod.category if prod else "Uncategorized",
+                    )
+                    return_stats.append(stat)
 
-                q = item.quantity
-                stat["returnCount"] += 1
-                stat["quantityReturned"] += q
-                stat["revenueLost"] = round(stat["revenueLost"] + (q * item.price), 2)
+                q = item.quantity or 0
+                stat.return_count += 1
+                stat.quantity_returned += q
+                stat.revenue_lost = round(stat.revenue_lost + (q * (item.price or 0.0)), 2)
 
-        return sorted(result, key=lambda x: x["returnCount"], reverse=True)[:limit]
+        sorted_stats = sorted(return_stats, key=lambda x: x.return_count, reverse=True)[:limit]
+        return [
+            TopReturnedProductsResponse(
+                productId=s.product_id,
+                productName=s.product_name,
+                category=s.category,
+                returnCount=s.return_count,
+                quantityReturned=s.quantity_returned,
+                revenueLost=s.revenue_lost,
+            )
+            for s in sorted_stats
+        ]
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_value_by_category(self, seller_id: Optional[str] = None) -> List[Dict]:
+    async def get_inventory_value_by_category(self, seller_id: Optional[str] = None) -> List[InventoryValueByCategoryResponse]:
         """Calculate total tied up capital in inventory grouped by category."""
         products = await self.product_storage.findAll()
         if seller_id:
-            products = [p for p in products if p.seller_id and str(p.seller_id) == seller_id]
+            products = [p for p in products if p.has_seller(seller_id)]
 
-        category_stats = {}
+        class CategoryStat(BaseModel):
+            category: str
+            product_count: int = 0
+            total_stock: int = 0
+            inventory_value: float = 0.0
+
+        stats: List[CategoryStat] = []
         for p in products:
             cat = p.category or "Uncategorized"
-            if cat not in category_stats:
-                category_stats[cat] = {"category": cat, "totalStock": 0, "inventoryValue": 0.0, "productCount": 0}
+            stat = next((s for s in stats if s.category == cat), None)
+            if not stat:
+                stat = CategoryStat(category=cat)
+                stats.append(stat)
 
             stock = p.stock or 0
-            # Assuming price is the value or mrp. If costPrice is absent, use price
-            price = p.price or p.mrp or 0
+            price = p.price or p.mrp or 0.0
 
-            category_stats[cat]["totalStock"] += stock
-            category_stats[cat]["inventoryValue"] += stock * price
-            category_stats[cat]["productCount"] += 1
+            stat.total_stock += stock
+            stat.inventory_value = round(stat.inventory_value + (stock * price), 2)
+            stat.product_count += 1
 
-        result = list(category_stats.values())
-        for item in result:
-            item.inventoryValue = round(item.inventoryValue, 2)
-
-        return sorted(result, key=lambda x: x["inventoryValue"], reverse=True)
+        result = [
+            InventoryValueByCategoryResponse(
+                category=s.category,
+                productCount=s.product_count,
+                totalStock=s.total_stock,
+                inventoryValue=round(s.inventory_value, 2),
+            )
+            for s in stats
+        ]
+        return sorted(result, key=lambda x: x.inventory_value, reverse=True)
 
     async def precompute_dashboard_reports(self, ist_timestamp: Optional[str] = None) -> DashboardReportsCache:
         """Precomputes the heavy reporting metrics and writes to the cache."""
@@ -2033,7 +2064,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[NetSalesResponse]:
         """Per-order breakdown: gross sales → discounts → tax → shipping → net sales."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -2043,7 +2074,7 @@ class AnalyticsRepository:
 
         users = await self.user_storage.findAll()
 
-        result = []
+        result: List[NetSalesResponse] = []
         for order in orders:
             if order.subtotal is None:
                 raise ValueError('Order subtotal is None')
@@ -2060,21 +2091,21 @@ class AnalyticsRepository:
             user = next((u for u in users if u.id == order.user), None) if order.user else None
             customer_name = user.name if user and user.name else "Unknown"
             result.append(
-                {
-                    "orderId": order.id,
-                    "orderNumber": order.order_number,
-                    "customerName": customer_name,
-                    "grossSales": round(subtotal, 2),
-                    "discount": round(discount, 2),
-                    "tax": round(tax, 2),
-                    "shipping": round(shipping, 2),
-                    "netSales": net,
-                    "status": order.status,
-                    "createdAt": order.created_at,
-                }
+                NetSalesResponse(
+                    orderId=str(order.id),
+                    orderNumber=order.order_number,
+                    customerName=customer_name,
+                    grossSales=round(subtotal, 2),
+                    discount=round(discount, 2),
+                    tax=round(tax, 2),
+                    shipping=round(shipping, 2),
+                    netSales=net,
+                    status=order.status,
+                    createdAt=str(order.created_at) if order.created_at else "",
+                )
             )
 
-        return sorted(result, key=lambda x: x["createdAt"] or "", reverse=True)
+        return sorted(result, key=lambda x: x.created_at, reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_heatmap(
@@ -2082,7 +2113,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[SalesHeatmapResponse]:
         """Order volume and revenue grouped by day-of-week (0=Mon) and hour-of-day (0-23)."""
         DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -2092,25 +2123,33 @@ class AnalyticsRepository:
         if seller_id:
             orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
 
-        heat: dict = {}
+        class HeatmapStat(BaseModel):
+            dow: int
+            hour: int
+            order_count: int = 0
+            revenue: float = 0.0
+
+        heat_stats: List[HeatmapStat] = []
         for order in orders:
             dt = self._parse_date(order.created_at)
             if not dt:
                 continue
-            key = (dt.weekday(), dt.hour)
-            if key not in heat:
-                heat[key] = {"orderCount": 0, "revenue": 0.0}
-            heat[key]["orderCount"] += 1
-            heat[key]["revenue"] += order.total
+            h_stat = next((h for h in heat_stats if h.dow == dt.weekday() and h.hour == dt.hour), None)
+            if not h_stat:
+                h_stat = HeatmapStat(dow=dt.weekday(), hour=dt.hour)
+                heat_stats.append(h_stat)
+            h_stat.order_count += 1
+            h_stat.revenue += (order.total or 0.0)
 
+        heat_stats.sort(key=lambda h: (h.dow, h.hour))
         return [
-            {
-                "dayOfWeek": DAY_NAMES[dow],
-                "hour": hour,
-                "orderCount": data.orderCount,
-                "revenue": round(data.revenue, 2),
-            }
-            for (dow, hour), data in sorted(heat.items())
+            SalesHeatmapResponse(
+                dayOfWeek=DAY_NAMES[h.dow],
+                hour=h.hour,
+                orderCount=h.order_count,
+                revenue=round(h.revenue, 2),
+            )
+            for h in heat_stats
         ]
 
     @cache.ttl_cache(ttl=300)
@@ -2131,10 +2170,7 @@ class AnalyticsRepository:
         products = await self.product_storage.findAll()
 
         if seller_id:
-            products = [
-                p for p in products
-                if p.sellers and p.sellers[0].seller_id == seller_id
-            ]
+            products = [p for p in products if p.has_seller(seller_id)]
 
         class ProductRunwayStat(BaseModel):
             product: Any
@@ -2292,10 +2328,7 @@ class AnalyticsRepository:
 
         products = await self.product_storage.findAll()
         if seller_id:
-            products = [
-                p for p in products
-                if p.sellers and p.sellers[0].seller_id == seller_id
-            ]
+            products = [p for p in products if p.has_seller(seller_id)]
 
         class ProductPctStat(BaseModel):
             product: Any
