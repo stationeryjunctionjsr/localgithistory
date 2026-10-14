@@ -68,9 +68,6 @@ class MySQLPaymentDAO:
     def ENTRIES_TABLE(self):
         return "sj_payment_entries"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def _get_entries_for_payment_ids(self, session, payment_ids: List[int]) -> list:
         if not payment_ids:
             return []
@@ -87,10 +84,6 @@ class MySQLPaymentDAO:
         user_id: Optional[str] = None,
         allowed_order_ids: Optional[List[str]] = None,
     ) -> List[Payment]:
-        factory = self._factory()
-        if not factory:
-            return []
-
         where_clauses = []
         params = {}
         if order_id is not None:
@@ -118,7 +111,8 @@ class MySQLPaymentDAO:
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"SELECT id, order_id, user_id, user_id_formatted, customer_name, order_date, "
@@ -130,11 +124,11 @@ class MySQLPaymentDAO:
                 params,
             )
             rows = result.fetchall()
-        if not rows:
-            return []
-        ids = [r.id for r in rows]
-        async with factory() as session:
+            if not rows:
+                return []
+            ids = [r.id for r in rows]
             entry_rows = await self._get_entries_for_payment_ids(session, ids)
+
         records = []
         for r in rows:
             entries = [
@@ -146,10 +140,10 @@ class MySQLPaymentDAO:
         return records
 
     async def findById(self, id: int) -> Optional[Payment]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"SELECT id, order_id, user_id, user_id_formatted, customer_name, order_date, "
@@ -159,10 +153,10 @@ class MySQLPaymentDAO:
                 {"id": id},
             )
             row = result.fetchone()
-        if not row:
-            return None
-        async with factory() as session:
+            if not row:
+                return None
             entry_rows = await self._get_entries_for_payment_ids(session, [id])
+
         entries = [
             _entry__map_to_schema(er)
             for er in entry_rows
@@ -179,9 +173,6 @@ class MySQLPaymentDAO:
         return records[0] if records else None
 
     async def create(self, data: PaymentInternalCreate) -> Payment:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
         now = now_utc()
         payment_entries = data.payment_entries or []
         params = {
@@ -198,7 +189,8 @@ class MySQLPaymentDAO:
             "created_at": now,
             "updated_at": now,
         }
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"INSERT INTO {self.PAYMENTS_TABLE} (order_id, user_id, user_id_formatted, "
@@ -210,9 +202,7 @@ class MySQLPaymentDAO:
                 params,
             )
             new_id = result.lastrowid
-            await session.commit()
-        if new_id and payment_entries:
-            async with factory() as session:
+            if new_id and payment_entries:
                 for idx, entry in enumerate(payment_entries):
                     entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
                     amount = (entry.amount if entry.amount is not None else 0)
@@ -235,58 +225,65 @@ class MySQLPaymentDAO:
                             "created_at": now,
                         },
                     )
-                await session.commit()
+            await session.commit()
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: PaymentInternalUpdate) -> Optional[Payment]:
-        existing = await self.findById(id)
-        if not existing:
-            return None
-        resolved_order_id = update_data.order_id if update_data.order_id is not None else existing.order_id
-        resolved_user_id = update_data.user_id if update_data.user_id is not None else existing.user_id
-        resolved_user_id_fmt = update_data.user_id_formatted if update_data.user_id_formatted is not None else existing.user_id_formatted
-        resolved_customer_name = update_data.customer_name if update_data.customer_name is not None else existing.customer_name
-        resolved_order_date = update_data.order_date if update_data.order_date is not None else existing.order_date
-        resolved_payment_method = update_data.payment_method if update_data.payment_method is not None else existing.payment_method
-        resolved_amount_paid = update_data.amount_paid if update_data.amount_paid is not None else existing.amount_paid
-        resolved_amount_remaining = update_data.amount_remaining if update_data.amount_remaining is not None else existing.amount_remaining
-        resolved_total_amount = update_data.total_amount if update_data.total_amount is not None else existing.total_amount
-        resolved_payment_id = update_data.payment_id if update_data.payment_id is not None else existing.payment_id
-
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
         now = now_utc()
-        async with factory() as session:
-            await session.execute(
-                text(
-                    f"UPDATE {self.PAYMENTS_TABLE} SET order_id=:order_id, user_id=:user_id, user_id_formatted=:user_id_formatted, "
-                    f"customer_name=:customer_name, order_date=:order_date, payment_method=:payment_method, "
-                    f"amount_paid=:amount_paid, amount_remaining=:amount_remaining, total_amount=:total_amount, "
-                    f"payment_id=:payment_id, updated_at=:updated_at WHERE id=:id"
-                ),
-                {
-                    "order_id": resolved_order_id,
-                    "user_id": resolved_user_id,
-                    "user_id_formatted": resolved_user_id_fmt,
-                    "customer_name": resolved_customer_name,
-                    "order_date": _to_ts(resolved_order_date),
-                    "payment_method": resolved_payment_method,
-                    "amount_paid": resolved_amount_paid,
-                    "amount_remaining": resolved_amount_remaining,
-                    "total_amount": resolved_total_amount,
-                    "payment_id": resolved_payment_id,
-                    "updated_at": now,
-                    "id": id,
-                },
+        updates = ["updated_at = :updated_at"]
+        params = {"id": id, "updated_at": now}
+
+        if "order_id" in update_data.model_fields_set:
+            updates.append("order_id = :order_id")
+            params["order_id"] = update_data.order_id
+        if "user_id" in update_data.model_fields_set:
+            updates.append("user_id = :user_id")
+            params["user_id"] = update_data.user_id
+        if "user_id_formatted" in update_data.model_fields_set:
+            updates.append("user_id_formatted = :user_id_formatted")
+            params["user_id_formatted"] = update_data.user_id_formatted
+        if "customer_name" in update_data.model_fields_set:
+            updates.append("customer_name = :customer_name")
+            params["customer_name"] = update_data.customer_name
+        if "order_date" in update_data.model_fields_set:
+            updates.append("order_date = :order_date")
+            params["order_date"] = _to_ts(update_data.order_date)
+        if "payment_method" in update_data.model_fields_set:
+            updates.append("payment_method = :payment_method")
+            params["payment_method"] = update_data.payment_method
+        if "amount_paid" in update_data.model_fields_set:
+            updates.append("amount_paid = :amount_paid")
+            params["amount_paid"] = update_data.amount_paid
+        if "amount_remaining" in update_data.model_fields_set:
+            updates.append("amount_remaining = :amount_remaining")
+            params["amount_remaining"] = update_data.amount_remaining
+        if "total_amount" in update_data.model_fields_set:
+            updates.append("total_amount = :total_amount")
+            params["total_amount"] = update_data.total_amount
+        if "payment_id" in update_data.model_fields_set:
+            updates.append("payment_id = :payment_id")
+            params["payment_id"] = update_data.payment_id
+
+        set_sql = ", ".join(updates)
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            res = await session.execute(
+                text(f"UPDATE {self.PAYMENTS_TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
-            await session.commit()
-            if update_data.payment_entries is not None:
+            if res.rowcount == 0:
+                chk = await session.execute(text(f"SELECT id FROM {self.PAYMENTS_TABLE} WHERE id = :id"), {"id": id})
+                if not chk.fetchone():
+                    return None
+
+            if "payment_entries" in update_data.model_fields_set and update_data.payment_entries is not None:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": id})
-                await session.commit()
                 for idx, entry in enumerate(update_data.payment_entries):
                     entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
                     paid_at = _to_ts(entry.paid_at) or now
+                    method = entry.payment_method or (update_data.payment_method if "payment_method" in update_data.model_fields_set else None)
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -296,22 +293,22 @@ class MySQLPaymentDAO:
                             "payment_id": id,
                             "entry_id": entry_id,
                             "amount": (entry.amount if entry.amount is not None else 0),
-                            "payment_method": entry.payment_method or resolved_payment_method,
+                            "payment_method": method,
                             "paid_at": paid_at,
                             "image": entry.image,
                             "notes": (entry.notes if entry.notes is not None else ""),
-                            "verified": 1 if (entry.verified if entry.verified is not None else False) else None,
+                            "verified": 1 if (entry.verified if entry.verified is not None else False) else 0,
                             "created_at": now,
                         },
                     )
-                await session.commit()
+            await session.commit()
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": id})
             result = await session.execute(text(f"DELETE FROM {self.PAYMENTS_TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
@@ -334,7 +331,19 @@ class MySQLPaymentDAO:
         order_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> int:
-        return len(await self.findAll(order_id=order_id, user_id=user_id))
+        where_clauses = []
+        params = {}
+        if order_id is not None:
+            where_clauses.append("order_id = :order_id")
+            params["order_id"] = order_id
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            result = await session.execute(text(f"SELECT COUNT(*) FROM {self.PAYMENTS_TABLE} WHERE {where_sql}"), params)
+            return result.scalar() or 0
 
     find_all = findAll
     find_by_id = findById

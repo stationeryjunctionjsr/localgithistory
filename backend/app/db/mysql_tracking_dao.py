@@ -59,8 +59,6 @@ class MySQLTrackingDAO:
     def TABLE(self):
         return "sj_tracking"
 
-    def _factory(self):
-        return get_async_session_factory()
 
     def _row_to_tracking(self, r, cart_items_rows=None) -> Tracking:
         from app.models.tracking import Tracking
@@ -149,10 +147,6 @@ class MySQLTrackingDAO:
         skip: Optional[int] = None,
         limit: Optional[int] = None,
     ) -> List['Tracking']:
-        factory = self._factory()
-        if not factory:
-            return []
-
         where_clauses = []
         params = {}
         if id is not None:
@@ -178,7 +172,8 @@ class MySQLTrackingDAO:
         if skip is not None:
             query_str += f" OFFSET {int(skip)}"
             
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(text(query_str), params)
             rows = res.fetchall()
             items_rows = await self._fetch_cart_items(session, [r.id for r in rows])
@@ -193,9 +188,6 @@ class MySQLTrackingDAO:
     ) -> List['Tracking']:
         """Return tracking rows filtered by event_type and/or date range at SQL level.
         Far more efficient than findAll() + Python filtering for analytics queries."""
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = []
         params = {}
         if event_type:
@@ -211,7 +203,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
                 params,
@@ -226,8 +219,7 @@ class MySQLTrackingDAO:
         session_id: Optional[str] = None,
         limit: int = 10,
     ) -> List[RecentlyViewedProductItem]:
-        factory = self._factory()
-        if not factory or (not user_id and not session_id):
+        if not user_id and not session_id:
             return []
         where_clauses = ["t.event_type = 'product_view'", "t.product_id IS NOT NULL", "t.product_id != ''"]
         params = {"limit": int(limit)}
@@ -238,7 +230,8 @@ class MySQLTrackingDAO:
             where_clauses.append("t.session_id = :session_id")
             params["session_id"] = str(session_id)
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -271,14 +264,14 @@ class MySQLTrackingDAO:
         session_id: Optional[str] = None,
         limit: int = 10,
     ) -> List[str]:
-        factory = self._factory()
-        if not factory or (not user_id and not session_id):
+        if not user_id and not session_id:
             return []
         
         user_filter = "user_id = :user_id" if user_id else "session_id = :session_id"
         u_params = {"user_id": str(user_id)} if user_id else {"session_id": str(session_id)}
         
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             last_cleared = (
                 await session.execute(
                     text(f"SELECT MAX(event_timestamp) FROM {self.TABLE} WHERE event_type = 'search_history_clear' AND {user_filter}"),
@@ -316,9 +309,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> int:
-        factory = self._factory()
-        if not factory:
-            return 0
         where_clauses = ["event_type = 'session'"]
         params = {}
         if start_date:
@@ -328,7 +318,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             count = (
                 await session.execute(
                     text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"),
@@ -343,9 +334,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[TopProductItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["event_type = 'product_view'", "product_id IS NOT NULL", "product_id != ''"]
         params = {"limit": int(limit)}
         if start_date:
@@ -355,7 +343,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -378,9 +367,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[DropOffPointItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["event_type = 'drop_off'", "page IS NOT NULL", "page != ''"]
         params = {"limit": int(limit)}
         if start_date:
@@ -390,7 +376,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -433,9 +420,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[MostSearchedItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["event_type = 'product_search'", "search_term IS NOT NULL", "TRIM(search_term) != ''"]
         params = {"limit": int(limit)}
         if start_date:
@@ -445,7 +429,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -469,9 +454,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[ZeroResultSearchItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = [
             "event_type = 'product_search'",
             "search_term IS NOT NULL",
@@ -486,7 +468,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -509,9 +492,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[MostViewedItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["event_type = 'product_view'", "product_id IS NOT NULL", "product_id != ''"]
         params = {"limit": int(limit)}
         if start_date:
@@ -521,7 +501,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -544,9 +525,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List['Tracking']:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["event_type = 'cart_abandonment'"]
         params = {"limit": int(limit)}
         if start_date:
@@ -556,7 +534,8 @@ class MySQLTrackingDAO:
             where_clauses.append("event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY event_timestamp DESC, id DESC LIMIT :limit"),
@@ -572,9 +551,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[MostAbandonedProductItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["t.event_type = 'cart_abandonment'", "ci.product_id IS NOT NULL", "ci.product_id != ''"]
         params = {"limit": int(limit)}
         if start_date:
@@ -584,7 +560,8 @@ class MySQLTrackingDAO:
             where_clauses.append("t.event_timestamp <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -625,9 +602,6 @@ class MySQLTrackingDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[ReturningUserItem]:
-        factory = self._factory()
-        if not factory:
-            return []
         where_clauses = ["user_id IS NOT NULL", "user_id != ''"]
         params = {}
         if start_date:
@@ -637,7 +611,8 @@ class MySQLTrackingDAO:
             where_clauses.append("start_time <= :end_date")
             params["end_date"] = end_date
         where_sql = " AND ".join(where_clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(
@@ -672,7 +647,6 @@ class MySQLTrackingDAO:
         return await self.findOne(id=id)
 
     async def create(self, data: 'AnalyticsEventCreate') -> 'AnalyticsEvent':
-        factory = self._factory()
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -728,8 +702,8 @@ class MySQLTrackingDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in extracted_keys])
 
-        async with factory() as session:
-            from sqlalchemy import text
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -737,17 +711,15 @@ class MySQLTrackingDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, data: 'AnalyticsEventUpdate') -> Optional['AnalyticsEvent']:
-        existing = await self.findById(id)
-        if not existing:
+        if not id:
             return None
-        
-        return existing
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id}
             )
@@ -760,9 +732,6 @@ class MySQLTrackingDAO:
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> int:
-        from sqlalchemy import text
-
-        factory = self._factory()
         where_clauses = []
         params = {}
         if event_type is not None:
@@ -776,7 +745,8 @@ class MySQLTrackingDAO:
             params["session_id"] = session_id
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)
             await session.commit()
             return res.rowcount
