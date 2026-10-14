@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Set, NamedTuple
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -12,6 +12,13 @@ from app.models.daos_flat import (
 def now_utc():
     return datetime.now(timezone.utc)
 
+from app.models.base import CamelBaseModel
+from pydantic import Field
+
+class RegisteredDeviceUsers(CamelBaseModel):
+    user_ids: Set[int] = Field(default_factory=set)
+    has_guest: bool = False
+
 class MySQLDeviceSubscriptionsDAO:
     def __init__(self):
         self.table_name = "sj_device_subscriptions"
@@ -20,13 +27,11 @@ class MySQLDeviceSubscriptionsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[DeviceSubscriptionInternal]:
         if not id:
             return None
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             params = {"id": id}
             result = await session.execute(q, params)
@@ -69,10 +74,14 @@ class MySQLDeviceSubscriptionsDAO:
             params["expo_token"] = expo_token
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-        limit_sql = f" LIMIT {limit}" if limit else ""
-        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC{limit_sql}"
+        pagination_sql = ""
+        if limit is not None:
+            pagination_sql = " LIMIT :limit"
+            params["limit"] = limit
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC{pagination_sql}"
 
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -96,7 +105,6 @@ class MySQLDeviceSubscriptionsDAO:
             ]
 
     async def create(self, data: DeviceSubscriptionInternalCreate) -> DeviceSubscriptionInternal:
-        factory = self._factory()
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -121,7 +129,8 @@ class MySQLDeviceSubscriptionsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
         
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -130,7 +139,6 @@ class MySQLDeviceSubscriptionsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: DeviceSubscriptionInternalUpdate) -> Optional[DeviceSubscriptionInternal]:
-        factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"pk": id, "u": now_utc()}
 
@@ -147,7 +155,8 @@ class MySQLDeviceSubscriptionsDAO:
             params["expo_token"] = update_data.expo_token
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             upd_where = "id = :pk"
 
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
@@ -157,10 +166,10 @@ class MySQLDeviceSubscriptionsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             params = {"id": id}
 
             await session.execute(text("DELETE FROM sj_device_keys WHERE parent_id = :id"), params)
@@ -189,7 +198,7 @@ class MySQLDeviceSubscriptionsDAO:
             for r in res.fetchall()
         ]
 
-    async def _replace_children(self, session, row_id: int, data: Union[DeviceSubscriptionInternalCreate, DeviceSubscriptionInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: DeviceSubscriptionInternalCreate | DeviceSubscriptionInternalUpdate):
         if data.keys is not None:
             await session.execute(text("DELETE FROM sj_device_keys WHERE parent_id = :id"), {"id": row_id})
             if data.keys:
@@ -199,13 +208,11 @@ class MySQLDeviceSubscriptionsDAO:
                     params,
                 )
 
-    async def get_distinct_registered_user_ids(self) -> tuple[set[int], bool]:
+    async def get_distinct_registered_user_ids(self) -> RegisteredDeviceUsers:
         """Fetch distinct user IDs from registered devices directly via SQL."""
-        factory = self._factory()
-        if not factory:
-            return set(), False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (await session.execute(text(f"SELECT DISTINCT user_id FROM {self.TABLE}"))).fetchall()
             user_ids = {r.user_id for r in rows if r.user_id is not None}
             has_guest = any(r.user_id is None for r in rows)
-            return user_ids, has_guest
+            return RegisteredDeviceUsers(user_ids=user_ids, has_guest=has_guest)

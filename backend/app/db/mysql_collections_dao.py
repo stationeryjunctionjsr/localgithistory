@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -103,7 +103,14 @@ class MySQLCollectionsDAO:
         async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
-            await self._replace_children(session, new_id, data)
+            if data.visible_pages:
+                await self._replace_visible_pages(session, new_id, data.visible_pages)
+            if data.user_segments:
+                await self._replace_user_segments(session, new_id, data.user_segments)
+            if data.visibility_rules:
+                await self._replace_visibility_rules(session, new_id, data.visibility_rules)
+            if data.product_ids:
+                await self._replace_products(session, new_id, data.product_ids)
             await session.commit()
             
         return await self.findById(new_id)
@@ -143,7 +150,14 @@ class MySQLCollectionsDAO:
         upd_sql = ", ".join(updates)
         async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-            await self._replace_children(session, id, update_data)
+            if "visible_pages" in fields:
+                await self._replace_visible_pages(session, id, update_data.visible_pages or [])
+            if "user_segments" in fields:
+                await self._replace_user_segments(session, id, update_data.user_segments or [])
+            if "visibility_rules" in fields:
+                await self._replace_visibility_rules(session, id, update_data.visibility_rules or [])
+            if "product_ids" in fields:
+                await self._replace_products(session, id, update_data.product_ids or [])
             await session.commit()
                 
         return await self.findById(id)

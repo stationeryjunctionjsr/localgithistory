@@ -91,8 +91,10 @@ class PushNotificationService:
     async def send_to_all_devices(self, notification: 'PushNotification'):
         """Send push notification to registered devices based on targeting criteria (Optimized)"""
         try:
-            # 1. Fetch all registered devices first
-            all_devices = await push_notification_repository.device_storage.findAll()
+            # 1. Fetch registered user IDs directly via SQL pushdown
+            reg_users = await push_notification_repository.device_storage.get_distinct_registered_user_ids()
+            downloaded_user_ids = reg_users.user_ids
+            has_guest_download = reg_users.has_guest
 
             target_segment = notification.user_segment or "all"
             target_behavior = notification.user_behavior or "none"
@@ -103,15 +105,6 @@ class PushNotificationService:
                 reference_date = datetime.fromisoformat(reference_date_str.replace("Z", "+00:00"))
             else:
                 reference_date = datetime.now(timezone.utc).replace(tzinfo=None)
-
-            # Get unique users who have registered a device
-            downloaded_user_ids: set[int] = set()
-            has_guest_download = False
-            for d in all_devices:
-                if d.user_id is not None:
-                    downloaded_user_ids.add(d.user_id)
-                else:
-                    has_guest_download = True
 
             targeted_user_ids: set[int] = set()
             downloaded_user_ids_list = list(downloaded_user_ids)

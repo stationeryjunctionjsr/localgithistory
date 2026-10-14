@@ -21,14 +21,13 @@ class MySQLReturnRequestsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
-    async def findById(self, id: int) -> Optional['ReturnRequestInternal']:
-        factory = self._factory()
-        if not factory or not id:
+    async def findById(self, id: int) -> Optional[ReturnRequestInternal]:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -37,11 +36,13 @@ class MySQLReturnRequestsDAO:
             child_rows = await self._fetch_children(session, [row.id])
             return self._map_to_schema(row, child_rows)
 
-    async def findByReturnId(self, return_id: str) -> Optional['ReturnRequestInternal']:
-        factory = self._factory()
-        if not factory or not return_id:
+    async def findByReturnId(self, return_id: str) -> Optional[ReturnRequestInternal]:
+        if not return_id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE return_id = :return_id LIMIT 1")
             result = await session.execute(q, {"return_id": return_id})
             row = result.fetchone()
@@ -56,7 +57,7 @@ class MySQLReturnRequestsDAO:
         return_id: Optional[str] = None,
         order_id: Optional[str] = None,
         user_id: Optional[str] = None,
-    ) -> Optional['ReturnRequestInternal']:
+    ) -> Optional[ReturnRequestInternal]:
         if id is not None:
             return await self.findById(id)
         if return_id:
@@ -72,7 +73,7 @@ class MySQLReturnRequestsDAO:
         valet_id: Optional[str] = None,
         pending_valet_id: Optional[str] = None,
         seller_id: Optional[str] = None,
-    ) -> List['ReturnRequestInternal']:
+    ) -> List[ReturnRequestInternal]:
         clauses = []
         params = {}
         if status is not None:
@@ -97,10 +98,10 @@ class MySQLReturnRequestsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -108,8 +109,10 @@ class MySQLReturnRequestsDAO:
             child_rows = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, child_rows) for r in rows]
 
-    async def create(self, data: 'ReturnRequestInternalCreate') -> 'ReturnRequestInternal':
-        factory = self._factory()
+    async def create(self, data: ReturnRequestInternalCreate) -> ReturnRequestInternal:
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -182,7 +185,7 @@ class MySQLReturnRequestsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['return_id', 'order_id', 'user_id', 'payment_method', 'upi_payment_screenshot', 'notes', 'status', 'valet_id', 'seller_id', 'delivery_slot_id', 'delivery_slot_config_id', 'delivery_slot_date', 'pending_valet_id', 'valet_assigned_at', 'valet_cascade_count', 'delivery_charge'] if f"s_{k}" in params])
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -190,34 +193,39 @@ class MySQLReturnRequestsDAO:
             
         return await self.findById(new_id)
 
-    async def update(self, id: int, update_data: 'ReturnRequestInternalUpdate') -> Optional['ReturnRequestInternal']:
-        factory = self._factory()
-        if not factory or not id:
+    async def update(self, id: int, update_data: ReturnRequestInternalUpdate) -> Optional[ReturnRequestInternal]:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
         
-        if update_data.status is not None:
+        if "status" in fields:
             updates.append("status = :s_status")
             params["s_status"] = update_data.status
-        if update_data.valet_id is not None:
+        if "valet_id" in fields:
             updates.append("valet_id = :s_valet_id")
             params["s_valet_id"] = update_data.valet_id
-        if update_data.pending_valet_id is not None:
+        if "pending_valet_id" in fields:
             updates.append("pending_valet_id = :s_pending_valet_id")
             params["s_pending_valet_id"] = update_data.pending_valet_id
-        if update_data.valet_assigned_at is not None:
+        if "valet_assigned_at" in fields:
             updates.append("valet_assigned_at = :s_valet_assigned_at")
             params["s_valet_assigned_at"] = update_data.valet_assigned_at
-        if update_data.valet_cascade_count is not None:
+        if "valet_cascade_count" in fields:
             updates.append("valet_cascade_count = :s_valet_cascade_count")
             params["s_valet_cascade_count"] = update_data.valet_cascade_count
-        if update_data.notes is not None:
+        if "notes" in fields:
             updates.append("notes = :s_notes")
             params["s_notes"] = update_data.notes
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await self._replace_children(session, id, update_data)
             await session.commit()
@@ -225,10 +233,10 @@ class MySQLReturnRequestsDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": id})
             await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": id})
 
@@ -294,7 +302,8 @@ class MySQLReturnRequestsDAO:
         return (rows_items, rows_valetDeclineHistory)
 
     async def _replace_children(self, session, row_id: int, data: Union[ReturnRequestInternalCreate, ReturnRequestInternalUpdate]):
-        if data.items is not None:
+        fields = data.model_fields_set
+        if "items" in fields and data.items is not None:
             await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
             for item in data.items:
                 p = {
@@ -308,7 +317,7 @@ class MySQLReturnRequestsDAO:
                     p,
                 )
 
-        if data.valet_decline_history is not None:
+        if "valet_decline_history" in fields and data.valet_decline_history is not None:
             await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
             for item in data.valet_decline_history:
                 p = {

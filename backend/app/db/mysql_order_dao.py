@@ -1,7 +1,7 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from app.models.daos import OrderFilter
 from app.models.order import Order
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any, List, Optional, Set, Tuple, NamedTuple, TypedDict
 import logging
 from datetime import datetime
 
@@ -10,6 +10,21 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.db_utils import now_utc
+
+
+from app.models.base import CamelBaseModel
+
+
+class OrderSummaryStats(CamelBaseModel):
+    total_orders: int = 0
+    total_revenue: float = 0.0
+
+
+class OrderKpiStats(CamelBaseModel):
+    gross_sales: float = 0.0
+    returning_customer_rate: float = 0.0
+    orders_fulfilled: int = 0
+    orders: int = 0
 
 
 def _to_ts(value: Optional[str]) -> Optional[datetime]:
@@ -30,9 +45,6 @@ class MySQLOrderDAO:
     @property
     def ITEMS_TABLE(self):
         return "sj_order_items"
-
-    def _factory(self):
-        return get_async_session_factory()
 
     def __map_to_schema(self, r, items_rows=None, declines_rows=None) -> Order:
         order = Order.model_validate(r)
@@ -145,10 +157,6 @@ class MySQLOrderDAO:
     async def findAll(
         self, filter: Optional[OrderFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Order]:
-        factory = self._factory()
-        if not factory:
-            return []
-
         where_sql, params = self._build_query_conditions(filter)
 
         pagination_sql = ""
@@ -157,7 +165,8 @@ class MySQLOrderDAO:
             params["skip"] = skip
             params["limit"] = limit
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -208,31 +217,22 @@ class MySQLOrderDAO:
 
             return [self.__map_to_schema(r, items_rows, declines_rows) for r in rows]
 
-    async def get_summary_stats(self, filter: Optional[OrderFilter] = None) -> tuple[int, float]:
+    async def get_summary_stats(self, filter: Optional[OrderFilter] = None) -> OrderSummaryStats:
         """Returns (total_orders, total_revenue) via direct SQL aggregate without loading records."""
-        factory = self._factory()
-        if not factory:
-            return 0, 0.0
         where_sql, params = self._build_query_conditions(filter)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT COUNT(*) AS total_orders, COALESCE(SUM(total), 0.0) AS total_revenue FROM {self.TABLE} WHERE {where_sql}")
             res = (await session.execute(q, params)).fetchone()
             if not res:
-                return 0, 0.0
-            return res.total_orders or 0, float(res.total_revenue or 0.0)
+                return OrderSummaryStats(total_orders=0, total_revenue=0.0)
+            return OrderSummaryStats(total_orders=res.total_orders or 0, total_revenue=float(res.total_revenue or 0.0))
 
-    async def get_kpi_stats(self, filter: Optional[OrderFilter] = None) -> Dict[str, Any]:
+    async def get_kpi_stats(self, filter: Optional[OrderFilter] = None) -> OrderKpiStats:
         """Direct SQL pushdown for KPI metrics: gross sales, total orders, fulfilled orders, returning customer rate."""
-        factory = self._factory()
-        if not factory:
-            return {
-                "gross_sales": 0.0,
-                "returning_customer_rate": 0.0,
-                "orders_fulfilled": 0,
-                "orders": 0,
-            }
         where_sql, params = self._build_query_conditions(filter)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(
                 f"""
                 SELECT 
@@ -266,26 +266,26 @@ class MySQLOrderDAO:
             ret_cust = ret_res.returning_customers or 0 if ret_res else 0
             rate = round((ret_cust / tot_cust * 100), 2) if tot_cust > 0 else 0.0
 
-            return {
-                "gross_sales": round(gross_sales, 2),
-                "returning_customer_rate": rate,
-                "orders_fulfilled": orders_fulfilled,
-                "orders": total_orders,
-            }
+            return OrderKpiStats(
+                gross_sales=round(gross_sales, 2),
+                returning_customer_rate=rate,
+                orders_fulfilled=orders_fulfilled,
+                orders=total_orders,
+            )
 
     async def findOne(self, filter: Optional[OrderFilter] = None) -> Optional[Order]:
         records = await self.findAll(filter)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[Order]:
-        factory = self._factory()
-        if not factory or id is None:
+        if id is None:
             return None
         try:
             pid = int(id)
         except (ValueError, TypeError):
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -318,9 +318,6 @@ class MySQLOrderDAO:
     async def findByIds(self, ids: List[int]) -> List[Order]:
         if not ids:
             return []
-        factory = self._factory()
-        if not factory:
-            return []
 
         int_ids = []
         for i in ids:
@@ -340,7 +337,8 @@ class MySQLOrderDAO:
             clauses.append(f"id IN ({', '.join(f':{k}' for k in c_params)})")
 
         where_sql = " OR ".join(clauses)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -445,9 +443,7 @@ class MySQLOrderDAO:
         """
 
 
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
+        async_session = get_async_session_factory()
         now = now_utc()
         uid = None
         if data.user is not None:
@@ -456,7 +452,7 @@ class MySQLOrderDAO:
             except (ValueError, TypeError):
                 uid = None
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -562,9 +558,6 @@ class MySQLOrderDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        factory = self._factory()
-        if not factory:
-            return None
         now = now_utc()
         oid = int(existing.id)
         raw_user_id = update_data.user if update_data.user is not None else existing.user
@@ -575,7 +568,8 @@ class MySQLOrderDAO:
             except (ValueError, TypeError):
                 uid = None
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(
                 text(
                     f"""
@@ -687,14 +681,14 @@ class MySQLOrderDAO:
         return await self.findById(id)
 
     async def delete(self, id: str) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
         existing = await self.findById(id)
         if not existing:
             return False
         oid = int(existing.id)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(
                 text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
                 {"order_id": oid},
@@ -711,11 +705,9 @@ class MySQLOrderDAO:
             return result.rowcount > 0
 
     async def get_max_order_number_suffix(self, prefix: str) -> int:
-        factory = self._factory()
-        if not factory:
-            return 0
         prefix_like = prefix + "%"
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"""
@@ -730,11 +722,9 @@ class MySQLOrderDAO:
 
     async def deleteMany(self, filter: Optional[OrderFilter] = None) -> int:
         """Delete matching orders and their child items/declines in SQL pushdown."""
-        factory = self._factory()
-        if not factory:
-            return 0
         where_sql, params = self._build_query_conditions(filter)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(
                 text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
                 params,
@@ -751,11 +741,9 @@ class MySQLOrderDAO:
             return result.rowcount or 0
 
     async def count(self, filter: Optional[OrderFilter] = None) -> int:
-        factory = self._factory()
-        if not factory:
-            return 0
         where_sql, params = self._build_query_conditions(filter)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"), params)
             return int(result.scalar() or 0)
 
@@ -766,10 +754,6 @@ class MySQLOrderDAO:
         Aggregate total purchased quantity grouped by subcategory (falling back to category)
         for a specific user since start_date, sorted by quantity ascending.
         """
-        factory = self._factory()
-        if not factory:
-            return []
-
         try:
             uid = int(user_id)
         except (ValueError, TypeError):
@@ -790,7 +774,8 @@ class MySQLOrderDAO:
         """
         params = {"start_date": start_date, "uid": uid}
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [(str(row.subcat), int(row.total_qty)) for row in result.fetchall() if row.subcat]
 
@@ -803,9 +788,6 @@ class MySQLOrderDAO:
         Returns: List[Tuple[product_id, subcategory, total_sales]]
         """
         if not subcategories:
-            return []
-        factory = self._factory()
-        if not factory:
             return []
 
         sc_params = {f"sc_{i}": sc for i, sc in enumerate(subcategories)}
@@ -827,7 +809,8 @@ class MySQLOrderDAO:
         """
         sc_params["start_date"] = start_date
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), sc_params)
             return [(str(row.product_id), str(row.subcat), int(row.sales)) for row in result.fetchall()]
 
@@ -838,10 +821,6 @@ class MySQLOrderDAO:
         Return the set of distinct product IDs purchased by a user.
         Optionally filtered by orders created on or after start_date.
         """
-        factory = self._factory()
-        if not factory:
-            return set()
-
         try:
             uid = int(user_id)
         except (ValueError, TypeError):
@@ -860,7 +839,8 @@ class MySQLOrderDAO:
         if start_date:
             params["start_date"] = start_date
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             return {str(row.pid) for row in result.fetchall() if row.pid}
 
@@ -870,10 +850,6 @@ class MySQLOrderDAO:
         """
         Top bestsellers from retail customer orders (ORDER-RT-) only since start_date.
         """
-        factory = self._factory()
-        if not factory:
-            return []
-
         sql = f"""
             SELECT CAST(oi.product_id AS CHAR) AS pid,
                    CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
@@ -890,7 +866,8 @@ class MySQLOrderDAO:
         params = {"start_date": start_date}
 
         exclude = exclude_product_ids or set()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             out: List[str] = []
             for row in result.fetchall():
@@ -907,10 +884,6 @@ class MySQLOrderDAO:
         """
         Products most frequently bought by other wholesalers since start_date.
         """
-        factory = self._factory()
-        if not factory:
-            return []
-
         try:
             uid = int(user_id)
         except (ValueError, TypeError):
@@ -933,7 +906,8 @@ class MySQLOrderDAO:
         """
         params = {"start_date": start_date, "uid": uid, "limit": limit}
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [str(row.pid) for row in result.fetchall() if row.pid]
 
@@ -943,10 +917,6 @@ class MySQLOrderDAO:
         """
         Top products bought by specific user since start_date.
         """
-        factory = self._factory()
-        if not factory:
-            return []
-
         try:
             uid = int(user_id)
         except (ValueError, TypeError):
@@ -966,7 +936,8 @@ class MySQLOrderDAO:
         """
         params = {"start_date": start_date, "uid": uid, "limit": limit}
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [str(row.pid) for row in result.fetchall() if row.pid]
 
@@ -981,10 +952,6 @@ class MySQLOrderDAO:
         kind: 'customer' (retail ORDER-RT-, role customer) | 'business' (wholesaler ORDER-WH-)
         Returns: List[Tuple[product_id, subcategory, order_count, total_quantity]]
         """
-        factory = self._factory()
-        if not factory:
-            return []
-
         prefix = "ORDER-RT-%" if kind == "customer" else "ORDER-WH-%"
         user_join = "JOIN sj_users u ON u.id = o.user_id" if kind == "customer" else ""
         user_filter = "AND u.role = 'customer'" if kind == "customer" else ""
@@ -1015,7 +982,8 @@ class MySQLOrderDAO:
             HAVING total_qty > 1
         """
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [
                 (str(row.pid), str(row.subcat), int(row.order_count), int(row.total_qty))
@@ -1035,10 +1003,6 @@ class MySQLOrderDAO:
         Returns: (product_stats, distinct_states, distinct_cities)
         where product_stats is [(product_id, order_count, total_quantity), ...]
         """
-        factory = self._factory()
-        if not factory:
-            return [], [], []
-
         prefix = "ORDER-RT-%" if kind == "customer" else "ORDER-WH-%"
         user_join = "JOIN sj_users u ON u.id = o.user_id" if kind == "customer" else ""
         user_filter = "AND u.role = 'customer'" if kind == "customer" else ""
@@ -1081,7 +1045,8 @@ class MySQLOrderDAO:
             GROUP BY pid
         """
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             geo_res = await session.execute(text(geo_sql), geo_params)
             states = set()
             cities = set()

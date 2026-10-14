@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from app.db.storage_factory import get_storage
+from app.models.daos_flat import PincodeSearchesInternalCreate
 from app.models.pincode_searches import (
     PincodeSearches,
     PincodeSearchListResponse,
@@ -38,21 +39,15 @@ class PincodeSearchRepository:
         """Log a pincode search event into the database with timestamp and serviceability details."""
         try:
             now_ist = datetime.now(IST).isoformat()
-            doc = {
-                "pincode": str(pincode).strip(),
-                "isServiceable": bool(is_serviceable),
-                "status": "serviceable" if is_serviceable else "not_serviceable",
-                "sellerCount": int(seller_count or 0),
-                "serviceableSellerIds": serviceable_seller_ids or [],
-                "userRole": str(user_role or "customer"),
-                "userId": str(user_id) if user_id else None,
-                "city": city or None,
-                "state": state or None,
-                "district": district or None,
-                "searchedAt": now_ist,
-                "date": now_ist,
-            }
-            return await self.storage.create(doc)
+            data = PincodeSearchesInternalCreate(
+                pincode=str(pincode).strip(),
+                is_serviceable=bool(is_serviceable),
+                timestamp=now_ist,
+                city=city or None,
+                state=state or None,
+                district=district or None,
+            )
+            return await self.storage.create(data)
         except Exception as e:
             logger.error("Failed to log pincode search for %s: %s", pincode, str(e), exc_info=True)
             return None
@@ -67,25 +62,14 @@ class PincodeSearchRepository:
         end_date: Optional[str] = None,
     ) -> PincodeSearchListResponse:
         """Fetch paginated pincode search logs with optional filters."""
-        skip = max(0, (page - 1) * limit)
         try:
-            items, total = await self.storage.find_paginated(
+            return await self.storage.find_paginated(
                 is_serviceable=is_serviceable,
                 search=search,
                 start_date=start_date,
                 end_date=end_date,
-                skip=skip,
-                limit=limit,
-            )
-            pages = (total + limit - 1) // limit if limit > 0 else 1
-            return PincodeSearchListResponse(
-                items=items,
-                searches=items,
-                total=total,
-                total_count=total,
                 page=page,
                 limit=limit,
-                pages=pages,
             )
         except Exception as e:
             logger.error("Failed to fetch pincode searches: %s", str(e), exc_info=True)

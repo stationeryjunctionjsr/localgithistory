@@ -1576,13 +1576,15 @@ class AnalyticsRepository:
         _order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
 
         # 1. LIVE Orders Data (via SQL pushdown)
-        total_orders, total_revenue = await self.order_storage.get_summary_stats(_order_filter)
+        summary_stats = await self.order_storage.get_summary_stats(_order_filter)
+        total_orders = summary_stats.total_orders
+        total_revenue = summary_stats.total_revenue
 
         # 2. LIVE Users Data (via SQL pushdown)
         user_counts = await self.user_storage.get_user_counts_by_role()
-        total_customers = user_counts.get("customer", 0)
-        total_wholesalers = user_counts.get("wholesaler", 0)
-        total_valets = user_counts.get("valet", 0)
+        total_customers = user_counts.customer
+        total_wholesalers = user_counts.wholesaler
+        total_valets = user_counts.valet
 
         # 3. LIVE Products Count (via SQL pushdown)
         total_products = await self.product_storage.get_active_products_count()

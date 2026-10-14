@@ -132,6 +132,15 @@ def start_recommendation_scheduler():
         CronTrigger(hour=0, minute=0, timezone=IST),
         id="daily_search_report_job",
     )
+    # Analytics Reports Pre-Computation: 6:00 AM, 12:00 PM, 6:00 PM, 12:00 AM IST
+    from app.jobs.analytics_report_job import run_analytics_report_job
+    scheduler.add_job(
+        run_analytics_report_job,
+        CronTrigger(hour="0,6,12,18", minute=0, timezone=IST),
+        id="analytics_reports_precompute_job",
+        max_instances=1,
+        coalesce=True,
+    )
     # Daily Events Reconciler & Sync: DISABLED — mobile events now write directly
     # to sj_tracking in real-time via /api/analytics/events. No batch sync needed.
     # from app.jobs.events_sync_job import run_events_sync_job_async

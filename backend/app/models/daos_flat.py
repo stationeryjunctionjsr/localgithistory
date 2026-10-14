@@ -2,7 +2,7 @@ from app.models.base import CamelBaseModel
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 from typing import Any, Optional, Dict, List, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from app.models.schemas import TicketResponseItemInternal, SocialMedia
 from app.models.daos import CustomerSegmentFilters
 
@@ -571,8 +571,16 @@ class CouponInternalCreate(FlatCamelBaseModel):
     min_purchase_amount: Optional[float] = None
     usage_limit: Optional[int] = None
     used_count: Optional[int] = None
-    valid_from: Optional[str] = None
-    valid_until: Optional[str] = None
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+
+    @field_validator('valid_from', 'valid_until', mode='after')
+    @classmethod
+    def ensure_naive_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is not None and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
     is_active: Optional[bool] = None
     type_of_discount: Optional[str] = None
     method: Optional[str] = None
@@ -622,8 +630,16 @@ class CouponInternalUpdate(FlatCamelBaseModel):
     min_purchase_amount: Optional[float] = None
     usage_limit: Optional[int] = None
     used_count: Optional[int] = None
-    valid_from: Optional[str] = None
-    valid_until: Optional[str] = None
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+
+    @field_validator('valid_from', 'valid_until', mode='after')
+    @classmethod
+    def ensure_naive_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is not None and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
     is_active: Optional[bool] = None
     type_of_discount: Optional[str] = None
     method: Optional[str] = None
@@ -901,12 +917,18 @@ class PincodeSearchesInternalCreate(FlatCamelBaseModel):
     pincode: Optional[str] = None
     query: Optional[str] = None
     timestamp: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
 
 class PincodeSearchesInternalUpdate(FlatCamelBaseModel):
     is_serviceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
     timestamp: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
 
 class SystemSettingsInternalCreate(FlatCamelBaseModel):
     allow_signups: Optional[bool] = None

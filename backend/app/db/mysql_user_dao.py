@@ -5,17 +5,40 @@ from app.models.user import User, UserFilter
 MySQL DAO for sj_users (Fully Relational).
 """
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 
-def _map_to_schema(r, children: Dict) -> User:
+from app.models.base import CamelBaseModel
+from pydantic import Field
+
+
+class UserAddressItem(CamelBaseModel):
+    user_id: int
+    address: AddressSnippet
+
+
+class UserZoneItem(CamelBaseModel):
+    user_id: int
+    zone_id: int
+
+
+class UserChildrenBatch(CamelBaseModel):
+    addresses: list[UserAddressItem] = Field(default_factory=list)
+    zones: list[UserZoneItem] = Field(default_factory=list)
+
+
+def _map_to_schema(
+    r,
+    addresses: Optional[list[AddressSnippet]] = None,
+    zones: Optional[list[int]] = None,
+) -> User:
     u = User.model_validate(r)
-    all_addresses = children.get("addresses", [])
+    all_addresses = addresses or []
     u.address = next((a for a in all_addresses if a.is_primary), None)
     u.saved_addresses = [a for a in all_addresses if not a.is_primary]
-    u.service_area_zones = children.get("zones", [])
+    u.service_area_zones = zones or []
     
     if not u.user_id_formatted and u.id:
         u.user_id_formatted = f"USER-{r.id}"
@@ -24,16 +47,23 @@ def _map_to_schema(r, children: Dict) -> User:
         
     return u
 
+
+class UserRoleCounts(CamelBaseModel):
+    customer: int = 0
+    wholesaler: int = 0
+    valet: int = 0
+    seller: int = 0
+    admin: int = 0
+    super_admin: int = 0
+
+
 class MySQLUserDAO:
 
     @property
     def TABLE(self):
         return 'sj_users'
 
-    def _factory(self):
-        return get_async_session_factory()
-
-    def _build_query_conditions(self, filter_params: Optional[UserFilter] = None) -> tuple[str, Dict]:
+    def _build_query_conditions(self, filter_params: Optional[UserFilter] = None) -> tuple[str, dict]:
         where_clauses = []
         params = {}
         if not filter_params:
@@ -80,38 +110,44 @@ class MySQLUserDAO:
         where_sql = ' AND '.join(where_clauses) if where_clauses else '1=1'
         return (where_sql, params)
 
-    async def _fetch_children(self, session, uids: List[int]) -> Dict[int, Dict]:
-        children_map = {uid: {'addresses': [], 'zones': []} for uid in uids}
+    async def _fetch_children(
+        self, session, uids: list[int]
+    ) -> UserChildrenBatch:
         if not uids:
-            return children_map
+            return UserChildrenBatch()
         chunks = [uids[i:i + 999] for i in range(0, len(uids), 999)]
+        addr_items: list[UserAddressItem] = []
+        zone_items: list[UserZoneItem] = []
         for chunk in chunks:
             chunk_params = {f'uid_{i}': uid for i, uid in enumerate(chunk)}
             placeholders = ', '.join([f':{k}' for k in chunk_params.keys()])
             res = await session.execute(text(f'SELECT user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code FROM sj_user_addresses WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
-                children_map[r.user_id]['addresses'].append(
-                    AddressSnippet(
-                        is_primary=bool(r.is_primary),
-                        street=r.street,
-                        city=r.city,
-                        state=r.state,
-                        pincode=r.pincode,
-                        phone=r.phone,
-                        district=r.district,
-                        country=r.country,
-                        google_location=r.google_location,
-                        latitude=float(r.latitude) if r.latitude is not None else None,
-                        longitude=float(r.longitude) if r.longitude is not None else None,
-                        address=r.address_text,
-                        zip_code=r.zip_code,
+                addr_items.append(
+                    UserAddressItem(
+                        user_id=r.user_id,
+                        address=AddressSnippet(
+                            is_primary=bool(r.is_primary),
+                            street=r.street,
+                            city=r.city,
+                            state=r.state,
+                            pincode=r.pincode,
+                            phone=r.phone,
+                            district=r.district,
+                            country=r.country,
+                            google_location=r.google_location,
+                            latitude=float(r.latitude) if r.latitude is not None else None,
+                            longitude=float(r.longitude) if r.longitude is not None else None,
+                            address=r.address_text,
+                            zip_code=r.zip_code,
+                        ),
                     )
                 )
             res = await session.execute(text(f'SELECT user_id, zone_name, zone_id FROM sj_seller_zones WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
                 if r.zone_id is not None:
-                    children_map[r.user_id]['zones'].append(r.zone_id)
-        return children_map
+                    zone_items.append(UserZoneItem(user_id=r.user_id, zone_id=r.zone_id))
+        return UserChildrenBatch(addresses=addr_items, zones=zone_items)
 
     async def _replace_children(self, session, uid: int, data: User):
         await session.execute(text('DELETE FROM sj_user_addresses WHERE user_id = :uid'), {'uid': uid})
@@ -161,12 +197,12 @@ class MySQLUserDAO:
             zone_name = name_row.name if name_row else str(zone_id)
             await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': zone_id})
 
-    async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[User]:
-        factory = self._factory()
-        if not factory:
+    async def findAll(self, filter_params: Optional[UserFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> list[User]:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
         where_sql, params = self._build_query_conditions(filter_params)
-        async with factory() as session:
+        async with async_session() as session:
             try:
                 query_str = f'\n                SELECT id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
                 if limit is not None:
@@ -174,11 +210,18 @@ class MySQLUserDAO:
                 if skip is not None:
                     query_str += f' OFFSET {skip}'
                 rows = (await session.execute(text(query_str), params)).fetchall()
-                children_map = await self._fetch_children(session, [r.id for r in rows])
+                children = await self._fetch_children(session, [r.id for r in rows])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return [_map_to_schema(r, children_map.get(r.id, {})) for r in rows]
+        return [
+            _map_to_schema(
+                r,
+                addresses=[ai.address for ai in children.addresses if ai.user_id == r.id],
+                zones=[zi.zone_id for zi in children.zones if zi.user_id == r.id],
+            )
+            for r in rows
+        ]
 
     async def findSuperAdmin(self) -> Optional[User]:
         records = await self.findAll(UserFilter(role="super_admin"), limit=1)
@@ -189,10 +232,12 @@ class MySQLUserDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[User]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             try:
                 row = (await session.execute(text(f"""
                 SELECT id, user_id_formatted, name, email, password_hash,
@@ -206,22 +251,26 @@ class MySQLUserDAO:
             """), {'id': id})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [row.id])
+                children = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[row.id])
+        return _map_to_schema(
+            row,
+            addresses=[ai.address for ai in children.addresses if ai.user_id == row.id],
+            zones=[zi.zone_id for zi in children.zones if zi.user_id == row.id],
+        )
 
-    async def findByIds(self, ids: List[int]) -> List[User]:
+    async def findByIds(self, ids: list[int]) -> list[User]:
         if not ids:
             return []
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
         placeholders = [f":id_{idx}" for idx in range(len(ids))]
         params = {f"id_{idx}": val for idx, val in enumerate(ids)}
         where_sql = f"id IN ({', '.join(placeholders)})"
-        async with factory() as session:
+        async with async_session() as session:
             try:
                 rows = (
                     await session.execute(
@@ -242,27 +291,54 @@ class MySQLUserDAO:
                 ).fetchall()
                 if not rows:
                     return []
-                children_map = await self._fetch_children(session, [r.id for r in rows])
-                return [_map_to_schema(r, children_map.get(r.id, {})) for r in rows]
+                children = await self._fetch_children(session, [r.id for r in rows])
+                return [
+                    _map_to_schema(
+                        r,
+                        addresses=[ai.address for ai in children.addresses if ai.user_id == r.id],
+                        zones=[zi.zone_id for zi in children.zones if zi.user_id == r.id],
+                    )
+                    for r in rows
+                ]
             except Exception:
                 await session.rollback()
                 raise
 
-    async def get_user_counts_by_role(self) -> Dict[str, int]:
-        """Returns dict of role -> count via direct SQL pushdown without loading user rows."""
-        factory = self._factory()
-        if not factory:
-            return {}
-        async with factory() as session:
-            q = text(f"SELECT role, COUNT(*) AS count FROM {self.TABLE} GROUP BY role")
-            rows = (await session.execute(q)).fetchall()
-            return {r.role: r.count for r in rows if r.role}
+    async def get_user_counts_by_role(self) -> UserRoleCounts:
+        """Returns UserRoleCounts via direct SQL pushdown without loading user rows."""
+        async_session = get_async_session_factory()
+        if not async_session:
+            return UserRoleCounts()
+        async with async_session() as session:
+            q = text(f"""
+                SELECT 
+                    COUNT(CASE WHEN role = 'customer' THEN 1 END) AS customer,
+                    COUNT(CASE WHEN role = 'wholesaler' THEN 1 END) AS wholesaler,
+                    COUNT(CASE WHEN role = 'valet' THEN 1 END) AS valet,
+                    COUNT(CASE WHEN role = 'seller' THEN 1 END) AS seller,
+                    COUNT(CASE WHEN role = 'admin' THEN 1 END) AS admin,
+                    COUNT(CASE WHEN role = 'super_admin' THEN 1 END) AS super_admin
+                FROM {self.TABLE}
+            """)
+            r = (await session.execute(q)).fetchone()
+            if not r:
+                return UserRoleCounts()
+            return UserRoleCounts(
+                customer=r.customer or 0,
+                wholesaler=r.wholesaler or 0,
+                valet=r.valet or 0,
+                seller=r.seller or 0,
+                admin=r.admin or 0,
+                super_admin=r.super_admin or 0,
+            )
 
     async def findByEmail(self, email: str) -> Optional[User]:
-        factory = self._factory()
-        if not factory or not email:
+        if not email:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             try:
                 row = (await session.execute(text(f"""
                 SELECT id, user_id_formatted, name, email, password_hash,
@@ -276,20 +352,26 @@ class MySQLUserDAO:
             """), {'email': email.lower()})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [row.id])
+                children = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[row.id])
+        return _map_to_schema(
+            row,
+            addresses=[ai.address for ai in children.addresses if ai.user_id == row.id],
+            zones=[zi.zone_id for zi in children.zones if zi.user_id == row.id],
+        )
 
     async def findByPhone(self, phone: str) -> Optional[User]:
-        factory = self._factory()
-        if not factory or not phone:
+        if not phone:
             return None
         normalized = ''.join(filter(str.isdigit, phone))
         if not normalized:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             try:
                 row = (await session.execute(text(f"""
                 SELECT id, user_id_formatted, name, email, password_hash,
@@ -303,17 +385,23 @@ class MySQLUserDAO:
             """), {'phone': phone, 'normalized': normalized})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [row.id])
+                children = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[row.id])
+        return _map_to_schema(
+            row,
+            addresses=[ai.address for ai in children.addresses if ai.user_id == row.id],
+            zones=[zi.zone_id for zi in children.zones if zi.user_id == row.id],
+        )
 
     async def findByReferralCode(self, referral_code: str) -> Optional[User]:
-        factory = self._factory()
-        if not factory or not referral_code:
+        if not referral_code:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             try:
                 row = (await session.execute(text(f"""
                 SELECT id, user_id_formatted, name, email, password_hash,
@@ -327,26 +415,30 @@ class MySQLUserDAO:
             """), {'referral_code': referral_code.upper()})).fetchone()
                 if not row:
                     return None
-                children_map = await self._fetch_children(session, [row.id])
+                children = await self._fetch_children(session, [row.id])
             except Exception as e:
                 await session.rollback()
                 raise e
-        return _map_to_schema(row, children_map[row.id])
+        return _map_to_schema(
+            row,
+            addresses=[ai.address for ai in children.addresses if ai.user_id == row.id],
+            zones=[zi.zone_id for zi in children.zones if zi.user_id == row.id],
+        )
 
     async def getNextUserId(self) -> int:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return 1
-        async with factory() as session:
+        async with async_session() as session:
             val = (await session.execute(text(f"SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}"))).scalar()
             return val or 1
 
     async def create(self, data: UserInternalCreate) -> User:
         now = datetime.now(timezone.utc)
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             raise RuntimeError('MySQL not configured')
-        async with factory() as session:
+        async with async_session() as session:
             try:
                 next_id = (await session.execute(text(f'SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}'))).scalar() or 1
                 user_id_formatted = f'USER-{next_id}'
@@ -410,11 +502,13 @@ class MySQLUserDAO:
         return await self.findById(new_id)
 
     async def add_credit_used_atomic(self, id: int, amount: float) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
+            return False
+        async_session = get_async_session_factory()
+        if not async_session:
             return False
         from sqlalchemy import text
-        async with factory() as session:
+        async with async_session() as session:
             try:
                 res = await session.execute(text(f"""
                     UPDATE {self.TABLE} 
@@ -436,7 +530,9 @@ class MySQLUserDAO:
             return None
             
         now = datetime.now(timezone.utc)
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
         
         # Manually extract fields from the Pydantic update_data model, falling back to existing dict
         name = update_data.name if update_data.name is not None else existing.name
@@ -464,7 +560,7 @@ class MySQLUserDAO:
         bank_ifsc_code = update_data.bank_ifsc_code if update_data.bank_ifsc_code is not None else existing.bank_ifsc_code
         bank_account_holder = update_data.bank_account_holder if update_data.bank_account_holder is not None else existing.bank_account_holder
         bank_name = update_data.bank_name if update_data.bank_name is not None else existing.bank_name
-        async with factory() as session:
+        async with async_session() as session:
             try:
                 await session.execute(text('''
                     UPDATE sj_users SET
@@ -532,10 +628,12 @@ class MySQLUserDAO:
                 raise e
         return await self.findById(id)
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return False
+        async with async_session() as session:
             try:
                 result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE id = :id'), {'id': id})
                 await session.commit()

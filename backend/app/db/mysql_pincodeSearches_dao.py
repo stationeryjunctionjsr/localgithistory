@@ -1,11 +1,17 @@
 """
 Strict SQLAlchemy DAO for sj_pincode_searches with native integer IDs and Pydantic models.
 """
-from typing import Dict, List, Optional
+from typing import Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
-from app.models.pincode_searches import PincodeSearches, PincodeSearchStatsResponse, PincodeStatItem
+from app.models.pincode_searches import (
+    PincodeSearches,
+    PincodeSearchStatsResponse,
+    PincodeStatItem,
+    PincodeSearchFilter,
+    PincodeSearchListResponse,
+)
 from app.models.daos_flat import (
     PincodeSearchesInternalCreate,
     PincodeSearchesInternalUpdate,
@@ -29,23 +35,22 @@ class MySQLPincodeSearchesDAO:
             updated_at=row.updated_at if "updated_at" in row._mapping else None,
         )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[PincodeSearches]:
-        query = query or {}
+    async def findAll(self, filter_params: Optional[PincodeSearchFilter] = None) -> list[PincodeSearches]:
         where_clauses = []
         params = {}
-        if "pincode" in query:
-            where_clauses.append("pincode = :pincode")
-            params["pincode"] = query["pincode"]
-        if "query" in query:
-            where_clauses.append("query = :query")
-            params["query"] = query["query"]
-        if "isServiceable" in query or "is_serviceable" in query:
-            val = query.get("isServiceable") if "isServiceable" in query else query.get("is_serviceable")
-            where_clauses.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if val else 0
-        if "timestamp" in query:
-            where_clauses.append("timestamp = :timestamp")
-            params["timestamp"] = query["timestamp"]
+        if filter_params:
+            if filter_params.pincode:
+                where_clauses.append("pincode = :pincode")
+                params["pincode"] = filter_params.pincode
+            if filter_params.query:
+                where_clauses.append("query = :query")
+                params["query"] = filter_params.query
+            if filter_params.is_serviceable is not None:
+                where_clauses.append("is_serviceable = :is_serv")
+                params["is_serv"] = 1 if filter_params.is_serviceable else 0
+            if filter_params.timestamp:
+                where_clauses.append("timestamp = :timestamp")
+                params["timestamp"] = filter_params.timestamp
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async_session = get_async_session_factory()
@@ -66,9 +71,12 @@ class MySQLPincodeSearchesDAO:
         search: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        skip: int = 0,
+        page: int = 1,
         limit: int = 50,
-    ) -> tuple[List[PincodeSearches], int]:
+        skip: Optional[int] = None,
+    ) -> PincodeSearchListResponse:
+        if skip is None:
+            skip = max(0, (page - 1) * limit)
         where_clauses = []
         params = {}
         if is_serviceable is not None:
@@ -88,7 +96,7 @@ class MySQLPincodeSearchesDAO:
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async_session = get_async_session_factory()
         if not async_session:
-            return [], 0
+            return PincodeSearchListResponse(page=page, limit=limit)
         async with async_session() as session:
             count_q = text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}")
             total = (await session.execute(count_q, params)).scalar() or 0
@@ -96,7 +104,17 @@ class MySQLPincodeSearchesDAO:
             data_q = text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id DESC LIMIT :limit OFFSET :skip")
             params_data = {**params, "limit": limit, "skip": skip}
             rows = (await session.execute(data_q, params_data)).fetchall()
-            return [self._map_to_schema(r) for r in rows], total
+            items = [self._map_to_schema(r) for r in rows]
+            pages = (total + limit - 1) // limit if limit > 0 else 1
+            return PincodeSearchListResponse(
+                items=items,
+                searches=items,
+                total=total,
+                total_count=total,
+                page=page,
+                limit=limit,
+                pages=pages,
+            )
 
     async def get_stats(self) -> PincodeSearchStatsResponse:
         """SQL pushdown to compute summary statistics on pincode searches without full table memory dump."""
@@ -178,10 +196,8 @@ class MySQLPincodeSearchesDAO:
                 top_pincodes=top_searched,
             )
 
-    async def findOne(self, query: Dict) -> Optional[PincodeSearches]:
-        if "id" in query and query["id"]:
-            return await self.findById(query["id"])
-        records = await self.findAll(query)
+    async def findOne(self, filter_params: Optional[PincodeSearchFilter] = None) -> Optional[PincodeSearches]:
+        records = await self.findAll(filter_params)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[PincodeSearches]:

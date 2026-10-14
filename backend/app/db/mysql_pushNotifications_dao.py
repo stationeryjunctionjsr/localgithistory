@@ -19,13 +19,13 @@ class MySQLPushNotificationsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[PushNotificationsInternal]:
         if not id:
             return None
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -67,13 +67,18 @@ class MySQLPushNotificationsDAO:
         limit_sql = f" LIMIT {int(limit)}" if limit else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id DESC{limit_sql}"
 
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return []
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             return [self._map_to_schema(r) for r in rows]
 
     async def create(self, data: PushNotificationsInternalCreate) -> PushNotificationsInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -138,7 +143,7 @@ class MySQLPushNotificationsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await session.commit()
@@ -146,68 +151,73 @@ class MySQLPushNotificationsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: PushNotificationsInternalUpdate) -> Optional[PushNotificationsInternal]:
-        factory = self._factory()
-        if not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"u": now_utc(), "id": id}
 
-        if update_data.title is not None:
+        if "title" in fields:
             updates.append("title = :title")
             params["title"] = update_data.title
 
-        if update_data.message is not None:
+        if "message" in fields:
             updates.append("message = :message")
             params["message"] = update_data.message
 
-        if update_data.link is not None:
+        if "link" in fields:
             updates.append("link = :link")
             params["link"] = update_data.link
 
-        if update_data.image is not None:
+        if "image" in fields:
             updates.append("image = :image")
             params["image"] = update_data.image
 
-        if update_data.status is not None:
+        if "status" in fields:
             updates.append("status = :status")
             params["status"] = update_data.status
 
-        if update_data.scheduled_for is not None:
+        if "scheduled_for" in fields:
             updates.append("scheduled_for = :scheduled_for")
             params["scheduled_for"] = update_data.scheduled_for
 
-        if update_data.delivered_count is not None:
+        if "delivered_count" in fields:
             updates.append("delivered_count = :delivered_count")
             params["delivered_count"] = update_data.delivered_count
 
-        if update_data.read_count is not None:
+        if "read_count" in fields:
             updates.append("read_count = :read_count")
             params["read_count"] = update_data.read_count
 
-        if update_data.user_segment is not None:
+        if "user_segment" in fields:
             updates.append("user_segment = :user_segment")
             params["user_segment"] = update_data.user_segment
 
-        if update_data.user_behavior is not None:
+        if "user_behavior" in fields:
             updates.append("user_behavior = :user_behavior")
             params["user_behavior"] = update_data.user_behavior
 
-        if update_data.created_by is not None:
+        if "created_by" in fields:
             updates.append("created_by = :created_by")
             params["created_by"] = update_data.created_by
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

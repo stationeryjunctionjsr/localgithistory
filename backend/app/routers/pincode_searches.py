@@ -1,14 +1,14 @@
-from app.models.pincode_searches import PincodeSearchListResponse
-from app.models.schemas import MessageResponse, PincodeSearchStatsResponse
+from app.models.pincode_searches import PincodeSearchListResponse, PincodeSearchStatsResponse
 from app.models.user import User
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from app.repositories.pincode_search_repository import pincode_search_repository
+from app.db.storage_factory import get_storage
 from app.utils.auth import require_super_admin
 
 router = APIRouter(prefix="/admin/pincode-searches", tags=["admin-pincode-searches"])
+_storage = get_storage("pincodeSearches")
 
 
 @router.get("", response_model=PincodeSearchListResponse)
@@ -23,13 +23,13 @@ async def get_pincode_searches(
     current_user: User = Depends(require_super_admin),
 ):
     """Super Admin: Get paginated list of searched pincodes with serviceability status and timestamps."""
-    return await pincode_search_repository.get_searches(
-        page=page,
-        limit=limit,
+    return await _storage.find_paginated(
         is_serviceable=isServiceable,
         search=search,
         start_date=startDate,
         end_date=endDate,
+        page=page,
+        limit=limit,
     )
 
 
@@ -38,4 +38,4 @@ async def get_pincode_search_stats(
     current_user: User = Depends(require_super_admin),
 ):
     """Super Admin: Get aggregated statistics on searched pincodes and top unserviceable demand areas."""
-    return await pincode_search_repository.get_stats()
+    return await _storage.get_stats()

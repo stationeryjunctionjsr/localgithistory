@@ -207,12 +207,17 @@ async def get_favourites_page(
     all_states = ranked_data.states
     all_cities = ranked_data.cities
 
-    # Fetch all active products once and build a lookup map
+    # Fetch only the products in the ranked list
     from app.db.storage_factory import get_storage as _get_storage
+    from app.models.product import ProductFilter
 
     product_storage = _get_storage("products")
-    all_products = await product_storage.findAll({"isActive": True})
-    product_map: dict = {p.id: p for p in all_products if p.id}
+    needed_ids = [pid for pid, _ in ranked_ids if pid]
+    if needed_ids:
+        ranked_products = await product_storage.findAll(ProductFilter(allowed_ids=needed_ids, is_active=True))
+    else:
+        ranked_products = []
+    product_map: dict = {p.id: p for p in ranked_products if p.id}
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
@@ -298,11 +303,8 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
 
     for action in ("recommendation_section_view", "recommendation_product_view", "recommendation_add_to_cart"):
         try:
-            activities = await storage.findAll({"action": action})
+            activities = await storage.findAll(action=action, created_after=cutoff)
             for record in activities:
-                created = record.created_at or ""
-                if created < cutoff:
-                    continue
                 meta_list = record.meta or []
                 slot = "unknown"
                 for m in meta_list:

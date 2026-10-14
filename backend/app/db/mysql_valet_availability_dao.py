@@ -44,14 +44,11 @@ class MySQLValetAvailabilityDAO:
     def TABLE(self) -> str:
         return "sj_valet_availability"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     async def findAll(
         self, filters: Optional[ValetAvailabilityFilter] = None
     ) -> list[ValetAvailability]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
 
         where_clauses: list[str] = []
@@ -85,7 +82,7 @@ class MySQLValetAvailabilityDAO:
                 )
 
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(
                     f"SELECT id, valet_id, date, availability_type, created_at, updated_at FROM {self.TABLE}{where_sql} ORDER BY date ASC, id ASC"
@@ -137,8 +134,8 @@ class MySQLValetAvailabilityDAO:
     async def count(
         self, filters: Optional[ValetAvailabilityFilter] = None
     ) -> int:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return 0
 
         where_clauses: list[str] = []
@@ -172,7 +169,7 @@ class MySQLValetAvailabilityDAO:
                 )
 
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT COUNT(*) FROM {self.TABLE}{where_sql}"),
                 params,
@@ -180,12 +177,12 @@ class MySQLValetAvailabilityDAO:
             return int(result.scalar() or 0)
 
     async def create(self, data: ValetAvailabilityInternalCreate) -> ValetAvailability:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE} (valet_id, date, availability_type, created_at, updated_at) 
@@ -225,32 +222,38 @@ class MySQLValetAvailabilityDAO:
     async def update(
         self, id: int, update_data: ValetAvailabilityInternalUpdate
     ) -> Optional[ValetAvailability]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
+            return None
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
         pk = id
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(pk)
 
         now = now_utc()
         set_clauses: list[str] = ["updated_at = :up"]
         params = {"id": pk, "up": now}
 
-        if update_data.valet_id is not None:
+        if "valet_id" in fields:
             set_clauses.append("valet_id = :valet_id")
-            params["valet_id"] = str(update_data.valet_id)
-        if update_data.date is not None:
+            params["valet_id"] = str(update_data.valet_id) if update_data.valet_id is not None else None
+        if "date" in fields:
             set_clauses.append("date = :date")
-            params["date"] = str(update_data.date)
-        if update_data.availability_type is not None:
+            params["date"] = str(update_data.date) if update_data.date is not None else None
+        if "availability_type" in fields:
             set_clauses.append("availability_type = :atype")
-            params["atype"] = str(update_data.availability_type)
+            params["atype"] = str(update_data.availability_type) if update_data.availability_type is not None else None
 
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET {', '.join(set_clauses)} WHERE id = :id"),
                 params,
             )
 
-            if update_data.slots is not None:
+            if "slots" in fields and update_data.slots is not None:
                 await session.execute(
                     text("DELETE FROM sj_valet_availability_slots WHERE availability_id = :vid"),
                     {"vid": pk},
@@ -261,7 +264,7 @@ class MySQLValetAvailabilityDAO:
                         {"vid": pk, "s": str(slot)},
                     )
 
-            if update_data.zones is not None:
+            if "zones" in fields and update_data.zones is not None:
                 await session.execute(
                     text("DELETE FROM sj_valet_availability_zones WHERE availability_id = :vid"),
                     {"vid": pk},
@@ -277,11 +280,15 @@ class MySQLValetAvailabilityDAO:
         return await self.findById(pk)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
+            return False
+        async_session = get_async_session_factory()
+        if not async_session:
             return False
         pk = id
-        async with factory() as session:
+        async with async_session() as session:
+            await session.execute(text("DELETE FROM sj_valet_availability_slots WHERE availability_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_valet_availability_zones WHERE availability_id = :id"), {"id": pk})
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
             await session.commit()
             return res.rowcount > 0

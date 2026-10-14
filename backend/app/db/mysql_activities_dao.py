@@ -20,13 +20,11 @@ class MySQLActivitiesDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[ActivityInternal]:
         if not id:
             return None
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -76,10 +74,14 @@ class MySQLActivitiesDAO:
             params["created_after"] = created_after
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-        limit_sql = f" LIMIT {int(limit)}" if limit else ""
-        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id DESC{limit_sql}"
+        pagination_sql = ""
+        if limit is not None:
+            pagination_sql = " LIMIT :limit"
+            params["limit"] = limit
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id DESC{pagination_sql}"
 
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -88,7 +90,6 @@ class MySQLActivitiesDAO:
             return [self._map_to_schema(r, meta_rows) for r in rows]
 
     async def create(self, data: ActivityInternalCreate) -> ActivityInternal:
-        factory = self._factory()
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -143,7 +144,8 @@ class MySQLActivitiesDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
         
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -152,7 +154,6 @@ class MySQLActivitiesDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: ActivityInternalUpdate) -> Optional[ActivityInternal]:
-        factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"u": now_utc()}
 
@@ -171,7 +172,8 @@ class MySQLActivitiesDAO:
         upd_sql = ", ".join(updates)
         params["pk"] = id
 
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :pk"), params)
             await self._replace_children(session, id, update_data)
             await session.commit()
@@ -179,10 +181,10 @@ class MySQLActivitiesDAO:
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             await session.execute(text("DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": id})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :pk"), {"pk": id})
             await session.commit()
@@ -229,7 +231,7 @@ class MySQLActivitiesDAO:
             meta_rows.extend(res_meta.fetchall())
         return meta_rows
 
-    async def _replace_children(self, session, row_id: int, data: Union[ActivityInternalCreate, ActivityInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: ActivityInternalCreate | ActivityInternalUpdate):
         if type(data) is ActivityInternalCreate and data.meta is not None:
             await session.execute(text("DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": row_id})
             for item in data.meta:

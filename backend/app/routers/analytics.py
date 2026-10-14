@@ -105,6 +105,7 @@ class DashboardDataResponse(BaseModel):
     topCustomers: List[TopCustomerResponse]
     mostSearched: List[MostSearchedResponse]
     mostViewed: List[MostViewedResponse]
+    lastUpdatedAtIST: Optional[str] = Field(default=None, validation_alias=AliasChoices("lastUpdatedAtIST", "last_updated_at_ist"))
 
 
 class SalesOverTimeResponse(BaseModel):
@@ -250,10 +251,10 @@ async def record_event(
 
         final_os = event.os
         final_browser = event.browser
-        final_device_type = event.deviceType
-        final_device_os_version = event.deviceOsVersion
-        final_device_model = event.deviceModel or event.device
-        final_device_app_version = event.deviceAppVersion
+        final_device_type = event.device_type
+        final_device_os_version = event.device_os_version
+        final_device_model = event.device_model or event.device
+        final_device_app_version = event.device_app_version
 
         final_ip = event.ip_address
         if not final_ip and request.client and request.client.host:

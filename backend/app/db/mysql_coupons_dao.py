@@ -3,22 +3,16 @@ from datetime import datetime, timezone
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import CouponInternal, CouponInternalCreate, CouponInternalUpdate, CouponQuantityTierInternal
+from app.models.daos_flat import (
+    CouponInternal,
+    CouponInternalCreate,
+    CouponInternalUpdate,
+    CouponQuantityTierInternal,
+    CouponUserUsageInternal,
+)
 
 def now_utc():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
-def _parse_dt(dt_val):
-    try:
-        if dt_val.endswith("Z"):
-            dt_val = dt_val[:-1] + "+00:00"
-        dt_val = dt_val.replace("+00:00+00:00", "+00:00")
-        dt = datetime.fromisoformat(dt_val)
-        if dt.tzinfo is not None:
-            dt = dt.replace(tzinfo=None)
-        return dt
-    except (AttributeError, ValueError):
-        return dt_val
 
 class MySQLCouponsDAO:
     def __init__(self):
@@ -29,14 +23,11 @@ class MySQLCouponsDAO:
         from app.config.settings import settings
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
-    async def findById(self, id: int) -> Optional['CouponInternal']:
-        factory = self._factory()
-        if not factory or not id:
+    async def findById(self, id: int) -> Optional[CouponInternal]:
+        session_factory = get_async_session_factory()
+        if not session_factory or not id:
             return None
-        async with factory() as session:
+        async with session_factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -60,11 +51,11 @@ class MySQLCouponsDAO:
                 rows_excluded_product_ids,
             )
 
-    async def findByCode(self, code: str) -> Optional['CouponInternal']:
-        factory = self._factory()
-        if not factory or not code:
+    async def findByCode(self, code: str) -> Optional[CouponInternal]:
+        session_factory = get_async_session_factory()
+        if not session_factory or not code:
             return None
-        async with factory() as session:
+        async with session_factory() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE UPPER(code) = :code LIMIT 1")
             result = await session.execute(q, {"code": code.upper()})
             row = result.fetchone()
@@ -92,7 +83,7 @@ class MySQLCouponsDAO:
         self,
         code: Optional[str] = None,
         is_active: Optional[bool] = None,
-    ) -> Optional['CouponInternal']:
+    ) -> Optional[CouponInternal]:
         if code:
             return await self.findByCode(code)
         results = await self.findAll(is_active=is_active)
@@ -104,7 +95,7 @@ class MySQLCouponsDAO:
         method: Optional[str] = None,
         code: Optional[str] = None,
         type_of_discount: Optional[str] = None,
-    ) -> List['CouponInternal']:
+    ) -> List[CouponInternal]:
         clauses = []
         params = {}
         if is_active is not None:
@@ -123,10 +114,10 @@ class MySQLCouponsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
+        session_factory = get_async_session_factory()
+        if not session_factory:
             return []
-        async with factory() as session:
+        async with session_factory() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -152,8 +143,10 @@ class MySQLCouponsDAO:
                 for r in rows
             ]
 
-    async def create(self, data: 'CouponInternalCreate') -> 'CouponInternal':
-        factory = self._factory()
+    async def create(self, data: CouponInternalCreate) -> Optional[CouponInternal]:
+        session_factory = get_async_session_factory()
+        if not session_factory:
+            return None
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -193,12 +186,12 @@ class MySQLCouponsDAO:
         if data.valid_from is not None:
             cols.append("start_date")
             vals.append(":s_validFrom")
-            params["s_validFrom"] = _parse_dt(data.valid_from)
+            params["s_validFrom"] = data.valid_from
 
         if data.valid_until is not None:
             cols.append("end_date")
             vals.append(":s_validUntil")
-            params["s_validUntil"] = _parse_dt(data.valid_until)
+            params["s_validUntil"] = data.valid_until
 
         if data.is_active is not None:
             cols.append("is_active")
@@ -293,110 +286,174 @@ class MySQLCouponsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
         
-        async with factory() as session:
+        async with session_factory() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
-            await self._replace_children(session, new_id, data)
+            if data.user_usages:
+                await self._replace_user_usages(session, new_id, data.user_usages)
+            if data.quantity_tiers:
+                await self._replace_quantity_tiers(session, new_id, data.quantity_tiers)
+            if data.applicable_roles:
+                await self._replace_roles(session, new_id, data.applicable_roles)
+            if data.applicable_user_ids:
+                await self._replace_users(session, new_id, data.applicable_user_ids)
+            if data.applicable_categories:
+                await self._replace_categories(session, new_id, data.applicable_categories)
+            if data.applies_to_value_ids:
+                await self._replace_applies_to_values(session, new_id, data.applies_to_value_ids)
+            if data.excluded_product_ids:
+                await self._replace_excluded_products(session, new_id, data.excluded_product_ids)
             await session.commit()
             
         return await self.findById(new_id)
 
-    async def update(self, id: int, update_data: 'CouponsInternalUpdate') -> 'CouponInternal':
-        data = update_data
-        factory = self._factory()
+    async def update(self, id: int, update_data: CouponInternalUpdate) -> Optional[CouponInternal]:
+        session_factory = get_async_session_factory()
+        if not session_factory or not id:
+            return None
+        fields = update_data.model_fields_set
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.code is not None:
+        if "code" in fields:
             updates.append("code = :s_code")
-            params["s_code"] = data.code
+            params["s_code"] = update_data.code
 
-        if data.discount_type is not None:
+        if "discount_type" in fields:
             updates.append("discount_type = :s_discountType")
-            params["s_discountType"] = data.discount_type
+            params["s_discountType"] = update_data.discount_type
 
-        if data.discount_value is not None:
+        if "discount_value" in fields:
             updates.append("discount_value = :s_discountValue")
-            params["s_discountValue"] = data.discount_value
+            params["s_discountValue"] = update_data.discount_value
 
-        if data.min_purchase_amount is not None:
+        if "min_purchase_amount" in fields:
             updates.append("min_order_value = :s_minOrderValue")
-            params["s_minOrderValue"] = data.min_purchase_amount
+            params["s_minOrderValue"] = update_data.min_purchase_amount
 
-        if data.usage_limit is not None:
+        if "usage_limit" in fields:
             updates.append("max_uses = :s_maxUses")
-            params["s_maxUses"] = data.usage_limit
+            params["s_maxUses"] = update_data.usage_limit
 
-        if data.used_count is not None:
+        if "used_count" in fields:
             updates.append("used_count = :s_usedCount")
-            params["s_usedCount"] = data.used_count
+            params["s_usedCount"] = update_data.used_count
 
-        if data.valid_from is not None:
+        if "valid_from" in fields:
             updates.append("start_date = :s_validFrom")
-            params["s_validFrom"] = _parse_dt(data.valid_from)
+            params["s_validFrom"] = update_data.valid_from
 
-        if data.valid_until is not None:
+        if "valid_until" in fields:
             updates.append("end_date = :s_validUntil")
-            params["s_validUntil"] = _parse_dt(data.valid_until)
+            params["s_validUntil"] = update_data.valid_until
 
-        if data.is_active is not None:
+        if "is_active" in fields:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.is_active
+            params["s_isActive"] = update_data.is_active
 
-        if data.type_of_discount is not None:
+        if "type_of_discount" in fields:
             updates.append("type_of_discount = :s_typeOfDiscount")
-            params["s_typeOfDiscount"] = data.type_of_discount
+            params["s_typeOfDiscount"] = update_data.type_of_discount
 
-        if data.method is not None:
+        if "method" in fields:
             updates.append("method = :s_method")
-            params["s_method"] = data.method
+            params["s_method"] = update_data.method
 
-        if data.min_requirement_type is not None:
+        if "min_requirement_type" in fields:
             updates.append("min_requirement_type = :s_minRequirementType")
-            params["s_minRequirementType"] = data.min_requirement_type
+            params["s_minRequirementType"] = update_data.min_requirement_type
 
-        if data.min_quantity_of_eligible_items is not None:
+        if "min_quantity_of_eligible_items" in fields:
             updates.append("min_quantity_of_eligible_items = :s_minQuantityOfEligibleItems")
-            params["s_minQuantityOfEligibleItems"] = data.min_quantity_of_eligible_items
+            params["s_minQuantityOfEligibleItems"] = update_data.min_quantity_of_eligible_items
 
-        if data.max_discount_amount is not None:
+        if "max_discount_amount" in fields:
             updates.append("max_discount_amount = :s_maxDiscountAmount")
-            params["s_maxDiscountAmount"] = data.max_discount_amount
+            params["s_maxDiscountAmount"] = update_data.max_discount_amount
 
-        if data.applies_to_type is not None:
+        if "applies_to_type" in fields:
             updates.append("applies_to_type = :s_appliesToType")
-            params["s_appliesToType"] = data.applies_to_type
+            params["s_appliesToType"] = update_data.applies_to_type
 
-        if data.applicable_payment_methods is not None:
+        if "display_id" in fields:
+            updates.append("display_id = :s_displayId")
+            params["s_displayId"] = update_data.display_id
+
+        if "buy_x_get_y_customer_gets_quantity" in fields:
+            updates.append("bxgy_customer_gets_quantity = :s_bxgy_customer_gets_quantity")
+            params["s_bxgy_customer_gets_quantity"] = update_data.buy_x_get_y_customer_gets_quantity
+
+        if "buy_x_get_y_customer_gets_applies_to_type" in fields:
+            updates.append("bxgy_customer_gets_applies_to_type = :s_bxgy_customer_gets_applies_to_type")
+            params["s_bxgy_customer_gets_applies_to_type"] = update_data.buy_x_get_y_customer_gets_applies_to_type
+
+        if "buy_x_get_y_customer_gets_applies_to_value_ids" in fields:
+            updates.append("bxgy_applies_to_ids = :s_bxgy_applies_to_ids")
+            params["s_bxgy_applies_to_ids"] = json.dumps(update_data.buy_x_get_y_customer_gets_applies_to_value_ids) if update_data.buy_x_get_y_customer_gets_applies_to_value_ids is not None else None
+
+        if "buy_x_get_y_customer_gets_discount_type" in fields:
+            updates.append("bxgy_discount_type = :s_bxgy_discount_type")
+            params["s_bxgy_discount_type"] = update_data.buy_x_get_y_customer_gets_discount_type
+
+        if "buy_x_get_y_customer_gets_discount_value" in fields:
+            updates.append("bxgy_discount_value = :s_bxgy_discount_value")
+            params["s_bxgy_discount_value"] = update_data.buy_x_get_y_customer_gets_discount_value
+
+        if "applicable_item_type" in fields:
+            updates.append("applicable_item_type = :s_applicable_item_type")
+            params["s_applicable_item_type"] = update_data.applicable_item_type
+
+        if "coupon_mode" in fields:
+            updates.append("coupon_mode = :s_coupon_mode")
+            params["s_coupon_mode"] = update_data.coupon_mode
+
+        if "max_usage_per_user" in fields:
+            updates.append("max_usage_per_user = :s_max_usage_per_user")
+            params["s_max_usage_per_user"] = update_data.max_usage_per_user
+
+        if "user_behavior" in fields:
+            updates.append("user_behavior = :s_user_behavior")
+            params["s_user_behavior"] = update_data.user_behavior
+
+        if "applicable_payment_methods" in fields:
             updates.append("applicable_payment_methods = :s_applicable_payment_methods")
-            params["s_applicable_payment_methods"] = json.dumps(data.applicable_payment_methods)
+            params["s_applicable_payment_methods"] = json.dumps(update_data.applicable_payment_methods) if update_data.applicable_payment_methods is not None else None
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
+        async with session_factory() as session:
+            if len(updates) > 1:
+                upd_sql = ", ".join(updates)
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, id, data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, id, data)
-                await session.commit()
+            if "user_usages" in fields:
+                await self._replace_user_usages(session, id, update_data.user_usages or [])
+            if "quantity_tiers" in fields:
+                await self._replace_quantity_tiers(session, id, update_data.quantity_tiers or [])
+            if "applicable_roles" in fields:
+                await self._replace_roles(session, id, update_data.applicable_roles or [])
+            if "applicable_user_ids" in fields:
+                await self._replace_users(session, id, update_data.applicable_user_ids or [])
+            if "applicable_categories" in fields:
+                await self._replace_categories(session, id, update_data.applicable_categories or [])
+            if "applies_to_value_ids" in fields:
+                await self._replace_applies_to_values(session, id, update_data.applies_to_value_ids or [])
+            if "excluded_product_ids" in fields:
+                await self._replace_excluded_products(session, id, update_data.excluded_product_ids or [])
+            await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        session_factory = get_async_session_factory()
+        if not session_factory or not id:
             return False
         pk = id
-        async with factory() as session:
-
+        async with session_factory() as session:
             await session.execute(text("DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": pk})
             await session.execute(text("DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": pk})
             await session.execute(text("DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": pk})
             await session.execute(text("DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": pk})
             await session.execute(text("DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": pk})
             await session.execute(text("DELETE FROM sj_coupon_excluded_products WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_user_usages WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -406,10 +463,10 @@ class MySQLCouponsDAO:
             return result.rowcount > 0
 
     async def getNextDisplayNumber(self, prefix: str) -> int:
-        factory = self._factory()
-        if not factory:
+        session_factory = get_async_session_factory()
+        if not session_factory:
             return 1
-        async with factory() as session:
+        async with session_factory() as session:
             res = await session.execute(
                 text(f"SELECT code FROM {self.TABLE} WHERE code LIKE :pat"),
                 {"pat": f"{prefix}%"},
@@ -521,68 +578,45 @@ class MySQLCouponsDAO:
             rows_excludedProductIds,
         )
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
+    async def _replace_user_usages(self, session, coupon_id: int, items: List[CouponUserUsageInternal]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_user_usages WHERE parent_id = :id"), {"id": coupon_id})
+        for item in items:
+            p = {"id": coupon_id, "v0": item.user_id, "v1": item.usage_count}
+            await session.execute(
+                text("INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1) ON DUPLICATE KEY UPDATE usage_count = :v1"),
+                p,
+            )
 
+    async def _replace_quantity_tiers(self, session, coupon_id: int, items: List[CouponQuantityTierInternal]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": coupon_id})
+        for item in items:
+            p = {"id": coupon_id, "v0": item.min_quantity, "v1": item.discount_value}
+            await session.execute(
+                text("INSERT INTO sj_coupon_quantity_tiers (parent_id, min_qty, discount_value) VALUES (:id, :v0, :v1)"),
+                p,
+            )
 
-        if data.user_usages is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_user_usages WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.user_usages or []
+    async def _replace_roles(self, session, coupon_id: int, roles: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": coupon_id})
+        for role in roles:
+            await session.execute(text("INSERT INTO sj_coupon_roles (parent_id, role) VALUES (:id, :v)"), {"id": coupon_id, "v": role})
 
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-                    p["v0"] = item.user_id
-                    p["v1"] = item.usage_count
-                    await session.execute(text(f"INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1) ON DUPLICATE KEY UPDATE usage_count = :v1"), p)
+    async def _replace_users(self, session, coupon_id: int, user_ids: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": coupon_id})
+        for uid in user_ids:
+            await session.execute(text("INSERT INTO sj_coupon_users (parent_id, user_id) VALUES (:id, :v)"), {"id": coupon_id, "v": uid})
 
-        if data.quantity_tiers is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.quantity_tiers or []
+    async def _replace_categories(self, session, coupon_id: int, categories: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": coupon_id})
+        for cat in categories:
+            await session.execute(text("INSERT INTO sj_coupon_categories (parent_id, category) VALUES (:id, :v)"), {"id": coupon_id, "v": cat})
 
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
+    async def _replace_applies_to_values(self, session, coupon_id: int, values: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": coupon_id})
+        for val in values:
+            await session.execute(text("INSERT INTO sj_coupon_applies_to_values (parent_id, value_id) VALUES (:id, :v)"), {"id": coupon_id, "v": val})
 
-                    p["v0"] = item.min_quantity
-                    p["v1"] = item.discount_value
-                    await session.execute(text(f"INSERT INTO sj_coupon_quantity_tiers (parent_id, min_qty, discount_value) VALUES (:id, :v0, :v1)"), p)
-
-        if data.applicable_roles is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicable_roles or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_coupon_roles (parent_id, role) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
-        if data.applicable_user_ids is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicable_user_ids or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_coupon_users (parent_id, user_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
-        if data.applicable_categories is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicable_categories or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_coupon_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
-        if data.applies_to_value_ids is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applies_to_value_ids or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_coupon_applies_to_values (parent_id, value_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
-        if data.excluded_product_ids is not None:
-            await session.execute(text(f"DELETE FROM sj_coupon_excluded_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.excluded_product_ids or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_coupon_excluded_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
+    async def _replace_excluded_products(self, session, coupon_id: int, product_ids: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_coupon_excluded_products WHERE parent_id = :id"), {"id": coupon_id})
+        for pid in product_ids:
+            await session.execute(text("INSERT INTO sj_coupon_excluded_products (parent_id, product_id) VALUES (:id, :v)"), {"id": coupon_id, "v": pid})

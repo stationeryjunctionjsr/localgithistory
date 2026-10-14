@@ -20,6 +20,13 @@ class PincodeSearches(CamelBaseModel):
         return self.timestamp
 
 
+class PincodeSearchFilter(CamelBaseModel):
+    pincode: Optional[str] = None
+    query: Optional[str] = None
+    is_serviceable: Optional[bool] = None
+    timestamp: Optional[str] = None
+
+
 class PincodeStatItem(CamelBaseModel):
     pincode: str
     city: Optional[str] = None

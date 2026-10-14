@@ -43,7 +43,7 @@ async def get_notifications(
         from app.models.daos import NotificationFilter
         filters = NotificationFilter()
         if current_user.role != "super_admin":
-            filters.userId = current_user.id or current_user.id
+            filters.userId = current_user.id
 
         if isRead is not None:
             filters.isRead = isRead
@@ -68,7 +68,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
         from app.models.daos import NotificationFilter
         filters = NotificationFilter(is_read=False)
         if current_user.role != "super_admin":
-            filters.userId = current_user.id or current_user.id
+            filters.userId = current_user.id
             
         notifications = await notification_repository.findAll(filters)
         return {"count": len(notifications)}
@@ -81,20 +81,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
 async def mark_all_read(current_user: User = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:
-        user_id = current_user.id or current_user.id
-        from app.models.daos import NotificationInternalUpdate, NotificationFilter
-        update_model = NotificationInternalUpdate(is_read=True, is_acknowledged=True)
-        unread = await notification_repository.findAll(NotificationFilter(is_read=False, user_id=user_id))
-        unack = await notification_repository.findAll(NotificationFilter(is_acknowledged=False, user_id=user_id))
-        
-        count = 0
-        seen = set()
-        for n in unread + unack:
-            if n.id not in seen:
-                await notification_repository.update(n.id, update_model)
-                seen.add(n.id)
-                count += 1
-                
+        count = await notification_repository.markAllAsRead(user_id=current_user.id)
         return {"message": f"{count} notifications marked as read", "count": count}
     except Exception as e:
         logger.error("Failed to mark all as read: %s", str(e), exc_info=True)
@@ -107,8 +94,7 @@ async def _get_and_verify_notification(notification_id: int, current_user: User)
         raise HTTPException(status_code=404, detail="Notification not found")
         
     if current_user.role != "super_admin":
-        user_id = current_user.id or current_user.id
-        if notification.userId != user_id:
+        if str(notification.userId) != str(current_user.id):
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
             
     return notification
