@@ -1,5 +1,5 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
-from app.models.daos import OrderFilter
+from app.models.daos import OrderFilter, QueryConditions
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from typing import Any, List, Optional, Set, Tuple
 import logging
@@ -80,32 +80,27 @@ class MySQLOrderDAO:
             order.valet_decline_history = []
         return order
 
-    def _build_query_conditions(self, filter: Optional[OrderFilter] = None) -> tuple[str, dict[str, Any]]:
+    def _build_query_conditions(self, filter: Optional[OrderFilter] = None) -> QueryConditions:
         where_clauses: list[str] = []
         params = {}
 
         if filter:
             if filter.id is not None:
-                try:
+                if filter.id.isdigit():
                     where_clauses.append("id = :id")
                     params["id"] = int(filter.id)
-                except (ValueError, TypeError):
+                else:
                     where_clauses.append("1=0")
 
             if filter.user_id is not None:
-                try:
+                if filter.user_id.isdigit():
                     where_clauses.append("user_id = :user_id")
                     params["user_id"] = int(filter.user_id)
-                except (ValueError, TypeError):
+                else:
                     where_clauses.append("1=0")
 
             if filter.user_ids:
-                int_uids = []
-                for u in filter.user_ids:
-                    try:
-                        int_uids.append(int(u))
-                    except (ValueError, TypeError):
-                        continue
+                int_uids = [int(u) for u in filter.user_ids if u.isdigit()]
                 if int_uids:
                     u_params = {f"u_int_{j}": v for j, v in enumerate(int_uids)}
                     params.update(u_params)
@@ -158,7 +153,7 @@ class MySQLOrderDAO:
                 params["pending_valet_id"] = filter.pending_valet_id
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        return where_sql, params
+        return QueryConditions(where_sql=where_sql, params=params)
 
     async def findAll(
         self, filter: Optional[OrderFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None
@@ -1105,7 +1100,7 @@ class MySQLOrderDAO:
 
         state_cond = ""
         city_cond = ""
-        stats_params = dict(geo_params)
+        stats_params = {"prefix": prefix, "start_date": start_date}
         if state and state.strip():
             state_cond = "AND LOWER(TRIM(o.ship_state)) = :state"
             stats_params["state"] = state.strip().lower()

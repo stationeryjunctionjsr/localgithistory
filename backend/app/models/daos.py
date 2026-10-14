@@ -730,3 +730,12 @@ class OrderFilter(CamelBaseModel):
     assigned_valet: Optional[str] = None
     pending_valet_id: Optional[str] = None
 
+
+class QueryConditions(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    where_sql: str
+    params: dict[str, Any]
+
+    def __iter__(self):
+        return iter((self.where_sql, self.params))
+
