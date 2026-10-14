@@ -269,21 +269,13 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     products_list = await products_task if products_task else []
     payments_list = await payments_task if payments_task else []
 
-    # 3. Build lookup maps
-    payments_map = {}
-    for p in payments_list:
-        if p.order_id is not None:
-            if p.order_id not in payments_map:
-                payments_map[p.order_id] = []
-            payments_map[p.order_id].append(p)
-
-    # 4. Construct fully populated responses
+    # 3. Construct fully populated responses
     populated = []
     for order in orders:
         user = next((u for u in users_list if u.id == order.user), None) if order.user else None
         valet = next((u for u in users_list if u.id == order.assigned_valet), None) if order.assigned_valet else None
 
-        payment_entries = payments_map[order.id] if order.id in payments_map else []
+        payment_entries = [p for p in payments_list if p.order_id == order.id] if order.id else []
 
         o_items = order.items if order.items else []
         populated_items = []
@@ -1861,11 +1853,7 @@ async def create_order_service(
                 order.order_number if order.order_number is not None else str(order.id))
             sub_order_ids = []
 
-            # Build per-seller delivery option lookup from request
-            seller_delivery_map = {}
-            if order_data.seller_delivery_options:
-                for sdo in order_data.seller_delivery_options:
-                    seller_delivery_map[sdo.seller_id] = sdo
+            seller_options = order_data.seller_delivery_options or []
 
             for idx, (seller_id, items_group) in enumerate(groups.items()):
                 sub_number = sub_order_repository._generate_sub_order_number(
@@ -1888,8 +1876,10 @@ async def create_order_service(
                 # Inherit urgent flag from the parent order request
                 grp_is_urgent = bool(order_data.is_urgent_delivery)
 
-                sdo = (seller_delivery_map[str(seller_id)] if seller_id and str(
-                    seller_id) in seller_delivery_map else None)
+                sdo = next(
+                    (opt for opt in seller_options if opt.seller_id == seller_id),
+                    None
+                ) if seller_id else None
 
                 # Record the delivery slot on the sub-order (informational, no charge)
                 if sdo and sdo.delivery_slot_id and sdo.delivery_slot_date:
