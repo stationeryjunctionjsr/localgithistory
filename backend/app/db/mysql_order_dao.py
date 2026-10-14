@@ -2,7 +2,6 @@ from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from app.models.daos import OrderFilter
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from typing import Any, List, Optional, Set, Tuple
-from collections import defaultdict
 import logging
 from datetime import datetime, timezone
 
@@ -1508,16 +1507,24 @@ class MySQLOrderDAO:
         async_session = get_async_session_factory()
         async with async_session() as session:
             rows = (await session.execute(sql)).fetchall()
-            cohort_map = defaultdict(lambda: defaultdict(int))
-            for r in rows:
-                cohort_map[r.cohort_month][r.month_index] = r.order_count or 0
+            result: List[CustomerCohortResponse] = []
+            current_cohort: Optional[str] = None
+            current_months: List[int] = []
 
-            result = []
-            for cm in sorted(cohort_map.keys()):
-                data = cohort_map[cm]
-                max_m = max(data.keys()) if data else 0
-                months_list = [data[i] for i in range(max_m + 1)]
-                result.append(CustomerCohortResponse(cohort=cm, months=months_list))
+            for r in rows:
+                if r.cohort_month != current_cohort:
+                    if current_cohort is not None:
+                        result.append(CustomerCohortResponse(cohort=current_cohort, months=current_months))
+                    current_cohort = r.cohort_month
+                    current_months = []
+
+                while len(current_months) < r.month_index:
+                    current_months.append(0)
+                current_months.append(r.order_count or 0)
+
+            if current_cohort is not None:
+                result.append(CustomerCohortResponse(cohort=current_cohort, months=current_months))
+
             return result
 
     async def get_top_users_by_revenue_stats(
@@ -1609,8 +1616,16 @@ class MySQLOrderDAO:
                 COALESCE(u.email, 'Unknown') AS user_email,
                 COUNT(*) AS total_orders,
                 COALESCE(SUM(o.total), 0.0) AS total_revenue,
-                MIN(o.created_at) AS first_order_date,
-                MAX(o.created_at) AS last_order_date
+                CASE 
+                    WHEN MAX(o.created_at) IS NOT NULL 
+                    THEN GREATEST(0, DATEDIFF(UTC_TIMESTAMP(), MAX(o.created_at)))
+                    ELSE NULL 
+                END AS days_since_last,
+                CASE 
+                    WHEN MIN(o.created_at) IS NOT NULL 
+                    THEN GREATEST(1, DATEDIFF(UTC_TIMESTAMP(), MIN(o.created_at)))
+                    ELSE NULL 
+                END AS delta_days
             FROM {self.TABLE} o
             JOIN sj_users u ON u.id = o.user_id
             WHERE {where_sql} {role_clause}
@@ -1618,7 +1633,6 @@ class MySQLOrderDAO:
             ORDER BY total_orders DESC
             """
         )
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
         async_session = get_async_session_factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
@@ -1628,14 +1642,10 @@ class MySQLOrderDAO:
                 tot_rev = float(r.total_revenue or 0.0)
                 aov = round(tot_rev / tot_orders, 2) if tot_orders > 0 else 0.0
 
-                days_since_last = None
+                days_since_last = r.days_since_last
                 avg_orders_per_month = 0.0
-                if r.first_order_date and r.last_order_date:
-                    first_dt = r.first_order_date.replace(tzinfo=None) if hasattr(r.first_order_date, 'replace') else r.first_order_date
-                    last_dt = r.last_order_date.replace(tzinfo=None) if hasattr(r.last_order_date, 'replace') else r.last_order_date
-                    days_since_last = max(0, (now - last_dt).days)
-                    delta_days = max(1, (now - first_dt).days)
-                    months_active = max(1.0, delta_days / 30.44)
+                if r.delta_days is not None:
+                    months_active = max(1.0, r.delta_days / 30.44)
                     avg_orders_per_month = round(tot_orders / months_active, 2)
 
                 result.append(
