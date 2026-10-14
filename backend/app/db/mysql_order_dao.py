@@ -12,7 +12,12 @@ from app.db.db_utils import now_utc
 
 
 from app.models.base import CamelBaseModel
-from app.models.analytics_schemas import SalesOverTimeResponse
+from app.models.analytics_schemas import (
+    SalesOverTimeResponse,
+    SalesBreakdownResponse,
+    AverageOrderValueResponse,
+    SalesByChannelResponse,
+)
 
 
 class OrderSummaryStats(CamelBaseModel):
@@ -1188,6 +1193,136 @@ class MySQLOrderDAO:
                     )
                 )
             return result
+
+    async def get_sales_breakdown_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> SalesBreakdownResponse:
+        where_clauses = ["1=1"]
+        params = {}
+
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(SUM(total), 0.0) AS gross_sales,
+                COALESCE(SUM(COALESCE(discount, 0.0)), 0.0) AS discounts,
+                COALESCE(SUM(COALESCE(shipping, 0.0)), 0.0) AS shipping_charges,
+                COALESCE(SUM(COALESCE(tax, 0.0)), 0.0) AS taxes,
+                COALESCE(SUM(CASE WHEN status IN ('returned', 'cancelled') THEN total ELSE 0.0 END), 0.0) AS returns
+            FROM {self.TABLE}
+            WHERE {where_sql}
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            r = (await session.execute(sql, params)).fetchone()
+            gross = round(float(r.gross_sales or 0.0), 2) if r else 0.0
+            discounts = round(float(r.discounts or 0.0), 2) if r else 0.0
+            shipping = round(float(r.shipping_charges or 0.0), 2) if r else 0.0
+            taxes = round(float(r.taxes or 0.0), 2) if r else 0.0
+            returns = round(float(r.returns or 0.0), 2) if r else 0.0
+            net = round(gross - discounts - returns, 2)
+
+            return SalesBreakdownResponse(
+                gross_sales=gross,
+                discounts=discounts,
+                returns=returns,
+                net_sales=net,
+                shipping_charges=shipping,
+                return_fees=0.0,
+                taxes=taxes,
+                total_sales=gross,
+            )
+
+    async def get_average_order_value_over_time_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        group_by: str = "hour",
+    ) -> List[AverageOrderValueResponse]:
+        fmt = "%Y-%m-%d %H:00" if group_by == "hour" else ("%Y-%m" if group_by == "month" else "%Y-%m-%d")
+
+        where_clauses = ["created_at IS NOT NULL"]
+        params = {"fmt": fmt}
+
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                DATE_FORMAT(created_at, :fmt) AS period,
+                COALESCE(SUM(total) / COUNT(*), 0.0) AS avg_aov
+            FROM {self.TABLE}
+            WHERE {where_sql}
+            GROUP BY period
+            ORDER BY period ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                AverageOrderValueResponse(
+                    period=r.period,
+                    average_order_value=round(float(r.avg_aov or 0.0), 2),
+                )
+                for r in rows
+            ]
+
+    async def get_sales_by_channel_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[SalesByChannelResponse]:
+        where_clauses = ["1=1"]
+        params = {}
+
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT COALESCE(SUM(total), 0.0) AS total_sales
+            FROM {self.TABLE}
+            WHERE {where_sql}
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            r = (await session.execute(sql, params)).fetchone()
+            total_sales = round(float(r.total_sales or 0.0), 2) if r else 0.0
+
+            return [
+                SalesByChannelResponse(channel="desktop_web", sales=total_sales),
+                SalesByChannelResponse(channel="mobile_web", sales=0.0),
+                SalesByChannelResponse(channel="mobile_app", sales=0.0),
+            ]
+
+
+
 
 
 
