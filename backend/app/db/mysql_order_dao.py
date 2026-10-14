@@ -33,6 +33,11 @@ from app.models.analytics_schemas import (
     NewVsReturningCustomerSalesResponse,
     CustomerFrequencyResponse,
     RFMSegmentsResponse,
+    DiscountsAuditResponse,
+    SalesByChannelDetailedResponse,
+    ItemsBoughtTogetherResponse,
+    SalesByDeviceReportResponse,
+    ProductsPctSoldResponse,
 )
 
 
@@ -1146,7 +1151,7 @@ class MySQLOrderDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         group_by: str = "hour",
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[SalesOverTimeResponse]:
         fmt = "%Y-%m-%d %H:00" if group_by == "hour" else ("%Y-%m" if group_by == "month" else "%Y-%m-%d")
 
@@ -1329,7 +1334,7 @@ class MySQLOrderDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 10,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[SalesByProductResponse]:
         where_clauses = ["o.status != 'cancelled'"]
         params = {"limit": limit}
@@ -2265,6 +2270,285 @@ class MySQLOrderDAO:
                     )
                 )
             return result
+
+    async def get_discounts_audit_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[DiscountsAuditResponse]:
+        where_clauses = [
+            "o.created_at IS NOT NULL",
+            "(COALESCE(o.discount, 0) > 0 OR (o.coupon_code IS NOT NULL AND o.coupon_code != ''))",
+        ]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                CAST(o.id AS CHAR) AS order_id,
+                COALESCE(o.order_number, '') AS order_number,
+                COALESCE(u.name, 'Unknown') AS customer_name,
+                COALESCE(o.coupon_code, '—') AS coupon_code,
+                COALESCE(o.subtotal, o.total, 0.0) AS gross_sales,
+                COALESCE(o.discount, 0.0) AS discount_applied,
+                ROUND(COALESCE(o.subtotal, o.total, 0.0) - COALESCE(o.discount, 0.0), 2) AS net_after_discount,
+                CASE 
+                    WHEN COALESCE(o.subtotal, o.total, 0.0) > 0 
+                    THEN ROUND(COALESCE(o.discount, 0.0) / (COALESCE(o.subtotal, o.total, 0.0)) * 100.0, 1) 
+                    ELSE 0.0 
+                END AS discount_pct,
+                o.created_at AS created_at
+            FROM {self.TABLE} o
+            LEFT JOIN sj_users u ON u.id = o.user_id
+            WHERE {where_sql} {seller_clause}
+            ORDER BY o.created_at DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                DiscountsAuditResponse(
+                    orderId=r.order_id,
+                    orderNumber=r.order_number,
+                    createdAt=str(r.created_at) if r.created_at else "",
+                    customerName=r.customer_name,
+                    grossSales=round(r.gross_sales or 0.0, 2),
+                    discountApplied=round(r.discount_applied or 0.0, 2),
+                    discountPct=r.discount_pct or 0.0,
+                    couponCode=r.coupon_code,
+                    netAfterDiscount=r.net_after_discount or 0.0,
+                )
+                for r in rows
+            ]
+
+    async def get_sales_by_channel_detailed_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[SalesByChannelDetailedResponse]:
+        where_clauses = ["created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = f"AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = {self.TABLE}.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(NULLIF(channel, ''), 'desktop_web') AS channel,
+                COUNT(*) AS order_count,
+                COALESCE(SUM(total), 0.0) AS revenue
+            FROM {self.TABLE}
+            WHERE {where_sql} {seller_clause}
+            GROUP BY channel
+            ORDER BY revenue DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            total_rev = sum(r.revenue or 0.0 for r in rows)
+            result: List[SalesByChannelDetailedResponse] = []
+            for r in rows:
+                rev = round(r.revenue or 0.0, 2)
+                cnt = r.order_count or 0
+                pct = round(rev / total_rev * 100, 1) if total_rev > 0 else 0.0
+                aov = round(rev / cnt, 2) if cnt > 0 else 0.0
+                label = r.channel.replace("_", " ").title()
+                result.append(
+                    SalesByChannelDetailedResponse(
+                        channel=r.channel,
+                        channelLabel=label,
+                        orderCount=cnt,
+                        revenue=rev,
+                        aov=aov,
+                        revenuePct=pct,
+                    )
+                )
+            return result
+
+    async def get_items_bought_together_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 50,
+    ) -> List[ItemsBoughtTogetherResponse]:
+        where_clauses = ["o.status NOT IN ('cancelled', 'declined')", "o.created_at IS NOT NULL"]
+        params = {"limit": limit}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                CAST(i1.product_id AS CHAR) AS product_a_id,
+                COALESCE(p1.name, 'Unknown') AS product_a_name,
+                CAST(i2.product_id AS CHAR) AS product_b_id,
+                COALESCE(p2.name, 'Unknown') AS product_b_name,
+                COUNT(DISTINCT o.id) AS frequency
+            FROM {self.ITEMS_TABLE} i1
+            JOIN {self.ITEMS_TABLE} i2 ON i1.order_id = i2.order_id AND i1.product_id < i2.product_id
+            JOIN {self.TABLE} o ON o.id = i1.order_id
+            LEFT JOIN sj_products p1 ON p1.id = i1.product_id
+            LEFT JOIN sj_products p2 ON p2.id = i2.product_id
+            WHERE {where_sql}
+            GROUP BY i1.product_id, p1.name, i2.product_id, p2.name
+            ORDER BY frequency DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                ItemsBoughtTogetherResponse(
+                    productAId=r.product_a_id,
+                    productAName=r.product_a_name,
+                    productBId=r.product_b_id,
+                    productBName=r.product_b_name,
+                    frequency=r.frequency or 0,
+                )
+                for r in rows
+            ]
+
+    async def get_sales_by_device_type_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[SalesByDeviceReportResponse]:
+        where_clauses = ["o.status NOT IN ('cancelled', 'declined')", "o.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(LOWER(NULLIF(s.device_type, '')), 'unknown') AS device_type,
+                COUNT(o.id) AS order_count,
+                COALESCE(SUM(o.total), 0.0) AS revenue
+            FROM {self.TABLE} o
+            LEFT JOIN sj_sessions s ON s.session_id = o.session_id
+            WHERE {where_sql}
+            GROUP BY device_type
+            HAVING order_count > 0
+            ORDER BY revenue DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SalesByDeviceReportResponse(
+                    deviceType=r.device_type,
+                    orderCount=r.order_count or 0,
+                    revenue=round(r.revenue or 0.0, 2),
+                )
+                for r in rows
+            ]
+
+    async def get_products_pct_sold_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[ProductsPctSoldResponse]:
+        where_clauses = ["o.status NOT IN ('cancelled', 'declined')", "o.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_product_sellers ps WHERE ps.product_id = p.id AND ps.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            WITH sold_items AS (
+                SELECT 
+                    oi.product_id,
+                    CAST(COALESCE(SUM(oi.quantity), 0) AS UNSIGNED) AS units_sold
+                FROM {self.ITEMS_TABLE} oi
+                JOIN {self.TABLE} o ON o.id = oi.order_id
+                WHERE {where_sql}
+                GROUP BY oi.product_id
+            )
+            SELECT 
+                CAST(p.id AS CHAR) AS product_id,
+                COALESCE(p.name, '') AS name,
+                p.sku,
+                COALESCE(p.category, '') AS category,
+                COALESCE(p.stock, 0) AS current_stock,
+                COALESCE(si.units_sold, 0) AS units_sold,
+                (COALESCE(p.stock, 0) + COALESCE(si.units_sold, 0)) AS opening_stock,
+                CASE 
+                    WHEN (COALESCE(p.stock, 0) + COALESCE(si.units_sold, 0)) > 0 
+                    THEN ROUND(COALESCE(si.units_sold, 0) / (COALESCE(p.stock, 0) + COALESCE(si.units_sold, 0)) * 100.0, 1)
+                    ELSE 0.0 
+                END AS pct_sold
+            FROM sj_products p
+            LEFT JOIN sold_items si ON si.product_id = p.id
+            WHERE p.is_active = 1 {seller_clause}
+            ORDER BY pct_sold DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                ProductsPctSoldResponse(
+                    productId=r.product_id,
+                    name=r.name,
+                    sku=r.sku,
+                    category=r.category,
+                    openingStock=r.opening_stock,
+                    currentStock=r.current_stock,
+                    unitsSold=r.units_sold,
+                    pctSold=r.pct_sold or 0.0,
+                )
+                for r in rows
+            ]
+
 
 
 

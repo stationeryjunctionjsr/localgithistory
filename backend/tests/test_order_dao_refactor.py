@@ -285,3 +285,108 @@ async def test_new_batch_sql_pushdown_dao_methods():
         assert rfm[0].orderCount == 6
 
 
+@pytest.mark.asyncio
+async def test_batch_3_sql_pushdown_dao_methods():
+    dao = MySQLOrderDAO()
+
+    class FakeRow:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+    mock_session = AsyncMock()
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
+        # 1. get_discounts_audit_stats
+        mock_res1 = MagicMock()
+        mock_res1.fetchall.return_value = [
+            FakeRow(
+                order_id="101",
+                order_number="ORD-101",
+                created_at="2026-10-15 12:00:00",
+                customer_name="Resham",
+                gross_sales=200.0,
+                discount_applied=20.0,
+                discount_pct=10.0,
+                couponCode="DISC10",
+                coupon_code="DISC10",
+                net_after_discount=180.0,
+            )
+        ]
+        mock_session.execute.return_value = mock_res1
+        discounts = await dao.get_discounts_audit_stats()
+        assert len(discounts) == 1
+        assert discounts[0].orderId == "101"
+        assert discounts[0].customerName == "Resham"
+        assert discounts[0].netAfterDiscount == 180.0
+
+        # 2. get_sales_by_channel_detailed_stats
+        mock_res2 = MagicMock()
+        mock_res2.fetchall.return_value = [
+            FakeRow(channel="desktop_web", order_count=10, revenue=5000.0),
+            FakeRow(channel="mobile_app", order_count=5, revenue=2500.0),
+        ]
+        mock_session.execute.return_value = mock_res2
+        channels = await dao.get_sales_by_channel_detailed_stats()
+        assert len(channels) == 2
+        assert channels[0].channel == "desktop_web"
+        assert channels[0].channelLabel == "Desktop Web"
+        assert channels[0].orderCount == 10
+        assert channels[0].revenue == 5000.0
+        assert channels[0].revenuePct == 66.7
+
+        # 3. get_items_bought_together_stats
+        mock_res3 = MagicMock()
+        mock_res3.fetchall.return_value = [
+            FakeRow(
+                product_a_id="p1",
+                product_a_name="Notebook",
+                product_b_id="p2",
+                product_b_name="Pen",
+                frequency=12,
+            )
+        ]
+        mock_session.execute.return_value = mock_res3
+        pairs = await dao.get_items_bought_together_stats(limit=5)
+        assert len(pairs) == 1
+        assert pairs[0].productAId == "p1"
+        assert pairs[0].productBId == "p2"
+        assert pairs[0].frequency == 12
+
+        # 4. get_sales_by_device_type_stats
+        mock_res4 = MagicMock()
+        mock_res4.fetchall.return_value = [
+            FakeRow(device_type="mobile", order_count=8, revenue=1200.0)
+        ]
+        mock_session.execute.return_value = mock_res4
+        devices = await dao.get_sales_by_device_type_stats()
+        assert len(devices) == 1
+        assert devices[0].deviceType == "mobile"
+        assert devices[0].orderCount == 8
+        assert devices[0].revenue == 1200.0
+
+        # 5. get_products_pct_sold_stats
+        mock_res5 = MagicMock()
+        mock_res5.fetchall.return_value = [
+            FakeRow(
+                product_id="p1",
+                name="Notebook",
+                sku="NB-01",
+                category="Stationery",
+                opening_stock=100,
+                current_stock=80,
+                units_sold=20,
+                pct_sold=20.0,
+            )
+        ]
+        mock_session.execute.return_value = mock_res5
+        pct_sold = await dao.get_products_pct_sold_stats()
+        assert len(pct_sold) == 1
+        assert pct_sold[0].productId == "p1"
+        assert pct_sold[0].unitsSold == 20
+        assert pct_sold[0].pctSold == 20.0
+
+
+
