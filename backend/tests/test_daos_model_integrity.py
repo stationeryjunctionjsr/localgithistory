@@ -432,8 +432,8 @@ def test_product_and_coupon_pydantic_refactor_integrity():
     assert ProductCatalogQuery is ProductFilter
     assert ProductFilter.model_fields["allowed_ids"].annotation == Optional[List[int]]
     assert ProductFilter.model_fields["id"].annotation == Optional[int]
-    assert ProductFilter.model_fields["seller_ids"].annotation == Optional[List[str]]
-    assert ProductFilter.model_fields["my_seller_id"].annotation == Optional[str]
+    assert ProductFilter.model_fields["seller_ids"].annotation == Optional[List[int]]
+    assert ProductFilter.model_fields["my_seller_id"].annotation == Optional[int]
     assert "product_id_formatted" not in ProductFilter.model_fields, "ProductFilter must not have legacy product_id_formatted"
 
     filt = ProductFilter(id=456)

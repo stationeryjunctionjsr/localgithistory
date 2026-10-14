@@ -1362,13 +1362,13 @@ async def create_seller_request(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
         
-    seller_id = str(current_user.id)
+    seller_id = current_user.id
     
     # Initialize sellers list if None
     sellers_list = product.sellers or []
     
     # Check if seller already has an entry
-    existing_entry = next((s for s in sellers_list if str(s.seller_id) == seller_id), None)
+    existing_entry = next((s for s in sellers_list if s.seller_id == seller_id), None)
     if existing_entry:
         if existing_entry.requestStatus == "pending":
             raise HTTPException(status_code=400, detail="Request already pending")
@@ -1409,10 +1409,10 @@ async def update_my_seller_entry(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
         
-    seller_id = str(current_user.id)
+    seller_id = current_user.id
     sellers_list = product.sellers or []
     
-    existing_entry = next((s for s in sellers_list if str(s.seller_id) == seller_id), None)
+    existing_entry = next((s for s in sellers_list if s.seller_id == seller_id), None)
     if not existing_entry:
         raise HTTPException(status_code=404, detail="You are not a seller for this product")
         
@@ -1432,7 +1432,7 @@ async def update_my_seller_entry(
 @router.put("/{product_id}/sellers/{seller_id}/approve", response_model=ProductResponse)
 async def approve_seller_request(
     product_id: int,
-    seller_id: str,
+    seller_id: int,
     data: SellerRequestApprove = None,
     current_user: User = Depends(require_super_admin)
 ):
@@ -1444,7 +1444,7 @@ async def approve_seller_request(
         raise HTTPException(status_code=404, detail="Product not found")
         
     sellers_list = product.sellers or []
-    target_entry = next((s for s in sellers_list if str(s.seller_id) == seller_id), None)
+    target_entry = next((s for s in sellers_list if s.seller_id == seller_id), None)
     
     if not target_entry:
         raise HTTPException(status_code=404, detail="Seller request not found for this product")
@@ -1462,8 +1462,8 @@ async def approve_seller_request(
         
         # Check all other approved sellers
         for s in sellers_list:
-            if str(s.seller_id) != seller_id and s.requestStatus == "approved":
-                other_user = await user_repository.findById(str(s.seller_id))
+            if s.seller_id != seller_id and s.requestStatus == "approved":
+                other_user = await user_repository.findById(s.seller_id)
                 if other_user:
                     other_zones = other_user.service_area_zones or []
                     overlap = target_zones_set.intersection(set(other_zones))

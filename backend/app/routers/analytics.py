@@ -39,7 +39,7 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
         raise HTTPException(status_code=400, detail="Invalid date format")
 
 
-def _resolve_seller_id(current_user: User, requested_seller_id: Optional[str] = None) -> Optional[str]:
+def _resolve_seller_id(current_user: User, requested_seller_id: Optional[int] = None) -> Optional[int]:
     """
     Resolves the effective seller_id for a request.
     - Sellers (wholesaler role): always scoped to their own _id, ignores any requested_seller_id.
@@ -370,7 +370,7 @@ async def get_sales_over_time(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     group_by: str = Query("hour", pattern="^(hour|day|month)$"),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get sales over time. Sellers are auto-scoped to their own orders."""
@@ -438,7 +438,7 @@ async def get_sales_by_product(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get top products by sales. Sellers are auto-scoped to their own products."""
@@ -552,7 +552,7 @@ async def get_products_sell_through(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get products by sell-through rate. Sellers are auto-scoped to their own catalogue."""
@@ -685,7 +685,7 @@ async def get_reports_summary(
 async def get_returns_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get returns and refund requests report. Sellers see only their own returns."""
@@ -703,7 +703,7 @@ async def get_returns_report(
 async def get_payment_methods_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get orders and revenue broken down by payment method. Sellers see their own orders."""
@@ -722,7 +722,7 @@ async def get_revenue_by_category(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get revenue broken down by product category. Sellers see their own categories."""
@@ -739,7 +739,7 @@ async def get_revenue_by_category(
 @router.get("/reports/inventory-alerts", response_model=List[InventoryAlertResponse])
 async def get_inventory_alerts(
     threshold: int = Query(10, ge=0, le=1000),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get products with stock at or below the given threshold. Sellers see their own products."""
@@ -755,7 +755,7 @@ async def get_inventory_alerts(
 async def get_fulfillment_time_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get average order fulfillment time per order. Sellers see their own orders."""
@@ -773,7 +773,7 @@ async def get_fulfillment_time_report(
 async def get_coupon_usage_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get coupon/discount usage report. Sellers see coupons used on their orders."""
@@ -792,7 +792,7 @@ async def get_sales_by_location_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get sales grouped by location (city/state). Sellers see their own delivery destinations."""
@@ -860,7 +860,7 @@ async def get_top_returned_products_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=1000),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get most frequently returned products. Sellers see only their own products."""
@@ -876,7 +876,7 @@ async def get_top_returned_products_report(
 
 @router.get("/reports/inventory-value-by-category", response_model=List[InventoryValueByCategoryResponse])
 async def get_inventory_value_by_category_report(
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Get inventory value grouped by category. Sellers see only their own catalogue."""
@@ -1004,7 +1004,7 @@ async def get_customer_frequency_report(
 async def get_net_sales_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Per-order gross-to-net breakdown. Sellers see only their own orders."""
@@ -1022,7 +1022,7 @@ async def get_net_sales_report(
 async def get_sales_heatmap_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Orders by day-of-week x hour-of-day. Sellers see only their own orders."""
@@ -1040,7 +1040,7 @@ async def get_sales_heatmap_report(
 async def get_inventory_runway_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Days of stock remaining per product. Sellers see only their own products."""
@@ -1076,7 +1076,7 @@ async def get_sales_by_channel_detailed_report(
 async def get_discounts_audit_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Per-order discount/coupon audit. Sellers see only their own orders."""
@@ -1094,7 +1094,7 @@ async def get_discounts_audit_report(
 async def get_products_pct_sold_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    seller_id: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
 ):
     """Units sold as % of opening stock. Sellers see only their own catalogue."""

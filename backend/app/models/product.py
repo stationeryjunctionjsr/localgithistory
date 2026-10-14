@@ -103,9 +103,9 @@ class ProductFilter(CamelBaseModel):
     collection: Optional[str] = None
     category_tag: Optional[str] = None
     min_discount: Optional[float] = None
-    allowed_seller_ids: Optional[List[str]] = None
-    my_seller_id: Optional[str] = None
-    seller_ids: Optional[List[str]] = None
+    allowed_seller_ids: Optional[List[int]] = None
+    my_seller_id: Optional[int] = None
+    seller_ids: Optional[List[int]] = None
     allowed_ids: Optional[List[int]] = None
     role: str = "customer"
     user_id: Optional[str] = None
