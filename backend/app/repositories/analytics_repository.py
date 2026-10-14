@@ -1506,7 +1506,8 @@ class AnalyticsRepository:
                     continue
 
                 prod = next((p for p in products if p.id == pid), None)
-                if seller_id and prod and prod.sellers and not any(s.seller_id == seller_id for s in prod.sellers):
+                prod_seller = prod.sellers[0].seller_id if (prod and prod.sellers) else None
+                if seller_id and prod_seller != seller_id:
                     continue
 
                 stat = next((r for r in result if r["productId"] == pid), None)
@@ -2132,7 +2133,7 @@ class AnalyticsRepository:
         if seller_id:
             products = [
                 p for p in products
-                if p.sellers and any(s.seller_id == seller_id for s in p.sellers)
+                if p.sellers and p.sellers[0].seller_id == seller_id
             ]
 
         class ProductRunwayStat(BaseModel):
@@ -2293,7 +2294,7 @@ class AnalyticsRepository:
         if seller_id:
             products = [
                 p for p in products
-                if p.sellers and any(s.seller_id == seller_id for s in p.sellers)
+                if p.sellers and p.sellers[0].seller_id == seller_id
             ]
 
         class ProductPctStat(BaseModel):

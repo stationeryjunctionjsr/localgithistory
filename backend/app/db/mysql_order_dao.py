@@ -1089,35 +1089,11 @@ class MySQLOrderDAO:
               {user_filter}
         """
 
-        state_cond = ""
-        city_cond = ""
         params = {"prefix": prefix, "start_date": start_date}
-        if state and state.strip():
-            state_cond = "AND LOWER(TRIM(o.ship_state)) = :state"
-            params["state"] = state.strip().lower()
-        if city and city.strip():
-            city_cond = "AND LOWER(TRIM(o.ship_city)) = :city"
-            params["city"] = city.strip().lower()
-
-        stats_sql = f"""
-            SELECT CAST(oi.product_id AS CHAR) AS pid,
-                   COUNT(DISTINCT o.id) AS order_count,
-                   CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
-            FROM {self.ITEMS_TABLE} oi
-            JOIN {self.TABLE} o ON o.id = oi.order_id
-            {user_join}
-            WHERE o.order_number LIKE :prefix
-              AND o.created_at >= :start_date
-              AND o.status != 'cancelled'
-              {user_filter}
-              {state_cond}
-              {city_cond}
-            GROUP BY pid
-        """
 
         async_session = get_async_session_factory()
         async with async_session() as session:
-            geo_res = await session.execute(text(geo_sql), {"prefix": prefix, "start_date": start_date})
+            geo_res = await session.execute(text(geo_sql), params)
             states = set()
             cities = set()
             for r in geo_res.fetchall():
@@ -1125,6 +1101,31 @@ class MySQLOrderDAO:
                     states.add(str(r.state))
                 if r.city:
                     cities.add(str(r.city))
+
+            state_cond = ""
+            city_cond = ""
+            if state and state.strip():
+                state_cond = "AND LOWER(TRIM(o.ship_state)) = :state"
+                params["state"] = state.strip().lower()
+            if city and city.strip():
+                city_cond = "AND LOWER(TRIM(o.ship_city)) = :city"
+                params["city"] = city.strip().lower()
+
+            stats_sql = f"""
+                SELECT CAST(oi.product_id AS CHAR) AS pid,
+                       COUNT(DISTINCT o.id) AS order_count,
+                       CAST(SUM(COALESCE(oi.quantity, 1)) AS UNSIGNED) AS total_qty
+                FROM {self.ITEMS_TABLE} oi
+                JOIN {self.TABLE} o ON o.id = oi.order_id
+                {user_join}
+                WHERE o.order_number LIKE :prefix
+                  AND o.created_at >= :start_date
+                  AND o.status != 'cancelled'
+                  {user_filter}
+                  {state_cond}
+                  {city_cond}
+                GROUP BY pid
+            """
 
             stats_res = await session.execute(text(stats_sql), params)
             product_stats = [
