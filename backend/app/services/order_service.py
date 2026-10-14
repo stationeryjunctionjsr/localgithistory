@@ -270,8 +270,6 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     payments_list = await payments_task if payments_task else []
 
     # 3. Build lookup maps
-    users_map = {u.id: u for u in users_list if u.id}
-
     products_map = {p.id: p for p in products_list if p.id}
 
     payments_map = {}
@@ -284,8 +282,8 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     # 4. Construct fully populated responses
     populated = []
     for order in orders:
-        user = users_map[order.user] if order.user in users_map else None
-        valet = users_map[order.assigned_valet] if order.assigned_valet in users_map else None
+        user = next((u for u in users_list if u.id == order.user), None) if order.user else None
+        valet = next((u for u in users_list if u.id == order.assigned_valet), None) if order.assigned_valet else None
 
         payment_entries = payments_map[order.id] if order.id in payments_map else []
 
