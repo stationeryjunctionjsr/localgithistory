@@ -25,7 +25,7 @@ class MySQLCartDAO:
     async def findAll(
         self,
         id: Optional[int] = None,
-        user: Optional[str] = None,
+        user: Optional[int] = None,
     ) -> List[Cart]:
         where_clauses = []
         params = {}
@@ -34,7 +34,7 @@ class MySQLCartDAO:
             params["id"] = id
         if user is not None:
             where_clauses.append("user_id = :user_id")
-            params["user_id"] = int(user) if str(user).isdigit() else None
+            params["user_id"] = user
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async_session = get_async_session_factory()
@@ -110,7 +110,7 @@ class MySQLCartDAO:
     async def findOne(
         self,
         id: Optional[int] = None,
-        user: Optional[str] = None,
+        user: Optional[int] = None,
     ) -> Optional[Cart]:
         records = await self.findAll(id=id, user=user)
         return records[0] if records else None
@@ -154,8 +154,7 @@ class MySQLCartDAO:
     async def create(self, data: CartInternalCreate) -> Optional[Cart]:
         now = now_utc()
 
-        user_id_raw = data.user
-        uid = int(user_id_raw) if user_id_raw and str(user_id_raw).isdigit() else None
+        uid = data.user
 
         cols = ["created_at", "updated_at"]
         vals = [":created_at", ":updated_at"]
@@ -190,7 +189,7 @@ class MySQLCartDAO:
 
         if "user" in update_data.model_fields_set:
             updates.append("user_id = :user_id")
-            params["user_id"] = int(update_data.user) if update_data.user and str(update_data.user).isdigit() else None
+            params["user_id"] = update_data.user
 
         set_sql = ", ".join(updates)
         async_session = get_async_session_factory()
@@ -213,7 +212,7 @@ class MySQLCartDAO:
 
     async def update_items_atomic(
         self,
-        user_id: str,
+        user_id: int,
         merge_fn,
     ) -> Optional['Cart']:
         """Read-lock the user's cart row, apply merge_fn to the current items,
@@ -226,9 +225,9 @@ class MySQLCartDAO:
 
         Returns the updated Cart, or None when user_id is invalid.
         """
-        if not user_id or not str(user_id).isdigit():
+        if not user_id:
             return None
-        numeric_uid = int(user_id)
+        numeric_uid = user_id
         now = now_utc()
 
         async_session = get_async_session_factory()
@@ -297,12 +296,12 @@ class MySQLCartDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, user: Optional[str] = None) -> int:
+    async def deleteMany(self, user: Optional[int] = None) -> int:
         where_clauses = []
         params = {}
         if user is not None:
             where_clauses.append("user_id = :user_id")
-            params["user_id"] = int(user) if str(user).isdigit() else None
+            params["user_id"] = user
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async_session = get_async_session_factory()
         async with async_session() as session:
@@ -317,7 +316,7 @@ class MySQLCartDAO:
             await session.commit()
             return result.rowcount or 0
 
-    async def count(self, id: Optional[int] = None, user: Optional[str] = None) -> int:
+    async def count(self, id: Optional[int] = None, user: Optional[int] = None) -> int:
         where_clauses = []
         params = {}
         if id is not None:
@@ -325,7 +324,7 @@ class MySQLCartDAO:
             params["id"] = id
         if user is not None:
             where_clauses.append("user_id = :uid")
-            params["uid"] = int(user) if str(user).isdigit() else None
+            params["uid"] = user
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async_session = get_async_session_factory()

@@ -21,12 +21,12 @@ class CartItemInternal(CamelBaseModel):
 
 class CartInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    user: Optional[str] = None
+    user: Optional[int] = None
     items: Optional[List[CartItemInternal]] = []
 
 class CartInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    user: Optional[str] = None
+    user: Optional[int] = None
     items: Optional[List[CartItemInternal]] = None
 
 class PaymentEntryInternal(CamelBaseModel):

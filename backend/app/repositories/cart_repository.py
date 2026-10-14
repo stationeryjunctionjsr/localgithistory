@@ -10,7 +10,7 @@ class CartRepository:
     def __init__(self) -> None:
         self.storage = get_storage("carts")
 
-    async def findByUser(self, user_id: str) -> Optional[Cart]:
+    async def findByUser(self, user_id: int) -> Optional[Cart]:
         return await self.storage.findOne(user=user_id)
 
     async def create(self, cart_data: 'CartInternalCreate') -> Cart:
@@ -19,11 +19,11 @@ class CartRepository:
     async def update(self, id: int, update_data: 'CartInternalUpdate') -> Optional[Cart]:
         return await self.storage.update(id, update_data)
 
-    async def clearCart(self, user_id: str) -> Optional[Cart]:
+    async def clearCart(self, user_id: int) -> Optional[Cart]:
         """Atomically clear all items from the user's cart."""
         return await self.storage.update_items_atomic(user_id, lambda _: [])
 
-    async def createOrUpdate(self, user_id: str, items: list) -> Optional[Cart]:
+    async def createOrUpdate(self, user_id: int, items: list) -> Optional[Cart]:
         existing = await self.findByUser(user_id)
         cart_data = CartInternalUpdate(user=user_id, items=items or [])
         if existing:
@@ -32,7 +32,7 @@ class CartRepository:
             create_data = CartInternalCreate(user=user_id, items=items or [])
             return await self.create(create_data)
 
-    async def addItem(self, user_id: str, item: 'CartItemInternal') -> Optional[Cart]:
+    async def addItem(self, user_id: int, item: 'CartItemInternal') -> Optional[Cart]:
         """Atomically add an item to the cart.
 
         Uses a DB-level FOR UPDATE lock so concurrent add requests for the
@@ -69,7 +69,7 @@ class CartRepository:
 
         return await self.storage.update_items_atomic(user_id, _merge)
 
-    async def removeItem(self, user_id: str, item_id: str) -> Optional[Cart]:
+    async def removeItem(self, user_id: int, item_id: str) -> Optional[Cart]:
         """Atomically remove a specific item from the cart.
 
         Uses a DB-level FOR UPDATE lock so concurrent removals cannot race.
