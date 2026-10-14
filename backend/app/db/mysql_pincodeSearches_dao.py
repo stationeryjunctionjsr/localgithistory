@@ -1,7 +1,7 @@
 """
 Strict SQLAlchemy DAO for sj_pincode_searches with native integer IDs and Pydantic models.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -12,20 +12,8 @@ from app.models.daos_flat import (
 )
 
 
-def _to_int(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
-
-
 class MySQLPincodeSearchesDAO:
     TABLE = "sj_pincode_searches"
-
-    def _factory(self):
-        return get_async_session_factory()
 
     def _map_to_schema(self, row) -> PincodeSearches:
         return PincodeSearches(
@@ -60,8 +48,10 @@ class MySQLPincodeSearchesDAO:
             params["timestamp"] = query["timestamp"]
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return []
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
@@ -96,10 +86,10 @@ class MySQLPincodeSearchesDAO:
             params["end_date"] = end_date
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return [], 0
-        async with factory() as session:
+        async with async_session() as session:
             count_q = text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}")
             total = (await session.execute(count_q, params)).scalar() or 0
 
@@ -110,10 +100,10 @@ class MySQLPincodeSearchesDAO:
 
     async def get_stats(self) -> PincodeSearchStatsResponse:
         """SQL pushdown to compute summary statistics on pincode searches without full table memory dump."""
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return PincodeSearchStatsResponse()
-        async with factory() as session:
+        async with async_session() as session:
             summary_q = text(
                 f"""
                 SELECT 
@@ -189,64 +179,66 @@ class MySQLPincodeSearchesDAO:
             )
 
     async def findOne(self, query: Dict) -> Optional[PincodeSearches]:
-        if "id" in query:
-            id_val = _to_int(query["id"])
-            if id_val is not None:
-                return await self.findById(id_val)
+        if "id" in query and query["id"]:
+            return await self.findById(query["id"])
         records = await self.findAll(query)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[PincodeSearches]:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return None
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
-                    {"id": id_val},
+                    {"id": id},
                 )
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: Union[PincodeSearchesInternalCreate, Dict]) -> PincodeSearches:
-        if isinstance(data, dict):
-            pincode = data.get("pincode")
-            query_val = data.get("query")
-            is_srv = data.get("isServiceable") if "isServiceable" in data else data.get("is_serviceable")
-            ts = data.get("timestamp") or data.get("searchedAt")
-        else:
-            pincode = data.pincode
-            query_val = data.query
-            is_srv = data.is_serviceable
-            ts = data.timestamp
-
-        factory = self._factory()
+    async def create(self, data: PincodeSearchesInternalCreate) -> PincodeSearches:
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("MySQL not configured")
         now = now_utc()
         cols = ["created_at", "updated_at"]
         vals = [":c", ":u"]
         params = {"c": now, "u": now}
-        if pincode is not None:
+        if data.pincode is not None:
             cols.append("pincode")
             vals.append(":pincode")
-            params["pincode"] = pincode
-        if query_val is not None:
+            params["pincode"] = data.pincode
+        if data.query is not None:
             cols.append("query")
             vals.append(":query")
-            params["query"] = query_val
-        if is_srv is not None:
+            params["query"] = data.query
+        if data.is_serviceable is not None:
             cols.append("is_serviceable")
-            vals.append(":isServiceable")
-            params["isServiceable"] = 1 if is_srv else 0
-        if ts is not None:
+            vals.append(":is_serviceable")
+            params["is_serviceable"] = 1 if data.is_serviceable else 0
+        if data.timestamp is not None:
             cols.append("timestamp")
             vals.append(":timestamp")
-            params["timestamp"] = ts
+            params["timestamp"] = data.timestamp
+        if data.city is not None:
+            cols.append("city")
+            vals.append(":city")
+            params["city"] = data.city
+        if data.state is not None:
+            cols.append("state")
+            vals.append(":state")
+            params["state"] = data.state
+        if data.district is not None:
+            cols.append("district")
+            vals.append(":district")
+            params["district"] = data.district
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
-        async with factory() as session:
+        async with async_session() as session:
             res = await session.execute(
                 text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
                 params,
@@ -255,60 +247,61 @@ class MySQLPincodeSearchesDAO:
             await session.commit()
         return await self.findById(new_id)
 
-    async def update(self, id: int, data: Union[PincodeSearchesInternalUpdate, Dict]) -> Optional[PincodeSearches]:
-        id_val = _to_int(id)
-        if id_val is None:
+    async def update(self, id: int, data: PincodeSearchesInternalUpdate) -> Optional[PincodeSearches]:
+        if not id:
             return None
-        existing = await self.findById(id_val)
-        if not existing:
-            return None
-
-        if isinstance(data, dict):
-            pincode = data.get("pincode")
-            query_val = data.get("query")
-            is_srv = data.get("isServiceable") if "isServiceable" in data else data.get("is_serviceable")
-            ts = data.get("timestamp") or data.get("searchedAt")
-        else:
-            pincode = data.pincode
-            query_val = data.query
-            is_srv = data.is_serviceable
-            ts = data.timestamp
 
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": id_val, "u": now}
-        if pincode is not None:
+        params = {"id": id, "u": now}
+        if "pincode" in data.model_fields_set and data.pincode is not None:
             updates.append("pincode = :pincode")
-            params["pincode"] = pincode
-        if query_val is not None:
+            params["pincode"] = data.pincode
+        if "query" in data.model_fields_set and data.query is not None:
             updates.append("query = :query")
-            params["query"] = query_val
-        if is_srv is not None:
-            updates.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if is_srv else 0
-        if ts is not None:
+            params["query"] = data.query
+        if "is_serviceable" in data.model_fields_set and data.is_serviceable is not None:
+            updates.append("is_serviceable = :is_serviceable")
+            params["is_serviceable"] = 1 if data.is_serviceable else 0
+        if "timestamp" in data.model_fields_set and data.timestamp is not None:
             updates.append("timestamp = :timestamp")
-            params["timestamp"] = ts
+            params["timestamp"] = data.timestamp
+        if "city" in data.model_fields_set and data.city is not None:
+            updates.append("city = :city")
+            params["city"] = data.city
+        if "state" in data.model_fields_set and data.state is not None:
+            updates.append("state = :state")
+            params["state"] = data.state
+        if "district" in data.model_fields_set and data.district is not None:
+            updates.append("district = :district")
+            params["district"] = data.district
 
         set_sql = ", ".join(updates)
-        factory = self._factory()
-        async with factory() as session:
-            await session.execute(
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
+            res = await session.execute(
                 text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
                 params,
             )
+            if res.rowcount == 0:
+                chk = await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE id = :id"), {"id": id})
+                if not chk.fetchone():
+                    return None
             await session.commit()
-        return await self.findById(id_val)
+        return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        id_val = _to_int(id)
-        if id_val is None:
+        if not id:
             return False
-        factory = self._factory()
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return False
+        async with async_session() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": id_val},
+                {"id": id},
             )
             await session.commit()
             return res.rowcount > 0
