@@ -222,32 +222,22 @@ class MySQLCollectionsDAO:
 
         return rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids
 
-    async def _replace_children(self, session, row_id: int, data: Union[CollectionInternalCreate, CollectionInternalUpdate]):
-        fields = data.model_fields_set
-        if "visible_pages" in fields and data.visible_pages is not None:
-            await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.visible_pages or []
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_collection_pages (parent_id, page) VALUES (:id, :v)"), {"id": row_id, "v": item})
+    async def _replace_visible_pages(self, session, collection_id: int, pages: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": collection_id})
+        for item in pages:
+            await session.execute(text("INSERT INTO sj_collection_pages (parent_id, page) VALUES (:id, :v)"), {"id": collection_id, "v": item})
 
-        if "user_segments" in fields and data.user_segments is not None:
-            await session.execute(text(f"DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.user_segments or []
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_collection_segments (parent_id, segment) VALUES (:id, :v)"), {"id": row_id, "v": item})
+    async def _replace_user_segments(self, session, collection_id: int, segments: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": collection_id})
+        for item in segments:
+            await session.execute(text("INSERT INTO sj_collection_segments (parent_id, segment) VALUES (:id, :v)"), {"id": collection_id, "v": item})
 
-        if "visibility_rules" in fields and data.visibility_rules is not None:
-            await session.execute(text(f"DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.visibility_rules or []
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": item})
+    async def _replace_visibility_rules(self, session, collection_id: int, rules: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": collection_id})
+        for item in rules:
+            await session.execute(text("INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": collection_id, "v": item})
 
-        if "product_ids" in fields and data.product_ids is not None:
-            await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.product_ids or []
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_collection_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
+    async def _replace_products(self, session, collection_id: int, product_ids: List[str]) -> None:
+        await session.execute(text("DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": collection_id})
+        for item in product_ids:
+            await session.execute(text("INSERT INTO sj_collection_products (parent_id, product_id) VALUES (:id, :v)"), {"id": collection_id, "v": item})

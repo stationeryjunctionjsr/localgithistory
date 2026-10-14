@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -188,7 +188,10 @@ class MySQLReturnRequestsDAO:
         async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
-            await self._replace_children(session, new_id, data)
+            if data.items:
+                await self._replace_items(session, new_id, data.items)
+            if data.valet_decline_history:
+                await self._replace_valet_declines(session, new_id, data.valet_decline_history)
             await session.commit()
             
         return await self.findById(new_id)
@@ -227,7 +230,10 @@ class MySQLReturnRequestsDAO:
         upd_sql = ", ".join(updates)
         async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-            await self._replace_children(session, id, update_data)
+            if "items" in fields:
+                await self._replace_items(session, id, update_data.items or [])
+            if "valet_decline_history" in fields:
+                await self._replace_valet_declines(session, id, update_data.valet_decline_history or [])
             await session.commit()
                 
         return await self.findById(id)
@@ -301,31 +307,29 @@ class MySQLReturnRequestsDAO:
 
         return (rows_items, rows_valetDeclineHistory)
 
-    async def _replace_children(self, session, row_id: int, data: Union[ReturnRequestInternalCreate, ReturnRequestInternalUpdate]):
-        fields = data.model_fields_set
-        if "items" in fields and data.items is not None:
-            await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
-            for item in data.items:
-                p = {
-                    "id": row_id,
-                    "v0": item.product_id,
-                    "v1": item.quantity,
-                    "v2": item.reason,
-                }
-                await session.execute(
-                    text("INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"),
-                    p,
-                )
+    async def _replace_items(self, session, return_request_id: int, items: List[ReturnRequestItemInternal]) -> None:
+        await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": return_request_id})
+        for item in items:
+            p = {
+                "id": return_request_id,
+                "v0": item.product_id,
+                "v1": item.quantity,
+                "v2": item.reason,
+            }
+            await session.execute(
+                text("INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"),
+                p,
+            )
 
-        if "valet_decline_history" in fields and data.valet_decline_history is not None:
-            await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
-            for item in data.valet_decline_history:
-                p = {
-                    "id": row_id,
-                    "v0": item.valet_id,
-                    "v1": item.reason,
-                }
-                await session.execute(
-                    text("INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"),
-                    p,
-                )
+    async def _replace_valet_declines(self, session, return_request_id: int, declines: List[ReturnRequestValetDeclineInternal]) -> None:
+        await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": return_request_id})
+        for item in declines:
+            p = {
+                "id": return_request_id,
+                "v0": item.valet_id,
+                "v1": item.reason,
+            }
+            await session.execute(
+                text("INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"),
+                p,
+            )

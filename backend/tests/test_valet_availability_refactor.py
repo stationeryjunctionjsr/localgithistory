@@ -116,7 +116,7 @@ async def test_dao_pushdown_async_execution():
     mock_session_ctx.__aexit__.return_value = None
     mock_factory = MagicMock(return_value=mock_session_ctx)
 
-    with patch.object(dao, "_factory", return_value=mock_factory):
+    with patch("app.db.mysql_valet_availability_dao.get_async_session_factory", return_value=mock_factory):
         results = await dao.get_my_upcoming_availability("v_101", "2026-08-15", "2026-08-22")
         assert len(results) == 1
         assert results[0].valet_id == "v_101"
