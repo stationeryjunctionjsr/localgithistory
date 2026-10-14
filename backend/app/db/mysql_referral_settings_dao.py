@@ -29,9 +29,6 @@ class MySQLReferralSettingsDAO:
     def TABLE(self) -> str:
         return "sj_referral_settings"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _map_to_schema(self, retail_row, business_row) -> ReferralSettings:
         return ReferralSettings(
             id="1",
@@ -50,10 +47,10 @@ class MySQLReferralSettingsDAO:
         return await self._get_settings()
 
     async def _get_settings(self) -> Optional[ReferralSettings]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"SELECT id, segment, discount_type, discount_value, is_active FROM {self.TABLE}")
             )
@@ -70,11 +67,11 @@ class MySQLReferralSettingsDAO:
         return self._map_to_schema(retail_row, business_row)
 
     async def create(self, data: ReferralSettings) -> Optional[ReferralSettings]:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
-        async with factory() as session:
+        async with async_session() as session:
             for seg in SEGMENTS:
                 obj = data.retail if seg == "retail" else data.business
                 if not obj:
@@ -105,18 +102,18 @@ class MySQLReferralSettingsDAO:
         return await self._get_settings()
 
     async def update(self, id: str, update_data: ReferralSettings) -> Optional[ReferralSettings]:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return None
         now = now_utc()
-        for seg in SEGMENTS:
-            obj = update_data.retail if seg == "retail" else update_data.business
-            if obj is None:
-                continue
-            discount_type = obj.discount_type or "percentage"
-            discount_value = float(obj.discount_value) if obj.discount_value is not None else 0.0
-            is_active = 1 if obj.is_active else 0
-            async with factory() as session:
+        async with async_session() as session:
+            for seg in SEGMENTS:
+                obj = update_data.retail if seg == "retail" else update_data.business
+                if obj is None:
+                    continue
+                discount_type = obj.discount_type or "percentage"
+                discount_value = float(obj.discount_value) if obj.discount_value is not None else 0.0
+                is_active = 1 if obj.is_active else 0
                 result = await session.execute(
                     text(
                         f"""
@@ -149,14 +146,14 @@ class MySQLReferralSettingsDAO:
                             "updated_at": now,
                         },
                     )
-                await session.commit()
+            await session.commit()
         return await self._get_settings()
 
     async def delete(self, id: str) -> bool:
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"DELETE FROM {self.TABLE}"))
             await session.commit()
             return result.rowcount > 0

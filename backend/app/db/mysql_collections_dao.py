@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -16,14 +16,13 @@ class MySQLCollectionsDAO:
         from app.config.settings import settings
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
-    async def findById(self, id: int) -> Optional['CollectionInternal']:
-        factory = self._factory()
-        if not factory or not id:
+    async def findById(self, id: int) -> Optional[CollectionInternal]:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             params = {"id": id}
             result = await session.execute(q, params)
@@ -37,7 +36,7 @@ class MySQLCollectionsDAO:
         self,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
-    ) -> Optional['CollectionInternal']:
+    ) -> Optional[CollectionInternal]:
         results = await self.findAll(is_active=is_active, name=name)
         return results[0] if results else None
 
@@ -45,7 +44,7 @@ class MySQLCollectionsDAO:
         self,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
-    ) -> List['CollectionInternal']:
+    ) -> List[CollectionInternal]:
         clauses = []
         params = {}
         if is_active is not None:
@@ -58,10 +57,10 @@ class MySQLCollectionsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY display_order ASC, id ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             if not rows:
@@ -69,8 +68,10 @@ class MySQLCollectionsDAO:
             rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids) for r in rows]
 
-    async def create(self, data: 'CollectionInternalCreate') -> 'CollectionInternal':
-        factory = self._factory()
+    async def create(self, data: CollectionInternalCreate) -> CollectionInternal:
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -90,7 +91,7 @@ class MySQLCollectionsDAO:
 
         if data.is_active is not None:
             cols.append("is_active")
-            params["s_is_active"] = data.is_active
+            params["s_is_active"] = 1 if data.is_active else 0
 
         if data.display_order is not None:
             cols.append("display_order")
@@ -99,7 +100,7 @@ class MySQLCollectionsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'image_url', 'is_active', 'display_order'] if f"s_{k}" in params])
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await self._replace_children(session, new_id, data)
@@ -107,49 +108,51 @@ class MySQLCollectionsDAO:
             
         return await self.findById(new_id)
 
-    async def update(self, id: int, update_data: 'CollectionInternalUpdate') -> 'CollectionInternal':
-        factory = self._factory()
+    async def update(self, id: int, update_data: CollectionInternalUpdate) -> Optional[CollectionInternal]:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
+            return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if update_data.name is not None:
+        if "name" in fields:
             updates.append("name = :s_name")
             params["s_name"] = update_data.name
 
-        if update_data.description is not None:
+        if "description" in fields:
             updates.append("description = :s_description")
             params["s_description"] = update_data.description
 
-        if update_data.image_url is not None:
+        if "image_url" in fields:
             updates.append("image_url = :s_image_url")
             params["s_image_url"] = update_data.image_url
 
-        if update_data.is_active is not None:
+        if "is_active" in fields:
             updates.append("is_active = :s_is_active")
-            params["s_is_active"] = update_data.is_active
+            params["s_is_active"] = 1 if update_data.is_active else 0
 
-        if update_data.display_order is not None:
+        if "display_order" in fields:
             updates.append("display_order = :s_display_order")
             params["s_display_order"] = update_data.display_order
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, id, update_data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, id, update_data)
-                await session.commit()
+        upd_sql = ", ".join(updates)
+        async with async_session() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            await self._replace_children(session, id, update_data)
+            await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             pk = id
 
             await session.execute(text("DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": pk})
@@ -164,7 +167,7 @@ class MySQLCollectionsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids) -> 'CollectionInternal':
+    def _map_to_schema(self, r, rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids) -> CollectionInternal:
         row_id = r.id
         return CollectionInternal(
             id=str(r.id),
@@ -205,36 +208,32 @@ class MySQLCollectionsDAO:
 
         return rows_visible_pages, rows_user_segments, rows_visibility_rules, rows_product_ids
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
-
-        if data.visible_pages is not None:
+    async def _replace_children(self, session, row_id: int, data: Union[CollectionInternalCreate, CollectionInternalUpdate]):
+        fields = data.model_fields_set
+        if "visible_pages" in fields and data.visible_pages is not None:
             await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": row_id})
             child_list = data.visible_pages or []
-
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_pages (parent_id, page) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.user_segments is not None:
+        if "user_segments" in fields and data.user_segments is not None:
             await session.execute(text(f"DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": row_id})
             child_list = data.user_segments or []
-
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_segments (parent_id, segment) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.visibility_rules is not None:
+        if "visibility_rules" in fields and data.visibility_rules is not None:
             await session.execute(text(f"DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": row_id})
             child_list = data.visibility_rules or []
-
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.product_ids is not None:
+        if "product_ids" in fields and data.product_ids is not None:
             await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})
             child_list = data.product_ids or []
-
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})

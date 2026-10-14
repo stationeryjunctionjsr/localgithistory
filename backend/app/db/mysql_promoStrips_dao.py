@@ -16,14 +16,13 @@ class MySQLPromoStripsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[PromoStripsInternal]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -59,16 +58,18 @@ class MySQLPromoStripsDAO:
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
 
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
             return [self._map_to_schema(r) for r in rows]
 
     async def create(self, data: PromoStripsInternalCreate) -> PromoStripsInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -96,7 +97,7 @@ class MySQLPromoStripsDAO:
             val_parts.append(":s_zone_ids")
         val_sql = ", ".join(val_parts)
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await session.commit()
@@ -104,37 +105,41 @@ class MySQLPromoStripsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: PromoStripsInternalUpdate) -> Optional[PromoStripsInternal]:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"u": now_utc(), "id": id}
 
-        if update_data.text is not None:
+        if "text" in fields:
             updates.append("text = :s_text")
             params["s_text"] = update_data.text
 
-        if update_data.is_active is not None:
+        if "is_active" in fields:
             updates.append("is_active = :s_is_active")
             params["s_is_active"] = 1 if update_data.is_active else 0
 
-        if update_data.zone_ids is not None:
+        if "zone_ids" in fields:
             updates.append("zone_ids = :s_zone_ids")
-            params["s_zone_ids"] = json.dumps(update_data.zone_ids)
+            params["s_zone_ids"] = json.dumps(update_data.zone_ids) if update_data.zone_ids is not None else None
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await session.commit()
+        upd_sql = ", ".join(updates)
+        async with async_session() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},

@@ -15,13 +15,13 @@ class MySQLReturnSettingsDAO:
     def TABLE(self):
         return self.table_name
 
-    def _factory(self):
-        return get_async_session_factory()
-        
     async def findById(self, id: int) -> Optional[ReturnSettingsInternal]:
         if not id:
             return None
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
             result = await session.execute(q, {"id": id})
             row = result.fetchone()
@@ -36,14 +36,19 @@ class MySQLReturnSettingsDAO:
         return all_settings[0] if all_settings else None
             
     async def findAll(self) -> List[ReturnSettingsInternal]:
-        async with self._factory()() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return []
+        async with async_session() as session:
             q = text(f"SELECT * FROM {self.TABLE} ORDER BY id ASC")
             result = await session.execute(q)
             rows = result.fetchall()
             return [self._map_to_schema(r) for r in rows]
 
     async def create(self, data: ReturnSettingsInternalCreate) -> ReturnSettingsInternal:
-        factory = self._factory()
+        async_session = get_async_session_factory()
+        if not async_session:
+            raise RuntimeError("Database session factory unavailable")
         now = now_utc()
         
         cols = ["created_at", "updated_at"]
@@ -58,7 +63,7 @@ class MySQLReturnSettingsDAO:
         col_sql = ", ".join(cols)
         val_sql = ", ".join(val_placeholders)
         
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = result.lastrowid
             await session.commit()
@@ -66,28 +71,33 @@ class MySQLReturnSettingsDAO:
         return await self.findById(new_id)
 
     async def update(self, id: int, update_data: ReturnSettingsInternalUpdate) -> Optional[ReturnSettingsInternal]:
-        factory = self._factory()
-        if not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return None
+
+        fields = update_data.model_fields_set
+        if not fields:
+            return await self.findById(id)
+
         updates = ["updated_at = :u"]
         params = {"u": now_utc(), "id": id}
 
-        if update_data.return_days is not None:
+        if "return_days" in fields:
             updates.append("return_days = :return_days")
             params["return_days"] = update_data.return_days
 
         upd_sql = ", ".join(updates)
-        async with factory() as session:
+        async with async_session() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
             await session.commit()
                 
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        async_session = get_async_session_factory()
+        if not async_session or not id:
             return False
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": id},
