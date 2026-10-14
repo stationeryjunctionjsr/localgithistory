@@ -82,9 +82,9 @@ class CouponRepository:
 
         elements = []
         for idx, item in enumerate(cart_items):
-            product = product_map.get(item.product_id)
-            if not product:
+            if not item.product_id or item.product_id not in product_map:
                 continue
+            product = product_map[item.product_id]
             qty = int(item.quantity or 0)
             if qty <= 0:
                 continue

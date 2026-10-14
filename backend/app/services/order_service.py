@@ -284,16 +284,16 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     # 4. Construct fully populated responses
     populated = []
     for order in orders:
-        user = users_map.get(order.user)
-        valet = users_map.get(order.assigned_valet)
+        user = users_map[order.user] if order.user in users_map else None
+        valet = users_map[order.assigned_valet] if order.assigned_valet in users_map else None
 
-        payment_entries = payments_map.get(order.id, [])
+        payment_entries = payments_map[order.id] if order.id in payments_map else []
 
         o_items = order.items if order.items else []
         populated_items = []
 
         for i_dict in o_items:
-            product = products_map.get(i_dict.product_id)
+            product = products_map[i_dict.product_id] if i_dict.product_id in products_map else None
 
             # stockStatus, taxRate, taxAmount are not stored in sj_order_items (DB has
             # only product_id, quantity, price) — they are None until the DB schema
@@ -584,8 +584,8 @@ async def create_order_service(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        p = _cart_products_map.get(item.product)
-        if p:
+        if item.product in _cart_products_map:
+            p = _cart_products_map[item.product]
             qty = (item.quantity if item.quantity is not None else 0)
             sell_as_case = (
                 item.sell_as_case if item.sell_as_case is not None else False)
@@ -749,11 +749,11 @@ async def create_order_service(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        product = _cart_products_map.get(item.product)
-        if not product:
+        if item.product not in _cart_products_map:
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product}"
             )
+        product = _cart_products_map[item.product]
         quantity = (item.quantity if item.quantity is not None else 0)
         sell_as_case = (
             item.sell_as_case if item.sell_as_case is not None else False)
