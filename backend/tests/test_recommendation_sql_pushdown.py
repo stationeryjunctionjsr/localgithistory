@@ -40,7 +40,7 @@ async def test_dao_get_user_purchased_subcategories_mocked():
     mock_factory = MagicMock()
     mock_factory.return_value.__aenter__.return_value = mock_session
 
-    with patch.object(dao, "_factory", return_value=mock_factory):
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
         res = await dao.get_user_purchased_subcategories("123", datetime.now(timezone.utc))
         assert res == [("Stationery", 5), ("Office Supplies", 12)]
         mock_session.execute.assert_called_once()
@@ -65,7 +65,7 @@ async def test_dao_get_bestsellers_in_subcategories_mocked():
     mock_factory = MagicMock()
     mock_factory.return_value.__aenter__.return_value = mock_session
 
-    with patch.object(dao, "_factory", return_value=mock_factory):
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
         res = await dao.get_bestsellers_in_subcategories(["Pens", "Notebooks"], datetime.now(timezone.utc))
         assert res == [("101", "Pens", 45)]
         mock_session.execute.assert_called_once()
@@ -92,7 +92,7 @@ async def test_dao_get_favourites_by_subcategory_mocked():
     mock_factory = MagicMock()
     mock_factory.return_value.__aenter__.return_value = mock_session
 
-    with patch.object(dao, "_factory", return_value=mock_factory):
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
         res = await dao.get_favourites_by_subcategory("customer", datetime.now(timezone.utc), city="Mumbai")
         assert res == [("55", "Art", 10, 25)]
         mock_session.execute.assert_called_once()
@@ -124,7 +124,7 @@ async def test_dao_get_favourites_ranked_data_mocked():
     mock_factory = MagicMock()
     mock_factory.return_value.__aenter__.return_value = mock_session
 
-    with patch.object(dao, "_factory", return_value=mock_factory):
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
         stats, states, cities = await dao.get_favourites_ranked_data("customer", datetime.now(timezone.utc))
         assert stats == [("88", 8, 20)]
         assert states == ["Maharashtra"]

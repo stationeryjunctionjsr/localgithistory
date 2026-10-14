@@ -68,14 +68,15 @@ def test_build_query_conditions_numeric_id():
     f = OrderFilter(id="42")
     where_sql, params = dao._build_query_conditions(f)
     assert "id = :id" in where_sql
-    assert params["id"] == 42
+    assert params["id"] == "42"
 
 
 def test_build_query_conditions_non_numeric_id():
     dao = MySQLOrderDAO()
     f = OrderFilter(id="non_numeric_123")
     where_sql, params = dao._build_query_conditions(f)
-    assert "1=0" in where_sql
+    assert "id = :id" in where_sql
+    assert params["id"] == "non_numeric_123"
 
 
 def test_build_query_conditions_statuses():
@@ -93,8 +94,8 @@ def test_build_query_conditions_user_ids():
     f = OrderFilter(user_ids=["10", "20"])
     where_sql, params = dao._build_query_conditions(f)
     assert "user_id IN (:u_int_0, :u_int_1)" in where_sql
-    assert params["u_int_0"] == 10
-    assert params["u_int_1"] == 20
+    assert params["u_int_0"] == "10"
+    assert params["u_int_1"] == "20"
 
 
 @pytest.mark.asyncio

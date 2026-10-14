@@ -15,7 +15,18 @@ from app.utils.cache import cache
 from app.db.storage_factory import get_storage
 
 from app.models.base import CamelBaseModel
-from pydantic import Field
+from pydantic import Field, BaseModel
+from app.models.analytics_schemas import (
+    RFMSegmentsResponse,
+    CustomerFrequencyResponse,
+    InventoryRunwayResponse,
+    DiscountsAuditResponse,
+    ProductsPctSoldResponse,
+    SalesByChannelDetailedResponse,
+    ProductsSellThroughResponse,
+    MonthlyRevenueItem,
+    BundlePerformanceReportResponse,
+)
 
 IST = timezone(timedelta(hours=5, minutes=30))
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -548,7 +559,7 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
         limit: int = 10,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[ProductsSellThroughResponse]:
         """Get products by sell-through rate"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -580,23 +591,22 @@ class AnalyticsRepository:
                 if stat:
                     stat.sold += (item.quantity or 0)
 
-        result = []
+        result: List[ProductsSellThroughResponse] = []
         for stat in product_stats:
             total_available = stat.stock + stat.sold
-            sell_through_rate = (stat.sold / total_available * 100) if total_available > 0 else 0
+            sell_through_rate = (stat.sold / total_available * 100) if total_available > 0 else 0.0
 
             result.append(
-                {
-                    "product_id": stat.product_id,
-                    "name": stat.name,
-                    "sold": stat.sold,
-                    "stock": stat.stock,
-                    "sell_through_rate": round(sell_through_rate, 2),
-                }
+                ProductsSellThroughResponse(
+                    product_id=stat.product_id,
+                    name=stat.name,
+                    sold=stat.sold,
+                    stock=stat.stock,
+                    sell_through_rate=round(sell_through_rate, 2),
+                )
             )
 
-        result = sorted(result, key=lambda x: x["sell_through_rate"], reverse=True)[:limit]
-        return result
+        return sorted(result, key=lambda x: x.sell_through_rate, reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
     async def get_customer_cohort_analysis(
@@ -1496,8 +1506,7 @@ class AnalyticsRepository:
                     continue
 
                 prod = next((p for p in products if p.id == pid), None)
-                prod_seller = prod.sellers[0].seller_id if (prod and prod.sellers) else None
-                if seller_id and prod_seller and prod_seller != seller_id:
+                if seller_id and prod and prod.sellers and not any(s.seller_id == seller_id for s in prod.sellers):
                     continue
 
                 stat = next((r for r in result if r["productId"] == pid), None)
@@ -1701,22 +1710,22 @@ class AnalyticsRepository:
                     m_item.revenue = round(m_item.revenue + b_revenue, 2)
 
         # Format the result
-        result = [
-            {
-                "bundleId": s.bundle.id,
-                "name": s.bundle.name,
-                "price": s.bundle.price,
-                "isActive": s.bundle.is_active,
-                "orderCount": s.order_count,
-                "copiesSold": s.copies_sold,
-                "totalRevenue": round(s.revenue, 2),
-                "monthlyRevenue": s.monthly_items,
-            }
+        result: List[BundlePerformanceReportResponse] = [
+            BundlePerformanceReportResponse(
+                bundleId=s.bundle.id,
+                name=s.bundle.name,
+                price=s.bundle.price,
+                isActive=s.bundle.is_active,
+                orderCount=s.order_count,
+                copiesSold=s.copies_sold,
+                revenue=round(s.revenue, 2),
+                monthlyRevenue=s.monthly_items,
+            )
             for s in stats
         ]
             
         # Sort by revenue descending
-        result.sort(key=lambda x: x["totalRevenue"], reverse=True)
+        result.sort(key=lambda x: x.revenue or 0.0, reverse=True)
         return {"report": result}
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -1893,7 +1902,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[RFMSegmentsResponse]:
         """RFM segmentation: Champions, Loyal, Promising, At Risk, Dormant."""
         from datetime import timedelta
 
@@ -1926,7 +1935,7 @@ class AnalyticsRepository:
             stat.count += 1
             stat.spend += (order.total or 0.0)
 
-        result = []
+        result: List[RFMSegmentsResponse] = []
         for stat in rfm_stats:
             recency_days = (now - stat.last_order).days
             freq = stat.count
@@ -1948,18 +1957,18 @@ class AnalyticsRepository:
             user_name = user.name if user and user.name else "Unknown"
             user_email = user.email if user and user.email else "Unknown"
             result.append(
-                {
-                    "userId": stat.user_id,
-                    "name": user_name,
-                    "email": user_email,
-                    "segment": segment,
-                    "recencyDays": recency_days,
-                    "orderCount": freq,
-                    "totalSpend": spend,
-                }
+                RFMSegmentsResponse(
+                    userId=stat.user_id,
+                    name=user_name,
+                    email=user_email,
+                    segment=segment,
+                    recencyDays=recency_days,
+                    orderCount=freq,
+                    totalSpend=spend,
+                )
             )
 
-        return sorted(result, key=lambda x: x["totalSpend"], reverse=True)
+        return sorted(result, key=lambda x: x.total_spend, reverse=True)
 
     @cache.ttl_cache(ttl=600)
     async def get_customer_frequency_report(
@@ -1967,7 +1976,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[CustomerFrequencyResponse]:
         """Split of one-time vs repeat buyers with revenue per group."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -1993,28 +2002,28 @@ class AnalyticsRepository:
         repeat = [c for c in customer_stats if c.orders > 1]
         total_customers = len(customer_stats)
 
-        def pct(n: int) -> str:
-            return f"{round(n / total_customers * 100, 1)}" if total_customers else "0"
+        def pct(n: int) -> float:
+            return round(n / total_customers * 100, 1) if total_customers else 0.0
 
         return [
-            {
-                "type": "One-Time Buyers",
-                "customers": len(one_time),
-                "customerPct": pct(len(one_time)),
-                "orders": sum(c.orders for c in one_time),
-                "avgOrders": 1,
-                "revenue": round(sum(c.revenue for c in one_time), 2),
-            },
-            {
-                "type": "Repeat Buyers",
-                "customers": len(repeat),
-                "customerPct": pct(len(repeat)),
-                "orders": sum(c.orders for c in repeat),
-                "avgOrders": round(
+            CustomerFrequencyResponse(
+                type="One-Time Buyers",
+                customers=len(one_time),
+                customerPct=pct(len(one_time)),
+                orders=sum(c.orders for c in one_time),
+                avgOrders=1.0,
+                revenue=round(sum(c.revenue for c in one_time), 2),
+            ),
+            CustomerFrequencyResponse(
+                type="Repeat Buyers",
+                customers=len(repeat),
+                customerPct=pct(len(repeat)),
+                orders=sum(c.orders for c in repeat),
+                avgOrders=round(
                     sum(c.orders for c in repeat) / len(repeat), 1
-                ) if repeat else 0,
-                "revenue": round(sum(c.revenue for c in repeat), 2),
-            },
+                ) if repeat else 0.0,
+                revenue=round(sum(c.revenue for c in repeat), 2),
+            ),
         ]
 
     @cache.ttl_cache(ttl=300)
@@ -2109,7 +2118,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[InventoryRunwayResponse]:
         """Days of stock remaining per product based on 30-day average daily sales velocity."""
         from datetime import timedelta
 
@@ -2123,7 +2132,7 @@ class AnalyticsRepository:
         if seller_id:
             products = [
                 p for p in products
-                if p.sellers and p.sellers[0].seller_id == seller_id
+                if p.sellers and any(s.seller_id == seller_id for s in p.sellers)
             ]
 
         class ProductRunwayStat(BaseModel):
@@ -2144,7 +2153,7 @@ class AnalyticsRepository:
                 if stat:
                     stat.units_sold_30d += (item.quantity or 0)
 
-        result = []
+        result: List[InventoryRunwayResponse] = []
         for stat in product_stats:
             product = stat.product
             stock = int(product.stock or 0)
@@ -2153,21 +2162,21 @@ class AnalyticsRepository:
             days_remaining = round(stock / avg_daily) if avg_daily > 0 else None
 
             result.append(
-                {
-                    "productId": str(product.id),
-                    "name": product.name,
-                    "category": product.category,
-                    "currentStock": stock,
-                    "unitsSold30d": sold_30d,
-                    "avgDailySales": avg_daily,
-                    "daysRemaining": days_remaining,
-                }
+                InventoryRunwayResponse(
+                    productId=product.id,
+                    name=product.name,
+                    category=product.category or "",
+                    currentStock=stock,
+                    unitsSold30d=sold_30d,
+                    avgDailySales=avg_daily,
+                    daysRemaining=days_remaining,
+                )
             )
 
         # Sort: products running out soonest first; None (no sales) at the end
         return sorted(
             result,
-            key=lambda x: (x["daysRemaining"] is None, x["daysRemaining"] if x["daysRemaining"] is not None else 9999),
+            key=lambda x: (x.days_remaining is None, x.days_remaining if x.days_remaining is not None else 9999),
         )
 
 
@@ -2180,7 +2189,7 @@ class AnalyticsRepository:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-    ) -> List[Dict]:
+    ) -> List[SalesByChannelDetailedResponse]:
         """Revenue, order count, and AOV broken down by sales channel (desktop_web / mobile_web / mobile_app)."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -2202,26 +2211,24 @@ class AnalyticsRepository:
             c_stat.revenue += (order.total or 0.0)
             c_stat.order_count += 1
 
-        result = []
+        total_rev = sum(cs.revenue for cs in channel_stats)
+        result: List[SalesByChannelDetailedResponse] = []
         for cs in channel_stats:
             count = cs.order_count
             rev = round(cs.revenue, 2)
+            pct = round(rev / total_rev * 100, 1) if total_rev > 0 else 0.0
             result.append(
-                {
-                    "channel": cs.channel,
-                    "channelLabel": cs.channel.replace("_", " ").title(),
-                    "orderCount": count,
-                    "revenue": rev,
-                    "aov": round(rev / count, 2) if count > 0 else 0.0,
-                    "revenuePct": 0.0,
-                }
+                SalesByChannelDetailedResponse(
+                    channel=cs.channel,
+                    channelLabel=cs.channel.replace("_", " ").title(),
+                    orderCount=count,
+                    revenue=rev,
+                    aov=round(rev / count, 2) if count > 0 else 0.0,
+                    revenuePct=pct,
+                )
             )
 
-        total_rev = sum(r["revenue"] for r in result)
-        for r in result:
-            r["revenuePct"] = round(r["revenue"] / total_rev * 100, 1) if total_rev > 0 else 0.0
-
-        return sorted(result, key=lambda x: x["revenue"], reverse=True)
+        return sorted(result, key=lambda x: x.revenue, reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_discounts_audit(
@@ -2229,7 +2236,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[DiscountsAuditResponse]:
         """Per-order line-item audit: coupon code, discount type/value, gross, discount applied, net."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -2239,7 +2246,7 @@ class AnalyticsRepository:
 
         users = await self.user_storage.findAll()
 
-        result = []
+        result: List[DiscountsAuditResponse] = []
         for order in orders:
             if order.discount is None:
                 raise ValueError('Order discount is None')
@@ -2254,22 +2261,22 @@ class AnalyticsRepository:
             net = round(gross - discount, 2)
 
             result.append(
-                {
-                    "orderId": order.id,
-                    "orderNumber": order.order_number,
-                    "customerName": customer_name,
-                    "couponCode": order.coupon_code or "—",
-                    "discountType": coupon_info.discountType if coupon_info else None,
-                    "discountValue": coupon_info.discountValue if coupon_info else None,
-                    "grossSales": round(gross, 2),
-                    "discountApplied": round(discount, 2),
-                    "netAfterDiscount": net,
-                    "discountPct": round(discount / gross * 100, 1) if gross > 0 else 0.0,
-                    "createdAt": order.created_at,
-                }
+                DiscountsAuditResponse(
+                    orderId=order.id,
+                    orderNumber=order.order_number or "",
+                    customerName=customer_name,
+                    couponCode=order.coupon_code or "—",
+                    discountType=coupon_info.discountType if coupon_info else None,
+                    discountValue=coupon_info.discountValue if coupon_info else None,
+                    grossSales=round(gross, 2),
+                    discountApplied=round(discount, 2),
+                    netAfterDiscount=net,
+                    discountPct=round(discount / gross * 100, 1) if gross > 0 else 0.0,
+                    createdAt=str(order.created_at) if order.created_at else "",
+                )
             )
 
-        return sorted(result, key=lambda x: x["createdAt"] or "", reverse=True)
+        return sorted(result, key=lambda x: x.created_at or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_products_pct_sold(
@@ -2277,7 +2284,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[ProductsPctSoldResponse]:
         """Units sold in the period as a % of current stock (sell-through by quantity)."""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
@@ -2286,7 +2293,7 @@ class AnalyticsRepository:
         if seller_id:
             products = [
                 p for p in products
-                if p.sellers and p.sellers[0].seller_id == seller_id
+                if p.sellers and any(s.seller_id == seller_id for s in p.sellers)
             ]
 
         class ProductPctStat(BaseModel):
@@ -2304,7 +2311,7 @@ class AnalyticsRepository:
                 if stat:
                     stat.sold += (item.quantity or 0)
 
-        result = []
+        result: List[ProductsPctSoldResponse] = []
         for stat in product_stats:
             product = stat.product
             stock = int(product.stock or 0)
@@ -2313,19 +2320,19 @@ class AnalyticsRepository:
             pct = round(sold / total * 100, 1) if total > 0 else 0.0
 
             result.append(
-                {
-                    "productId": str(product.id),
-                    "name": product.name,
-                    "category": product.category,
-                    "sku": product.sku,
-                    "unitsSold": sold,
-                    "currentStock": stock,
-                    "openingStock": total,
-                    "pctSold": pct,
-                }
+                ProductsPctSoldResponse(
+                    productId=product.id,
+                    name=product.name,
+                    category=product.category or "",
+                    sku=product.sku,
+                    unitsSold=sold,
+                    currentStock=stock,
+                    openingStock=total,
+                    pctSold=pct,
+                )
             )
 
-        return sorted(result, key=lambda x: x["pctSold"], reverse=True)
+        return sorted(result, key=lambda x: x.pct_sold, reverse=True)
 
 
 analytics_repository = AnalyticsRepository()
