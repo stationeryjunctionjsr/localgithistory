@@ -38,6 +38,13 @@ from app.models.analytics_schemas import (
     ItemsBoughtTogetherResponse,
     SalesByDeviceReportResponse,
     ProductsPctSoldResponse,
+    InventoryRunwayResponse,
+    BundlePerformanceReportResponse,
+    MonthlyRevenueItem,
+    ReturnsReportResponse,
+    TopReturnedProductsResponse,
+    InventoryValueByCategoryResponse,
+    InventoryAlertResponse,
 )
 
 
@@ -2548,6 +2555,312 @@ class MySQLOrderDAO:
                 )
                 for r in rows
             ]
+
+    async def get_inventory_runway_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[InventoryRunwayResponse]:
+        order_clauses = ["o.status NOT IN ('cancelled', 'declined')", "o.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            order_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        else:
+            order_clauses.append("o.created_at >= NOW() - INTERVAL 30 DAY")
+
+        if end_date:
+            order_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_product_sellers ps WHERE ps.product_id = p.id AND ps.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_orders = " AND ".join(order_clauses)
+        sql = text(
+            f"""
+            WITH sold_30d AS (
+                SELECT 
+                    oi.product_id,
+                    CAST(COALESCE(SUM(oi.quantity), 0) AS UNSIGNED) AS units_sold_30d
+                FROM {self.ITEMS_TABLE} oi
+                JOIN {self.TABLE} o ON o.id = oi.order_id
+                WHERE {where_orders}
+                GROUP BY oi.product_id
+            )
+            SELECT 
+                CAST(p.id AS CHAR) AS product_id,
+                COALESCE(p.name, '') AS name,
+                COALESCE(p.category, '') AS category,
+                COALESCE(p.stock, 0) AS current_stock,
+                COALESCE(s.units_sold_30d, 0) AS units_sold_30d,
+                ROUND(COALESCE(s.units_sold_30d, 0) / 30.0, 2) AS avg_daily_sales,
+                CASE 
+                    WHEN COALESCE(s.units_sold_30d, 0) > 0 
+                    THEN ROUND(COALESCE(p.stock, 0) / (COALESCE(s.units_sold_30d, 0) / 30.0), 0)
+                    ELSE NULL 
+                END AS days_remaining
+            FROM sj_products p
+            LEFT JOIN sold_30d s ON s.product_id = p.id
+            WHERE p.is_active = 1 {seller_clause}
+            ORDER BY CASE WHEN days_remaining IS NULL THEN 1 ELSE 0 END, days_remaining ASC, p.id ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                InventoryRunwayResponse(
+                    productId=r.product_id,
+                    name=r.name,
+                    category=r.category,
+                    currentStock=r.current_stock,
+                    unitsSold30d=r.units_sold_30d,
+                    avgDailySales=round(r.avg_daily_sales or 0.0, 2),
+                    daysRemaining=round(r.days_remaining, 0) if r.days_remaining is not None else None,
+                )
+                for r in rows
+            ]
+
+    async def get_bundle_performance_report_stats(self) -> List[BundlePerformanceReportResponse]:
+        sql = text(
+            """
+            SELECT 
+                CAST(b.id AS CHAR) AS bundle_id,
+                COALESCE(b.name, '') AS name,
+                CASE WHEN b.is_active = 1 THEN 'active' ELSE 'inactive' END AS status,
+                b.is_active,
+                b.price,
+                COALESCE(b.sales_count, 0) AS copies_sold,
+                COALESCE(b.sales_count, 0) AS order_count,
+                ROUND(COALESCE(b.sales_count, 0) * COALESCE(b.price, 0.0), 2) AS revenue
+            FROM sj_bundles b
+            WHERE b.id IS NOT NULL
+            ORDER BY revenue DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql)).fetchall()
+            return [
+                BundlePerformanceReportResponse(
+                    bundleId=r.bundle_id,
+                    name=r.name,
+                    status=r.status,
+                    isActive=r.is_active,
+                    price=round(r.price or 0.0, 2) if r.price is not None else None,
+                    orderCount=r.order_count,
+                    copiesSold=r.copies_sold,
+                    revenue=round(r.revenue or 0.0, 2),
+                    monthlyRevenue=[],
+                )
+                for r in rows
+            ]
+
+    async def get_returns_report_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[ReturnsReportResponse]:
+        where_clauses = ["r.created_at IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("r.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("r.created_at <= :end_date")
+            params["end_date"] = end_date
+        if seller_id:
+            where_clauses.append(
+                "(r.seller_id = :seller_id OR EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = r.order_id AND so.seller_id = :seller_id))"
+            )
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(r.return_id, CAST(r.id AS CHAR)) AS return_id,
+                CAST(r.order_id AS CHAR) AS order_id,
+                COALESCE(DATE_FORMAT(r.created_at, '%Y-%m-%d %H:%i:%s'), '') AS created_at,
+                COALESCE(r.status, 'pending') AS status,
+                ROUND(COALESCE(SUM(COALESCE(ri.quantity, 1) * COALESCE(oi.price, p.mrp, 0.0)), 0.0), 2) AS refund_value,
+                COALESCE(u.name, 'Unknown') AS user_name,
+                COALESCE(u.email, '') AS user_email,
+                COUNT(ri.product_id) AS item_count,
+                r.payment_method,
+                ROUND(o.total, 2) AS order_total
+            FROM sj_return_requests r
+            JOIN {self.TABLE} o ON o.id = r.order_id
+            JOIN sj_users u ON u.id = r.user_id
+            LEFT JOIN sj_return_request_items ri ON ri.parent_id = r.id
+            LEFT JOIN {self.ITEMS_TABLE} oi ON oi.order_id = r.order_id AND oi.product_id = ri.product_id
+            LEFT JOIN sj_products p ON p.id = ri.product_id
+            WHERE {where_sql}
+            GROUP BY r.id, r.return_id, r.order_id, r.created_at, r.status, u.name, u.email, r.payment_method, o.total
+            ORDER BY r.created_at DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                ReturnsReportResponse(
+                    returnId=r.return_id,
+                    orderId=r.order_id,
+                    createdAt=r.created_at,
+                    status=r.status,
+                    refundValue=round(r.refund_value or 0.0, 2),
+                    userName=r.user_name,
+                    userEmail=r.user_email,
+                    itemCount=r.item_count,
+                    paymentMethod=r.payment_method,
+                    orderTotal=round(r.order_total or 0.0, 2) if r.order_total is not None else None,
+                )
+                for r in rows
+            ]
+
+    async def get_top_returned_products_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 50,
+        seller_id: Optional[int] = None,
+    ) -> List[TopReturnedProductsResponse]:
+        where_clauses = ["r.created_at IS NOT NULL"]
+        params = {"limit": limit}
+        if start_date:
+            where_clauses.append("r.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("r.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_product_sellers ps WHERE ps.product_id = p.id AND ps.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                CAST(p.id AS CHAR) AS product_id,
+                COALESCE(p.name, 'Unknown Product') AS product_name,
+                COALESCE(p.category, 'Uncategorized') AS category,
+                COUNT(ri.parent_id) AS return_count,
+                CAST(COALESCE(SUM(ri.quantity), 0) AS UNSIGNED) AS quantity_returned,
+                ROUND(COALESCE(SUM(COALESCE(ri.quantity, 1) * COALESCE(oi.price, p.mrp, 0.0)), 0.0), 2) AS revenue_lost
+            FROM sj_return_requests r
+            JOIN sj_return_request_items ri ON ri.parent_id = r.id
+            JOIN sj_products p ON p.id = ri.product_id
+            LEFT JOIN {self.ITEMS_TABLE} oi ON oi.order_id = r.order_id AND oi.product_id = ri.product_id
+            WHERE {where_sql} {seller_clause}
+            GROUP BY p.id, p.name, p.category
+            ORDER BY return_count DESC, quantity_returned DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                TopReturnedProductsResponse(
+                    productId=r.product_id,
+                    productName=r.product_name,
+                    category=r.category,
+                    returnCount=r.return_count,
+                    quantityReturned=r.quantity_returned,
+                    revenueLost=round(r.revenue_lost or 0.0, 2),
+                )
+                for r in rows
+            ]
+
+    async def get_inventory_value_by_category_stats(
+        self,
+        seller_id: Optional[int] = None,
+    ) -> List[InventoryValueByCategoryResponse]:
+        params = {}
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_product_sellers ps WHERE ps.product_id = p.id AND ps.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(NULLIF(p.category, ''), 'Uncategorized') AS category,
+                COUNT(*) AS product_count,
+                CAST(COALESCE(SUM(p.stock), 0) AS UNSIGNED) AS total_stock,
+                ROUND(COALESCE(SUM(COALESCE(p.stock, 0) * COALESCE(p.mrp, 0.0)), 0.0), 2) AS inventory_value
+            FROM sj_products p
+            WHERE p.is_active = 1 {seller_clause}
+            GROUP BY category
+            ORDER BY inventory_value DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                InventoryValueByCategoryResponse(
+                    category=r.category,
+                    productCount=r.product_count,
+                    totalStock=r.total_stock,
+                    inventoryValue=round(r.inventory_value or 0.0, 2),
+                )
+                for r in rows
+            ]
+
+    async def get_inventory_alerts_stats(
+        self,
+        threshold: int = 10,
+        seller_id: Optional[int] = None,
+    ) -> List[InventoryAlertResponse]:
+        params = {"threshold": threshold}
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_product_sellers ps WHERE ps.product_id = p.id AND ps.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        sql = text(
+            f"""
+            SELECT 
+                CAST(p.id AS CHAR) AS product_id,
+                COALESCE(p.name, '') AS name,
+                p.sku,
+                COALESCE(NULLIF(p.category, ''), 'Uncategorized') AS category,
+                COALESCE(p.stock, 0) AS stock,
+                CASE 
+                    WHEN COALESCE(p.stock, 0) <= 0 THEN 'out_of_stock'
+                    ELSE 'low_stock'
+                END AS status
+            FROM sj_products p
+            WHERE p.is_active = 1 
+              AND COALESCE(p.stock, 0) <= :threshold
+              {seller_clause}
+            ORDER BY stock ASC, p.id ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                InventoryAlertResponse(
+                    productId=r.product_id,
+                    name=r.name,
+                    sku=r.sku,
+                    category=r.category,
+                    stock=r.stock,
+                    status=r.status,
+                )
+                for r in rows
+            ]
+
 
 
 

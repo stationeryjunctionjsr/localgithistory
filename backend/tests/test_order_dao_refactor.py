@@ -389,4 +389,164 @@ async def test_batch_3_sql_pushdown_dao_methods():
         assert pct_sold[0].pctSold == 20.0
 
 
+@pytest.mark.asyncio
+async def test_pushdown_analytics_batch4():
+    dao = MySQLOrderDAO()
+
+    class FakeRow:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    mock_session = AsyncMock()
+    mock_ctx = MagicMock()
+    mock_ctx.__aenter__.return_value = mock_session
+    mock_ctx.__aexit__.return_value = None
+    mock_factory = MagicMock(return_value=mock_ctx)
+
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
+        # 1. get_inventory_runway_stats
+        mock_res1 = MagicMock()
+        mock_res1.fetchall.return_value = [
+            FakeRow(
+                product_id="p1",
+                name="Notebook",
+                category="Stationery",
+                current_stock=60,
+                units_sold_30d=30,
+                avg_daily_sales=1.0,
+                days_remaining=60.0,
+            )
+        ]
+        mock_session.execute.return_value = mock_res1
+        runway = await dao.get_inventory_runway_stats()
+        assert len(runway) == 1
+        assert runway[0].productId == "p1"
+        assert runway[0].name == "Notebook"
+        assert runway[0].category == "Stationery"
+        assert runway[0].currentStock == 60
+        assert runway[0].unitsSold30d == 30
+        assert runway[0].avgDailySales == 1.0
+        assert runway[0].daysRemaining == 60.0
+
+        # 2. get_bundle_performance_report_stats
+        mock_res2 = MagicMock()
+        mock_res2.fetchall.return_value = [
+            FakeRow(
+                bundle_id="b1",
+                name="Starter Pack",
+                status="active",
+                is_active=True,
+                price=99.99,
+                copies_sold=15,
+                order_count=15,
+                revenue=1499.85,
+            )
+        ]
+        mock_session.execute.return_value = mock_res2
+        bundles = await dao.get_bundle_performance_report_stats()
+        assert len(bundles) == 1
+        assert bundles[0].bundleId == "b1"
+        assert bundles[0].name == "Starter Pack"
+        assert bundles[0].status == "active"
+        assert bundles[0].isActive is True
+        assert bundles[0].price == 99.99
+        assert bundles[0].copiesSold == 15
+        assert bundles[0].orderCount == 15
+        assert bundles[0].revenue == 1499.85
+        assert bundles[0].monthlyRevenue == []
+
+        # 3. get_returns_report_stats
+        mock_res3 = MagicMock()
+        mock_res3.fetchall.return_value = [
+            FakeRow(
+                return_id="RET-001",
+                order_id="101",
+                created_at="2026-10-15 10:00:00",
+                status="approved",
+                refund_value=150.0,
+                user_name="John Doe",
+                user_email="john@example.com",
+                item_count=2,
+                payment_method="card",
+                order_total=300.0,
+            )
+        ]
+        mock_session.execute.return_value = mock_res3
+        returns = await dao.get_returns_report_stats()
+        assert len(returns) == 1
+        assert returns[0].returnId == "RET-001"
+        assert returns[0].orderId == "101"
+        assert returns[0].createdAt == "2026-10-15 10:00:00"
+        assert returns[0].status == "approved"
+        assert returns[0].refundValue == 150.0
+        assert returns[0].userName == "John Doe"
+        assert returns[0].userEmail == "john@example.com"
+        assert returns[0].itemCount == 2
+        assert returns[0].paymentMethod == "card"
+        assert returns[0].orderTotal == 300.0
+
+        # 4. get_top_returned_products_stats
+        mock_res4 = MagicMock()
+        mock_res4.fetchall.return_value = [
+            FakeRow(
+                product_id="p1",
+                product_name="Notebook",
+                category="Stationery",
+                return_count=5,
+                quantity_returned=10,
+                revenue_lost=250.0,
+            )
+        ]
+        mock_session.execute.return_value = mock_res4
+        top_returned = await dao.get_top_returned_products_stats(limit=10)
+        assert len(top_returned) == 1
+        assert top_returned[0].productId == "p1"
+        assert top_returned[0].productName == "Notebook"
+        assert top_returned[0].category == "Stationery"
+        assert top_returned[0].returnCount == 5
+        assert top_returned[0].quantityReturned == 10
+        assert top_returned[0].revenueLost == 250.0
+
+        # 5. get_inventory_value_by_category_stats
+        mock_res5 = MagicMock()
+        mock_res5.fetchall.return_value = [
+            FakeRow(
+                category="Electronics",
+                product_count=10,
+                total_stock=500,
+                inventory_value=25000.0,
+            )
+        ]
+        mock_session.execute.return_value = mock_res5
+        cat_values = await dao.get_inventory_value_by_category_stats()
+        assert len(cat_values) == 1
+        assert cat_values[0].category == "Electronics"
+        assert cat_values[0].productCount == 10
+        assert cat_values[0].totalStock == 500
+        assert cat_values[0].inventoryValue == 25000.0
+
+        # 6. get_inventory_alerts_stats
+        mock_res6 = MagicMock()
+        mock_res6.fetchall.return_value = [
+            FakeRow(
+                product_id="p1",
+                name="Notebook",
+                sku="NB-01",
+                category="Stationery",
+                stock=2,
+                status="low_stock",
+            )
+        ]
+        mock_session.execute.return_value = mock_res6
+        alerts = await dao.get_inventory_alerts_stats(threshold=5)
+        assert len(alerts) == 1
+        assert alerts[0].productId == "p1"
+        assert alerts[0].name == "Notebook"
+        assert alerts[0].sku == "NB-01"
+        assert alerts[0].category == "Stationery"
+        assert alerts[0].stock == 2
+        assert alerts[0].status == "low_stock"
+
+
+
 
