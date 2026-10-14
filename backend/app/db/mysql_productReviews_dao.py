@@ -30,7 +30,7 @@ class MySQLProductReviewsDAO:
     async def findAll(
         self,
         product_id: Optional[int] = None,
-        user_id: Optional[str] = None,
+        user_id: Optional[int] = None,
         rating: Optional[int] = None,
         status: Optional[str] = None,
     ) -> List[ProductReviewResponse]:
@@ -63,7 +63,7 @@ class MySQLProductReviewsDAO:
     async def findOne(
         self,
         product_id: Optional[int] = None,
-        user_id: Optional[str] = None,
+        user_id: Optional[int] = None,
         rating: Optional[int] = None,
         status: Optional[str] = None,
     ) -> Optional[ProductReviewResponse]:

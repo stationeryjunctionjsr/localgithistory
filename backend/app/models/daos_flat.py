@@ -825,7 +825,7 @@ class ProductReviewsInternalCreate(FlatCamelBaseModel):
     rating: Optional[int] = None
     review_text: Optional[str] = None
     status: Optional[str] = None
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
     user_name: Optional[str] = None
     classification: Optional[str] = None
 
@@ -836,7 +836,7 @@ class ProductReviewsInternalUpdate(FlatCamelBaseModel):
     status: Optional[str] = None
     user_name: Optional[str] = None
     classification: Optional[str] = None
-    user_id: Optional[str] = None
+    user_id: Optional[int] = None
 
 class ClassificationTagsInternalCreate(FlatCamelBaseModel):
     is_active: Optional[bool] = None

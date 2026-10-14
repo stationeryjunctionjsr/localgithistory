@@ -65,7 +65,7 @@ class ProductReviewRepository:
     async def findAll(
         self,
         product_id: Optional[int] = None,
-        user_id: Optional[str] = None,
+        user_id: Optional[int] = None,
         rating: Optional[int] = None,
         status: Optional[str] = None,
     ) -> List[ProductReviewResponse]:

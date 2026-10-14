@@ -42,8 +42,8 @@ class ClassificationUpdate(BaseModel):
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=ReviewActionResponse)
 async def create_review(review_data: ReviewCreate, current_user: User = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
-    user_id = str(current_user.id)
-    product_id = str(review_data.productId)
+    user_id = current_user.id
+    product_id = int(review_data.productId)
 
     # 1. Verify that the product exists
     product = await product_repository.findById(product_id)
@@ -51,12 +51,12 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     # 2. Verify that the user has a delivered order with this product
-    orders = await order_repository.findByUser(user_id, status="delivered")
+    orders = await order_repository.findByUser(str(user_id), status="delivered")
     has_purchased = False
     for order in orders:
         items = (order.items or [])
         for item in items:
-            if str(item.product_id or "") == product_id:
+            if item.product_id == product_id:
                 has_purchased = True
                 break
         if has_purchased:

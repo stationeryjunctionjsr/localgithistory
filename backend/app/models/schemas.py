@@ -391,7 +391,7 @@ class ProductVariation(CamelBaseModel):
 class ProductReviewResponse(CamelBaseModel):
     id: int
     product_id: int
-    user_id: str
+    user_id: int
     rating: int
     review_text: Optional[str] = None
     status: str
