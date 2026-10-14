@@ -22,9 +22,6 @@ class MySQLProductDAO:
     def TABLE(self):
         return "sj_products"
 
-    def _factory(self):
-        return get_async_session_factory()
-
     def _row_to_product(self, r, children: dict) -> Product:
         return Product(
             id=str(r.id),
@@ -313,9 +310,6 @@ class MySQLProductDAO:
     async def find_paginated(
         self, filter: ProductFilter, skip: int = 0, limit: int = 50, sort: str = "newest"
     ) -> tuple[List[Product], int]:
-        factory = self._factory()
-        if not factory:
-            return [], 0
         join_sql, where_sql, params = self._build_query_conditions(filter)
         sort_sql = "ORDER BY p.created_at DESC"
         
@@ -338,7 +332,8 @@ class MySQLProductDAO:
             FROM {self.TABLE} p
             {join_sql} WHERE {where_sql} {sort_sql} LIMIT :limit OFFSET :skip
         """
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             total_count = (await session.execute(text(count_sql), params)).scalar() or 0
             if total_count == 0:
                 return [], 0
@@ -350,9 +345,6 @@ class MySQLProductDAO:
         return [self._row_to_product(r, children_map[r.id]) for r in rows], total_count
 
     async def get_facets(self, filter: ProductFilter) -> ProductFacets:
-        factory = self._factory()
-        if not factory:
-            return ProductFacets()
         join_sql, where_sql, params = self._build_query_conditions(filter)
         facet_sql = f"""
             SELECT 'brand' AS facet_type, p.brand AS val FROM {self.TABLE} p {join_sql}
@@ -367,7 +359,8 @@ class MySQLProductDAO:
         brands = []
         categories = []
         sub_categories = []
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             for row in (await session.execute(text(facet_sql), params)).fetchall():
                 if row.facet_type == "brand":
                     brands.append(row.val)
@@ -382,19 +375,15 @@ class MySQLProductDAO:
 
     async def get_active_products_count(self) -> int:
         """Returns count of active products directly via SQL pushdown without loading products."""
-        factory = self._factory()
-        if not factory:
-            return 0
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             q = text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE is_active = 1")
             return (await session.execute(q)).scalar() or 0
 
     async def findAll(self, filter: Optional[ProductFilter] = None) -> List[Product]:
-        factory = self._factory()
-        if not factory:
-            return []
         join_sql, where_sql, params = self._build_query_conditions(filter)
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             rows = (
                 await session.execute(
                     text(f"""
@@ -414,10 +403,10 @@ class MySQLProductDAO:
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[Product]:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        async with async_session() as session:
             row = (
                 await session.execute(
                     text(f"""
@@ -439,98 +428,102 @@ class MySQLProductDAO:
         return await self.findAll({"allowed_ids": ids})
 
     async def _replace_children(self, session, pid: int, data: 'CamelBaseModel'):
-        # Delete old
-        await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})
-        await session.execute(text("DELETE FROM sj_product_videos WHERE product_id = :pid"), {"pid": pid})
-        await session.execute(text("DELETE FROM sj_product_tags WHERE product_id = :pid"), {"pid": pid})
-        # await session.execute(text("DELETE FROM sj_product_attributes WHERE product_id = :pid"), {"pid": pid})
-        await session.execute(text("DELETE FROM sj_product_details WHERE product_id = :pid"), {"pid": pid})
-        # cascades to options
+        fields_set = data.model_fields_set
 
-        # Insert variants
-        await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
-        for attr in (data.variant_attributes if data.variant_attributes is not None else []) or []:
-            await session.execute(
-                text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
-                {"pid": pid, "attr": str(attr)}
-            )
-            
-        await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
-        for variant in (data.variants if data.variants is not None else []) or []:
-            await session.execute(
-                text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
-                {"pid": pid, "sku": variant.sku, "price": variant.price, "price_per_case": variant.pricePerCase, "stock": variant.stock if variant.stock is not None else 0}
-            )
-            vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
-            attrs = variant.attributes
-            if attrs is not None:
-                if attrs.size is not None:
-                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "size", "v": str(attrs.size)})
-                if attrs.color is not None:
-                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "color", "v": str(attrs.color)})
-                if attrs.material is not None:
-                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "material", "v": str(attrs.material)})
-                if attrs.style is not None:
-                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "style", "v": str(attrs.style)})
-                if attrs.weight is not None:
-                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "weight", "v": str(attrs.weight)})
-                if attrs.flavor is not None:
-                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "flavor", "v": str(attrs.flavor)})
+        # Images
+        if "images" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})
+            images = (data.images if data.images is not None else []) or []
+            for i, img in enumerate(images):
+                await session.execute(
+                    text("INSERT INTO sj_product_images (product_id, image_url, order_index) VALUES (:pid, :img, :idx)"),
+                    {"pid": pid, "img": img, "idx": i},
+                )
 
+        # Videos
+        if "videos" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_videos WHERE product_id = :pid"), {"pid": pid})
+            videos = (data.videos if data.videos is not None else []) or []
+            for i, vid in enumerate(videos):
+                await session.execute(
+                    text("INSERT INTO sj_product_videos (product_id, video_url, order_index) VALUES (:pid, :vid, :idx)"),
+                    {"pid": pid, "vid": vid, "idx": i},
+                )
 
-        # Insert images
-        images = (data.images if data.images is not None else []) or []
-        for i, img in enumerate(images):
-            await session.execute(
-                text("INSERT INTO sj_product_images (product_id, image_url, order_index) VALUES (:pid, :img, :idx)"),
-                {"pid": pid, "img": img, "idx": i},
-            )
+        # Tags
+        if "tags" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_tags WHERE product_id = :pid"), {"pid": pid})
+            for tag in (data.tags if data.tags is not None else []) or []:
+                await session.execute(
+                    text("INSERT INTO sj_product_tags (product_id, tag) VALUES (:pid, :tag)"), {"pid": pid, "tag": tag}
+                )
 
-        # Insert videos
-        videos = (data.videos if data.videos is not None else []) or []
-        for i, vid in enumerate(videos):
-            await session.execute(
-                text("INSERT INTO sj_product_videos (product_id, video_url, order_index) VALUES (:pid, :vid, :idx)"),
-                {"pid": pid, "vid": vid, "idx": i},
-            )
+        # Details
+        if "details" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_details WHERE product_id = :pid"), {"pid": pid})
+            details = data.details
+            if details is not None:
+                if details.material is not None:
+                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "material", "v": str(details.material)})
+                if details.weight is not None:
+                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "weight", "v": str(details.weight)})
+                if details.dimensions is not None:
+                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "dimensions", "v": str(details.dimensions)})
+                if details.manufacturer is not None:
+                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "manufacturer", "v": str(details.manufacturer)})
+                if details.origin is not None:
+                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "origin", "v": str(details.origin)})
+                if details.warranty is not None:
+                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "warranty", "v": str(details.warranty)})
 
-        # Insert tags
-        for tag in (data.tags if data.tags is not None else []) or []:
-            await session.execute(
-                text("INSERT INTO sj_product_tags (product_id, tag) VALUES (:pid, :tag)"), {"pid": pid, "tag": tag}
-            )
+        # Variant Attributes
+        if "variant_attributes" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
+            for attr in (data.variant_attributes if data.variant_attributes is not None else []) or []:
+                await session.execute(
+                    text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
+                    {"pid": pid, "attr": str(attr)}
+                )
 
-        # Insert details — ProductDetails is a Pydantic model, iterate known fields explicitly
-        details = data.details
-        if details is not None:
-            if details.material is not None:
-                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "material", "v": str(details.material)})
-            if details.weight is not None:
-                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "weight", "v": str(details.weight)})
-            if details.dimensions is not None:
-                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "dimensions", "v": str(details.dimensions)})
-            if details.manufacturer is not None:
-                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "manufacturer", "v": str(details.manufacturer)})
-            if details.origin is not None:
-                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "origin", "v": str(details.origin)})
-            if details.warranty is not None:
-                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "warranty", "v": str(details.warranty)})
+        # Variants
+        if "variants" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
+            for variant in (data.variants if data.variants is not None else []) or []:
+                await session.execute(
+                    text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
+                    {"pid": pid, "sku": variant.sku, "price": variant.price, "price_per_case": variant.pricePerCase, "stock": variant.stock if variant.stock is not None else 0}
+                )
+                vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
+                attrs = variant.attributes
+                if attrs is not None:
+                    if attrs.size is not None:
+                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "size", "v": str(attrs.size)})
+                    if attrs.color is not None:
+                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "color", "v": str(attrs.color)})
+                    if attrs.material is not None:
+                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "material", "v": str(attrs.material)})
+                    if attrs.style is not None:
+                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "style", "v": str(attrs.style)})
+                    if attrs.weight is not None:
+                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "weight", "v": str(attrs.weight)})
+                    if attrs.flavor is not None:
+                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "flavor", "v": str(attrs.flavor)})
 
-
-        # Insert sellers
-        await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
-        for seller in (data.sellers if data.sellers is not None else []):
-            s_entry = ProductSellerEntry.model_validate(seller)
-            await session.execute(
-                text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
-                {
-                    "pid_ext": f"PDT-{pid}", 
-                    "seller_id": s_entry.seller_id, 
-                    "stock": s_entry.stock if s_entry.stock is not None else 0, 
-                    "is_active": 1 if s_entry.is_active else 0, 
-                    "request_status": s_entry.request_status or "pending"
-                }
-            )
+        # Sellers
+        if "sellers" in fields_set:
+            await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
+            for seller in (data.sellers if data.sellers is not None else []):
+                s_entry = ProductSellerEntry.model_validate(seller)
+                await session.execute(
+                    text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
+                    {
+                        "pid_ext": f"PDT-{pid}", 
+                        "seller_id": s_entry.seller_id, 
+                        "stock": s_entry.stock if s_entry.stock is not None else 0, 
+                        "is_active": 1 if s_entry.is_active else 0, 
+                        "request_status": s_entry.request_status or "pending"
+                    }
+                )
 
 
         # Insert combinations
@@ -550,12 +543,12 @@ class MySQLProductDAO:
         # {"cid": combo_id, "k": attr_name, "v": attr_value},
         # )
     async def create(self, data: 'ProductInternalCreate') -> 'Product':
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(
                 text(f"""
                     INSERT INTO {self.TABLE} (
@@ -597,84 +590,94 @@ class MySQLProductDAO:
         return await self.findById(pid)
 
     async def update(self, id: int, update_data: 'ProductInternalUpdate') -> Optional[Product]:
-        existing = await self.findById(id)
-        if not existing:
-            return None
-        from app.models.daos import ProductInternalUpdate
-        merged = ProductInternalUpdate(
-            name=update_data.name if update_data.name is not None else existing.name,
-            description=update_data.description if update_data.description is not None else existing.description,
-            sku=update_data.sku if update_data.sku is not None else existing.sku,
-            category=update_data.category if update_data.category is not None else existing.category,
-            subCategory=update_data.sub_category if update_data.sub_category is not None else existing.sub_category,
-            brand=update_data.brand if update_data.brand is not None else existing.brand,
-            mrp=update_data.mrp if update_data.mrp is not None else existing.mrp,
-            mrpPerCase=update_data.mrp_per_case if update_data.mrp_per_case is not None else existing.mrp_per_case,
-            quantityPerCase=update_data.quantity_per_case if update_data.quantity_per_case is not None else existing.quantity_per_case,
-            stock=update_data.stock if update_data.stock is not None else existing.stock,
-            isActive=update_data.is_active if update_data.is_active is not None else existing.is_active,
-            rating=update_data.rating if update_data.rating is not None else existing.rating,
-            reviews=update_data.reviews if update_data.reviews is not None else existing.reviews,
-            images=update_data.images if update_data.images is not None else existing.images,
-            tags=update_data.tags if update_data.tags is not None else existing.tags,
-            videos=update_data.videos if update_data.videos is not None else existing.videos,
-            sellers=update_data.sellers if update_data.sellers is not None else existing.sellers,
-            details=update_data.details if update_data.details is not None else existing.details,
-            variantAttributes=update_data.variant_attributes if update_data.variant_attributes is not None else existing.variant_attributes,
-            variants=update_data.variants if update_data.variants is not None else existing.variants,
-            weight_grams=update_data.weight_grams if update_data.weight_grams is not None else existing.weight_grams,
-            length_cm=update_data.length_cm if update_data.length_cm is not None else existing.length_cm,
-            width_cm=update_data.width_cm if update_data.width_cm is not None else existing.width_cm,
-            height_cm=update_data.height_cm if update_data.height_cm is not None else existing.height_cm,
-            hsn_code=update_data.hsn_code if update_data.hsn_code is not None else existing.hsn_code
-        )
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return None
         now = now_utc()
+        fields_set = update_data.model_fields_set
 
-        async with factory() as session:
-            await session.execute(
-                text(f"""
-                UPDATE {self.TABLE} SET name = :name, description = :description, sku = :sku, category = :category,
-                    sub_category = :sub_category, brand = :brand, mrp = :mrp, mrp_per_case = :mrp_per_case,
-                    quantity_per_case = :quantity_per_case, stock = :stock, is_active = :is_active, rating = :rating, reviews = :reviews,
-                    weight_grams = :weight_grams, length_cm = :length_cm, width_cm = :width_cm, height_cm = :height_cm, hsn_code = :hsn_code,
-                    updated_at = :updated_at
-                WHERE id = :id
-            """),
-                {
-                    "id": id,
-                    "name": merged.name,
-                    "description": merged.description,
-                    "sku": merged.sku,
-                    "category": merged.category,
-                    "sub_category": merged.sub_category,
-                    "brand": merged.brand,
-                    "mrp": merged.mrp,
-                    "mrp_per_case": merged.mrp_per_case,
-                    "quantity_per_case": merged.quantity_per_case,
-                    "stock": merged.stock,
-                    "is_active": 1 if (merged.is_active if merged.is_active is not None else True) else None,
-                    "rating": (merged.rating if merged.rating is not None else 0.0),
-                    "reviews": (merged.reviews if merged.reviews is not None else 0),
-                    "weight_grams": merged.weight_grams or 200,
-                    "length_cm": merged.length_cm,
-                    "width_cm": merged.width_cm,
-                    "height_cm": merged.height_cm,
-                    "hsn_code": merged.hsn_code,
-                    "updated_at": now,
-                },
+        updates = ["updated_at = :updated_at"]
+        params = {"id": id, "updated_at": now}
+
+        if "name" in fields_set:
+            updates.append("name = :name")
+            params["name"] = update_data.name
+        if "description" in fields_set:
+            updates.append("description = :description")
+            params["description"] = update_data.description
+        if "sku" in fields_set:
+            updates.append("sku = :sku")
+            params["sku"] = update_data.sku
+        if "category" in fields_set:
+            updates.append("category = :category")
+            params["category"] = update_data.category
+        if "sub_category" in fields_set:
+            updates.append("sub_category = :sub_category")
+            params["sub_category"] = update_data.sub_category
+        if "brand" in fields_set:
+            updates.append("brand = :brand")
+            params["brand"] = update_data.brand
+        if "mrp" in fields_set:
+            updates.append("mrp = :mrp")
+            params["mrp"] = update_data.mrp
+        if "mrp_per_case" in fields_set:
+            updates.append("mrp_per_case = :mrp_per_case")
+            params["mrp_per_case"] = update_data.mrp_per_case
+        if "quantity_per_case" in fields_set:
+            updates.append("quantity_per_case = :quantity_per_case")
+            params["quantity_per_case"] = update_data.quantity_per_case
+        if "stock" in fields_set:
+            updates.append("stock = :stock")
+            params["stock"] = update_data.stock
+        if "rating" in fields_set:
+            updates.append("rating = :rating")
+            params["rating"] = update_data.rating
+        if "reviews" in fields_set:
+            updates.append("reviews = :reviews")
+            params["reviews"] = update_data.reviews
+        if "weight_grams" in fields_set:
+            updates.append("weight_grams = :weight_grams")
+            params["weight_grams"] = update_data.weight_grams
+        if "length_cm" in fields_set:
+            updates.append("length_cm = :length_cm")
+            params["length_cm"] = update_data.length_cm
+        if "width_cm" in fields_set:
+            updates.append("width_cm = :width_cm")
+            params["width_cm"] = update_data.width_cm
+        if "height_cm" in fields_set:
+            updates.append("height_cm = :height_cm")
+            params["height_cm"] = update_data.height_cm
+        if "hsn_code" in fields_set:
+            updates.append("hsn_code = :hsn_code")
+            params["hsn_code"] = update_data.hsn_code
+        if "is_active" in fields_set:
+            updates.append("is_active = :is_active")
+            params["is_active"] = 1 if update_data.is_active else 0
+
+        set_sql = ", ".join(updates)
+        async_session = get_async_session_factory()
+        if not async_session:
+            return None
+
+        async with async_session() as session:
+            res = await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
-            await self._replace_children(session, id, merged)
+            if res.rowcount == 0:
+                chk = await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE id = :id"), {"id": id})
+                if not chk.fetchone():
+                    return None
+            await self._replace_children(session, id, update_data)
             await session.commit()
         return await self.findById(id)
 
     async def delete(self, id: int) -> bool:
-        factory = self._factory()
-        if not factory or not id:
+        if not id:
             return False
-        async with factory() as session:
+        async_session = get_async_session_factory()
+        if not async_session:
+            return False
+        async with async_session() as session:
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": id})
             await session.commit()
             return result.rowcount > 0
@@ -700,8 +703,8 @@ class MySQLProductDAO:
         """
         Fetch active products created on or after cutoff, ordered by created_at DESC.
         """
-        factory = self._factory()
-        if not factory:
+        async_session = get_async_session_factory()
+        if not async_session:
             return []
 
         sql = f"""
@@ -713,7 +716,7 @@ class MySQLProductDAO:
         params = {"cutoff": cutoff}
         exclude = exclude_product_ids or set()
 
-        async with factory() as session:
+        async with async_session() as session:
             result = await session.execute(text(sql), params)
             out: List[str] = []
             for row in result.fetchall():
