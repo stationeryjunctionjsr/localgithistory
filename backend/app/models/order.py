@@ -1,7 +1,7 @@
 from app.models.schemas import ItemSnippet as OrderItem, Address, ValetDeclineHistoryEntry
 from datetime import datetime, timezone
 from typing import Optional, List, Any, Dict
-from pydantic import BaseModel, Field, ConfigDict, AliasChoices, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from app.models.base import CamelBaseModel
 
 class OrderAddress(CamelBaseModel):

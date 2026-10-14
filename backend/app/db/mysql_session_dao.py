@@ -5,13 +5,12 @@ MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
 """
 
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 from app.models.session import Session
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.config.settings import settings
 from app.db.db_utils import now_utc
 
 
@@ -30,6 +29,8 @@ class MySQLSessionDAO:
         refresh_token_id: Optional[str] = None,
         status: Optional[str] = None,
         is_guest: Optional[bool] = None,
+        skip: Optional[int] = None,
+        limit: Optional[int] = None,
     ) -> List[Session]:
         where_clauses = []
         params = {}
@@ -50,6 +51,12 @@ class MySQLSessionDAO:
             params["is_guest"] = 1 if is_guest else 0
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        pagination_sql = ""
+        if limit is not None:
+            pagination_sql += f" LIMIT {limit}"
+        if skip is not None:
+            pagination_sql += f" OFFSET {skip}"
+
         async_session = get_async_session_factory()
         async with async_session() as session:
             result = await session.execute(
@@ -57,7 +64,7 @@ class MySQLSessionDAO:
                     f"""
                     SELECT id, user_id, refresh_token_id, status, last_active_at,
                            revoked_at, revoked_reason, is_guest, comments, created_at, updated_at
-                    FROM {self.TABLE} {where_sql}
+                    FROM {self.TABLE} {where_sql} ORDER BY id DESC {pagination_sql}
                     """
                 ),
                 params,
@@ -72,8 +79,36 @@ class MySQLSessionDAO:
         refresh_token_id: Optional[str] = None,
         status: Optional[str] = None,
     ) -> Optional[Session]:
-        records = await self.findAll(id=id, user_id=user_id, refresh_token_id=refresh_token_id, status=status)
-        return records[0] if records else None
+        where_clauses = []
+        params = {}
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = id
+        if user_id is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        if refresh_token_id is not None:
+            where_clauses.append("refresh_token_id = :refresh_token_id")
+            params["refresh_token_id"] = str(refresh_token_id)
+        if status is not None:
+            where_clauses.append("status = :status")
+            params["status"] = str(status)
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            result = await session.execute(
+                text(
+                    f"""
+                    SELECT id, user_id, refresh_token_id, status, last_active_at,
+                           revoked_at, revoked_reason, is_guest, comments, created_at, updated_at
+                    FROM {self.TABLE} {where_sql} LIMIT 1
+                    """
+                ),
+                params,
+            )
+            row = result.fetchone()
+        return self._map_to_schema(row) if row else None
 
     async def findById(self, id: int) -> Optional['Session']:
         if not id:
@@ -142,10 +177,7 @@ class MySQLSessionDAO:
         elif "user" in update_data.model_fields_set:
             updates.append("user_id = :user_id")
             uid = update_data.user
-            try:
-                params["user_id"] = int(uid) if uid is not None else None
-            except (ValueError, TypeError):
-                params["user_id"] = None
+            params["user_id"] = int(uid) if uid and str(uid).isdigit() else None
 
         if "refresh_token_id" in update_data.model_fields_set:
             updates.append("refresh_token_id = :refresh_token_id")
@@ -187,8 +219,8 @@ class MySQLSessionDAO:
             )
             await session.commit()
             if result.rowcount == 0:
-                existing = await self.findById(id)
-                if not existing:
+                chk = await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE id = :id"), {"id": id})
+                if not chk.fetchone():
                     return None
 
         return await self.findById(id)

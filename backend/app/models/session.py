@@ -15,11 +15,8 @@ class Session(CamelBaseModel):
     revoked_at: Optional[datetime] = None
     revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
-    is_guest: bool = None
+    is_guest: Optional[bool] = None
     comment: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     comments: Optional[str] = None
-    now: Optional[str] = None
-    deleted_count: int = 0
-    uid: Optional[str] = None
