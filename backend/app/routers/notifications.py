@@ -1,23 +1,25 @@
 from app.models.user import User
 from app.models.schemas import BulkUpdateResponse, MessageResponse, NotificationMetadata
-from typing import Optional, List
+from typing import Optional, List, Union
+from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+from app.models.base import CamelBaseModel
 
-class NotificationResponse(BaseModel):
+class NotificationResponse(CamelBaseModel):
     id: int
-    userId: str
+    user_id: Union[str, int] = Field(..., alias="userId")
     type: str
     title: str
     message: str
-    isRead: bool
-    isAcknowledged: bool
+    is_read: bool = Field(default=False, alias="isRead")
+    is_acknowledged: bool = Field(default=False, alias="isAcknowledged")
     metadata: Optional[NotificationMetadata] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[Union[datetime, str]] = Field(default=None, alias="createdAt")
+    updated_at: Optional[Union[datetime, str]] = Field(default=None, alias="updatedAt")
 
-class UnreadCountResponse(BaseModel):
-    unreadCount: int
+class UnreadCountResponse(CamelBaseModel):
+    unread_count: int = Field(default=0, alias="unreadCount")
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -71,7 +73,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
             filters.userId = current_user.id
             
         notifications = await notification_repository.findAll(filters)
-        return {"count": len(notifications)}
+        return UnreadCountResponse(unread_count=len(notifications))
     except Exception as e:
         logger.error("Failed to fetch unread count: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
@@ -94,7 +96,11 @@ async def _get_and_verify_notification(notification_id: int, current_user: User)
         raise HTTPException(status_code=404, detail="Notification not found")
         
     if current_user.role != "super_admin":
-        if str(notification.userId) != str(current_user.id):
+        try:
+            notif_uid = int(notification.user_id) if notification.user_id is not None else None
+        except (ValueError, TypeError):
+            notif_uid = None
+        if notif_uid != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
             
     return notification

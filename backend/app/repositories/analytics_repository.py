@@ -14,24 +14,38 @@ from app.utils.cache import cache
 
 from app.db.storage_factory import get_storage
 
+from app.models.base import CamelBaseModel
+from pydantic import Field
+
 IST = timezone(timedelta(hours=5, minutes=30))
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _ANALYTICS_CACHE_PATH = _DATA_DIR / "analytics_reports_cache.json"
-_analytics_reports_cache_store = None
-_analytics_reports_cache_ts = 0.0
+
+
+class DashboardReportsCache(CamelBaseModel):
+    last_updated_at_ist: Optional[str] = None
+    top_products: list[Any] = Field(default_factory=list)
+    top_wholesalers: list[Any] = Field(default_factory=list)
+    top_customers: list[Any] = Field(default_factory=list)
+    most_searched: list[Any] = Field(default_factory=list)
+    most_viewed: list[Any] = Field(default_factory=list)
+
+
+_analytics_reports_cache_store: Optional[DashboardReportsCache] = None
+_analytics_reports_cache_ts: float = 0.0
 
 def _get_current_ist_timestamp() -> str:
     now_ist = datetime.now(IST)
     return now_ist.strftime("%d %b %Y, %I:%M %p IST")
 
-def _read_analytics_reports_cache() -> Optional[Dict[str, Any]]:
+def _read_analytics_reports_cache() -> Optional[DashboardReportsCache]:
     global _analytics_reports_cache_store, _analytics_reports_cache_ts
     now = time.monotonic()
     if _analytics_reports_cache_store is not None and (now - _analytics_reports_cache_ts) < 60:
         return _analytics_reports_cache_store
     try:
         if _ANALYTICS_CACHE_PATH.exists():
-            data = json.loads(_ANALYTICS_CACHE_PATH.read_text(encoding="utf-8"))
+            data = DashboardReportsCache.model_validate_json(_ANALYTICS_CACHE_PATH.read_text(encoding="utf-8"))
             _analytics_reports_cache_store = data
             _analytics_reports_cache_ts = now
             return data
@@ -39,13 +53,13 @@ def _read_analytics_reports_cache() -> Optional[Dict[str, Any]]:
         logger.exception("Error reading analytics reports cache")
     return None
 
-def _write_analytics_reports_cache(data: Dict[str, Any]) -> None:
+def _write_analytics_reports_cache(data: DashboardReportsCache) -> None:
     global _analytics_reports_cache_store, _analytics_reports_cache_ts
     _analytics_reports_cache_store = data
     _analytics_reports_cache_ts = time.monotonic()
     try:
         _DATA_DIR.mkdir(parents=True, exist_ok=True)
-        _ANALYTICS_CACHE_PATH.write_text(json.dumps(data, default=str), encoding="utf-8")
+        _ANALYTICS_CACHE_PATH.write_text(data.model_dump_json(by_alias=True), encoding="utf-8")
     except Exception:
         logger.exception("Error writing analytics reports cache")
 
@@ -331,13 +345,13 @@ class AnalyticsRepository:
                 if not product_id:
                     continue
 
-                product = (product_map[product_id] if product_id in product_map else None)
+                product = product_map.get(product_id)
                 quantity = item.quantity
                 subtotal = (item.price * item.quantity)
 
                 product_sales[product_id].quantity += quantity
                 product_sales[product_id].revenue += subtotal
-                product_sales[product_id].name = product.name
+                product_sales[product_id].name = product.name if product else "Unknown Product"
 
         result = [
             {
@@ -847,7 +861,7 @@ class AnalyticsRepository:
 
         result = []
         for uid, revenue in user_revenue.items():
-            user = (user_map[uid] if uid in user_map else None)
+            user = user_map.get(uid)
             if not user:
                 continue
             if role and user.role != role:
@@ -888,7 +902,7 @@ class AnalyticsRepository:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         for uid, u_orders in user_orders_map.items():
-            user = (user_map[uid] if uid in user_map else None)
+            user = user_map.get(uid)
             if not user:
                 continue
             if role and user.role != role:
@@ -1054,13 +1068,13 @@ class AnalyticsRepository:
             if end_date and created and created > end_date:
                 continue
 
-            order = (order_map[ret.order_id] if ret.order_id in order_map else None)
+            order = order_map.get(ret.order_id)
             # Seller scoping: skip returns not belonging to this seller
             if seller_id and order:
                 order_in_scope = self._filter_by_seller([order], seller_id)
                 if not order_in_scope:
                     continue
-            user = (user_map[ret.userId] if ret.userId in user_map else None)
+            user = user_map.get(ret.userId)
             items = ret.items
             refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
 
@@ -1068,9 +1082,9 @@ class AnalyticsRepository:
                 {
                     "returnId": ret.id,
                     "orderId": ret.order_id,
-                    "orderTotal": order.total,
-                    "userName": user.name,
-                    "userEmail": user.email,
+                    "orderTotal": order.total if order else 0.0,
+                    "userName": user.name if user else "Unknown",
+                    "userEmail": user.email if user else "Unknown",
                     "status": ret.status,
                     "refundValue": round(refund_value, 2),
                     "itemCount": len(items),
@@ -1079,7 +1093,7 @@ class AnalyticsRepository:
                 }
             )
 
-        result.sort(key=lambda x: (x["createdAt"] if "createdAt" in x else None) or "", reverse=True)
+        result.sort(key=lambda x: x.get("createdAt") or "", reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)
@@ -1135,8 +1149,8 @@ class AnalyticsRepository:
         for order in orders:
             for item in order.items:
                 product_id = item.product or item.product_id
-                product = (product_map[product_id] if product_id in product_map else None)
-                category = product.category or "Uncategorized"
+                product = product_map.get(product_id)
+                category = (product.category if product else None) or "Uncategorized"
 
                 if category not in category_stats:
                     category_stats[category] = {"revenue": 0.0, "quantity": 0, "orders": set()}
@@ -1213,12 +1227,12 @@ class AnalyticsRepository:
             if delta_hours < 0:
                 continue
 
-            user = (user_map[order.user] if order.user in user_map else None)
+            user = user_map.get(order.user)
             result.append(
                 {
                     "orderId": order.id,
                     "orderNumber": order.order_number,
-                    "userName": user.name,
+                    "userName": user.name if user else "Unknown",
                     "status": status,
                     "fulfillmentHours": delta_hours,
                     "fulfillmentDays": round(delta_hours / 24, 1),
@@ -1389,8 +1403,8 @@ class AnalyticsRepository:
 
         result = []
         for (prod_a_id, prod_b_id), count in pair_counts.items():
-            product_a = (product_map[prod_a_id] if prod_a_id in product_map else None)
-            product_b = (product_map[prod_b_id] if prod_b_id in product_map else None)
+            product_a = product_map.get(prod_a_id)
+            product_b = product_map.get(prod_b_id)
 
             # Skip if products are deleted/missing
             if not product_a or not product_b:
@@ -1501,12 +1515,12 @@ class AnalyticsRepository:
 
         result = []
         for pid, stats in product_returns.items():
-            product = (product_map[pid] if pid in product_map else None)
+            product = product_map.get(pid)
             result.append(
                 {
                     "productId": pid,
-                    "productName": product.name,
-                    "category": product.category,
+                    "productName": product.name if product else "Unknown Product",
+                    "category": product.category if product else "Uncategorized",
                     "returnCount": stats["returnCount"],
                     "quantityReturned": stats["quantityReturned"],
                     "revenueLost": round(stats["revenueLost"], 2),
@@ -1542,7 +1556,7 @@ class AnalyticsRepository:
 
         return sorted(result, key=lambda x: x["inventoryValue"], reverse=True)
 
-    async def precompute_dashboard_reports(self, ist_timestamp: Optional[str] = None) -> Dict[str, Any]:
+    async def precompute_dashboard_reports(self, ist_timestamp: Optional[str] = None) -> DashboardReportsCache:
         """Precomputes the heavy reporting metrics and writes to the cache."""
         from app.repositories.tracking_repository import tracking_repository
 
@@ -1553,14 +1567,14 @@ class AnalyticsRepository:
         most_searched = await tracking_repository.getMostSearched(10, None, None)
         most_viewed = await tracking_repository.getMostViewed(10, None, None)
 
-        payload = {
-            "last_updated_at_ist": ist_ts,
-            "topProducts": top_products,
-            "topWholesalers": top_wholesalers,
-            "topCustomers": top_customers,
-            "mostSearched": [s.model_dump() for s in most_searched],
-            "mostViewed": [v.model_dump() for v in most_viewed],
-        }
+        payload = DashboardReportsCache(
+            last_updated_at_ist=ist_ts,
+            top_products=top_products,
+            top_wholesalers=top_wholesalers,
+            top_customers=top_customers,
+            most_searched=[s.model_dump() for s in most_searched],
+            most_viewed=[v.model_dump() for v in most_viewed],
+        )
         _write_analytics_reports_cache(payload)
         return payload
 
@@ -1595,12 +1609,12 @@ class AnalyticsRepository:
             cached = _read_analytics_reports_cache()
             if not cached:
                 cached = await self.precompute_dashboard_reports()
-            top_products = cached.get("topProducts", [])
-            top_wholesalers = cached.get("topWholesalers", [])
-            top_customers = cached.get("topCustomers", [])
-            most_searched = cached.get("mostSearched", [])
-            most_viewed = cached.get("mostViewed", [])
-            last_updated_at_ist = cached.get("last_updated_at_ist")
+            top_products = cached.top_products
+            top_wholesalers = cached.top_wholesalers
+            top_customers = cached.top_customers
+            most_searched = cached.most_searched
+            most_viewed = cached.most_viewed
+            last_updated_at_ist = cached.last_updated_at_ist
         else:
             top_products = await self.get_sales_by_product(start_date, end_date, 10)
             top_wholesalers = await self.get_top_users_by_revenue("wholesaler", start_date, end_date, 10)
@@ -1677,7 +1691,7 @@ class AnalyticsRepository:
             for b_id, b_items in order_bundles.items():
                 if b_id not in stats:
                     continue
-                b_def = (bundle_map[b_id] if b_id in bundle_map else None)
+                b_def = bundle_map.get(b_id)
                 if not b_def:
                     continue
                     
@@ -1940,12 +1954,12 @@ class AnalyticsRepository:
             else:
                 segment = "Dormant"
 
-            user = (user_map[uid] if uid in user_map else None)
+            user = user_map.get(uid)
             result.append(
                 {
                     "userId": uid,
-                    "name": user.name,
-                    "email": user.email,
+                    "name": user.name if user else "Unknown",
+                    "email": user.email if user else "Unknown",
                     "segment": segment,
                     "recencyDays": recency_days,
                     "orderCount": freq,
@@ -2035,12 +2049,12 @@ class AnalyticsRepository:
             shipping = float(order.shipping or order.delivery_charge or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
-            user = (user_map[order.user] if order.user in user_map else None)
+            user = user_map.get(order.user)
             result.append(
                 {
                     "orderId": order.id,
                     "orderNumber": order.order_number,
-                    "customerName": user.name,
+                    "customerName": user.name if user else "Unknown",
                     "grossSales": round(subtotal, 2),
                     "discount": round(discount, 2),
                     "tax": round(tax, 2),
@@ -2051,7 +2065,7 @@ class AnalyticsRepository:
                 }
             )
 
-        return sorted(result, key=lambda x: (x["createdAt"] if "createdAt" in x else None) or "" or "", reverse=True)
+        return sorted(result, key=lambda x: x.get("createdAt") or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_heatmap(
@@ -2221,7 +2235,7 @@ class AnalyticsRepository:
                 continue  # skip orders with no discount at all
 
             coupon_info = order.couponInfo or {}
-            user = (user_map[order.user] if order.user in user_map else None)
+            user = user_map.get(order.user)
             gross = float(order.subtotal or order.total or 0)
             net = round(gross - discount, 2)
 
@@ -2229,7 +2243,7 @@ class AnalyticsRepository:
                 {
                     "orderId": order.id,
                     "orderNumber": order.order_number,
-                    "customerName": user.name,
+                    "customerName": user.name if user else "Unknown",
                     "couponCode": order.coupon_code or "—",
                     "discountType": coupon_info.discountType,
                     "discountValue": coupon_info.discountValue,
@@ -2241,7 +2255,7 @@ class AnalyticsRepository:
                 }
             )
 
-        return sorted(result, key=lambda x: (x["createdAt"] if "createdAt" in x else None) or "" or "", reverse=True)
+        return sorted(result, key=lambda x: x.get("createdAt") or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_products_pct_sold(

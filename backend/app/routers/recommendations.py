@@ -102,13 +102,13 @@ async def get_recommendations(
         if not user_id:
             now = _time.monotonic()
             guest_key = f"guest_{location_key}_{tag_key or 'all'}"
-            entry = (_guest_rec_cache[guest_key] if guest_key in _guest_rec_cache else None)
+            entry = _guest_rec_cache.get(guest_key)
             if entry and now < entry[1]:
                 return entry[0]
 
             async with _guest_rec_lock:
                 # Re-check after acquiring lock
-                entry = (_guest_rec_cache[guest_key] if guest_key in _guest_rec_cache else None)
+                entry = _guest_rec_cache.get(guest_key)
                 if entry and now < entry[1]:
                     return entry[0]
 
@@ -217,14 +217,14 @@ async def get_favourites_page(
         ranked_products = await product_storage.findAll(ProductFilter(allowed_ids=needed_ids, is_active=True))
     else:
         ranked_products = []
-    product_map: dict = {p.id: p for p in ranked_products if p.id}
+    product_map: dict[int, Product] = {p.id: p for p in ranked_products if p.id}
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
     sub_categories_seen: set = set()
     brands_seen: set = set()
     for pid, _ in ranked_ids:
-        p = (product_map[pid] if pid in product_map else None)
+        p = product_map.get(pid)
         if not p:
             continue
         if p.category:
@@ -244,7 +244,7 @@ async def get_favourites_page(
         want_available = available.lower() == "true"
 
     for pid, _score in ranked_ids:
-        p = (product_map[pid] if pid in product_map else None)
+        p = product_map.get(pid)
         if not p:
             continue
         # Product-level filters
@@ -349,7 +349,7 @@ async def track_recommendation_event(
     - add_to_cart: user added a recommended product to cart.
     Stored in activities so you can measure: section views vs product views vs add-to-cart and tune the algorithm.
     """
-    session_id = (request.headers["x-session-id"] if "x-session-id" in request.headers else None)
+    session_id = request.headers.get("x-session-id")
     if not session_id:
         raise HTTPException(status_code=400, detail="x-session-id header is required")
     if body.eventType not in ("section_view", "product_view", "add_to_cart"):

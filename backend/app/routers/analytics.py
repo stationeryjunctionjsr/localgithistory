@@ -97,15 +97,17 @@ class MostViewedResponse(BaseModel):
     productName: str
     viewCount: int = Field(default=0, validation_alias=AliasChoices("viewCount", "count"))
 
-class DashboardDataResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+from app.models.base import CamelBaseModel
+
+class DashboardDataResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     stats: DashboardStats
-    topProducts: List[TopProductResponse]
-    topWholesalers: List[TopCustomerResponse]
-    topCustomers: List[TopCustomerResponse]
-    mostSearched: List[MostSearchedResponse]
-    mostViewed: List[MostViewedResponse]
-    lastUpdatedAtIST: Optional[str] = Field(default=None, validation_alias=AliasChoices("lastUpdatedAtIST", "last_updated_at_ist"))
+    top_products: List[TopProductResponse] = Field(default_factory=list, alias="topProducts")
+    top_wholesalers: List[TopCustomerResponse] = Field(default_factory=list, alias="topWholesalers")
+    top_customers: List[TopCustomerResponse] = Field(default_factory=list, alias="topCustomers")
+    most_searched: List[MostSearchedResponse] = Field(default_factory=list, alias="mostSearched")
+    most_viewed: List[MostViewedResponse] = Field(default_factory=list, alias="mostViewed")
+    last_updated_at_ist: Optional[str] = Field(default=None, alias="lastUpdatedAtIST")
 
 
 class SalesOverTimeResponse(BaseModel):
