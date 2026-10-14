@@ -2,8 +2,9 @@ from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from app.models.daos import OrderFilter
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from typing import Any, List, Optional, Set, Tuple
+from collections import defaultdict
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 
@@ -18,6 +19,11 @@ from app.models.analytics_schemas import (
     AverageOrderValueResponse,
     SalesByChannelResponse,
     SalesByProductResponse,
+    ConversionOrderStats,
+    ProductsSellThroughResponse,
+    CustomerCohortResponse,
+    TopUsersReportResponse,
+    UserOrderStatsResponse,
 )
 
 
@@ -1374,6 +1380,277 @@ class MySQLOrderDAO:
                 )
                 for r in rows
             ]
+
+    async def get_conversion_order_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> ConversionOrderStats:
+        where_clauses = ["1=1"]
+        params = {}
+        if start_date:
+            where_clauses.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                COUNT(*) AS total_orders,
+                COUNT(CASE WHEN status != 'cancelled' THEN 1 END) AS non_cancelled_orders,
+                COUNT(DISTINCT CASE WHEN status != 'cancelled' AND session_id IS NOT NULL AND session_id != '' THEN session_id END) AS completed_sessions
+            FROM {self.TABLE}
+            WHERE {where_sql}
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            r = (await session.execute(sql, params)).fetchone()
+            if not r:
+                return ConversionOrderStats(total_orders=0, non_cancelled_orders=0, completed_sessions=0)
+            return ConversionOrderStats(
+                total_orders=r.total_orders or 0,
+                non_cancelled_orders=r.non_cancelled_orders or 0,
+                completed_sessions=r.completed_sessions or 0,
+            )
+
+    async def get_products_sell_through_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 10,
+        seller_id: Optional[str] = None,
+    ) -> List[ProductsSellThroughResponse]:
+        where_clauses = ["o.status != 'cancelled'"]
+        params = {"limit": limit}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = f"AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                CAST(p.id AS CHAR) AS product_id,
+                p.name AS product_name,
+                COALESCE(p.stock, 0) AS stock,
+                COALESCE(SUM(oi.quantity), 0) AS sold
+            FROM sj_products p
+            LEFT JOIN {self.ITEMS_TABLE} oi ON oi.product_id = p.id
+            LEFT JOIN {self.TABLE} o ON o.id = oi.order_id AND {where_sql} {seller_clause}
+            GROUP BY p.id, p.name, p.stock
+            ORDER BY (COALESCE(SUM(oi.quantity), 0) / (COALESCE(p.stock, 0) + COALESCE(SUM(oi.quantity), 0))) DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            result = []
+            for r in rows:
+                sold = r.sold or 0
+                stock = r.stock or 0
+                total_avail = stock + sold
+                rate = round((sold / total_avail * 100), 2) if total_avail > 0 else 0.0
+                result.append(
+                    ProductsSellThroughResponse(
+                        product_id=r.product_id,
+                        name=r.product_name or "Unknown",
+                        sold=sold,
+                        stock=stock,
+                        sell_through_rate=rate,
+                    )
+                )
+            return result
+
+    async def get_customer_cohort_stats(self) -> List[CustomerCohortResponse]:
+        sql = text(
+            f"""
+            WITH first_orders AS (
+                SELECT 
+                    user_id,
+                    MIN(created_at) AS first_order_date
+                FROM {self.TABLE}
+                WHERE user_id IS NOT NULL AND created_at IS NOT NULL
+                GROUP BY user_id
+            ),
+            order_months AS (
+                SELECT 
+                    DATE_FORMAT(fo.first_order_date, '%Y-%m') AS cohort_month,
+                    TIMESTAMPDIFF(MONTH, fo.first_order_date, o.created_at) AS month_index
+                FROM {self.TABLE} o
+                JOIN first_orders fo ON fo.user_id = o.user_id
+                WHERE o.created_at >= fo.first_order_date
+            )
+            SELECT 
+                cohort_month,
+                month_index,
+                COUNT(*) AS order_count
+            FROM order_months
+            GROUP BY cohort_month, month_index
+            ORDER BY cohort_month ASC, month_index ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql)).fetchall()
+            cohort_map = defaultdict(lambda: defaultdict(int))
+            for r in rows:
+                cohort_map[r.cohort_month][r.month_index] = r.order_count or 0
+
+            result = []
+            for cm in sorted(cohort_map.keys()):
+                data = cohort_map[cm]
+                max_m = max(data.keys()) if data else 0
+                months_list = [data[i] for i in range(max_m + 1)]
+                result.append(CustomerCohortResponse(cohort=cm, months=months_list))
+            return result
+
+    async def get_top_users_by_revenue_stats(
+        self,
+        role: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 10,
+    ) -> List[TopUsersReportResponse]:
+        where_clauses = ["o.user_id IS NOT NULL"]
+        params = {"limit": limit}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        role_clause = ""
+        if role:
+            role_clause = "AND u.role = :role"
+            params["role"] = role
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                CAST(o.user_id AS CHAR) AS user_id,
+                COALESCE(u.name, 'Unknown') AS user_name,
+                COALESCE(u.email, 'Unknown') AS user_email,
+                COALESCE(u.role, 'customer') AS user_role,
+                COALESCE(SUM(o.total), 0.0) AS revenue,
+                COUNT(*) AS order_count
+            FROM {self.TABLE} o
+            JOIN sj_users u ON u.id = o.user_id
+            WHERE {where_sql} {role_clause}
+            GROUP BY o.user_id, u.name, u.email, u.role
+            ORDER BY revenue DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                TopUsersReportResponse(
+                    userId=r.user_id,
+                    name=r.user_name,
+                    userName=r.user_name,
+                    email=r.user_email,
+                    userEmail=r.user_email,
+                    role=r.user_role,
+                    revenue=round(float(r.revenue or 0.0), 2),
+                    orderCount=r.order_count or 0,
+                )
+                for r in rows
+            ]
+
+    async def get_user_order_stats_report(
+        self,
+        role: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[UserOrderStatsResponse]:
+        where_clauses = ["o.user_id IS NOT NULL"]
+        params = {}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        role_clause = ""
+        if role:
+            role_clause = "AND u.role = :role"
+            params["role"] = role
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                CAST(o.user_id AS CHAR) AS user_id,
+                COALESCE(u.name, 'Unknown') AS user_name,
+                COALESCE(u.email, 'Unknown') AS user_email,
+                COUNT(*) AS total_orders,
+                COALESCE(SUM(o.total), 0.0) AS total_revenue,
+                MIN(o.created_at) AS first_order_date,
+                MAX(o.created_at) AS last_order_date
+            FROM {self.TABLE} o
+            JOIN sj_users u ON u.id = o.user_id
+            WHERE {where_sql} {role_clause}
+            GROUP BY o.user_id, u.name, u.email
+            ORDER BY total_orders DESC
+            """
+        )
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            result = []
+            for r in rows:
+                tot_orders = r.total_orders or 0
+                tot_rev = float(r.total_revenue or 0.0)
+                aov = round(tot_rev / tot_orders, 2) if tot_orders > 0 else 0.0
+
+                days_since_last = None
+                avg_orders_per_month = 0.0
+                if r.first_order_date and r.last_order_date:
+                    first_dt = r.first_order_date.replace(tzinfo=None) if hasattr(r.first_order_date, 'replace') else r.first_order_date
+                    last_dt = r.last_order_date.replace(tzinfo=None) if hasattr(r.last_order_date, 'replace') else r.last_order_date
+                    days_since_last = max(0, (now - last_dt).days)
+                    delta_days = max(1, (now - first_dt).days)
+                    months_active = max(1.0, delta_days / 30.44)
+                    avg_orders_per_month = round(tot_orders / months_active, 2)
+
+                result.append(
+                    UserOrderStatsResponse(
+                        userId=r.user_id,
+                        name=r.user_name,
+                        email=r.user_email,
+                        totalOrders=tot_orders,
+                        averageOrderValue=aov,
+                        daysSinceLastOrder=days_since_last,
+                        avgOrdersPerMonth=avg_orders_per_month,
+                    )
+                )
+            return result
+
 
 
 
