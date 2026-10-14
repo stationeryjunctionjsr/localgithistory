@@ -40,7 +40,6 @@ from app.models.analytics_schemas import (
     ProductsPctSoldResponse,
     InventoryRunwayResponse,
     BundlePerformanceReportResponse,
-    MonthlyRevenueItem,
     ReturnsReportResponse,
     TopReturnedProductsResponse,
     InventoryValueByCategoryResponse,
@@ -1363,7 +1362,7 @@ class MySQLOrderDAO:
         sql = text(
             f"""
             SELECT 
-                CAST(oi.product_id AS CHAR) AS product_id,
+                oi.product_id AS product_id,
                 COALESCE(p.name, 'Unknown Product') AS product_name,
                 CAST(COALESCE(SUM(oi.quantity), 0) AS UNSIGNED) AS quantity,
                 COALESCE(SUM(oi.price * oi.quantity), 0.0) AS revenue
@@ -1381,7 +1380,7 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             return [
                 SalesByProductResponse(
-                    product_id=r.product_id,
+                    product_id=int(r.product_id),
                     name=r.product_name,
                     quantity=r.quantity,
                     revenue=round(float(r.revenue or 0.0), 2),
