@@ -23,6 +23,11 @@ from app.models.analytics_schemas import (
     CustomerCohortResponse,
     TopUsersReportResponse,
     UserOrderStatsResponse,
+    PaymentMethodsReportResponse,
+    RevenueByCategoryResponse,
+    FulfillmentTimeReportResponse,
+    CouponUsageReportResponse,
+    SalesByLocationReportResponse,
 )
 
 
@@ -1660,6 +1665,297 @@ class MySQLOrderDAO:
                     )
                 )
             return result
+
+    async def get_payment_methods_report_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[PaymentMethodsReportResponse]:
+        where_clauses = ["1=1"]
+        params = {}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(NULLIF(o.payment_method, ''), 'unknown') AS payment_method,
+                COUNT(*) AS order_count,
+                COALESCE(SUM(o.total), 0.0) AS revenue,
+                ROUND(COALESCE(AVG(o.total), 0.0), 2) AS avg_order_value
+            FROM {self.TABLE} o
+            WHERE {where_sql} {seller_clause}
+            GROUP BY COALESCE(NULLIF(o.payment_method, ''), 'unknown')
+            ORDER BY revenue DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                PaymentMethodsReportResponse(
+                    paymentMethod=r.payment_method,
+                    orderCount=r.order_count,
+                    revenue=round(float(r.revenue or 0.0), 2),
+                    avgOrderValue=float(r.avg_order_value or 0.0),
+                )
+                for r in rows
+            ]
+
+    async def get_revenue_by_category_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 20,
+        seller_id: Optional[str] = None,
+    ) -> List[RevenueByCategoryResponse]:
+        where_clauses = ["1=1"]
+        params = {"limit": limit}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(NULLIF(p.category, ''), 'Uncategorized') AS category,
+                COUNT(DISTINCT oi.order_id) AS order_count,
+                CAST(COALESCE(SUM(oi.quantity), 0) AS UNSIGNED) AS quantity,
+                COALESCE(SUM(oi.price * oi.quantity), 0.0) AS revenue
+            FROM {self.ITEMS_TABLE} oi
+            JOIN {self.TABLE} o ON o.id = oi.order_id
+            LEFT JOIN sj_products p ON p.id = oi.product_id
+            WHERE {where_sql} {seller_clause}
+            GROUP BY COALESCE(NULLIF(p.category, ''), 'Uncategorized')
+            ORDER BY revenue DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                RevenueByCategoryResponse(
+                    category=r.category,
+                    orderCount=r.order_count,
+                    quantity=r.quantity,
+                    revenue=round(float(r.revenue or 0.0), 2),
+                )
+                for r in rows
+            ]
+
+    async def get_fulfillment_time_report_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[FulfillmentTimeReportResponse]:
+        where_clauses = [
+            "o.status IN ('delivered', 'completed', 'cancelled', 'returned')",
+            "o.created_at IS NOT NULL",
+            "o.updated_at IS NOT NULL",
+        ]
+        params = {}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                CAST(o.id AS CHAR) AS order_id,
+                COALESCE(o.order_number, '') AS order_number,
+                DATE_FORMAT(o.created_at, '%Y-%m-%dT%H:%i:%s') AS created_at,
+                o.status AS status,
+                COALESCE(o.total, 0.0) AS order_total,
+                COALESCE(u.name, 'Unknown') AS user_name,
+                ROUND(TIMESTAMPDIFF(SECOND, o.created_at, o.updated_at) / 3600.0, 1) AS fulfillment_hours,
+                ROUND(TIMESTAMPDIFF(SECOND, o.created_at, o.updated_at) / 86400.0, 1) AS fulfillment_days
+            FROM {self.TABLE} o
+            LEFT JOIN sj_users u ON u.id = o.user_id
+            WHERE {where_sql} {seller_clause}
+              AND TIMESTAMPDIFF(SECOND, o.created_at, o.updated_at) >= 0
+            ORDER BY o.created_at DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                FulfillmentTimeReportResponse(
+                    orderId=r.order_id,
+                    orderNumber=r.order_number,
+                    createdAt=r.created_at,
+                    status=r.status,
+                    orderTotal=round(float(r.order_total or 0.0), 2),
+                    userName=r.user_name,
+                    fulfillmentHours=float(r.fulfillment_hours) if r.fulfillment_hours is not None else None,
+                    fulfillmentDays=float(r.fulfillment_days) if r.fulfillment_days is not None else None,
+                )
+                for r in rows
+            ]
+
+    async def get_coupon_usage_report_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[CouponUsageReportResponse]:
+        where_clauses = ["so.coupon_code IS NOT NULL", "so.coupon_code != ''"]
+        params = {}
+
+        if start_date:
+            where_clauses.append("so.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("so.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND so.seller_id = :seller_id"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            SELECT 
+                so.coupon_code AS coupon_code,
+                COALESCE(so.coupon_info_type, 'percentage') AS discount_type,
+                COALESCE(so.coupon_info_value, 0.0) AS discount_value,
+                COUNT(*) AS usage_count,
+                COALESCE(SUM(so.discount), 0.0) AS total_discount_given,
+                COALESCE(SUM(so.total), 0.0) AS total_revenue
+            FROM sj_sub_orders so
+            WHERE {where_sql} {seller_clause}
+            GROUP BY so.coupon_code, so.coupon_info_type, so.coupon_info_value
+            ORDER BY usage_count DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                CouponUsageReportResponse(
+                    couponCode=r.coupon_code,
+                    discountType=r.discount_type,
+                    discountValue=float(r.discount_value or 0.0),
+                    usageCount=r.usage_count,
+                    totalDiscountGiven=round(float(r.total_discount_given or 0.0), 2),
+                    totalRevenue=round(float(r.total_revenue or 0.0), 2),
+                )
+                for r in rows
+            ]
+
+    async def get_sales_by_location_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 100,
+        seller_id: Optional[str] = None,
+    ) -> List[SalesByLocationReportResponse]:
+        where_clauses = ["o.status IN ('delivered', 'completed', 'shipped', 'dispatched')"]
+        params = {"limit": limit}
+
+        if start_date:
+            where_clauses.append("o.created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("o.created_at <= :end_date")
+            params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
+
+        where_sql = " AND ".join(where_clauses)
+
+        sql = text(
+            f"""
+            WITH order_totals AS (
+                SELECT 
+                    o.id AS order_id,
+                    o.total AS total,
+                    CASE
+                        WHEN (o.ship_city IS NOT NULL AND o.ship_city != '') AND (o.ship_state IS NOT NULL AND o.ship_state != '')
+                            THEN CONCAT(TRIM(o.ship_city), ', ', TRIM(o.ship_state))
+                        WHEN (o.ship_city IS NOT NULL AND o.ship_city != '')
+                            THEN TRIM(o.ship_city)
+                        WHEN (o.ship_state IS NOT NULL AND o.ship_state != '')
+                            THEN TRIM(o.ship_state)
+                        ELSE 'Unknown'
+                    END AS location,
+                    COALESCE(item_aggs.total_qty, 0) AS total_qty
+                FROM {self.TABLE} o
+                LEFT JOIN (
+                    SELECT order_id, SUM(quantity) AS total_qty
+                    FROM {self.ITEMS_TABLE}
+                    GROUP BY order_id
+                ) item_aggs ON item_aggs.order_id = o.id
+                WHERE {where_sql} {seller_clause}
+            )
+            SELECT 
+                location,
+                COUNT(*) AS order_count,
+                CAST(COALESCE(SUM(total_qty), 0) AS UNSIGNED) AS quantity,
+                COALESCE(SUM(total), 0.0) AS revenue
+            FROM order_totals
+            GROUP BY location
+            ORDER BY revenue DESC
+            LIMIT :limit
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SalesByLocationReportResponse(
+                    location=r.location,
+                    orderCount=r.order_count,
+                    quantity=r.quantity,
+                    revenue=round(float(r.revenue or 0.0), 2),
+                )
+                for r in rows
+            ]
+
+
 
 
 
