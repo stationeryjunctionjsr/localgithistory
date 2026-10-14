@@ -555,38 +555,42 @@ class AnalyticsRepository:
         orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
-        {p.id: p for p in products}
 
-        from pydantic import BaseModel
-        class ProductStats(BaseModel):
-            sold: int = 0
-            stock: int = 0
+        class ProductSellThroughStat(BaseModel):
+            product_id: int
             name: str = "Unknown"
+            stock: int = 0
+            sold: int = 0
 
-        product_stats = defaultdict(ProductStats)
-
-        for product in products:
-            product_id = product.id
-            product_stats[product_id].stock = product.stock
-            product_stats[product_id].name = product.name
+        product_stats: List[ProductSellThroughStat] = [
+            ProductSellThroughStat(
+                product_id=p.id,
+                name=p.name or "Unknown",
+                stock=int(p.stock or 0),
+            )
+            for p in products
+        ]
 
         for order in orders:
             for item in order.items:
-                product_id = item.product or item.product_id
-                if product_id:
-                    product_stats[product_id].sold += item.quantity
+                pid = item.product_id or item.product
+                if not pid:
+                    continue
+                stat = next((s for s in product_stats if s.product_id == pid), None)
+                if stat:
+                    stat.sold += (item.quantity or 0)
 
         result = []
-        for product_id, stats in product_stats.items():
-            total_available = stats.stock + stats.sold
-            sell_through_rate = (stats.sold / total_available * 100) if total_available > 0 else 0
+        for stat in product_stats:
+            total_available = stat.stock + stat.sold
+            sell_through_rate = (stat.sold / total_available * 100) if total_available > 0 else 0
 
             result.append(
                 {
-                    "product_id": product_id,
-                    "name": stats.name,
-                    "sold": stats.sold,
-                    "stock": stats.stock,
+                    "product_id": stat.product_id,
+                    "name": stat.name,
+                    "sold": stat.sold,
+                    "stock": stat.stock,
                     "sell_through_rate": round(sell_through_rate, 2),
                 }
             )
@@ -1968,19 +1972,26 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
 
-        user_stats: dict = {}
+        class CustomerFreqStat(BaseModel):
+            user_id: int
+            orders: int = 0
+            revenue: float = 0.0
+
+        customer_stats: List[CustomerFreqStat] = []
         for order in orders:
             uid = order.user
             if not uid:
                 continue
-            if uid not in user_stats:
-                user_stats[uid] = {"orders": 0, "revenue": 0.0}
-            user_stats[uid]["orders"] += 1
-            user_stats[uid]["revenue"] += order.total
+            c_stat = next((c for c in customer_stats if c.user_id == uid), None)
+            if not c_stat:
+                c_stat = CustomerFreqStat(user_id=uid)
+                customer_stats.append(c_stat)
+            c_stat.orders += 1
+            c_stat.revenue += (order.total or 0.0)
 
-        one_time = [v for v in user_stats.values() if v["orders"] == 1]
-        repeat = [v for v in user_stats.values() if v["orders"] > 1]
-        total_customers = len(user_stats)
+        one_time = [c for c in customer_stats if c.orders == 1]
+        repeat = [c for c in customer_stats if c.orders > 1]
+        total_customers = len(customer_stats)
 
         def pct(n: int) -> str:
             return f"{round(n / total_customers * 100, 1)}" if total_customers else "0"
@@ -1990,19 +2001,19 @@ class AnalyticsRepository:
                 "type": "One-Time Buyers",
                 "customers": len(one_time),
                 "customerPct": pct(len(one_time)),
-                "orders": sum(v["orders"] for v in one_time),
+                "orders": sum(c.orders for c in one_time),
                 "avgOrders": 1,
-                "revenue": round(sum(v["revenue"] for v in one_time), 2),
+                "revenue": round(sum(c.revenue for c in one_time), 2),
             },
             {
                 "type": "Repeat Buyers",
                 "customers": len(repeat),
                 "customerPct": pct(len(repeat)),
-                "orders": sum(v["orders"] for v in repeat),
+                "orders": sum(c.orders for c in repeat),
                 "avgOrders": round(
-                    sum(v["orders"] for v in repeat) / len(repeat), 1
+                    sum(c.orders for c in repeat) / len(repeat), 1
                 ) if repeat else 0,
-                "revenue": round(sum(v["revenue"] for v in repeat), 2),
+                "revenue": round(sum(c.revenue for c in repeat), 2),
             },
         ]
 
@@ -2174,34 +2185,41 @@ class AnalyticsRepository:
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
 
-        CHANNELS = ["desktop_web", "mobile_web", "mobile_app"]
-        stats: dict = {ch: {"revenue": 0.0, "orderCount": 0} for ch in CHANNELS}
+        class ChannelStat(BaseModel):
+            channel: str
+            revenue: float = 0.0
+            order_count: int = 0
+
+        channel_stats: List[ChannelStat] = [
+            ChannelStat(channel="desktop_web"),
+            ChannelStat(channel="mobile_web"),
+            ChannelStat(channel="mobile_app"),
+        ]
 
         for order in orders:
-            channel = order.channel or "desktop_web"
-            if channel not in stats:
-                channel = "desktop_web"
-            stats[channel]["revenue"] += order.total
-            stats[channel]["orderCount"] += 1
+            ch_name = order.channel or "desktop_web"
+            c_stat = next((cs for cs in channel_stats if cs.channel == ch_name), channel_stats[0])
+            c_stat.revenue += (order.total or 0.0)
+            c_stat.order_count += 1
 
         result = []
-        for channel, data in stats.items():
-            count = data.orderCount
-            rev = round(data.revenue, 2)
+        for cs in channel_stats:
+            count = cs.order_count
+            rev = round(cs.revenue, 2)
             result.append(
                 {
-                    "channel": channel,
-                    "channelLabel": channel.replace("_", " ").title(),
+                    "channel": cs.channel,
+                    "channelLabel": cs.channel.replace("_", " ").title(),
                     "orderCount": count,
                     "revenue": rev,
                     "aov": round(rev / count, 2) if count > 0 else 0.0,
-                    "revenuePct": 0.0,  # filled below
+                    "revenuePct": 0.0,
                 }
             )
 
-        total_rev = sum(r.revenue for r in result)
+        total_rev = sum(r["revenue"] for r in result)
         for r in result:
-            r.revenuePct = round(r.revenue / total_rev * 100, 1) if total_rev > 0 else 0.0
+            r["revenuePct"] = round(r["revenue"] / total_rev * 100, 1) if total_rev > 0 else 0.0
 
         return sorted(result, key=lambda x: x["revenue"], reverse=True)
 
@@ -2266,27 +2284,37 @@ class AnalyticsRepository:
 
         products = await self.product_storage.findAll()
         if seller_id:
-            products = [p for p in products if str(p.seller_id) == str(seller_id)]
+            products = [
+                p for p in products
+                if p.sellers and p.sellers[0].seller_id == seller_id
+            ]
 
-        product_map = {str(p.id): p for p in products}
+        class ProductPctStat(BaseModel):
+            product: Any
+            sold: int = 0
 
-        units_sold: dict = defaultdict(int)
+        product_stats: List[ProductPctStat] = [ProductPctStat(product=p) for p in products]
+
         for order in orders:
             for item in order.items:
-                pid = str(item.product or item.product_id or "")
-                if pid and pid in product_map:
-                    units_sold[pid] += item.quantity
+                pid = item.product_id or item.product
+                if not pid:
+                    continue
+                stat = next((s for s in product_stats if s.product.id == pid), None)
+                if stat:
+                    stat.sold += (item.quantity or 0)
 
         result = []
-        for pid, product in product_map.items():
+        for stat in product_stats:
+            product = stat.product
             stock = int(product.stock or 0)
-            sold = (units_sold[pid] if pid in units_sold else 0)
+            sold = stat.sold
             total = stock + sold  # opening stock approximation
             pct = round(sold / total * 100, 1) if total > 0 else 0.0
 
             result.append(
                 {
-                    "productId": pid,
+                    "productId": str(product.id),
                     "name": product.name,
                     "category": product.category,
                     "sku": product.sku,

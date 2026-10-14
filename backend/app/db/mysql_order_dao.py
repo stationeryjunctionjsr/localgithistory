@@ -1,5 +1,5 @@
 from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
-from app.models.daos import OrderFilter, QueryConditions
+from app.models.daos import OrderFilter
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from typing import Any, List, Optional, Set, Tuple
 import logging
@@ -52,6 +52,9 @@ class MySQLOrderDAO:
     def ITEMS_TABLE(self):
         return "sj_order_items"
 
+    def _factory(self):
+        return get_async_session_factory()
+
     def __map_to_schema(self, r, items_rows=None, declines_rows=None) -> Order:
         order = Order.model_validate(r)
         if items_rows:
@@ -80,7 +83,7 @@ class MySQLOrderDAO:
             order.valet_decline_history = []
         return order
 
-    def _build_query_conditions(self, filter: Optional[OrderFilter] = None) -> QueryConditions:
+    def _build_query_conditions(self, filter: Optional[OrderFilter] = None):
         where_clauses: list[str] = []
         params = {}
 
@@ -153,7 +156,7 @@ class MySQLOrderDAO:
                 params["pending_valet_id"] = filter.pending_valet_id
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        return QueryConditions(where_sql=where_sql, params=params)
+        return where_sql, params
 
     async def findAll(
         self, filter: Optional[OrderFilter] = None, skip: Optional[int] = None, limit: Optional[int] = None
@@ -166,7 +169,7 @@ class MySQLOrderDAO:
             params["skip"] = skip
             params["limit"] = limit
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(
                 text(
@@ -221,7 +224,7 @@ class MySQLOrderDAO:
     async def get_summary_stats(self, filter: Optional[OrderFilter] = None) -> OrderSummaryStats:
         """Returns (total_orders, total_revenue) via direct SQL aggregate without loading records."""
         where_sql, params = self._build_query_conditions(filter)
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             q = text(f"SELECT COUNT(*) AS total_orders, COALESCE(SUM(total), 0.0) AS total_revenue FROM {self.TABLE} WHERE {where_sql}")
             res = (await session.execute(q, params)).fetchone()
@@ -232,7 +235,7 @@ class MySQLOrderDAO:
     async def get_kpi_stats(self, filter: Optional[OrderFilter] = None) -> OrderKpiStats:
         """Direct SQL pushdown for KPI metrics: gross sales, total orders, fulfilled orders, returning customer rate."""
         where_sql, params = self._build_query_conditions(filter)
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             q = text(
                 f"""
@@ -281,7 +284,7 @@ class MySQLOrderDAO:
     async def findById(self, id: int) -> Optional[Order]:
         if not id:
             return None
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(
                 text(
@@ -329,7 +332,7 @@ class MySQLOrderDAO:
             clauses.append(f"id IN ({', '.join(f':{k}' for k in c_params)})")
 
         where_sql = " OR ".join(clauses)
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(
                 text(
@@ -436,7 +439,7 @@ class MySQLOrderDAO:
         """
 
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         now = now_utc()
         uid = data.user
 
@@ -734,7 +737,7 @@ class MySQLOrderDAO:
             params["estimated_delivery_date"] = update_data.estimated_delivery_date
 
         has_child_updates = "items" in fields or "valet_decline_history" in fields
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             try:
                 rowcount = 0
@@ -766,7 +769,7 @@ class MySQLOrderDAO:
     async def delete(self, id: int) -> bool:
         if not id:
             return False
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             await session.execute(
                 text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
@@ -785,7 +788,7 @@ class MySQLOrderDAO:
 
     async def get_max_order_number_suffix(self, prefix: str) -> int:
         prefix_like = prefix + "%"
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(
                 text(
@@ -802,7 +805,7 @@ class MySQLOrderDAO:
     async def deleteMany(self, filter: Optional[OrderFilter] = None) -> int:
         """Delete matching orders and their child items/declines in SQL pushdown."""
         where_sql, params = self._build_query_conditions(filter)
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             await session.execute(
                 text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id IN (SELECT id FROM {self.TABLE} WHERE {where_sql})"),
@@ -821,7 +824,7 @@ class MySQLOrderDAO:
 
     async def count(self, filter: Optional[OrderFilter] = None) -> int:
         where_sql, params = self._build_query_conditions(filter)
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"), params)
             return int(result.scalar() or 0)
@@ -853,7 +856,7 @@ class MySQLOrderDAO:
         """
         params = {"start_date": start_date, "uid": uid}
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [(str(row.subcat), int(row.total_qty)) for row in result.fetchall() if row.subcat]
@@ -888,7 +891,7 @@ class MySQLOrderDAO:
         """
         sc_params["start_date"] = start_date
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), sc_params)
             return [(str(row.product_id), str(row.subcat), int(row.sales)) for row in result.fetchall()]
@@ -918,7 +921,7 @@ class MySQLOrderDAO:
         if start_date:
             params["start_date"] = start_date
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), params)
             return {str(row.pid) for row in result.fetchall() if row.pid}
@@ -945,7 +948,7 @@ class MySQLOrderDAO:
         params = {"start_date": start_date}
 
         exclude = exclude_product_ids or set()
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), params)
             out: List[str] = []
@@ -985,7 +988,7 @@ class MySQLOrderDAO:
         """
         params = {"start_date": start_date, "uid": uid, "limit": limit}
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [str(row.pid) for row in result.fetchall() if row.pid]
@@ -1015,7 +1018,7 @@ class MySQLOrderDAO:
         """
         params = {"start_date": start_date, "uid": uid, "limit": limit}
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [str(row.pid) for row in result.fetchall() if row.pid]
@@ -1061,7 +1064,7 @@ class MySQLOrderDAO:
             HAVING total_qty > 1
         """
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             result = await session.execute(text(sql), params)
             return [
@@ -1124,7 +1127,7 @@ class MySQLOrderDAO:
             GROUP BY pid
         """
 
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             geo_res = await session.execute(text(geo_sql), geo_params)
             states = set()
@@ -1182,7 +1185,7 @@ class MySQLOrderDAO:
             ORDER BY period ASC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             result = []
@@ -1229,7 +1232,7 @@ class MySQLOrderDAO:
             WHERE {where_sql}
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             r = (await session.execute(sql, params)).fetchone()
             gross = round(float(r.gross_sales or 0.0), 2) if r else 0.0
@@ -1281,7 +1284,7 @@ class MySQLOrderDAO:
             ORDER BY period ASC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1316,7 +1319,7 @@ class MySQLOrderDAO:
             WHERE {where_sql}
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             r = (await session.execute(sql, params)).fetchone()
             total_sales = round(float(r.total_sales or 0.0), 2) if r else 0.0
@@ -1367,7 +1370,7 @@ class MySQLOrderDAO:
             LIMIT :limit
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1406,7 +1409,7 @@ class MySQLOrderDAO:
             WHERE {where_sql}
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             r = (await session.execute(sql, params)).fetchone()
             if not r:
@@ -1456,7 +1459,7 @@ class MySQLOrderDAO:
             LIMIT :limit
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             result = []
@@ -1504,7 +1507,7 @@ class MySQLOrderDAO:
             ORDER BY cohort_month ASC, month_index ASC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql)).fetchall()
             result: List[CustomerCohortResponse] = []
@@ -1568,7 +1571,7 @@ class MySQLOrderDAO:
             LIMIT :limit
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1633,7 +1636,7 @@ class MySQLOrderDAO:
             ORDER BY total_orders DESC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             result = []
@@ -1697,7 +1700,7 @@ class MySQLOrderDAO:
             ORDER BY revenue DESC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1750,7 +1753,7 @@ class MySQLOrderDAO:
             LIMIT :limit
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1808,7 +1811,7 @@ class MySQLOrderDAO:
             ORDER BY o.created_at DESC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1863,7 +1866,7 @@ class MySQLOrderDAO:
             ORDER BY usage_count DESC
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [
@@ -1937,7 +1940,7 @@ class MySQLOrderDAO:
             LIMIT :limit
             """
         )
-        async_session = get_async_session_factory()
+        async_session = self._factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
             return [

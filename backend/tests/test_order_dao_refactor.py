@@ -167,8 +167,8 @@ def test_map_to_schema_direct_row_hydration():
         updated_at=datetime.now(timezone.utc),
     )
     item_rows = [
-        FakeRow(order_id=10, product_id="prod_1", quantity=2, price=50.0),
-        FakeRow(order_id=20, product_id="prod_other", quantity=1, price=100.0),
+        FakeRow(order_id=10, product_id=1, quantity=2, price=50.0),
+        FakeRow(order_id=20, product_id=2, quantity=1, price=100.0),
     ]
     decline_rows = [
         FakeRow(parent_id=10, valet_id="valet_a", reason="traffic"),
@@ -176,9 +176,9 @@ def test_map_to_schema_direct_row_hydration():
     ]
 
     mapped = dao._MySQLOrderDAO__map_to_schema(order_row, item_rows, decline_rows)
-    assert mapped.id == "10"
+    assert mapped.id == 10
     assert len(mapped.items) == 1
-    assert mapped.items[0].product_id == "prod_1"
+    assert mapped.items[0].product_id == 1
     assert mapped.items[0].quantity == 2
     assert len(mapped.valet_decline_history) == 1
     assert mapped.valet_decline_history[0].valet_id == "valet_a"
