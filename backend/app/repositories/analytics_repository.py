@@ -956,7 +956,6 @@ class AnalyticsRepository:
         filtered_tracking = await self.tracking_storage.find_by_date_range(None, start_date, end_date)
 
         users = await self.user_storage.findAll()
-        user_role_map = {u.id: u.role for u in users}
 
         from pydantic import BaseModel
         class RoleStats(BaseModel):
@@ -966,7 +965,8 @@ class AnalyticsRepository:
         role_stats = defaultdict(RoleStats)
         for t in filtered_tracking:
             uid = t.userId
-            role = (user_role_map[uid] if uid in user_role_map else ("guest" if not uid else "customer"))
+            user = next((u for u in users if u.id == uid), None) if uid else None
+            role = user.role if user and user.role else ("guest" if not uid else "customer")
 
             if t.type == "product_search":
                 role_stats[role].searches += 1
@@ -1056,9 +1056,7 @@ class AnalyticsRepository:
 
         all_returns = await return_request_repository.findAll()
         orders = await self.order_storage.findAll()
-        order_map = {o.id: o for o in orders}
         users = await self.user_storage.findAll()
-        user_map = {u.id: u for u in users}
 
         result = []
         for ret in all_returns:
@@ -1068,15 +1066,15 @@ class AnalyticsRepository:
             if end_date and created and created > end_date:
                 continue
 
-            if ret.order_id not in order_map or ret.userId not in user_map:
+            order = next((o for o in orders if o.id == ret.order_id), None) if ret.order_id else None
+            user = next((u for u in users if u.id == ret.userId), None) if ret.userId else None
+            if not order or not user:
                 continue
-            order = order_map[ret.order_id]
             # Seller scoping: skip returns not belonging to this seller
             if seller_id:
                 order_in_scope = self._filter_by_seller([order], seller_id)
                 if not order_in_scope:
                     continue
-            user = user_map[ret.userId]
             items = ret.items
             refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
 
@@ -1145,16 +1143,13 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll(order_filter)
         orders = self._filter_by_seller(orders, seller_id)
         products = await self.product_storage.findAll()
-        product_map = {p.id: p for p in products}
 
         category_stats: dict = {}
         for order in orders:
             for item in order.items:
                 product_id = item.product or item.product_id
-                if product_id and product_id in product_map:
-                    category = product_map[product_id].category or "Uncategorized"
-                else:
-                    category = "Uncategorized"
+                product = next((p for p in products if p.id == product_id), None) if product_id else None
+                category = (product.category or "Uncategorized") if product else "Uncategorized"
 
                 if category not in category_stats:
                     category_stats[category] = {"revenue": 0.0, "quantity": 0, "orders": set()}
