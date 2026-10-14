@@ -9,7 +9,9 @@ from app.models.analytics_schemas import (
     BounceRateResponse, RFMSegmentsResponse, CustomerFrequencyResponse,
     NetSalesResponse, SalesHeatmapResponse, InventoryRunwayResponse,
     DiscountsAuditResponse, ProductsPctSoldResponse, BundlePerformanceReportResponse,
-    SalesByChannelDetailedResponse, AllReportsSummaryResponse
+    SalesByChannelDetailedResponse, AllReportsSummaryResponse,
+    SalesOverTimeResponse, SalesBreakdownResponse, AverageOrderValueResponse,
+    SalesByChannelResponse, SalesByProductResponse
 )
 
 from app.models.user import User
@@ -109,38 +111,6 @@ class DashboardDataResponse(CamelBaseModel):
     most_viewed: List[MostViewedResponse] = Field(default_factory=list)
     last_updated_at_ist: Optional[str] = None
 
-
-class SalesOverTimeResponse(BaseModel):
-    period: str
-    sales: float
-    orderCount: int
-    aov: float
-
-class SalesBreakdownResponse(BaseModel):
-    gross_sales: float
-    discounts: float
-    returns: float
-    net_sales: float
-    shipping_charges: float
-    return_fees: float
-    taxes: float
-    total_sales: float
-
-class AverageOrderValueResponse(BaseModel):
-    period: str
-    average_order_value: float
-
-class SalesByChannelResponse(BaseModel):
-    channel: str
-    sales: float
-
-class SalesByProductResponse(BaseModel):
-    product_id: str
-    productId: str
-    name: str
-    productName: str
-    quantity: int
-    revenue: float
 
 class FunnelStage(BaseModel):
     count: int
@@ -405,29 +375,33 @@ async def get_average_order_value(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     group_by: str = Query("hour", pattern="^(hour|day|month)$"),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin")),
 ):
     """Get average order value over time"""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
-        return await analytics_repository.get_average_order_value_over_time(start, end, group_by)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_average_order_value_over_time(start, end, group_by, seller_id=eff_seller_id)
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sales-by-channel", response_model=List[ItemsByUserTypeResponse])
+@router.get("/sales-by-channel", response_model=List[SalesByChannelResponse])
 async def get_sales_by_channel(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    seller_id: Optional[int] = Query(None),
     current_user: User = Depends(require_roles("super_admin")),
 ):
     """Get sales by channel"""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
-        return await analytics_repository.get_sales_by_channel(start, end)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_sales_by_channel(start, end, seller_id=eff_seller_id)
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")

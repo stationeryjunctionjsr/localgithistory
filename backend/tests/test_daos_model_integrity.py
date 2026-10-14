@@ -519,3 +519,96 @@ async def test_coupon_user_matches_segment_behavior_relational():
         customer_segments_repository.has_user = orig_has_user
 
 
+@pytest.mark.asyncio
+async def test_analytics_batch_5_methods_model_integrity():
+    import inspect
+    from typing import List, Optional
+    from unittest.mock import AsyncMock
+    from app.repositories.analytics_repository import analytics_repository
+    from app.models.analytics_schemas import (
+        SalesOverTimeResponse,
+        AverageOrderValueResponse,
+        SalesByChannelResponse,
+        SalesByProductResponse,
+    )
+    from app.models.schemas import ProductSellerEntry
+    from app.models.order import Order, OrderItem
+    from app.models.product import Product
+
+    # Check method signatures and annotations
+    for method_name, expected_return in [
+        ("get_sales_over_time", List[SalesOverTimeResponse]),
+        ("get_average_order_value_over_time", List[AverageOrderValueResponse]),
+        ("get_sales_by_channel", List[SalesByChannelResponse]),
+        ("get_sales_by_product", List[SalesByProductResponse]),
+    ]:
+        fn = getattr(analytics_repository, method_name)
+        sig = inspect.signature(fn)
+        assert sig.return_annotation == expected_return, f"{method_name} return must be {expected_return}"
+        assert sig.parameters["seller_id"].annotation == Optional[int], f"{method_name} seller_id must be Optional[int]"
+
+    # Test runtime execution with mock data
+    mock_order = Order(
+        id=1,
+        total=150.0,
+        channel="mobile_web",
+        seller_id=10,
+        created_at="2026-03-15T10:00:00",
+        items=[
+            OrderItem(
+                product_id=50,
+                name="Notebook",
+                price=50.0,
+                quantity=3,
+            )
+        ],
+    )
+    mock_product = Product(
+        id=50,
+        product_id=50,
+        name="Notebook",
+        price=50.0,
+        stock=100,
+        sellers=[ProductSellerEntry(seller_id=10, request_status="approved")],
+    )
+
+    orig_order_findAll = analytics_repository.order_storage.findAll
+    orig_product_findAll = analytics_repository.product_storage.findAll
+    try:
+        analytics_repository.order_storage.findAll = AsyncMock(return_value=[mock_order])
+        analytics_repository.product_storage.findAll = AsyncMock(return_value=[mock_product])
+
+        # 1. get_sales_over_time
+        res_sot = await analytics_repository.get_sales_over_time(group_by="day", seller_id=10)
+        assert len(res_sot) == 1
+        assert isinstance(res_sot[0], SalesOverTimeResponse)
+        assert res_sot[0].sales == 150.0
+        assert res_sot[0].orderCount == 1
+        assert res_sot[0].aov == 150.0
+
+        # 2. get_average_order_value_over_time
+        res_aov = await analytics_repository.get_average_order_value_over_time(group_by="day", seller_id=10)
+        assert len(res_aov) == 1
+        assert isinstance(res_aov[0], AverageOrderValueResponse)
+        assert res_aov[0].average_order_value == 150.0
+
+        # 3. get_sales_by_channel
+        res_sbc = await analytics_repository.get_sales_by_channel(seller_id=10)
+        assert len(res_sbc) >= 3
+        assert all(isinstance(r, SalesByChannelResponse) for r in res_sbc)
+        mobile_web = next(r for r in res_sbc if r.channel == "mobile_web")
+        assert mobile_web.sales == 150.0
+
+        # 4. get_sales_by_product
+        res_sbp = await analytics_repository.get_sales_by_product(seller_id=10)
+        assert len(res_sbp) == 1
+        assert isinstance(res_sbp[0], SalesByProductResponse)
+        assert res_sbp[0].product_id == "50"
+        assert res_sbp[0].name == "Notebook"
+        assert res_sbp[0].quantity == 3
+        assert res_sbp[0].revenue == 150.0
+    finally:
+        analytics_repository.order_storage.findAll = orig_order_findAll
+        analytics_repository.product_storage.findAll = orig_product_findAll
+
+

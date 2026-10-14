@@ -2,7 +2,7 @@ from typing import Any
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from pathlib import Path
 import json
 import time
@@ -31,6 +31,10 @@ from app.models.analytics_schemas import (
     InventoryAlertResponse,
     NetSalesResponse,
     SalesHeatmapResponse,
+    SalesOverTimeResponse,
+    AverageOrderValueResponse,
+    SalesByChannelResponse,
+    SalesByProductResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -105,16 +109,18 @@ class AnalyticsRepository:
             user_id=str(user_id) if user_id else None,
         )
 
-    def _parse_date(self, date_str: str) -> Optional[datetime]:
-        """Parse date string to datetime object"""
-        if not date_str:
+    def _parse_date(self, date_val: Optional[Union[str, datetime]]) -> Optional[datetime]:
+        """Parse date string or datetime object to datetime object"""
+        if not date_val:
             return None
+        if isinstance(date_val, datetime):
+            return date_val
         try:
             # Handle ISO format with or without Z
-            date_str = date_str.replace("Z", "+00:00")
+            date_str = str(date_val).replace("Z", "+00:00")
             return datetime.fromisoformat(date_str)
         except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid date format: {date_str}") from e
+            raise ValueError(f"Invalid date format: {date_val}") from e
 
     def _to_naive_utc(self, dt: Optional[datetime]) -> Optional[datetime]:
         """Normalize to naive UTC for consistent arithmetic."""
@@ -185,14 +191,18 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
         group_by: str = "hour",
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[SalesOverTimeResponse]:
         """Get sales over time, grouped by hour, day, or month"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
         orders = self._filter_by_seller(orders, seller_id)
 
+        class PeriodSalesStat(BaseModel):
+            period: str
+            sales: float = 0.0
+            order_count: int = 0
 
-        sales_by_period = {}
+        period_stats: List[PeriodSalesStat] = []
 
         for order in orders:
             order_date = self._parse_date(order.created_at)
@@ -208,19 +218,29 @@ class AnalyticsRepository:
             else:
                 period_key = order_date.strftime("%Y-%m-%d")
 
-            if period_key not in sales_by_period:
-                sales_by_period[period_key] = {"sales": 0.0, "orderCount": 0}
+            stat = next((s for s in period_stats if s.period == period_key), None)
+            if not stat:
+                stat = PeriodSalesStat(period=period_key)
+                period_stats.append(stat)
 
-            sales_by_period[period_key]["sales"] += order.total
-            sales_by_period[period_key]["orderCount"] += 1
+            stat.sales += (order.total or 0.0)
+            stat.order_count += 1
 
-        # Convert to list and sort
-        result = []
-        for period, data in sorted(sales_by_period.items()):
-            sales = round(data.sales, 2)
-            orders_count = data.orderCount
-            aov = round(sales / orders_count, 2) if orders_count > 0 else 0
-            result.append({"period": period, "sales": sales, "orderCount": orders_count, "aov": aov})
+        period_stats.sort(key=lambda s: s.period)
+
+        result: List[SalesOverTimeResponse] = []
+        for s in period_stats:
+            sales = round(s.sales, 2)
+            orders_count = s.order_count
+            aov = round(sales / orders_count, 2) if orders_count > 0 else 0.0
+            result.append(
+                SalesOverTimeResponse(
+                    period=s.period,
+                    sales=sales,
+                    orderCount=orders_count,
+                    aov=aov,
+                )
+            )
 
         return result
 
@@ -268,18 +288,23 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_average_order_value_over_time(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, group_by: str = "hour"
-    ) -> List[Dict]:
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        group_by: str = "hour",
+        seller_id: Optional[int] = None,
+    ) -> List[AverageOrderValueResponse]:
         """Get average order value over time"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
+        orders = self._filter_by_seller(orders, seller_id)
 
-        from pydantic import BaseModel
-        class OrderPeriodStats(BaseModel):
+        class OrderPeriodStat(BaseModel):
+            period: str
             total: float = 0.0
             count: int = 0
 
-        orders_by_period = defaultdict(OrderPeriodStats)
+        period_stats: List[OrderPeriodStat] = []
 
         for order in orders:
             order_date = self._parse_date(order.created_at)
@@ -295,36 +320,61 @@ class AnalyticsRepository:
             else:
                 period_key = order_date.strftime("%Y-%m-%d")
 
-            orders_by_period[period_key].total += order.total
-            orders_by_period[period_key].count += 1
+            stat = next((s for s in period_stats if s.period == period_key), None)
+            if not stat:
+                stat = OrderPeriodStat(period=period_key)
+                period_stats.append(stat)
 
-        result = [
-            {"period": period, "average_order_value": data.total / data.count if data.count > 0 else 0}
-            for period, data in sorted(orders_by_period.items())
+            stat.total += (order.total or 0.0)
+            stat.count += 1
+
+        period_stats.sort(key=lambda s: s.period)
+
+        return [
+            AverageOrderValueResponse(
+                period=s.period,
+                average_order_value=round(s.total / s.count, 2) if s.count > 0 else 0.0,
+            )
+            for s in period_stats
         ]
-
-        return result
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_channel(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[SalesByChannelResponse]:
         """Get sales by sales channel"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
+        orders = self._filter_by_seller(orders, seller_id)
 
-        sales_by_channel = {"desktop_web": 0, "mobile_web": 0, "mobile_app": 0}
+        class ChannelStat(BaseModel):
+            channel: str
+            sales: float = 0.0
+
+        channel_stats: List[ChannelStat] = [
+            ChannelStat(channel="desktop_web"),
+            ChannelStat(channel="mobile_web"),
+            ChannelStat(channel="mobile_app"),
+        ]
 
         for order in orders:
-            # Determine channel from order data
-            channel = order.channel
-            if channel not in sales_by_channel:
-                channel = "desktop_web"
-            sales_by_channel[channel] += order.total
+            ch_name = order.channel or "desktop_web"
+            c_stat = next((cs for cs in channel_stats if cs.channel == ch_name), None)
+            if not c_stat:
+                c_stat = ChannelStat(channel=ch_name)
+                channel_stats.append(c_stat)
+            c_stat.sales += (order.total or 0.0)
 
-        result = [{"channel": channel, "sales": sales} for channel, sales in sales_by_channel.items()]
-
-        return result
+        return [
+            SalesByChannelResponse(
+                channel=cs.channel,
+                sales=round(cs.sales, 2),
+            )
+            for cs in channel_stats
+        ]
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_product(
@@ -333,21 +383,23 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
         limit: int = 10,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[SalesByProductResponse]:
         """Get top products by sales"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         orders = await self.order_storage.findAll(order_filter)
         orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
+        if seller_id:
+            products = [p for p in products if p.has_seller(seller_id)]
 
-        from pydantic import BaseModel
-        class ProductSalesStats(BaseModel):
+        class ProductSalesStat(BaseModel):
+            product_id: int
+            name: str
             quantity: int = 0
             revenue: float = 0.0
-            name: str = "Unknown Product"
 
-        product_sales = defaultdict(ProductSalesStats)
+        product_stats: List[ProductSalesStat] = []
 
         for order in orders:
             for item in order.items:
@@ -359,30 +411,31 @@ class AnalyticsRepository:
                 if not product:
                     continue
 
-                quantity = item.quantity
-                subtotal = (item.price * item.quantity)
+                stat = next((s for s in product_stats if s.product_id == product.id), None)
+                if not stat:
+                    stat = ProductSalesStat(
+                        product_id=product.id,
+                        name=product.name or "Unknown Product",
+                    )
+                    product_stats.append(stat)
 
-                product_sales[product_id].quantity += quantity
-                product_sales[product_id].revenue += subtotal
-                product_sales[product_id].name = product.name
+                quantity = item.quantity or 0
+                subtotal = (item.price or 0.0) * quantity
 
-        result = [
-            {
-                "product_id": product_id,
-                "productId": product_id,
-                "name": data.name,
-                "productName": data.name,
-                "quantity": data.quantity,
-                "revenue": data.revenue,
-            }
-            for product_id, data in sorted(
-                product_sales.items(),
-                key=lambda x: (x[1].quantity, x[1].revenue),
-                reverse=True,
+                stat.quantity += quantity
+                stat.revenue = round(stat.revenue + subtotal, 2)
+
+        product_stats.sort(key=lambda x: (x.quantity, x.revenue), reverse=True)
+
+        return [
+            SalesByProductResponse(
+                product_id=str(stat.product_id),
+                name=stat.name,
+                quantity=stat.quantity,
+                revenue=round(stat.revenue, 2),
             )
-        ][:limit]
-
-        return result
+            for stat in product_stats[:limit]
+        ]
 
     @cache.ttl_cache(ttl=300)
     async def get_conversion_rate_over_time(

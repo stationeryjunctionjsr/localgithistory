@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Optional
+from typing import Any, List, Optional
 from app.models.base import CamelBaseModel
 
 
@@ -349,9 +349,14 @@ class SalesByChannelResponse(CamelBaseModel):
 class SalesByProductResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     product_id: str
+    product_name: Optional[str] = None
     name: str
     quantity: int
     revenue: float
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.product_name is None:
+            self.product_name = self.name
 
 
 

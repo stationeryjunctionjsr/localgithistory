@@ -31,6 +31,7 @@ class Order(CamelBaseModel):
     shipping: Optional[float] = None
     discount: Optional[float] = None
     order_type: Optional[str] = None
+    channel: Optional[str] = "desktop_web"
     payment_status: Optional[str] = None
     seller_id: Optional[int] = None
     payment_method: Optional[str] = None
