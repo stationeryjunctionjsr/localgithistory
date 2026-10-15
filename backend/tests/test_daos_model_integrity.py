@@ -829,4 +829,260 @@ async def test_analytics_batch_6_methods_model_integrity():
         analytics_repository.order_storage.get_fulfillment_time_report_stats = orig_ft
 
 
+@pytest.mark.asyncio
+async def test_analytics_repository_next_10_methods_model_integrity():
+    from app.repositories.analytics_repository import analytics_repository
+    from app.db.mysql_order_dao import MySQLOrderDAO
+    from app.models.analytics_schemas import (
+        CouponUsageReportResponse,
+        SalesByLocationReportResponse,
+        NewVsReturningCustomerSalesResponse,
+        ItemsBoughtTogetherResponse,
+        SalesByDeviceReportResponse,
+        SearchesNoClicksResponse,
+        SearchConversionResponse,
+        BounceRateResponse,
+        SessionsOverTimeResponse,
+        SessionsByDeviceResponse,
+    )
+    from app.models.tracking import Tracking
+    from app.models.session import Session
+    from app.models.daos import DeviceSnippet
+    import inspect
+    from typing import Optional, List
+    from unittest.mock import AsyncMock
+
+    # 1. Verify signatures and return annotations on analytics_repository
+    expected_sigs = [
+        ("get_coupon_usage_report", List[CouponUsageReportResponse]),
+        ("get_sales_by_location", List[SalesByLocationReportResponse]),
+        ("get_new_vs_returning_customer_sales", List[NewVsReturningCustomerSalesResponse]),
+        ("get_items_bought_together", List[ItemsBoughtTogetherResponse]),
+        ("get_sales_by_device_type", List[SalesByDeviceReportResponse]),
+        ("get_searches_with_no_clicks", List[SearchesNoClicksResponse]),
+        ("get_search_conversion_rate", List[SearchConversionResponse]),
+        ("get_bounce_rate_over_time", List[BounceRateResponse]),
+        ("get_sessions_over_time", List[SessionsOverTimeResponse]),
+        ("get_sessions_by_device_type", List[SessionsByDeviceResponse]),
+    ]
+    for method_name, expected_return in expected_sigs:
+        fn = getattr(analytics_repository, method_name)
+        sig = inspect.signature(fn)
+        assert sig.return_annotation == expected_return, f"{method_name} return must be {expected_return}"
+
+    # 2. Verify seller_id is Optional[int]
+    for method_name in [
+        "get_coupon_usage_report",
+        "get_sales_by_location",
+        "get_searches_with_no_clicks",
+        "get_search_conversion_rate",
+        "get_bounce_rate_over_time",
+        "get_sessions_over_time",
+    ]:
+        fn = getattr(analytics_repository, method_name)
+        sig = inspect.signature(fn)
+        assert sig.parameters["seller_id"].annotation == Optional[int], f"{method_name} seller_id must be Optional[int]"
+
+    # 3. Verify MySQLOrderDAO signatures
+    for dao_method in ["get_coupon_usage_report_stats", "get_sales_by_location_stats"]:
+        fn = getattr(MySQLOrderDAO, dao_method)
+        sig = inspect.signature(fn)
+        assert sig.parameters["seller_id"].annotation == Optional[int], f"{dao_method} seller_id must be Optional[int]"
+
+    # 4. Verify ItemsBoughtTogetherResponse IDs are native int
+    assert ItemsBoughtTogetherResponse.model_fields["productAId"].annotation is int
+    assert ItemsBoughtTogetherResponse.model_fields["productBId"].annotation is int
+
+    # 5. Test runtime execution of Methods 1-5 (Order DAO pushdowns)
+    orig_coupon = getattr(analytics_repository.order_storage, "get_coupon_usage_report_stats", None)
+    orig_loc = getattr(analytics_repository.order_storage, "get_sales_by_location_stats", None)
+    orig_nvr = getattr(analytics_repository.order_storage, "get_new_vs_returning_customer_stats", None)
+    orig_ibt = getattr(analytics_repository.order_storage, "get_items_bought_together_stats", None)
+    orig_sbd = getattr(analytics_repository.order_storage, "get_sales_by_device_type_stats", None)
+
+    try:
+        analytics_repository.order_storage.get_coupon_usage_report_stats = AsyncMock(
+            return_value=[
+                CouponUsageReportResponse(
+                    couponCode="WELCOME10",
+                    discountType="percentage",
+                    discountValue=10.0,
+                    usageCount=5,
+                    totalDiscountGiven=50.0,
+                    totalRevenue=450.0,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_sales_by_location_stats = AsyncMock(
+            return_value=[
+                SalesByLocationReportResponse(
+                    location="Jamshedpur, Jharkhand",
+                    orderCount=10,
+                    quantity=25,
+                    revenue=2500.0,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_new_vs_returning_customer_stats = AsyncMock(
+            return_value=[
+                NewVsReturningCustomerSalesResponse(
+                    customerType="New Customers",
+                    orderCount=7,
+                    revenue=1500.0,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_items_bought_together_stats = AsyncMock(
+            return_value=[
+                ItemsBoughtTogetherResponse(
+                    productAId=10,
+                    productAName="Notebook",
+                    productBId=20,
+                    productBName="Gel Pen",
+                    frequency=8,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_sales_by_device_type_stats = AsyncMock(
+            return_value=[
+                SalesByDeviceReportResponse(
+                    deviceType="mobile",
+                    orderCount=12,
+                    revenue=3000.0,
+                )
+            ]
+        )
+
+        # Execute Methods 1-5
+        res_coupon = await analytics_repository.get_coupon_usage_report(seller_id=10)
+        assert len(res_coupon) == 1
+        assert isinstance(res_coupon[0], CouponUsageReportResponse)
+        assert res_coupon[0].couponCode == "WELCOME10"
+
+        res_loc = await analytics_repository.get_sales_by_location(limit=10, seller_id=10)
+        assert len(res_loc) == 1
+        assert isinstance(res_loc[0], SalesByLocationReportResponse)
+        assert res_loc[0].location == "Jamshedpur, Jharkhand"
+
+        res_nvr = await analytics_repository.get_new_vs_returning_customer_sales()
+        assert len(res_nvr) == 1
+        assert isinstance(res_nvr[0], NewVsReturningCustomerSalesResponse)
+        assert res_nvr[0].customerType == "New Customers"
+
+        res_ibt = await analytics_repository.get_items_bought_together(limit=5)
+        assert len(res_ibt) == 1
+        assert isinstance(res_ibt[0], ItemsBoughtTogetherResponse)
+        assert res_ibt[0].productAId == 10
+        assert isinstance(res_ibt[0].productAId, int)
+        assert res_ibt[0].productBId == 20
+        assert isinstance(res_ibt[0].productBId, int)
+
+        res_sbd = await analytics_repository.get_sales_by_device_type()
+        assert len(res_sbd) == 1
+        assert isinstance(res_sbd[0], SalesByDeviceReportResponse)
+        assert res_sbd[0].deviceType == "mobile"
+
+    finally:
+        analytics_repository.order_storage.get_coupon_usage_report_stats = orig_coupon
+        analytics_repository.order_storage.get_sales_by_location_stats = orig_loc
+        analytics_repository.order_storage.get_new_vs_returning_customer_stats = orig_nvr
+        analytics_repository.order_storage.get_items_bought_together_stats = orig_ibt
+        analytics_repository.order_storage.get_sales_by_device_type_stats = orig_sbd
+
+    # 6. Test runtime execution of Methods 6-10 (Tracking and session reports)
+    orig_find_date = analytics_repository.tracking_storage.find_by_date_range
+    orig_find_all_track = analytics_repository.tracking_storage.findAll
+    orig_find_all_orders = analytics_repository.order_storage.findAll
+    orig_find_all_sessions = analytics_repository.session_storage.findAll
+
+    try:
+        # 6. get_searches_with_no_clicks
+        mock_searches = [
+            Tracking(session_id="s1", search_term="gel pen", results_count=5),
+            Tracking(session_id="s2", search_term="gel pen", results_count=3),
+            Tracking(session_id="s3", search_term="notebook", results_count=10),
+        ]
+        # s3 had a click
+        mock_clicks = [Tracking(session_id="s3", type="product_click")]
+
+        analytics_repository.tracking_storage.find_by_date_range = AsyncMock(return_value=mock_searches)
+        analytics_repository.tracking_storage.findAll = AsyncMock(return_value=mock_clicks)
+
+        res_snc = await analytics_repository.get_searches_with_no_clicks()
+        assert len(res_snc) == 1
+        assert isinstance(res_snc[0], SearchesNoClicksResponse)
+        assert res_snc[0].term == "gel pen"
+        assert res_snc[0].searchCount == 2
+        assert res_snc[0].totalResults == 8
+        assert res_snc[0].avgResults == 4.0
+
+        # 7. get_search_conversion_rate
+        from app.models.order import Order
+        mock_orders = [Order(id=1, session_id="s1")]
+        analytics_repository.order_storage.findAll = AsyncMock(return_value=mock_orders)
+
+        res_scr = await analytics_repository.get_search_conversion_rate()
+        assert len(res_scr) == 1
+        assert isinstance(res_scr[0], SearchConversionResponse)
+        assert res_scr[0].totalSearchSessions == 3
+        assert res_scr[0].convertedSessions == 1
+        assert res_scr[0].nonConvertedSessions == 2
+        assert res_scr[0].conversionRate == 33.33
+
+        # 8. get_bounce_rate_over_time
+        mock_page_views = [
+            Tracking(session_id="s1", timestamp="2026-03-15T10:00:00Z"),
+            Tracking(session_id="s1", timestamp="2026-03-15T10:05:00Z"),
+            Tracking(session_id="s2", timestamp="2026-03-15T11:00:00Z"),
+        ]
+        analytics_repository.tracking_storage.find_by_date_range = AsyncMock(return_value=mock_page_views)
+
+        res_br = await analytics_repository.get_bounce_rate_over_time()
+        assert len(res_br) == 1
+        assert isinstance(res_br[0], BounceRateResponse)
+        assert res_br[0].period == "2026-03-15"
+        assert res_br[0].totalSessions == 2
+        assert res_br[0].bouncedSessions == 1
+        assert res_br[0].bounceRate == 50.0
+
+        # 9. get_sessions_over_time
+        mock_sessions_track = [
+            Tracking(session_id="s1", user_id="u1", timestamp="2026-03-15T10:00:00Z"),
+            Tracking(session_id="s2", user_id="u1", timestamp="2026-03-15T12:00:00Z"),
+            Tracking(session_id="s3", user_id="u2", timestamp="2026-03-15T14:00:00Z"),
+        ]
+        analytics_repository.tracking_storage.find_by_date_range = AsyncMock(return_value=mock_sessions_track)
+
+        res_sot = await analytics_repository.get_sessions_over_time()
+        assert len(res_sot) == 1
+        assert isinstance(res_sot[0], SessionsOverTimeResponse)
+        assert res_sot[0].period == "2026-03-15"
+        assert res_sot[0].sessions == 3
+        assert res_sot[0].uniqueVisitors == 2
+
+        # 10. get_sessions_by_device_type
+        mock_sessions = [
+            Session(id=1, device=DeviceSnippet(type="mobile")),
+            Session(id=2, device=DeviceSnippet(type="mobile")),
+            Session(id=3, device=DeviceSnippet(type="desktop")),
+            Session(id=4, device=None),
+        ]
+        analytics_repository.session_storage.findAll = AsyncMock(return_value=mock_sessions)
+
+        res_dev = await analytics_repository.get_sessions_by_device_type()
+        assert len(res_dev) == 2
+        assert isinstance(res_dev[0], SessionsByDeviceResponse)
+        assert res_dev[0].device == "desktop"
+        assert res_dev[0].sessions == 2
+        assert res_dev[1].device == "mobile"
+        assert res_dev[1].sessions == 2
+
+    finally:
+        analytics_repository.tracking_storage.find_by_date_range = orig_find_date
+        analytics_repository.tracking_storage.findAll = orig_find_all_track
+        analytics_repository.order_storage.findAll = orig_find_all_orders
+        analytics_repository.session_storage.findAll = orig_find_all_sessions
+
+
+
 

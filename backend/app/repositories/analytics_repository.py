@@ -41,6 +41,16 @@ from app.models.analytics_schemas import (
     RevenueByCategoryResponse,
     FulfillmentTimeReportResponse,
     SalesBreakdownResponse,
+    CouponUsageReportResponse,
+    SalesByLocationReportResponse,
+    NewVsReturningCustomerSalesResponse,
+    ItemsBoughtTogetherResponse,
+    SalesByDeviceReportResponse,
+    SearchesNoClicksResponse,
+    SearchConversionResponse,
+    BounceRateResponse,
+    SessionsOverTimeResponse,
+    SessionsByDeviceResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -391,15 +401,15 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_device_type(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[SessionsByDeviceResponse]:
         """Get sessions by device type"""
         sessions = await self.session_storage.findAll()
         sessions = self._filter_by_date_range(sessions, start_date, end_date)
         device_counts = defaultdict(int)
         for s in sessions:
-            device_type = (s.device["type"] if "type" in s.device else "desktop") if s.device else "desktop"
+            device_type = (s.device.type or s.device.deviceType or "desktop") if s.device else "desktop"
             device_counts[device_type] += 1
-        return [{"device": k, "sessions": v} for k, v in device_counts.items()]
+        return [SessionsByDeviceResponse(device=k, sessions=v) for k, v in sorted(device_counts.items())]
 
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_location(
@@ -943,37 +953,11 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[CouponUsageReportResponse]:
         """Aggregate coupon usage: how many orders used each coupon and total discount given."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        coupon_stats: dict = {}
-        for order in orders:
-            code = order.coupon_code
-            if not code:
-                continue
-            if code not in coupon_stats:
-                coupon_info = order.couponInfo or {}
-                coupon_stats[code] = {
-                    "couponCode": code,
-                    "discountType": coupon_info.discountType,
-                    "discountValue": coupon_info.discountValue,
-                    "usageCount": 0,
-                    "totalDiscountGiven": 0.0,
-                    "totalRevenue": 0.0,
-                }
-            coupon_stats[code]["usageCount"] += 1
-            coupon_stats[code]["totalDiscountGiven"] += order.discount or 0
-            coupon_stats[code]["totalRevenue"] += order.total
-
-        result = list(coupon_stats.values())
-        for item in result:
-            item.totalDiscountGiven = round(item.totalDiscountGiven, 2)
-            item.totalRevenue = round(item.totalRevenue, 2)
-
-        return sorted(result, key=lambda x: x["usageCount"], reverse=True)
+        return await self.order_storage.get_coupon_usage_report_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_location(
@@ -982,180 +966,38 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
         limit: int = 100,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[SalesByLocationReportResponse]:
         """Aggregate sales by shipping address city/state."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        location_stats: dict = {}
-        for order in orders:
-            # We only count completed/delivered/shipped orders
-            if order.status not in ["delivered", "completed", "shipped", "dispatched"]:
-                continue
-
-            shipping = order.shipping_address or {}
-            city = shipping.city
-            state = shipping.state
-
-            if not city and not state:
-                location = "Unknown"
-            elif city and state:
-                location = f"{city}, {state}"
-            else:
-                location = city or state
-
-            if location not in location_stats:
-                location_stats[location] = {"location": location, "revenue": 0.0, "orderCount": 0, "quantity": 0}
-
-            location_stats[location]["revenue"] += order.total
-            location_stats[location]["orderCount"] += 1
-            for item in order.items:
-                location_stats[location]["quantity"] += item.quantity
-
-        result = list(location_stats.values())
-        for item in result:
-            item.revenue = round(item.revenue, 2)
-
-        return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
+        return await self.order_storage.get_sales_by_location_stats(
+            start_date=start_date, end_date=end_date, limit=limit, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_new_vs_returning_customer_sales(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[NewVsReturningCustomerSalesResponse]:
         """Compare revenue and orders from new customers (1 order) vs returning customers (>1 order)."""
-        orders = await self.order_storage.findAll()
-        # Find all orders ever to determine user's global order count
-        user_total_orders = defaultdict(int)
-        for order in orders:
-            user_id = order.user
-            if user_id:
-                user_total_orders[user_id] += 1
-
-        # Now filter for the period
-        period_orders = self._filter_by_date_range(orders, start_date, end_date)
-
-        stats = {
-            "New Customers": {"customerType": "New Customers", "revenue": 0.0, "orderCount": 0},
-            "Returning Customers": {"customerType": "Returning Customers", "revenue": 0.0, "orderCount": 0},
-        }
-
-        for order in period_orders:
-            # We only count active orders
-            if order.status in ["cancelled", "declined"]:
-                continue
-
-            user_id = order.user
-            if not user_id:
-                continue
-
-            ctype = "New Customers" if user_total_orders[user_id] == 1 else "Returning Customers"
-            stats[ctype]["revenue"] += order.total
-            stats[ctype]["orderCount"] += 1
-
-        result = [stats["New Customers"], stats["Returning Customers"]]
-        for item in result:
-            item.revenue = round(item.revenue, 2)
-
-        return result
+        return await self.order_storage.get_new_vs_returning_customer_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_items_bought_together(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 50
-    ) -> List[Dict]:
+    ) -> List[ItemsBoughtTogetherResponse]:
         """Market basket analysis: find pairs of products frequently bought together."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        products = await self.product_storage.findAll()
-
-        pair_counts = defaultdict(int)
-
-        for order in orders:
-            # We only count active orders
-            if order.status in ["cancelled", "declined"]:
-                continue
-
-            items = order.items
-            # Extract unique product IDs in this order
-            product_ids = list(
-                set(
-                    item.product or item.product_id
-                    for item in items
-                    if (item.product or item.product_id)
-                )
-            )
-
-            # Generate all unique pairs
-            for i in range(len(product_ids)):
-                for j in range(i + 1, len(product_ids)):
-                    # Sort to ensure (A,B) is the same as (B,A)
-                    pair = tuple(sorted([product_ids[i], product_ids[j]]))
-                    pair_counts[pair] += 1
-
-        result = []
-        for (prod_a_id, prod_b_id), count in pair_counts.items():
-            product_a = next((p for p in products if p.id == prod_a_id), None) if prod_a_id else None
-            product_b = next((p for p in products if p.id == prod_b_id), None) if prod_b_id else None
-            if not product_a or not product_b:
-                continue
-
-            result.append(
-                {
-                    "productAId": prod_a_id,
-                    "productAName": product_a.name,
-                    "productBId": prod_b_id,
-                    "productBName": product_b.name,
-                    "frequency": count,
-                }
-            )
-
-        return sorted(result, key=lambda x: x["frequency"], reverse=True)[:limit]
+        return await self.order_storage.get_items_bought_together_stats(
+            start_date=start_date, end_date=end_date, limit=limit
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_device_type(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[SalesByDeviceReportResponse]:
         """Aggregate sales by the user's device type. Note: Depends on device tracking mapping to orders."""
-        # For this we need to match orders to sessions or user agents.
-        # Since orders don't directly store deviceType, we can try to find a session match or fallback
-        # Let's see if orders have sessionId
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        sessions = await self.session_storage.findAll()
-
-        stats = {
-            "desktop": {"deviceType": "desktop", "revenue": 0.0, "orderCount": 0},
-            "mobile": {"deviceType": "mobile", "revenue": 0.0, "orderCount": 0},
-            "tablet": {"deviceType": "tablet", "revenue": 0.0, "orderCount": 0},
-            "unknown": {"deviceType": "unknown", "revenue": 0.0, "orderCount": 0},
-        }
-
-        for order in orders:
-            if order.status in ["cancelled", "declined"]:
-                continue
-
-            session_id = order.session_id
-            device_type = "unknown"
-            session_obj = next((s for s in sessions if s.session_id == session_id), None) if session_id else None
-            if session_obj:
-                s_device = session_obj.device or {}
-                device_type = (s_device["type"] if "type" in s_device else "unknown").lower()
-
-            if device_type not in stats:
-                device_type = "unknown"
-
-            stats[device_type]["revenue"] += order.total
-            stats[device_type]["orderCount"] += 1
-
-        result = list(stats.values())
-        # Filter out zeroes
-        result = [r for r in result if r.orderCount > 0]
-        for item in result:
-            item.revenue = round(item.revenue, 2)
-
-        return sorted(result, key=lambda x: x["revenue"], reverse=True)
+        return await self.order_storage.get_sales_by_device_type_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_top_returned_products(
@@ -1283,26 +1125,30 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[SessionsOverTimeResponse]:
         """Daily session count and unique visitor count from tracking data."""
         sessions = await self.tracking_storage.find_by_date_range("session", start_date, end_date)
 
-        by_day: dict = {}
+        by_day_sessions = defaultdict(int)
+        by_day_visitors = defaultdict(set)
         for s in sessions:
             ts = self._parse_date(s.timestamp)
             if not ts:
                 continue
             day = ts.strftime("%Y-%m-%d")
-            if day not in by_day:
-                by_day[day] = {"sessions": 0, "visitors": set()}
-            by_day[day]["sessions"] += 1
-            uid = s.userId
+            by_day_sessions[day] += 1
+            uid = s.user_id or s.session_id
             if uid:
-                by_day[day]["visitors"].add(uid)
+                by_day_visitors[day].add(uid)
 
         return [
-            {"period": day, "sessions": data.sessions, "uniqueVisitors": len(data.visitors)}
-            for day, data in sorted(by_day.items())
+            SessionsOverTimeResponse(
+                period=day,
+                sessions=by_day_sessions[day],
+                visitors=len(by_day_visitors[day]),
+                uniqueVisitors=len(by_day_visitors[day]),
+            )
+            for day in sorted(by_day_sessions.keys())
         ]
 
     @cache.ttl_cache(ttl=30)
@@ -1322,7 +1168,7 @@ class AnalyticsRepository:
             if not sid:
                 continue
             active.add(sid)
-            if s.userId:
+            if s.user_id:
                 logged_in.add(sid)
             else:
                 guest.add(sid)
@@ -1340,14 +1186,15 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[SearchesNoClicksResponse]:
         """Search terms whose sessions never produced a product_click event."""
         searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
 
         clicks = await self.tracking_storage.findAll({"type": "product_click"})
         clicked_sessions = {c.session_id for c in clicks if c.session_id}
 
-        term_stats: dict = {}
+        term_counts = defaultdict(int)
+        term_results = defaultdict(int)
         for s in searches:
             sid = s.session_id
             if sid in clicked_sessions:
@@ -1355,20 +1202,19 @@ class AnalyticsRepository:
             term = (s.search_term or "").strip().lower()
             if not term:
                 continue
-            if term not in term_stats:
-                term_stats[term] = {"searchCount": 0, "totalResults": 0}
-            term_stats[term]["searchCount"] += 1
-            term_stats[term]["totalResults"] += s.results_count
+            term_counts[term] += 1
+            term_results[term] += (s.results_count or 0)
 
         result = [
-            {
-                "term": term,
-                "searchCount": data.searchCount,
-                "avgResults": round(data.totalResults / data.searchCount, 1) if data.searchCount else 0,
-            }
-            for term, data in term_stats.items()
+            SearchesNoClicksResponse(
+                term=term,
+                searchCount=count,
+                totalResults=term_results[term],
+                avgResults=round(term_results[term] / count, 1) if count else 0.0,
+            )
+            for term, count in term_counts.items()
         ]
-        return sorted(result, key=lambda x: x["searchCount"], reverse=True)
+        return sorted(result, key=lambda x: x.searchCount, reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_search_conversion_rate(
@@ -1376,7 +1222,7 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[SearchConversionResponse]:
         """Percentage of sessions that searched AND placed an order."""
         searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
         search_sessions = {s.session_id for s in searches if s.session_id}
@@ -1391,12 +1237,12 @@ class AnalyticsRepository:
         rate = round(converted / total * 100, 2) if total > 0 else 0.0
 
         return [
-            {
-                "totalSearchSessions": total,
-                "convertedSessions": converted,
-                "nonConvertedSessions": not_converted,
-                "conversionRate": rate,
-            }
+            SearchConversionResponse(
+                totalSearchSessions=total,
+                convertedSessions=converted,
+                nonConvertedSessions=not_converted,
+                conversionRate=rate,
+            )
         ]
 
     @cache.ttl_cache(ttl=300)
@@ -1405,13 +1251,13 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         seller_id: Optional[int] = None,
-    ) -> List[Dict]:
+    ) -> List[BounceRateResponse]:
         """Daily bounce rate: sessions with only 1 page view / total sessions."""
         page_views = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
 
         # Count page views per (day, sessionId)
-        session_day: dict = {}  # sid -> day
-        session_views: dict = {}  # sid -> count
+        session_day: dict[str, str] = {}  # sid -> day
+        session_views = defaultdict(int)  # sid -> count
         for pv in page_views:
             sid = pv.session_id
             ts = self._parse_date(pv.timestamp)
@@ -1419,24 +1265,23 @@ class AnalyticsRepository:
                 continue
             day = ts.strftime("%Y-%m-%d")
             session_day.setdefault(sid, day)
-            session_views[sid] = (session_views[sid] if sid in session_views else 0) + 1
+            session_views[sid] += 1
 
-        by_day: dict = {}
+        by_day_total = defaultdict(int)
+        by_day_bounced = defaultdict(int)
         for sid, day in session_day.items():
-            if day not in by_day:
-                by_day[day] = {"total": 0, "bounced": 0}
-            by_day[day]["total"] += 1
-            if (session_views[sid] if sid in session_views else 0) <= 1:
-                by_day[day]["bounced"] += 1
+            by_day_total[day] += 1
+            if session_views[sid] <= 1:
+                by_day_bounced[day] += 1
 
         return [
-            {
-                "period": day,
-                "totalSessions": data.total,
-                "bouncedSessions": data.bounced,
-                "bounceRate": round(data.bounced / data.total * 100, 1) if data.total else 0.0,
-            }
-            for day, data in sorted(by_day.items())
+            BounceRateResponse(
+                period=day,
+                totalSessions=by_day_total[day],
+                bouncedSessions=by_day_bounced[day],
+                bounceRate=round(by_day_bounced[day] / by_day_total[day] * 100, 1) if by_day_total[day] else 0.0,
+            )
+            for day in sorted(by_day_total.keys())
         ]
 
     @cache.ttl_cache(ttl=600)

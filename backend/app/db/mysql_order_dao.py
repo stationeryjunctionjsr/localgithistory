@@ -1837,7 +1837,7 @@ class MySQLOrderDAO:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[CouponUsageReportResponse]:
         where_clauses = ["so.coupon_code IS NOT NULL", "so.coupon_code != ''"]
         params = {}
@@ -1891,7 +1891,7 @@ class MySQLOrderDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 100,
-        seller_id: Optional[str] = None,
+        seller_id: Optional[int] = None,
     ) -> List[SalesByLocationReportResponse]:
         where_clauses = ["o.status IN ('delivered', 'completed', 'shipped', 'dispatched')"]
         params = {"limit": limit}
@@ -2422,9 +2422,9 @@ class MySQLOrderDAO:
         sql = text(
             f"""
             SELECT 
-                CAST(i1.product_id AS CHAR) AS product_a_id,
+                i1.product_id AS product_a_id,
                 COALESCE(p1.name, 'Unknown') AS product_a_name,
-                CAST(i2.product_id AS CHAR) AS product_b_id,
+                i2.product_id AS product_b_id,
                 COALESCE(p2.name, 'Unknown') AS product_b_name,
                 COUNT(DISTINCT o.id) AS frequency
             FROM {self.ITEMS_TABLE} i1
@@ -2443,9 +2443,9 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             return [
                 ItemsBoughtTogetherResponse(
-                    productAId=r.product_a_id,
+                    productAId=int(r.product_a_id),
                     productAName=r.product_a_name,
-                    productBId=r.product_b_id,
+                    productBId=int(r.product_b_id),
                     productBName=r.product_b_name,
                     frequency=r.frequency or 0,
                 )

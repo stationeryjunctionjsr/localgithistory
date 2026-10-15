@@ -780,7 +780,7 @@ async def get_sales_by_location_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/new-vs-returning", response_model=List[SalesByLocationReportResponse])
+@router.get("/reports/new-vs-returning", response_model=List[NewVsReturningCustomerSalesResponse])
 async def get_new_vs_returning_customer_sales_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -796,7 +796,7 @@ async def get_new_vs_returning_customer_sales_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/items-bought-together", response_model=List[NewVsReturningCustomerSalesResponse])
+@router.get("/reports/items-bought-together", response_model=List[ItemsBoughtTogetherResponse])
 async def get_items_bought_together_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -813,7 +813,7 @@ async def get_items_bought_together_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/sales-by-device", response_model=List[ItemsBoughtTogetherResponse])
+@router.get("/reports/sales-by-device", response_model=List[SalesByDeviceReportResponse])
 async def get_sales_by_device_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -908,7 +908,7 @@ async def get_searches_no_clicks_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/search-conversion", response_model=SearchConversionResponse)
+@router.get("/reports/search-conversion", response_model=List[SearchConversionResponse])
 async def get_search_conversion_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),

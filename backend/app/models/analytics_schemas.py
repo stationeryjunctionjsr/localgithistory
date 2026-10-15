@@ -101,9 +101,9 @@ class NewVsReturningCustomerSalesResponse(CamelBaseModel):
 
 class ItemsBoughtTogetherResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    productAId: str
+    productAId: int
     productAName: str
-    productBId: str
+    productBId: int
     productBName: str
     frequency: int
 
@@ -137,7 +137,7 @@ class SessionsOverTimeResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     period: str
     sessions: int
-    visitors: int
+    visitors: int = 0
     uniqueVisitors: int
 
 

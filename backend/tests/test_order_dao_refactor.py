@@ -341,9 +341,9 @@ async def test_batch_3_sql_pushdown_dao_methods():
         mock_res3 = MagicMock()
         mock_res3.fetchall.return_value = [
             FakeRow(
-                product_a_id="p1",
+                product_a_id=1,
                 product_a_name="Notebook",
-                product_b_id="p2",
+                product_b_id=2,
                 product_b_name="Pen",
                 frequency=12,
             )
@@ -351,8 +351,8 @@ async def test_batch_3_sql_pushdown_dao_methods():
         mock_session.execute.return_value = mock_res3
         pairs = await dao.get_items_bought_together_stats(limit=5)
         assert len(pairs) == 1
-        assert pairs[0].productAId == "p1"
-        assert pairs[0].productBId == "p2"
+        assert pairs[0].productAId == 1
+        assert pairs[0].productBId == 2
         assert pairs[0].frequency == 12
 
         # 4. get_sales_by_device_type_stats
