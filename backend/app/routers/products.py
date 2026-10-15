@@ -22,6 +22,7 @@ class SellerRequestApprove(BaseModel):
     notes: Optional[str] = None
 
 
+from app.models.product import Product
 from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate, UploadImagesResponse, UploadCSVResponse, SearchSuggestResponse, SellerProductRequestCreate, SellerProductApprove, ProductSellerEntry, VariantOption
 from app.repositories.category_repository import category_repository
 from app.repositories.product_repository import product_repository

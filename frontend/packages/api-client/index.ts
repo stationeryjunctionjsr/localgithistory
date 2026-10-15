@@ -45,7 +45,23 @@ export type CreateApiClientOptions = {
   withCredentials?: boolean;
 };
 
+interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+interface RefreshTokenResponse {
+  token: string;
+  refreshToken?: string;
+  sessionId?: string;
+}
+
+interface RefreshResult {
+  token: string | null;
+  sessionRevoked?: boolean;
+}
+
 export const createApiClient = (adapter: ApiAdapter, options?: CreateApiClientOptions): AxiosInstance => {
+  let refreshPromise: Promise<RefreshResult> | null = null;
   const timeoutMs =
     typeof options?.timeout === 'number' && options.timeout > 0 ? options.timeout : undefined;
   const instance = axios.create({
@@ -155,7 +171,8 @@ export const createApiClient = (adapter: ApiAdapter, options?: CreateApiClientOp
         return Promise.reject(error);
       }
       if (status === 401) {
-        const url = error.config?.url || '';
+        const config = error.config as RetryableRequestConfig | undefined;
+        const url = config?.url || '';
         const isRefreshRequest = url.includes('/auth/refresh');
         const isLoginRequest = url.includes('/auth/login');
 
@@ -164,47 +181,106 @@ export const createApiClient = (adapter: ApiAdapter, options?: CreateApiClientOp
           return Promise.reject(error);
         }
 
-        const refreshToken = adapter.getRefreshToken
-          ? await Promise.resolve(adapter.getRefreshToken())
-          : null;
-        if (!isRefreshRequest && adapter.setTokens) {
-          try {
-            const refreshBaseURL =
-              instance.defaults.baseURL ||
-              process.env.NEXT_PUBLIC_API_URL ||
-              '';
-            const refreshUrl = refreshBaseURL
-              ? (refreshBaseURL.endsWith('/') ? refreshBaseURL : refreshBaseURL + '/') +
-                'auth/refresh'.replace(/^\//, '')
-              : '/auth/refresh';
-            const refreshTimeoutMs =
-              typeof instance.defaults.timeout === 'number' && instance.defaults.timeout > 0
-                ? instance.defaults.timeout
-                : 60000;
-            const res = await axios.post(refreshUrl, refreshToken ? { refreshToken } : {}, {
-              headers: { 'Content-Type': 'application/json' },
-              timeout: refreshTimeoutMs,
-              withCredentials: instance.defaults.withCredentials ?? true,
-            });
-            const data = res.data;
-            if (data?.token) {
-              await Promise.resolve(
-                adapter.setTokens({
-                  token: data.token,
-                  refreshToken: data.refreshToken,
-                  sessionId: data.sessionId,
-                })
-              );
-              if (error.config) {
-                error.config.headers = error.config.headers || {};
-                error.config.headers.Authorization = `Bearer ${data.token}`;
-                return instance.request(error.config);
-              }
-            }
-          } catch (_) {
-            /* refresh failed, fall through to clear and redirect */
-          }
+        // Avoid infinite refresh loops if request already retried once
+        if (config?._retry) {
+          await Promise.resolve(adapter.clearTokens());
+          if (adapter.onUnauthorized) adapter.onUnauthorized();
+          return Promise.reject(error);
         }
+
+        if (!isRefreshRequest && adapter.setTokens) {
+          const setTokens = adapter.setTokens;
+          // If another concurrent request already completed a token refresh while this request
+          // was in flight, retry immediately with the updated token instead of refreshing again.
+          const currentToken = adapter.getAccessToken
+            ? await Promise.resolve(adapter.getAccessToken())
+            : null;
+          const authHeader = (config?.headers?.Authorization || config?.headers?.authorization) as string | undefined;
+          const usedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+          if (usedToken && currentToken && usedToken !== currentToken && config) {
+            config._retry = true;
+            config.headers = config.headers || {};
+            config.headers.Authorization = `Bearer ${currentToken}`;
+            return instance.request(config);
+          }
+
+          // Single in-flight refresh mutex promise for all concurrent 401 responses
+          if (!refreshPromise) {
+            refreshPromise = (async (): Promise<RefreshResult> => {
+              try {
+                const refreshToken = adapter.getRefreshToken
+                  ? await Promise.resolve(adapter.getRefreshToken())
+                  : null;
+                const refreshBaseURL =
+                  instance.defaults.baseURL ||
+                  process.env.NEXT_PUBLIC_API_URL ||
+                  '';
+                const refreshUrl = refreshBaseURL
+                  ? (refreshBaseURL.endsWith('/') ? refreshBaseURL : refreshBaseURL + '/') +
+                    'auth/refresh'.replace(/^\//, '')
+                  : '/auth/refresh';
+                const refreshTimeoutMs =
+                  typeof instance.defaults.timeout === 'number' && instance.defaults.timeout > 0
+                    ? instance.defaults.timeout
+                    : 60000;
+                const res = await axios.post<RefreshTokenResponse>(
+                  refreshUrl,
+                  refreshToken ? { refreshToken } : {},
+                  {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: refreshTimeoutMs,
+                    withCredentials: instance.defaults.withCredentials ?? true,
+                  }
+                );
+                const data = res.data;
+                if (data?.token) {
+                  await Promise.resolve(
+                    setTokens({
+                      token: data.token,
+                      refreshToken: data.refreshToken,
+                      sessionId: data.sessionId,
+                    })
+                  );
+                  return { token: data.token };
+                }
+                return { token: null };
+              } catch (refreshErr) {
+                if (axios.isAxiosError(refreshErr)) {
+                  const refreshDetail = refreshErr.response?.data as { code?: string } | undefined;
+                  if (refreshErr.response?.status === 401 && refreshDetail?.code === 'SESSION_REVOKED') {
+                    await Promise.resolve(adapter.clearTokens());
+                    if (adapter.onSessionRevoked) adapter.onSessionRevoked(refreshDetail);
+                    if (webSessionRevokedHandler) webSessionRevokedHandler(refreshDetail);
+                    return { token: null, sessionRevoked: true };
+                  }
+                }
+                return { token: null };
+              } finally {
+                refreshPromise = null;
+              }
+            })();
+          }
+
+          const refreshResult = await refreshPromise;
+          if (refreshResult.token) {
+            if (config) {
+              config._retry = true;
+              config.headers = config.headers || {};
+              config.headers.Authorization = `Bearer ${refreshResult.token}`;
+              return instance.request(config);
+            }
+          }
+
+          // If session was revoked during refresh, onSessionRevoked was already fired above.
+          // Otherwise, clear tokens and fire onUnauthorized.
+          if (!refreshResult.sessionRevoked) {
+            await Promise.resolve(adapter.clearTokens());
+            if (adapter.onUnauthorized) adapter.onUnauthorized();
+          }
+          return Promise.reject(error);
+        }
+
         await Promise.resolve(adapter.clearTokens());
         if (adapter.onUnauthorized) adapter.onUnauthorized();
       }

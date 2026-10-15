@@ -1,10 +1,10 @@
+from __future__ import annotations
 from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional, List
 from pydantic import Field
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
-from app.models.schemas import VariantOption, ProductSellerEntry, ProductDetails
 
 class Product(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -122,7 +122,7 @@ class ProductFilter(CamelBaseModel):
 ProductCatalogQuery = ProductFilter
 
 
-from app.models.schemas import QuantityTier
+from app.models.schemas import VariantOption, ProductSellerEntry, ProductDetails, QuantityTier
 Product.model_rebuild()
 WeightedSearchResult.model_rebuild()
 ProductCatalogQuery.model_rebuild()
