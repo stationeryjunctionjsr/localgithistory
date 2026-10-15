@@ -37,7 +37,6 @@ export default function CheckoutPage() {
 
   // ── Auth-in-Checkout State (Users MUST be logged in to order) ──
   const [authPhone, setAuthPhone] = useState('');
-  const [authName, setAuthName] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authConfirmPassword, setAuthConfirmPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
@@ -49,9 +48,11 @@ export default function CheckoutPage() {
   const [authOtpToken, setAuthOtpToken] = useState('');
   const [authCanResend, setAuthCanResend] = useState(false);
 
-  // ── Delivery Address State ──
+  // ── Delivery Address State (Myself vs Someone Else) ──
+  const [deliverTo, setDeliverTo] = useState<'myself' | 'someone_else'>('myself');
   const [selectedAddress, setSelectedAddress] = useState<any>({
     name: '',
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -60,12 +61,14 @@ export default function CheckoutPage() {
     country: 'India',
     addressLine2: '',
     landmark: '',
+    deliverTo: 'myself',
   });
 
   // Add Address Modal state
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [newAddress, setNewAddress] = useState({
     name: '',
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -136,25 +139,30 @@ export default function CheckoutPage() {
   // ── 1. Consolidate & Manage Multiple Saved Addresses ──
   const userAddresses = useMemo(() => {
     const list: any[] = [];
-    if (user?.address && (user.address.street || user.address.pincode)) {
+    if (user?.address && (user.address.street || user.address.pincode || user.address.zipCode)) {
       list.push({
         ...user.address,
+        zipCode: user.address.zipCode || user.address.pincode || '',
         is_primary: true,
         name: user.address.name || user.name || '',
+        deliverTo: 'myself',
       });
     }
     if (Array.isArray(user?.savedAddresses)) {
       user.savedAddresses.forEach((sa: any) => {
+        const zip = sa.zipCode || sa.pincode || '';
         const isDup = list.some(
           (a) =>
             a.street === sa.street &&
-            (a.zipCode || a.pincode) === (sa.zipCode || sa.pincode)
+            (a.zipCode || a.pincode) === zip
         );
         if (!isDup) {
           list.push({
             ...sa,
+            zipCode: zip,
             is_primary: false,
             name: sa.name || user?.name || '',
+            deliverTo: sa.deliverTo || 'myself',
           });
         }
       });
@@ -162,18 +170,19 @@ export default function CheckoutPage() {
     return list;
   }, [user]);
 
-  // Auto-select primary address when logged in
+  // Auto-select primary address when logged in and mode is 'myself'
   useEffect(() => {
-    if (userAddresses.length > 0 && !selectedAddress.street) {
+    if (userAddresses.length > 0 && !selectedAddress.street && deliverTo === 'myself') {
       const primary = userAddresses.find((a) => a.is_primary) || userAddresses[0];
       handleSelectAddress(primary);
     }
-  }, [userAddresses]);
+  }, [userAddresses, deliverTo]);
 
   const handleSelectAddress = (addr: any) => {
     const zip = addr.zipCode || addr.pincode || '';
     const updated = {
-      name: addr.name || user?.name || '',
+      name: addr.name || (deliverTo === 'myself' ? (user?.name || '') : ''),
+      phone: addr.phone || '',
       street: addr.street || '',
       city: addr.city || '',
       state: addr.state || '',
@@ -182,11 +191,76 @@ export default function CheckoutPage() {
       country: addr.country || 'India',
       addressLine2: addr.addressLine2 || '',
       landmark: addr.landmark || '',
+      deliverTo: addr.deliverTo || deliverTo,
     };
     setSelectedAddress(updated);
     if (zip.length === 6) {
       checkServiceability(zip);
     }
+  };
+
+  const handleDeliverToChange = (mode: 'myself' | 'someone_else') => {
+    setDeliverTo(mode);
+    if (mode === 'myself') {
+      // Auto-populate default address and user name
+      const primary = userAddresses.find((a) => a.is_primary) || userAddresses[0];
+      if (primary) {
+        handleSelectAddress({
+          ...primary,
+          name: user?.name || primary.name || '',
+          deliverTo: 'myself',
+        });
+      } else {
+        setNewAddress((prev) => ({
+          ...prev,
+          name: user?.name || '',
+          phone: user?.phone || '',
+        }));
+      }
+    } else {
+      // Mode is 'someone_else'
+      setNewAddress((prev) => ({
+        ...prev,
+        name: '',
+        phone: '',
+      }));
+      const someoneAddr = userAddresses.find((a) => a.deliverTo === 'someone_else');
+      if (someoneAddr) {
+        handleSelectAddress(someoneAddr);
+      } else {
+        setSelectedAddress({
+          name: '',
+          phone: '',
+          street: '',
+          city: '',
+          state: '',
+          district: '',
+          zipCode: '',
+          country: 'India',
+          addressLine2: '',
+          landmark: '',
+          deliverTo: 'someone_else',
+        });
+        setShowAddressModal(true);
+      }
+    }
+  };
+
+  const openAddAddressModal = () => {
+    setNewAddress({
+      name: deliverTo === 'myself' ? (user?.name || '') : '',
+      phone: deliverTo === 'myself' ? (user?.phone || '') : '',
+      street: '',
+      city: '',
+      state: '',
+      district: '',
+      zipCode: '',
+      country: 'India',
+      addressLine2: '',
+      landmark: '',
+      saveToProfile: true,
+    });
+    setShowAddressModal(true);
   };
 
   // ── 2. India Post Pincode Lookup ──
@@ -318,14 +392,29 @@ export default function CheckoutPage() {
       toast.error('Please fill in Street, City, State, and Pincode');
       return;
     }
+    if (!newAddress.name?.trim()) {
+      toast.error(deliverTo === 'myself' ? 'Please enter your name' : "Please enter recipient's name");
+      return;
+    }
 
     const addrToUse = {
       ...newAddress,
-      name: newAddress.name || user?.name || '',
+      name: newAddress.name.trim(),
+      deliverTo: deliverTo,
     };
 
     handleSelectAddress(addrToUse);
     setShowAddressModal(false);
+
+    // If 'myself' and user's profile does not have a name yet, save it to their profile!
+    if (deliverTo === 'myself' && user?.id && !user?.name && addrToUse.name) {
+      try {
+        await api.put(`/users/${user.id}`, { name: addrToUse.name });
+        if (fetchUser) await fetchUser();
+      } catch (err) {
+        console.warn('Could not update profile name:', err);
+      }
+    }
 
     if (user?.id && newAddress.saveToProfile) {
       try {
@@ -493,10 +582,6 @@ export default function CheckoutPage() {
   };
 
   const handleAuthRegister = async () => {
-    if (!authName.trim()) {
-      toast.error('Please enter your full name');
-      return;
-    }
     if (!authPassword || authPassword.length < 6) {
       toast.error('Password must be at least 6 characters');
       return;
@@ -510,7 +595,6 @@ export default function CheckoutPage() {
     try {
       const payload: any = {
         phone: clean,
-        name: authName.trim(),
         password: authPassword,
         role: 'customer',
         otp: authOtp,
@@ -554,9 +638,29 @@ export default function CheckoutPage() {
         finalNotes = `${finalNotes} | [UPI via ${upiAppUsed || 'Dynamic QR'} | Ref: ${upiTxnRef || 'SJORDER'}${upiUtr ? ` | UTR: ${upiUtr}` : ''}${upiPaymentConfirmed ? ' | Status: Customer Confirmed' : ''}]`.trim();
       }
 
+      const fullStreet = [
+        selectedAddress.street,
+        selectedAddress.addressLine2,
+        selectedAddress.landmark ? `Landmark: ${selectedAddress.landmark}` : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      const cleanAddress = {
+        name: selectedAddress.name || (deliverTo === 'myself' ? (user?.name || '') : ''),
+        phone: selectedAddress.phone || user?.phone || '',
+        street: fullStreet || selectedAddress.street,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        district: selectedAddress.district || '',
+        zipCode: selectedAddress.zipCode || selectedAddress.pincode || '',
+        country: selectedAddress.country || 'India',
+        address: fullStreet || selectedAddress.street,
+      };
+
       const payload = {
-        shippingAddress: selectedAddress,
-        billingAddress: selectedAddress,
+        shippingAddress: cleanAddress,
+        billingAddress: cleanAddress,
         paymentMethod: paymentMethod,
         notes: finalNotes || undefined,
         couponCode: appliedCoupon?.code || undefined,
@@ -686,20 +790,8 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               ) : (
-                /* Step 0C: New User - Quick Registration */
+                /* Step 0C: New User - Quick Registration (Phone + OTP + Password) */
                 <div>
-                  <div className={ck.formGroup}>
-                    <label className={ck.formLabel}>Full Name *</label>
-                    <input
-                      type="text"
-                      className={ck.formInput}
-                      placeholder="Your full name"
-                      autoComplete="name"
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                    />
-                  </div>
-
                   {/* OTP Verification */}
                   <div className={ck.formGroup}>
                     <label className={ck.formLabel}>SMS OTP Verification *</label>
@@ -848,8 +940,37 @@ export default function CheckoutPage() {
                     <span>📍</span>
                     <span>Select Delivery Address</span>
                   </h2>
+
+                  {/* Delivering To Switcher: Myself vs Someone Else */}
+                  <div className={ck.deliveryForBox}>
+                    <button
+                      type="button"
+                      className={`${ck.deliveryForBtn} ${deliverTo === 'myself' ? ck.active : ''}`}
+                      onClick={() => handleDeliverToChange('myself')}
+                    >
+                      <span>👤</span>
+                      <span>Myself</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${ck.deliveryForBtn} ${deliverTo === 'someone_else' ? ck.active : ''}`}
+                      onClick={() => handleDeliverToChange('someone_else')}
+                    >
+                      <span>🎁</span>
+                      <span>Someone Else (Gift / Friend)</span>
+                    </button>
+                  </div>
+
                   <p className={ck.stepSubheading}>
-                    Logged in as <strong>{user.name || user.phone}</strong>. Select where to deliver your order:
+                    {deliverTo === 'myself' ? (
+                      <>
+                        Delivering to <strong>{user?.name || 'Yourself'}</strong> ({user?.phone}). Your delivery address:
+                      </>
+                    ) : (
+                      <>
+                        Delivering to <strong>Someone Else</strong>. Choose or enter recipient delivery address:
+                      </>
+                    )}
                   </p>
 
                   <div className={ck.addressGrid}>
@@ -864,7 +985,10 @@ export default function CheckoutPage() {
                           onClick={() => handleSelectAddress(addr)}
                         >
                           {addr.is_primary && <span className={ck.addressBadge}>Primary</span>}
-                          <div className={ck.addressName}>{addr.name || user.name}</div>
+                          <div className={ck.addressName}>
+                            {addr.name || (deliverTo === 'myself' ? (user.name || 'Your Address') : 'Recipient')}
+                            {addr.phone ? ` • ${addr.phone}` : ''}
+                          </div>
                           <div className={ck.addressStreet}>
                             {addr.street}
                             {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
@@ -891,9 +1015,11 @@ export default function CheckoutPage() {
                     })}
 
                     {/* Add New Address Card */}
-                    <div className={ck.addNewAddressCard} onClick={() => setShowAddressModal(true)}>
+                    <div className={ck.addNewAddressCard} onClick={openAddAddressModal}>
                       <div className={ck.addNewIcon}>+</div>
-                      <div className={ck.addNewLabel}>Add New Address</div>
+                      <div className={ck.addNewLabel}>
+                        {deliverTo === 'myself' ? '+ Add New Address' : "+ Add Recipient's Address"}
+                      </div>
                     </div>
                   </div>
 
@@ -1477,7 +1603,9 @@ export default function CheckoutPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700 }}>Add New Address</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>
+                {deliverTo === 'myself' ? 'Add Delivery Address' : "Add Recipient's Address"}
+              </h3>
               <button
                 type="button"
                 onClick={() => setShowAddressModal(false)}
@@ -1487,17 +1615,64 @@ export default function CheckoutPage() {
               </button>
             </div>
 
+            {/* Delivering To Switcher inside Modal */}
+            <div className={ck.deliveryForBox} style={{ marginBottom: 16, width: '100%', maxWidth: '100%' }}>
+              <button
+                type="button"
+                className={`${ck.deliveryForBtn} ${deliverTo === 'myself' ? ck.active : ''}`}
+                onClick={() => {
+                  setDeliverTo('myself');
+                  setNewAddress((prev) => ({ ...prev, name: user?.name || '' }));
+                }}
+              >
+                <span>👤</span>
+                <span>Myself</span>
+              </button>
+              <button
+                type="button"
+                className={`${ck.deliveryForBtn} ${deliverTo === 'someone_else' ? ck.active : ''}`}
+                onClick={() => {
+                  setDeliverTo('someone_else');
+                  setNewAddress((prev) => ({ ...prev, name: '', phone: '' }));
+                }}
+              >
+                <span>🎁</span>
+                <span>Someone Else</span>
+              </button>
+            </div>
+
             <div className={ck.formGroup}>
-              <label className={ck.formLabel}>Recipient Name</label>
+              <label className={ck.formLabel}>
+                {deliverTo === 'myself' ? 'Your Full Name *' : "Recipient's Full Name *"}
+              </label>
               <input
                 type="text"
                 className={ck.formInput}
-                placeholder="Full name"
+                placeholder={deliverTo === 'myself' ? 'Your full name' : "Recipient's full name"}
                 autoComplete="name"
                 value={newAddress.name}
                 onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
               />
             </div>
+
+            {deliverTo === 'someone_else' && (
+              <div className={ck.formGroup}>
+                <label className={ck.formLabel}>Recipient's Contact Phone (Optional)</label>
+                <input
+                  type="tel"
+                  className={ck.formInput}
+                  placeholder="10-digit mobile number for delivery updates"
+                  maxLength={10}
+                  value={newAddress.phone || ''}
+                  onChange={(e) =>
+                    setNewAddress({
+                      ...newAddress,
+                      phone: e.target.value.replace(/\D/g, '').slice(0, 10),
+                    })
+                  }
+                />
+              </div>
+            )}
 
             <div className={ck.formGroup}>
               <label className={ck.formLabel}>Street Address *</label>
