@@ -1,4 +1,4 @@
-from typing import Optional, List, Set, NamedTuple
+from typing import Optional, List, Set, NamedTuple, Collection
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -57,6 +57,8 @@ class MySQLDeviceSubscriptionsDAO:
     async def findAll(
         self,
         user_id: Optional[int] = None,
+        user_ids: Optional[Collection[int]] = None,
+        include_guests: bool = False,
         endpoint: Optional[str] = None,
         expo_token: Optional[str] = None,
         limit: Optional[int] = None,
@@ -66,6 +68,23 @@ class MySQLDeviceSubscriptionsDAO:
         if user_id is not None:
             clauses.append("user_id = :user_id")
             params["user_id"] = user_id
+
+        if user_ids is not None or include_guests:
+            target_conditions = []
+            if user_ids:
+                uid_list = list(user_ids)
+                uid_params = [f":uid_{i}" for i in range(len(uid_list))]
+                for i, uid in enumerate(uid_list):
+                    params[f"uid_{i}"] = uid
+                target_conditions.append(f"user_id IN ({', '.join(uid_params)})")
+            if include_guests:
+                target_conditions.append("user_id IS NULL")
+
+            if target_conditions:
+                clauses.append(f"({' OR '.join(target_conditions)})")
+            elif not include_guests:
+                return []
+
         if endpoint is not None:
             clauses.append("endpoint = :endpoint")
             params["endpoint"] = endpoint

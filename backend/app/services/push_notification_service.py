@@ -167,18 +167,16 @@ class PushNotificationService:
                     if target_behavior == "none" or target_behavior == "behavior1":
                         targeted_guest_match = True
 
-            # 3. Filter targeted devices
-            all_devices = await push_notification_repository.device_storage.findAll()
-            targeted_devices = []
+            # 3. Filter targeted devices via SQL pushdown
             if target_segment == "all" and target_behavior == "none":
-                targeted_devices = all_devices
+                targeted_devices = await push_notification_repository.device_storage.findAll()
+            elif not targeted_user_ids and not targeted_guest_match:
+                targeted_devices = []
             else:
-                for d in all_devices:
-                    if d.user_id is not None:
-                        if d.user_id in targeted_user_ids:
-                            targeted_devices.append(d)
-                    elif targeted_guest_match:
-                        targeted_devices.append(d)
+                targeted_devices = await push_notification_repository.device_storage.findAll(
+                    user_ids=targeted_user_ids,
+                    include_guests=targeted_guest_match,
+                )
 
             # 4. Send via dual channel: web push for browser devices, Expo for native mobile
             delivered_count = 0
