@@ -304,6 +304,8 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
         # (no DB columns) — declared on PopulatedOrderResponse as Optional[str] = None
         pop_order = PopulatedOrderResponse(
             id=order_resp.id,
+            order_number=order_resp.order_number,
+            order_id=order_resp.order_number,
             user=UserSnippet.model_validate(
                 user, from_attributes=True) if user else None,
             assigned_valet=ValetSnippet.model_validate(

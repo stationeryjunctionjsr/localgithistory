@@ -188,7 +188,7 @@ async def search_bundles(
         from app.db.storage_factory import get_storage as _get_storage
         product_storage = _get_storage("products")
         all_products_list = await product_storage.find({"isActive": True})
-        product_map = {str(p.id): p for p in all_products_list if "_id" in p}
+        product_map = {p.id: p for p in all_products_list if p.id is not None}
 
         enriched_bundles = []
         for b in bundles:
@@ -230,26 +230,16 @@ async def search_bundles(
                     if not text_matched and not price_matched:
                         continue
 
-                # Resolve effective category & brand
+                # Resolve effective category & brand from component products
                 eff_categories = set()
                 eff_brands = set()
-                if eb.category:
-                    eff_categories.add(eb["category"].lower())
-                if eb.brand:
-                    eff_brands.add(eb["brand"].lower())
-
-                if not eff_categories or not eff_brands:
-                    # Inherit from components
-                    for item in (eb.items or []):
-                        pid = item.product_id
-                        p = (product_map[str(pid)] if str(pid) in product_map else None)
-                        if p:
-                            c = p.category
-                            if c:
-                                eff_categories.add(c.lower())
-                            b_name = p.brand
-                            if b_name:
-                                eff_brands.add(b_name.lower())
+                for item in (eb.items or []):
+                    if item.product_id in product_map:
+                        p = product_map[item.product_id]
+                        if p.category:
+                            eff_categories.add(p.category.lower())
+                        if p.brand:
+                            eff_brands.add(p.brand.lower())
 
                 if category and category.lower() not in eff_categories:
                     continue

@@ -297,7 +297,7 @@ class ProductRepository:
 
             light_products = [
                 {
-                    "_id": p.id,
+                    "id": p.id,
                     "name": p.name,
                     "sku": p.sku,
                     "searchTags": p.search_tags,

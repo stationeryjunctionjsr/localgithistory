@@ -1376,8 +1376,8 @@ async def test_pydantic_email_and_invoice_models():
         pincode="400001",
     )
     order = PopulatedOrderResponse(
-        id="1001",
-        order_id="ORD-1001",
+        id=1001,
+        order_number="ORD-1001",
         user=user,
         items=[item],
         shipping_address=addr,
@@ -1387,8 +1387,12 @@ async def test_pydantic_email_and_invoice_models():
         discount=20.0,
     )
 
-    # 1. Test Invoice PDF generation with Pydantic model
-    buf = await generate_invoice_pdf(order)
+    # 1. Test Invoice PDF generation with Pydantic model and SellerInvoiceInfo
+    from app.utils.invoice_generator import SellerInvoiceInfo
+    from app.models.payment import Payment
+    seller = SellerInvoiceInfo(name="Stationery Junction", address=addr)
+    payment = Payment(id=999, order_id=1001, amount_paid=300.0, amount_remaining=0.0)
+    buf = await generate_invoice_pdf(order, payment, seller)
     pdf_bytes = buf.getvalue()
     assert pdf_bytes.startswith(b"%PDF")
 
@@ -1788,6 +1792,9 @@ def test_no_jugaad_user_engagement_and_funnel_types():
     dao_src = inspect.getsource(session_dao_mod.MySQLSessionDAO.get_user_engagement_metrics_stats)
     assert "Union[int, str]" not in dao_src
     assert "user_id: int" in dao_src
+
+
+
 
 
 

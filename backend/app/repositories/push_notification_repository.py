@@ -162,7 +162,6 @@ class PushNotificationRepository:
                 "keys": {k.key: k.value for k in (d.keys or [])} if isinstance(d.keys, list) else (d.keys or {}),
                 "expoToken": d.expo_token,
                 "id": str(d.id) if d.id is not None else "",
-                "_id": str(d.id) if d.id is not None else "",
             }
             for d in devices
         ]

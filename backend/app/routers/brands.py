@@ -19,16 +19,20 @@ async def get_public_brands(forHomepage: bool = False):
     """Active brands with name and logo. If forHomepage=true, only brands with display-in-homepage enabled (web & mobile)."""
     brands = await brand_repository.findActive()
     if forHomepage:
-        featured = [b for b in brands if b.showInMobileHomepage]
+        featured = [b for b in brands if b.show_in_mobile_homepage]
         if featured:
             brands = featured
     return [
-        {
-            "_id": b.id,
-            "name": (b.name or ""),
-            "logoUrl": (b.image_url or "") or "",
-            "showInMobileHomepage": b.showInMobileHomepage,
-        }
+        BrandResponse(
+            id=b.id,
+            name=b.name,
+            slug=b.slug or "",
+            logo_url=b.image_url,
+            show_in_mobile_homepage=b.show_in_mobile_homepage,
+            is_active=b.is_active,
+            created_at=b.created_at,
+            updated_at=b.updated_at,
+        )
         for b in brands
     ]
 

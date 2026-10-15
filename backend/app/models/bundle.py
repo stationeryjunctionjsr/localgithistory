@@ -3,7 +3,7 @@ from pydantic import Field, BaseModel
 
 from app.models.base import CamelBaseModel
 class BundleItem(CamelBaseModel):
-    product_id: Optional[str] = None
+    product_id: Optional[int] = None
     quantity: Optional[int] = 1
 
 class Bundle(CamelBaseModel):

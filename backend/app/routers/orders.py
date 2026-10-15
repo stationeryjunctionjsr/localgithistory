@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from app.models.schemas import VariantAttributes, CouponResponse
 from app.utils.logger import logger
 from app.utils.limiter import limiter
-from app.utils.invoice_generator import generate_invoice_pdf, save_invoice_pdf
+from app.utils.invoice_generator import generate_invoice_pdf, save_invoice_pdf, SellerInvoiceInfo
 from app.utils.order_timeline import log_order_status, get_order_timeline
 from app.utils.auth import (
     get_current_user,
@@ -43,7 +43,7 @@ from app.models.schemas import (
     PopulatedOrderItemResponse,
 )
 from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
-from app.models.payment import PaymentEntry
+from app.models.payment import Payment, PaymentEntry
 from app.db.storage_factory import get_storage
 from app.models.user import User
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
@@ -675,27 +675,27 @@ async def update_order_status(
         # Check if it's retail and hasn't been generated yet
         if order_user and order_user.role == "customer" and not updated_order.invoicePath:
             try:
-                payments_for_order = await payment_repository.findByOrderId(order_id)
-                payment_for_invoice = payments_for_order[0] if payments_for_order else None
-                super_admin = await user_repository.findSuperAdmin()
-                pdf_buffer = await generate_invoice_pdf(
-                    populated_order,
-                    payment_for_invoice,
-                    {
-                        "name": (super_admin.name if super_admin.name is not None else "Stationery Junction")
-                        if super_admin
-                        else "Stationery Junction",
-                        "companyName": (super_admin.company_name or "") if super_admin else "",
-                        "gstin": (super_admin.gstin or "") if super_admin else "",
-                        "address": (super_admin.address or {}) if super_admin else {},
-                    },
-                )
-                invoice_path = await save_invoice_pdf(pdf_buffer, order_id)
-                await order_repository.update(
-                    order_id,
-                    OrderInternalUpdate(
-                        invoicePath=invoice_path, invoiceGeneratedAt=_dt.utcnow().isoformat() + "Z"),
-                )
+                payment_for_invoice = await payment_repository.findOne(order_id=order_id)
+                if payment_for_invoice:
+                    super_admin = await user_repository.findSuperAdmin()
+                    seller_info = SellerInvoiceInfo(
+                        name=super_admin.name if super_admin and super_admin.name else "Stationery Junction",
+                        company_name=super_admin.company_name or "" if super_admin else "",
+                        gstin=super_admin.gstin or "" if super_admin else "",
+                        address=super_admin.address or Address() if super_admin else Address(),
+                    )
+                    pdf_buffer = await generate_invoice_pdf(
+                        populated_order,
+                        payment_for_invoice,
+                        seller_info,
+                    )
+                    invoice_path = await save_invoice_pdf(pdf_buffer, order_id)
+                    await order_repository.update(
+                        order_id,
+                        OrderInternalUpdate(
+                            invoicePath=invoice_path, invoiceGeneratedAt=_dt.utcnow().isoformat() + "Z"),
+                    )
+                    populated_order = await populate_order(updated_order)
                 # Refresh populated_order so the returned object has the invoice path
                 updated_order = await order_repository.findById(order_id)
                 populated_order = await populate_order(updated_order)
@@ -1151,22 +1151,20 @@ async def valet_response(
         order_user = await user_repository.findById(updated_order.user)
         if order_user and order_user.role == "wholesaler":
             try:
-                payments = await payment_repository.findByOrderId(updated_order.id)
-                payment_record = payments[0] if payments else None
+                payment_record = await payment_repository.findOne(order_id=updated_order.id)
                 if payment_record:
                     super_admin = await user_repository.findSuperAdmin()
                     populated_for_invoice = await populate_order(updated_order)
+                    seller_info = SellerInvoiceInfo(
+                        name=super_admin.name if super_admin and super_admin.name else "Stationery Junction",
+                        company_name=super_admin.company_name or "" if super_admin else "",
+                        gstin=super_admin.gstin or "" if super_admin else "",
+                        address=super_admin.address or Address() if super_admin else Address(),
+                    )
                     pdf_buffer = await generate_invoice_pdf(
                         populated_for_invoice,
                         payment_record,
-                        {
-                            "name": (super_admin.name if super_admin.name is not None else "Stationery Junction")
-                            if super_admin
-                            else "Stationery Junction",
-                            "companyName": (super_admin.company_name or "") if super_admin else "",
-                            "gstin": (super_admin.gstin or "") if super_admin else "",
-                            "address": (super_admin.address or {}) if super_admin else {},
-                        },
+                        seller_info,
                     )
                     invoice_path = await save_invoice_pdf(pdf_buffer, updated_order.id)
                     await order_repository.update(
@@ -1444,8 +1442,7 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
         raise HTTPException(status_code=404, detail="Order not found")
 
     # Get payment information
-    payments = await payment_repository.findByOrderId(order_id)
-    payment = payments[0] if payments and len(payments) > 0 else None
+    payment = await payment_repository.findOne(order_id=order_id)
 
     if not payment:
         raise HTTPException(
@@ -1458,17 +1455,16 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
 
     # Populate order with user and product data
     populated_order = await populate_order(order)
-
-    # Generate PDF
+    seller_info = SellerInvoiceInfo(
+        name=super_admin.name if super_admin and super_admin.name else "Stationery Junction",
+        company_name=super_admin.company_name or "",
+        gstin=super_admin.gstin or "",
+        address=super_admin.address or Address(),
+    )
     pdf_buffer = await generate_invoice_pdf(
         populated_order,
         payment,
-        {
-            "name": (super_admin.name if super_admin.name is not None else "Stationery Junction"),
-            "companyName": (super_admin.company_name or ""),
-            "gstin": (super_admin.gstin or ""),
-            "address": (super_admin.address or {}),
-        },
+        seller_info,
     )
 
     # Save PDF

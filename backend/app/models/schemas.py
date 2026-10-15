@@ -416,7 +416,7 @@ class ClassificationActionResponse(BaseModel):
 
 class BundleItemResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    product_id: str
+    product_id: int
     product_name: Optional[str] = None
     quantity: int
     image: Optional[str] = None
@@ -630,7 +630,7 @@ class BannerResponse(BannerBase):
 class BrandResponse(CamelBaseModel):
     id: str
     name: str
-    slug: str
+    slug: str = ""
     logo_url: Optional[str] = None
     show_in_mobile_homepage: bool = False
     is_active: bool = True
@@ -2217,7 +2217,8 @@ class PopulatedOrderResponse(CamelBaseModel):
     """
     model_config = ConfigDict(extra='forbid')
 
-    id: Optional[str] = None
+    id: Optional[int] = None
+    order_number: Optional[str] = None
     order_id: Optional[str] = None
     status: Optional[str] = None
     order_status: Optional[str] = None    # router alias for status

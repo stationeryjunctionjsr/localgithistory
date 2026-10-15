@@ -5,7 +5,6 @@ Invoice PDF Generator for Orders
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import Dict
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -13,6 +12,19 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from pydantic import Field
+
+from app.models.base import CamelBaseModel
+from app.models.schemas import PopulatedOrderResponse, Address
+from app.models.payment import Payment
+
+
+class SellerInvoiceInfo(CamelBaseModel):
+    name: str = "Stationery Junction"
+    company_name: str = ""
+    gstin: str = ""
+    address: Address = Field(default_factory=Address)
 
 STATE_CODES = {
     "JAMMU AND KASHMIR": "01",
@@ -60,7 +72,11 @@ def get_state_code(state_name: str) -> str:
     return (STATE_CODES[state_name.upper().strip()] if state_name.upper().strip() in STATE_CODES else "--")
 
 
-async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) -> BytesIO:
+async def generate_invoice_pdf(
+    order: PopulatedOrderResponse,
+    payment: Payment,
+    seller_info: SellerInvoiceInfo,
+) -> BytesIO:
     """
     Generate PDF Invoice for an order
     Returns: BytesIO buffer containing PDF
@@ -87,36 +103,33 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
     elements.append(Spacer(1, 20))
 
     # Seller and Buyer Information
-    seller_lines = ["<b>From:</b>", (seller_info["name"] if "name" in seller_info else "Stationery Junction")]
-    if (seller_info["companyName"] if "companyName" in seller_info else None):
-        seller_lines.append(seller_info["companyName"])
-    if (seller_info["gstin"] if "gstin" in seller_info else None):
-        seller_lines.append(f"GSTIN: {seller_info['gstin']}")
+    seller_lines = ["<b>From:</b>", seller_info.name]
+    if seller_info.company_name:
+        seller_lines.append(seller_info.company_name)
+    if seller_info.gstin:
+        seller_lines.append(f"GSTIN: {seller_info.gstin}")
 
-    seller_address = (seller_info["address"] if "address" in seller_info else {})
-    if (seller_address["street"] if "street" in seller_address else None):
-        seller_lines.append(seller_address["street"])
-    if (seller_address["city"] if "city" in seller_address else None) and (seller_address["state"] if "state" in seller_address else None):
-        state = seller_address["state"]
-        seller_lines.append(f"{seller_address['city']}, {state} (Code: {get_state_code(state)})")
-    if (seller_address["pincode"] if "pincode" in seller_address else None):
-        seller_lines.append(f"PIN: {seller_address['pincode']}")
+    seller_addr = seller_info.address
+    if seller_addr.street:
+        seller_lines.append(seller_addr.street)
+        if seller_addr.city and seller_addr.state:
+            seller_lines.append(f"{seller_addr.city}, {seller_addr.state} (Code: {get_state_code(seller_addr.state)})")
+        if seller_addr.pincode:
+            seller_lines.append(f"PIN: {seller_addr.pincode}")
 
-    buyer = (order["user"] if "user" in order else {})
-    buyer_lines = ["<b>To:</b>", (buyer["name"] if "name" in buyer else "N/A")]
-    if (buyer["companyName"] if "companyName" in buyer else None):
-        buyer_lines.append(buyer["companyName"])
-    if (buyer["gstin"] if "gstin" in buyer else None):
-        buyer_lines.append(f"GSTIN: {buyer['gstin']}")
+    buyer = order.user
+    buyer_lines = ["<b>To:</b>", (buyer.name if buyer and buyer.name else "N/A")]
+    if buyer and buyer.company_name:
+        buyer_lines.append(buyer.company_name)
 
-    shipping_address = (order["shippingAddress"] if "shippingAddress" in order else {})
-    if (shipping_address["street"] if "street" in shipping_address else None):
-        buyer_lines.append(shipping_address["street"])
-    if (shipping_address["city"] if "city" in shipping_address else None) and (shipping_address["state"] if "state" in shipping_address else None):
-        state = shipping_address["state"]
-        buyer_lines.append(f"{shipping_address['city']}, {state} (Code: {get_state_code(state)})")
-    if (shipping_address["pincode"] if "pincode" in shipping_address else None) or (shipping_address["zipCode"] if "zipCode" in shipping_address else None):
-        buyer_lines.append(f"PIN: {(shipping_address['pincode'] if 'pincode' in shipping_address else None) or (shipping_address['zipCode'] if 'zipCode' in shipping_address else None)}")
+    shipping_address = order.shipping_address or order.address
+    if shipping_address:
+        if shipping_address.street:
+            buyer_lines.append(shipping_address.street)
+        if shipping_address.city and shipping_address.state:
+            buyer_lines.append(f"{shipping_address.city}, {shipping_address.state} (Code: {get_state_code(shipping_address.state)})")
+        if shipping_address.pincode:
+            buyer_lines.append(f"PIN: {shipping_address.pincode}")
 
     # Create two-column table for seller/buyer info
     seller_text = "<br/>".join(seller_lines)
@@ -142,13 +155,17 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
     elements.append(Spacer(1, 20))
 
     # Invoice Details
-    invoice_date = datetime.fromisoformat((order["createdAt"] if "createdAt" in order else datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
+    invoice_date = order.created_at or datetime.now(timezone.utc)
+    invoice_number = order.order_number or f"ORD-{order.id}"
+    payment_method = order.payment_method.upper() if order.payment_method else "N/A"
+    place_of_supply = shipping_address.state.upper() if shipping_address and shipping_address.state else "N/A"
+
     invoice_details = [
-        ["Invoice Number:", (order["orderNumber"] if "orderNumber" in order else (order["_id"] if "_id" in order else "N/A"))],
+        ["Invoice Number:", invoice_number],
         ["Invoice Date:", invoice_date.strftime("%d/%m/%Y")],
         ["Order Date:", invoice_date.strftime("%d/%m/%Y")],
-        ["Payment Method:", ((order["paymentMethod"] if "paymentMethod" in order else "N/A")).upper()],
-        ["Place of Supply:", (shipping_address["state"] if "state" in shipping_address else "N/A").upper()],
+        ["Payment Method:", payment_method],
+        ["Place of Supply:", place_of_supply],
     ]
 
     details_table = Table(invoice_details, colWidths=[60 * mm, 140 * mm])
@@ -174,51 +191,43 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
 
     # Items
     # Determine if Intra-state (CGST/SGST) or Inter-state (IGST)
-    seller_state = ((seller_info["address"] if "address" in seller_info else {})["state"] if "state" in (seller_info["address"] if "address" in seller_info else {}) else None or "").upper().strip()
-    buyer_state = ((order["shippingAddress"] if "shippingAddress" in order else {})["state"] if "state" in (seller_info["address"] if "address" in seller_info else {}) else None or "").upper().strip()
+    seller_state = (seller_addr.state.upper().strip()) if (seller_addr and seller_addr.state) else ""
+    buyer_state = (shipping_address.state.upper().strip()) if (shipping_address and shipping_address.state) else ""
     is_igst = seller_state != buyer_state and seller_state != "" and buyer_state != ""
 
     total_taxable = 0.0
     total_gst = 0.0
 
-    for idx, item in enumerate((order["items"] if "items" in order else []), 1):
-        product = (item["product"] if "product" in item else {})
+    for idx, item in enumerate(order.items or [], 1):
+        product = item.product
+        num_units = item.quantity or 0
+        single_unit_price = item.price or 0.0
+        gst_percent = item.tax_rate or 0.0
+        item_total = single_unit_price * num_units
 
-        # Read new single unit fields with fallbacks to old fields
-        single_unit_price = (item["singleUnitPrice"] if "singleUnitPrice" in item else (item["price"] if "price" in item else 0))
-        num_units = (item["numberOfSingleUnits"] if "numberOfSingleUnits" in item else (item["quantity"] if "quantity" in item else 0))
-        gst_percent = (item["gst"] if "gst" in item else 0)
-
-        item_total = (item["subtotal"] if "subtotal" in item else single_unit_price * num_units)
-        taxable_value = (item["taxableValue"] if "taxableValue" in item else 0)
-        if not taxable_value:
-            taxable_value = item_total / (1 + gst_percent / 100) if gst_percent > 0 else item_total
-
-        cgst = (item["cgst"] if "cgst" in item else 0)
-        sgst = (item["sgst"] if "sgst" in item else 0)
-        item_tax_total = cgst + sgst
-        if item_tax_total == 0 and gst_percent > 0:
+        item_tax_total = item.tax_amount or 0.0
+        if item_tax_total == 0.0 and gst_percent > 0:
+            taxable_value = item_total / (1 + gst_percent / 100)
             item_tax_total = item_total - taxable_value
+        else:
+            taxable_value = item_total - item_tax_total
 
         total_taxable += taxable_value
         total_gst += item_tax_total
 
-        # Format item description to show original quantity
-        qty_str = f"{(item['quantity'] if 'quantity' in item else 0)}"
-        if (item["sellAsCase"] if "sellAsCase" in item else None):
-            qty_str += " Case(s)"
-
-        desc = f"{(product['name'] if 'name' in product else 'N/A')} (Ordered: {qty_str})"
+        prod_name = product.name if product and product.name else "Item"
+        hsn = product.hsn_code if product and product.hsn_code else "-"
+        desc = f"{prod_name} (Ordered: {num_units})"
 
         items_data.append(
             [
                 str(idx),
                 desc,
-                (product["hsnCode"] if "hsnCode" in product else "-"),
+                hsn,
                 str(num_units),
                 f"₹{single_unit_price:.2f}",
                 f"₹{taxable_value:.2f}",
-                f"{gst_percent}%",
+                f"{gst_percent:.0f}%",
                 f"₹{item_tax_total:.2f}",
                 f"₹{item_total:.2f}",
             ]
@@ -257,13 +266,16 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
 
     totals_data.append(["Total GST:", f"₹{total_gst:.2f}"])
 
-    if (order["discount"] if "discount" in order else 0) > 0:
-        totals_data.append(["Coupon Discount:", f"-₹{order['discount']:.2f}"])
+    discount_val = order.discount or 0.0
+    if discount_val > 0:
+        totals_data.append(["Coupon Discount:", f"-₹{discount_val:.2f}"])
 
-    if (order["shipping"] if "shipping" in order else 0) > 0:
-        totals_data.append(["Delivery Charge:", f"₹{order['shipping']:.2f}"])
+    shipping_val = order.shipping_charge or 0.0
+    if shipping_val > 0:
+        totals_data.append(["Delivery Charge:", f"₹{shipping_val:.2f}"])
 
-    totals_data.append(["<b>Grand Total:</b>", f"<b>₹{int((order['total'] if 'total' in order else 0))}</b>"])
+    total_val = order.total or 0.0
+    totals_data.append(["<b>Grand Total:</b>", f"<b>₹{int(total_val)}</b>"])
 
     totals_table = Table(totals_data, colWidths=[140 * mm, 60 * mm])
     totals_table.setStyle(
@@ -282,10 +294,13 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
     elements.append(Spacer(1, 20))
 
     # Payment Information
+    paid_val = payment.amount_paid if payment.amount_paid is not None else total_val
+    rem_val = payment.amount_remaining if payment.amount_remaining is not None else 0.0
+
     payment_info = [
         ["Payment Information:"],
-        [f"Amount Paid: ₹{((payment['amountPaid'] if 'amountPaid' in payment else None) or 0):.2f}"],
-        [f"Amount Remaining: ₹{((payment['amountRemaining'] if 'amountRemaining' in payment else None) or 0):.2f}"],
+        [f"Amount Paid: ₹{paid_val:.2f}"],
+        [f"Amount Remaining: ₹{rem_val:.2f}"],
     ]
 
     payment_table = Table(payment_info)

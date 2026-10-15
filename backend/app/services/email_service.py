@@ -4,9 +4,10 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any
 
 from dotenv import load_dotenv
+
+from app.models.schemas import PopulatedOrderResponse, ReturnRequestResponse
 
 # Find .env in the backend directory
 base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,22 +27,15 @@ class EmailService:
         admin_emails_raw = os.getenv("ADMIN_EMAILS", self.smtp_user)
         self.admin_emails = [email.strip() for email in admin_emails_raw.split(",")] if admin_emails_raw else []
 
-    def _resolve_to_emails(self, to_emails: 'Union[str, List[str]]') -> list[str]:
-        if not to_emails:
-            return self.admin_emails
-        if isinstance(to_emails, str):
-            return [to_emails.strip()]
-        return [str(email).strip() for email in to_emails if email]
-
-    def send_email(self, to_emails: 'Union[str, List[str]]', subject: str, body: str, html_body: str = None) -> bool:
-        """Sends an HTML or plain-text email to one or more recipients."""
+    def send_email(self, to_email: str, subject: str, body: str, html_body: str = "") -> bool:
+        """Sends an HTML or plain-text email to a recipient."""
         from app.utils.logger import logger
 
         if not all([self.smtp_host, self.smtp_user, self.smtp_pass]):
             logger.warning("Email configuration missing. Skipping email sending.")
             return False
 
-        to_list = self._resolve_to_emails(to_emails)
+        to_list = [to_email.strip()] if to_email else self.admin_emails
 
         try:
             msg = MIMEMultipart("alternative")
@@ -72,7 +66,7 @@ class EmailService:
             logger.error("Failed to send email: %s", str(e), exc_info=True)
             return False
 
-    def send_email_with_attachment(self, to_emails: 'Union[str, List[str]]', subject: str, body: str, attachment_path: str):
+    def send_email_with_attachment(self, to_emails: list[str], subject: str, body: str, attachment_path: str) -> bool:
         """Sends an email with an attachment to one or more recipients."""
         from app.utils.logger import logger
 
@@ -80,7 +74,7 @@ class EmailService:
             logger.warning("Email configuration missing. Skipping email sending.")
             return False
 
-        to_list = self._resolve_to_emails(to_emails)
+        to_list = [e.strip() for e in to_emails if e] or self.admin_emails
 
         try:
             msg = MIMEMultipart()
@@ -178,17 +172,18 @@ class EmailService:
         """
         return self.send_email(to_email, subject, body, html_body)
 
-    def send_order_placed_email(self, to_email: str, order: dict) -> bool:
-        order_num = (order["orderNumber"] if "orderNumber" in order else None) or (order["_id"] if "_id" in order else None)
+    def send_order_placed_email(self, to_email: str, order: PopulatedOrderResponse) -> bool:
+        order_num = order.order_number or f"ORD-{order.id}"
         subject = f"Order Confirmation - {order_num} - Stationery Junction"
 
         # Build items rows for HTML
         items_html = ""
         items_text = ""
-        for item in (order["items"] if "items" in order else []):
-            prod_name = (item["product"]["name"] if "product" in item and "name" in item["product"] else "Product")
-            qty = (item["quantity"] if "quantity" in item else 0)
-            subtotal = (item["subtotal"] if "subtotal" in item else 0)
+        for item in (order.items or []):
+            prod_name = item.product.name if item.product and item.product.name else "Product"
+            qty = item.quantity or 0
+            price = item.price or 0.0
+            subtotal = price * qty
             items_html += f"""
             <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">{prod_name}</td>
@@ -198,7 +193,13 @@ class EmailService:
             """
             items_text += f"- {prod_name} x {qty}: ₹{subtotal:.2f}\n"
 
-        body = f"Thank you for your order! Your order {order_num} has been placed successfully.\n\nItems:\n{items_text}\nTotal: ₹{(order['total'] if 'total' in order else 0):.2f}"
+        total_val = order.total or 0.0
+        shipping_val = order.shipping_charge or 0.0
+        discount_val = order.discount or 0.0
+
+        body = f"Thank you for your order! Your order {order_num} has been placed successfully.\n\nItems:\n{items_text}\nTotal: ₹{total_val:.2f}"
+
+        discount_row = f'<tr><td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Discount:</td><td style="padding: 8px; text-align: right; color: #ef4444;">-₹{discount_val:.2f}</td></tr>' if discount_val > 0 else ""
 
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -224,12 +225,12 @@ class EmailService:
                     <tfoot>
                         <tr>
                             <td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Shipping:</td>
-                            <td style="padding: 8px; text-align: right;">₹{(order["shipping"] if "shipping" in order else 0):.2f}</td>
+                            <td style="padding: 8px; text-align: right;">₹{shipping_val:.2f}</td>
                         </tr>
-                        {f'<tr><td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Discount:</td><td style="padding: 8px; text-align: right; color: #ef4444;">-₹{(order["discount"] if "discount" in order else None):.2f}</td></tr>' if (order["discount"] if "discount" in order else 0) > 0 else ""}
+                        {discount_row}
                         <tr style="font-size: 18px; font-weight: bold;">
                             <td colspan="2" style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0;">Total:</td>
-                            <td style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0; color: #10b981;">₹{(order["total"] if "total" in order else 0):.2f}</td>
+                            <td style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0; color: #10b981;">₹{total_val:.2f}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -242,15 +243,10 @@ class EmailService:
         </div>
         """
 
-        # Attach invoice PDF if generated
-        invoice_path = (order["invoicePath"] if "invoicePath" in order else None)
-        if invoice_path and os.path.exists(invoice_path):
-            return self.send_email_with_attachment(to_email, subject, body, invoice_path)
-
         return self.send_email(to_email, subject, body, html_body)
 
-    def send_order_delivered_email(self, to_email: str, order: dict) -> bool:
-        order_num = (order["orderNumber"] if "orderNumber" in order else None) or (order["_id"] if "_id" in order else None)
+    def send_order_delivered_email(self, to_email: str, order: PopulatedOrderResponse) -> bool:
+        order_num = order.order_number or f"ORD-{order.id}"
         subject = f"Order Delivered - {order_num} - Stationery Junction"
         body = f"Great news! Your order {order_num} has been delivered successfully. Thank you for shopping at Stationery Junction!"
         html_body = f"""
@@ -335,9 +331,9 @@ class EmailService:
         """
         return self.send_email(to_email, subject, body, html_body)
 
-    def send_order_returned_email(self, to_email: str, return_request: dict) -> bool:
-        order_id = (return_request["orderId"] if "orderId" in return_request else None)
-        return_num = (return_request["_id"] if "_id" in return_request else None)
+    def send_order_returned_email(self, to_email: str, return_request: ReturnRequestResponse) -> bool:
+        order_id = return_request.order_id
+        return_num = return_request.id
         subject = f"Return Completed - Return #{return_num} - Stationery Junction"
         body = f"Your return request for order {order_id} has been processed and completed successfully."
         html_body = f"""

@@ -182,7 +182,7 @@ async def fulfill_availability_request(
 
             email_service = EmailService()
             email_service.send_email(
-                to_emails=email,
+                to_email=email,
                 subject=f"'{product_name}' is now available at your pincode!",
                 body=f"Great news! The product '{product_name}' you requested is now available for delivery to {pincode}. Visit the app to place your order now!",
             )

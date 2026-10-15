@@ -95,7 +95,6 @@ async def get_category_tags_for_head(head_id: str):
             return [
                 {
                     "id": str(t.id),
-                    "_id": str(t.id),
                     "name": t.name,
                     "description": t.description,
                     "isActive": bool(t.is_active),
