@@ -2209,6 +2209,7 @@ class MySQLOrderDAO:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: Optional[int] = None,
+        seller_id: Optional[int] = None,
     ) -> List[RFMSegmentsResponse]:
         where_clauses = ["o.user_id IS NOT NULL", "o.created_at IS NOT NULL"]
         params = {}
@@ -2218,6 +2219,11 @@ class MySQLOrderDAO:
         if end_date:
             where_clauses.append("o.created_at <= :end_date")
             params["end_date"] = end_date
+
+        seller_clause = ""
+        if seller_id:
+            seller_clause = "AND EXISTS (SELECT 1 FROM sj_sub_orders so WHERE so.parent_order_id = o.id AND so.seller_id = :seller_id)"
+            params["seller_id"] = seller_id
 
         limit_sql = ""
         if limit is not None:
@@ -2237,7 +2243,7 @@ class MySQLOrderDAO:
                 MAX(o.created_at) AS last_order
             FROM {self.TABLE} o
             LEFT JOIN sj_users u ON u.id = o.user_id
-            WHERE {where_sql}
+            WHERE {where_sql} {seller_clause}
             GROUP BY o.user_id, u.name, u.email
             ORDER BY total_spend DESC
             {limit_sql}

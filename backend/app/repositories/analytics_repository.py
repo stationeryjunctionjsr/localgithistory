@@ -40,6 +40,7 @@ from app.models.analytics_schemas import (
     PaymentMethodsReportResponse,
     RevenueByCategoryResponse,
     FulfillmentTimeReportResponse,
+    SalesBreakdownResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -194,98 +195,18 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SalesOverTimeResponse]:
         """Get sales over time, grouped by hour, day, or month"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        class PeriodSalesStat(BaseModel):
-            period: str
-            sales: float = 0.0
-            order_count: int = 0
-
-        period_stats: List[PeriodSalesStat] = []
-
-        for order in orders:
-            order_date = order.created_at
-            if not order_date:
-                continue
-
-            if group_by == "hour":
-                period_key = order_date.strftime("%Y-%m-%d %H:00")
-            elif group_by == "day":
-                period_key = order_date.strftime("%Y-%m-%d")
-            elif group_by == "month":
-                period_key = order_date.strftime("%Y-%m")
-            else:
-                period_key = order_date.strftime("%Y-%m-%d")
-
-            stat = next((s for s in period_stats if s.period == period_key), None)
-            if not stat:
-                stat = PeriodSalesStat(period=period_key)
-                period_stats.append(stat)
-
-            stat.sales += (order.total or 0.0)
-            stat.order_count += 1
-
-        period_stats.sort(key=lambda s: s.period)
-
-        result: List[SalesOverTimeResponse] = []
-        for s in period_stats:
-            sales = round(s.sales, 2)
-            orders_count = s.order_count
-            aov = round(sales / orders_count, 2) if orders_count > 0 else 0.0
-            result.append(
-                SalesOverTimeResponse(
-                    period=s.period,
-                    sales=sales,
-                    orderCount=orders_count,
-                    aov=aov,
-                )
-            )
-
-        return result
+        return await self.order_storage.get_sales_over_time_stats(
+            start_date=start_date, end_date=end_date, group_by=group_by, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_breakdown(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> Dict:
+    ) -> SalesBreakdownResponse:
         """Get sales breakdown: Gross sales, Discounts, Returns, Net sales, Shipping, Taxes"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        gross_sales = 0
-        total_discounts = 0
-        total_shipping = 0
-        total_taxes = 0
-
-        for order in orders:
-            gross_sales += order.total
-            if order.discount is None:
-                raise ValueError('Order discount is None')
-            total_discounts += order.discount
-            if order.delivery_charge is None:
-                raise ValueError('Order deliveryCharge is None')
-            total_shipping += order.delivery_charge
-            if order.tax is None:
-                raise ValueError('Order tax is None')
-            total_taxes += order.tax
-
-        # Returns (orders with status 'returned' or 'cancelled')
-        returned_orders = [o for o in orders if o.status in ["returned", "cancelled"]]
-        returns = sum(o.total for o in returned_orders)
-
-        net_sales = gross_sales - total_discounts - returns
-
-        return {
-            "gross_sales": gross_sales,
-            "discounts": total_discounts,
-            "returns": returns,
-            "net_sales": net_sales,
-            "shipping_charges": total_shipping,
-            "return_fees": 0,  # Can be calculated if return fees are tracked
-            "taxes": total_taxes,
-            "total_sales": gross_sales,
-        }
+        return await self.order_storage.get_sales_breakdown_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_average_order_value_over_time(
@@ -296,48 +217,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[AverageOrderValueResponse]:
         """Get average order value over time"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        class OrderPeriodStat(BaseModel):
-            period: str
-            total: float = 0.0
-            count: int = 0
-
-        period_stats: List[OrderPeriodStat] = []
-
-        for order in orders:
-            order_date = order.created_at
-            if not order_date:
-                continue
-
-            if group_by == "hour":
-                period_key = order_date.strftime("%Y-%m-%d %H:00")
-            elif group_by == "day":
-                period_key = order_date.strftime("%Y-%m-%d")
-            elif group_by == "month":
-                period_key = order_date.strftime("%Y-%m")
-            else:
-                period_key = order_date.strftime("%Y-%m-%d")
-
-            stat = next((s for s in period_stats if s.period == period_key), None)
-            if not stat:
-                stat = OrderPeriodStat(period=period_key)
-                period_stats.append(stat)
-
-            stat.total += (order.total or 0.0)
-            stat.count += 1
-
-        period_stats.sort(key=lambda s: s.period)
-
-        return [
-            AverageOrderValueResponse(
-                period=s.period,
-                average_order_value=round(s.total / s.count, 2) if s.count > 0 else 0.0,
-            )
-            for s in period_stats
-        ]
+        return await self.order_storage.get_average_order_value_over_time_stats(
+            start_date=start_date, end_date=end_date, group_by=group_by, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_channel(
@@ -347,35 +229,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SalesByChannelResponse]:
         """Get sales by sales channel"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        class ChannelStat(BaseModel):
-            channel: str
-            sales: float = 0.0
-
-        channel_stats: List[ChannelStat] = [
-            ChannelStat(channel="desktop_web"),
-            ChannelStat(channel="mobile_web"),
-            ChannelStat(channel="mobile_app"),
-        ]
-
-        for order in orders:
-            ch_name = order.channel or "desktop_web"
-            c_stat = next((cs for cs in channel_stats if cs.channel == ch_name), None)
-            if not c_stat:
-                c_stat = ChannelStat(channel=ch_name)
-                channel_stats.append(c_stat)
-            c_stat.sales += (order.total or 0.0)
-
-        return [
-            SalesByChannelResponse(
-                channel=cs.channel,
-                sales=round(cs.sales, 2),
-            )
-            for cs in channel_stats
-        ]
+        return await self.order_storage.get_sales_by_channel_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_product(
@@ -386,57 +242,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SalesByProductResponse]:
         """Get top products by sales"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        products = await self.product_storage.findAll()
-        if seller_id:
-            products = [p for p in products if p.has_seller(seller_id)]
-
-        class ProductSalesStat(BaseModel):
-            product_id: int
-            name: str
-            quantity: int = 0
-            revenue: float = 0.0
-
-        product_stats: List[ProductSalesStat] = []
-
-        for order in orders:
-            for item in order.items:
-                product_id = item.product or item.product_id
-                if not product_id:
-                    continue
-
-                product = next((p for p in products if p.id == product_id), None)
-                if not product:
-                    continue
-
-                stat = next((s for s in product_stats if s.product_id == product.id), None)
-                if not stat:
-                    stat = ProductSalesStat(
-                        product_id=product.id,
-                        name=product.name or "Unknown Product",
-                    )
-                    product_stats.append(stat)
-
-                quantity = item.quantity or 0
-                subtotal = (item.price or 0.0) * quantity
-
-                stat.quantity += quantity
-                stat.revenue = round(stat.revenue + subtotal, 2)
-
-        product_stats.sort(key=lambda x: (x.quantity, x.revenue), reverse=True)
-
-        return [
-            SalesByProductResponse(
-                product_id=stat.product_id,
-                name=stat.name,
-                quantity=stat.quantity,
-                revenue=round(stat.revenue, 2),
-            )
-            for stat in product_stats[:limit]
-        ]
+        return await self.order_storage.get_sales_by_product_stats(
+            start_date=start_date, end_date=end_date, limit=limit, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_conversion_rate_over_time(
@@ -615,52 +423,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[ProductsSellThroughResponse]:
         """Get products by sell-through rate"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        products = await self.product_storage.findAll()
-
-        class ProductSellThroughStat(BaseModel):
-            product_id: int
-            name: str = "Unknown"
-            stock: int = 0
-            sold: int = 0
-
-        product_stats: List[ProductSellThroughStat] = [
-            ProductSellThroughStat(
-                product_id=p.id,
-                name=p.name or "Unknown",
-                stock=int(p.stock or 0),
-            )
-            for p in products
-        ]
-
-        for order in orders:
-            for item in order.items:
-                pid = item.product_id or item.product
-                if not pid:
-                    continue
-                stat = next((s for s in product_stats if s.product_id == pid), None)
-                if stat:
-                    stat.sold += (item.quantity or 0)
-
-        result: List[ProductsSellThroughResponse] = []
-        for stat in product_stats:
-            total_available = stat.stock + stat.sold
-            sell_through_rate = (stat.sold / total_available * 100) if total_available > 0 else 0.0
-
-            result.append(
-                ProductsSellThroughResponse(
-                    product_id=stat.product_id,
-                    name=stat.name,
-                    sold=stat.sold,
-                    stock=stat.stock,
-                    sell_through_rate=round(sell_through_rate, 2),
-                )
-            )
-
-        return sorted(result, key=lambda x: x.sell_through_rate, reverse=True)[:limit]
+        return await self.order_storage.get_products_sell_through_stats(
+            start_date=start_date, end_date=end_date, limit=limit, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_customer_cohort_analysis(
@@ -1120,53 +885,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[ReturnsReportResponse]:
         """Aggregate returns/refund requests with order value and status."""
-        from app.repositories.return_request_repository import return_request_repository
-
-        all_returns = await return_request_repository.findAll()
-        orders = await self.order_storage.findAll()
-        users = await self.user_storage.findAll()
-
-        result: List[ReturnsReportResponse] = []
-        for ret in all_returns:
-            if start_date and ret.created_at and ret.created_at < start_date:
-                continue
-            if end_date and ret.created_at and ret.created_at > end_date:
-                continue
-
-            order = next((o for o in orders if o.id == ret.order_id), None) if ret.order_id else None
-            user = next((u for u in users if u.id == ret.user_id), None) if ret.user_id else None
-            if not order or not user:
-                continue
-            # Seller scoping: skip returns not belonging to this seller
-            if seller_id:
-                order_in_scope = self._filter_by_seller([order], seller_id)
-                if not order_in_scope:
-                    continue
-
-            order_items = {oi.product_id: oi for oi in (order.items or []) if oi.product_id}
-            items = ret.items or []
-            refund_value = sum(
-                (order_items[item.product_id].price if item.product_id in order_items and order_items[item.product_id].price is not None else 0.0) * item.quantity
-                for item in items
-            )
-
-            result.append(
-                ReturnsReportResponse(
-                    returnId=ret.return_id or f"RET-{ret.id}",
-                    orderId=order.id,
-                    orderTotal=order.total,
-                    userName=user.name or "Unknown",
-                    userEmail=user.email or "",
-                    status=ret.status or "pending",
-                    refundValue=round(refund_value, 2),
-                    itemCount=len(items),
-                    paymentMethod=ret.payment_method,
-                    createdAt=ret.created_at,
-                )
-            )
-
-        result.sort(key=lambda x: x.createdAt or datetime.min, reverse=True)
-        return result
+        return await self.order_storage.get_returns_report_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_payment_methods_report(
@@ -1176,39 +897,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[PaymentMethodsReportResponse]:
         """Aggregate order count and revenue by payment method."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-
-        class MethodStat(BaseModel):
-            payment_method: str
-            order_count: int = 0
-            revenue: float = 0.0
-
-        method_stats: List[MethodStat] = []
-        for order in orders:
-            method = order.payment_method or "unknown"
-            stat = next((m for m in method_stats if m.payment_method == method), None)
-            if not stat:
-                stat = MethodStat(payment_method=method)
-                method_stats.append(stat)
-            stat.order_count += 1
-            stat.revenue += (order.total or 0.0)
-
-        result: List[PaymentMethodsReportResponse] = []
-        for s in method_stats:
-            rev = round(s.revenue, 2)
-            avg_aov = round(s.revenue / s.order_count, 2) if s.order_count > 0 else 0.0
-            result.append(
-                PaymentMethodsReportResponse(
-                    paymentMethod=s.payment_method,
-                    orderCount=s.order_count,
-                    revenue=rev,
-                    avgOrderValue=avg_aov,
-                )
-            )
-
-        return sorted(result, key=lambda x: x.revenue, reverse=True)
+        return await self.order_storage.get_payment_methods_report_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_revenue_by_category(
@@ -1219,71 +910,20 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[RevenueByCategoryResponse]:
         """Aggregate revenue, quantity and order count by product category."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-        products = await self.product_storage.findAll()
-
-        class CategoryStat(BaseModel):
-            category: str
-            revenue: float = 0.0
-            quantity: int = 0
-            order_ids: set[int] = Field(default_factory=set)
-
-        category_stats: List[CategoryStat] = []
-        for order in orders:
-            for item in (order.items or []):
-                prod_id = item.product_id or item.product
-                product = next((p for p in products if p.id == prod_id), None) if prod_id else None
-                category = (product.category or "Uncategorized") if product else "Uncategorized"
-
-                stat = next((cs for cs in category_stats if cs.category == category), None)
-                if not stat:
-                    stat = CategoryStat(category=category)
-                    category_stats.append(stat)
-
-                item_subtotal = item.subtotal if item.subtotal is not None else ((item.price or 0.0) * (item.quantity or 1))
-                stat.revenue += float(item_subtotal or 0.0)
-                stat.quantity += int(item.quantity or 0)
-                if order.id is not None:
-                    stat.order_ids.add(order.id)
-
-        result: List[RevenueByCategoryResponse] = [
-            RevenueByCategoryResponse(
-                category=s.category,
-                revenue=round(s.revenue, 2),
-                quantity=s.quantity,
-                orderCount=len(s.order_ids),
-            )
-            for s in category_stats
-        ]
-
-        return sorted(result, key=lambda x: x.revenue, reverse=True)[:limit]
+        return await self.order_storage.get_revenue_by_category_stats(
+            start_date=start_date, end_date=end_date, limit=limit, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[int] = None) -> List[InventoryAlertResponse]:
+    async def get_inventory_alerts(
+        self,
+        threshold: int = 10,
+        seller_id: Optional[int] = None,
+    ) -> List[InventoryAlertResponse]:
         """Return products whose current stock is at or below `threshold`."""
-        products = await self.product_storage.findAll()
-        # Filter products by seller if scoped
-        if seller_id:
-            products = [p for p in products if p.has_seller(seller_id)]
-
-        result: List[InventoryAlertResponse] = []
-        for product in products:
-            stock = product.stock or 0
-            if stock <= threshold:
-                result.append(
-                    InventoryAlertResponse(
-                        productId=product.id,
-                        name=product.name,
-                        sku=product.sku,
-                        category=product.category or "Uncategorized",
-                        stock=stock,
-                        status="out_of_stock" if stock == 0 else "low_stock",
-                    )
-                )
-
-        return sorted(result, key=lambda x: x.stock)
+        return await self.order_storage.get_inventory_alerts_stats(
+            threshold=threshold, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_fulfillment_time_report(
@@ -1293,46 +933,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[FulfillmentTimeReportResponse]:
         """Calculate fulfillment times for completed/delivered orders."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        orders = self._filter_by_seller(orders, seller_id)
-        users = await self.user_storage.findAll()
-
-        TERMINAL_STATUSES = {"delivered", "completed", "cancelled", "returned"}
-
-        result: List[FulfillmentTimeReportResponse] = []
-        for order in orders:
-            status = order.status
-            if status not in TERMINAL_STATUSES:
-                continue
-
-            created_dt = self._to_naive_utc(order.created_at)
-            updated_dt = self._to_naive_utc(order.updated_at)
-
-            if not created_dt or not updated_dt:
-                continue
-
-            delta_hours = round((updated_dt - created_dt).total_seconds() / 3600, 1)
-            if delta_hours < 0:
-                continue
-
-            user = next((u for u in users if u.id == order.user), None) if order.user else None
-            user_name = user.name if user and user.name else "Unknown"
-            result.append(
-                FulfillmentTimeReportResponse(
-                    orderId=order.id,
-                    orderNumber=order.order_number or "",
-                    userName=user_name,
-                    status=status or "",
-                    fulfillmentHours=delta_hours,
-                    fulfillmentDays=round(delta_hours / 24, 1),
-                    orderTotal=round(order.total or 0.0, 2),
-                    createdAt=order.created_at,
-                )
-            )
-
-        result.sort(key=lambda x: x.createdAt or datetime.min, reverse=True)
-        return result
+        return await self.order_storage.get_fulfillment_time_report_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_coupon_usage_report(
@@ -1563,101 +1166,19 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[TopReturnedProductsResponse]:
         """Find products that are returned the most."""
-        from app.repositories.return_request_repository import return_request_repository
-
-        returns = await return_request_repository.findAll()
-        products = await self.product_storage.findAll()
-
-        class ProductReturnStat(BaseModel):
-            product_id: int
-            product_name: str
-            category: str
-            return_count: int = 0
-            quantity_returned: int = 0
-            revenue_lost: float = 0.0
-
-        return_stats: List[ProductReturnStat] = []
-        for req in returns:
-            created = self._parse_date(req.created_at)
-            if start_date and created and created < start_date:
-                continue
-            if end_date and created and created > end_date:
-                continue
-
-            for item in req.items:
-                pid = item.product or item.product_id
-                if not pid:
-                    continue
-
-                prod = next((p for p in products if p.id == pid), None)
-                if seller_id and (not prod or not prod.has_seller(seller_id)):
-                    continue
-
-                stat = next((r for r in return_stats if r.product_id == pid), None)
-                if not stat:
-                    stat = ProductReturnStat(
-                        product_id=pid,
-                        product_name=prod.name if prod else "Unknown Product",
-                        category=prod.category if prod else "Uncategorized",
-                    )
-                    return_stats.append(stat)
-
-                q = item.quantity or 0
-                stat.return_count += 1
-                stat.quantity_returned += q
-                stat.revenue_lost = round(stat.revenue_lost + (q * (item.price or 0.0)), 2)
-
-        sorted_stats = sorted(return_stats, key=lambda x: x.return_count, reverse=True)[:limit]
-        return [
-            TopReturnedProductsResponse(
-                productId=s.product_id,
-                productName=s.product_name,
-                category=s.category,
-                returnCount=s.return_count,
-                quantityReturned=s.quantity_returned,
-                revenueLost=s.revenue_lost,
-            )
-            for s in sorted_stats
-        ]
+        return await self.order_storage.get_top_returned_products_stats(
+            start_date=start_date, end_date=end_date, limit=limit, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_value_by_category(self, seller_id: Optional[int] = None) -> List[InventoryValueByCategoryResponse]:
+    async def get_inventory_value_by_category(
+        self,
+        seller_id: Optional[int] = None,
+    ) -> List[InventoryValueByCategoryResponse]:
         """Calculate total tied up capital in inventory grouped by category."""
-        products = await self.product_storage.findAll()
-        if seller_id:
-            products = [p for p in products if p.has_seller(seller_id)]
-
-        class CategoryStat(BaseModel):
-            category: str
-            product_count: int = 0
-            total_stock: int = 0
-            inventory_value: float = 0.0
-
-        stats: List[CategoryStat] = []
-        for p in products:
-            cat = p.category or "Uncategorized"
-            stat = next((s for s in stats if s.category == cat), None)
-            if not stat:
-                stat = CategoryStat(category=cat)
-                stats.append(stat)
-
-            stock = p.stock or 0
-            price = p.price or p.mrp or 0.0
-
-            stat.total_stock += stock
-            stat.inventory_value = round(stat.inventory_value + (stock * price), 2)
-            stat.product_count += 1
-
-        result = [
-            InventoryValueByCategoryResponse(
-                category=s.category,
-                productCount=s.product_count,
-                totalStock=s.total_stock,
-                inventoryValue=round(s.inventory_value, 2),
-            )
-            for s in stats
-        ]
-        return sorted(result, key=lambda x: x.inventory_value, reverse=True)
+        return await self.order_storage.get_inventory_value_by_category_stats(
+            seller_id=seller_id
+        )
 
     async def precompute_dashboard_reports(self, ist_timestamp: Optional[str] = None) -> DashboardReportsCache:
         """Precomputes the heavy reporting metrics and writes to the cache."""
@@ -1744,93 +1265,13 @@ class AnalyticsRepository:
             last_updated_at_ist=last_updated_at_ist,
         )
 
+    @cache.ttl_cache(ttl=300)
     async def get_bundle_performance_report(self) -> Dict:
         """
         Generate a performance report for all bundles.
         Returns total copies sold, order count, total revenue, and monthly trends per bundle.
         """
-        from app.repositories.bundle_repository import bundle_repository
-        from app.models.bundle import Bundle
-        from app.models.analytics_schemas import MonthlyRevenueItem
-
-        bundles = await bundle_repository.findAll()
-        valid_bundles = [b for b in bundles if b.id]
-
-        class BundleStat(BaseModel):
-            bundle: Bundle
-            order_count: int = 0
-            copies_sold: int = 0
-            revenue: float = 0.0
-            monthly_items: List[MonthlyRevenueItem] = Field(default_factory=list)
-
-        stats: List[BundleStat] = [BundleStat(bundle=b) for b in valid_bundles]
-
-        # Fetch all completed orders
-        orders = await self.order_storage.findAll(self._build_order_filter(status="completed"))
-        for order in orders:
-            order_date = order.created_at
-            month_key = None
-            if order_date:
-                # parse date
-                try:
-                    if isinstance(order_date, str):
-                        dt = datetime.fromisoformat(order_date.replace("Z", "+00:00"))
-                    else:
-                        dt = order_date
-                    month_key = dt.strftime("%Y-%m")
-                except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid order date format: {order_date}") from e
-
-            for stat in stats:
-                b_items = [item for item in order.items if item.bundle_id == stat.bundle.id]
-                if not b_items:
-                    continue
-
-                b_def = stat.bundle
-                b_specs = b_def.items
-                copies = 1
-                if b_specs:
-                    spec = b_specs[0]
-                    spec_qty = max(1, spec.quantity or 1)
-                    spec_pid = spec.product_id
-                    ref_item = next(
-                        (i for i in b_items if i.product == spec_pid or i.product_id == spec_pid),
-                        b_items[0]
-                    )
-                    ref_qty = ref_item.quantity or spec_qty
-                    copies = max(1, ref_qty // spec_qty)
-
-                b_price = b_def.price or 0.0
-                b_revenue = copies * b_price
-
-                stat.order_count += 1
-                stat.copies_sold += copies
-                stat.revenue += b_revenue
-                if month_key:
-                    m_item = next((m for m in stat.monthly_items if m.month == month_key), None)
-                    if not m_item:
-                        m_item = MonthlyRevenueItem(month=month_key, revenue=0.0)
-                        stat.monthly_items.append(m_item)
-                    m_item.revenue = round(m_item.revenue + b_revenue, 2)
-
-        # Format the result
-        result: List[BundlePerformanceReportResponse] = [
-            BundlePerformanceReportResponse(
-                bundleId=s.bundle.id,
-                name=s.bundle.name,
-                price=s.bundle.price,
-                isActive=s.bundle.is_active,
-                orderCount=s.order_count,
-                copiesSold=s.copies_sold,
-                revenue=round(s.revenue, 2),
-                monthlyRevenue=s.monthly_items,
-            )
-            for s in stats
-        ]
-            
-        # Sort by revenue descending
-        result.sort(key=lambda x: x.revenue or 0.0, reverse=True)
-        return {"report": result}
+        return {"report": await self.order_storage.get_bundle_performance_report_stats()}
 
     # ─────────────────────────────────────────────────────────────────────────
     # ADDITIONAL REPORTS
@@ -2006,71 +1447,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[RFMSegmentsResponse]:
         """RFM segmentation: Champions, Loyal, Promising, At Risk, Dormant."""
-        from datetime import timedelta
-
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        users = await self.user_storage.findAll()
-
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-        class CustomerRfmStat(BaseModel):
-            user_id: int
-            last_order: datetime
-            count: int = 0
-            spend: float = 0.0
-
-        rfm_stats: List[CustomerRfmStat] = []
-        for order in orders:
-            uid = order.user
-            if not uid:
-                continue
-            dt = self._to_naive_utc(self._parse_date(order.created_at))
-            if not dt:
-                continue
-            stat = next((s for s in rfm_stats if s.user_id == uid), None)
-            if not stat:
-                stat = CustomerRfmStat(user_id=uid, last_order=dt)
-                rfm_stats.append(stat)
-            if dt > stat.last_order:
-                stat.last_order = dt
-            stat.count += 1
-            stat.spend += (order.total or 0.0)
-
-        result: List[RFMSegmentsResponse] = []
-        for stat in rfm_stats:
-            recency_days = (now - stat.last_order).days
-            freq = stat.count
-            spend = round(stat.spend, 2)
-
-            # Simple rule-based RFM segment
-            if recency_days <= 30 and freq >= 5:
-                segment = "Champion"
-            elif recency_days <= 60 and freq >= 3:
-                segment = "Loyal"
-            elif recency_days <= 90 and freq >= 2:
-                segment = "Promising"
-            elif recency_days <= 180:
-                segment = "At Risk"
-            else:
-                segment = "Dormant"
-
-            user = next((u for u in users if u.id == stat.user_id), None)
-            user_name = user.name if user and user.name else "Unknown"
-            user_email = user.email if user and user.email else "Unknown"
-            result.append(
-                RFMSegmentsResponse(
-                    userId=stat.user_id,
-                    name=user_name,
-                    email=user_email,
-                    segment=segment,
-                    recencyDays=recency_days,
-                    orderCount=freq,
-                    totalSpend=spend,
-                )
-            )
-
-        return sorted(result, key=lambda x: x.total_spend, reverse=True)
+        return await self.order_storage.get_rfm_segments_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=600)
     async def get_customer_frequency_report(
@@ -2080,53 +1459,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[CustomerFrequencyResponse]:
         """Split of one-time vs repeat buyers with revenue per group."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        class CustomerFreqStat(BaseModel):
-            user_id: int
-            orders: int = 0
-            revenue: float = 0.0
-
-        customer_stats: List[CustomerFreqStat] = []
-        for order in orders:
-            uid = order.user
-            if not uid:
-                continue
-            c_stat = next((c for c in customer_stats if c.user_id == uid), None)
-            if not c_stat:
-                c_stat = CustomerFreqStat(user_id=uid)
-                customer_stats.append(c_stat)
-            c_stat.orders += 1
-            c_stat.revenue += (order.total or 0.0)
-
-        one_time = [c for c in customer_stats if c.orders == 1]
-        repeat = [c for c in customer_stats if c.orders > 1]
-        total_customers = len(customer_stats)
-
-        def pct(n: int) -> float:
-            return round(n / total_customers * 100, 1) if total_customers else 0.0
-
-        return [
-            CustomerFrequencyResponse(
-                type="One-Time Buyers",
-                customers=len(one_time),
-                customerPct=pct(len(one_time)),
-                orders=sum(c.orders for c in one_time),
-                avgOrders=1.0,
-                revenue=round(sum(c.revenue for c in one_time), 2),
-            ),
-            CustomerFrequencyResponse(
-                type="Repeat Buyers",
-                customers=len(repeat),
-                customerPct=pct(len(repeat)),
-                orders=sum(c.orders for c in repeat),
-                avgOrders=round(
-                    sum(c.orders for c in repeat) / len(repeat), 1
-                ) if repeat else 0.0,
-                revenue=round(sum(c.revenue for c in repeat), 2),
-            ),
-        ]
+        return await self.order_storage.get_customer_frequency_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_net_sales_by_order(
@@ -2136,45 +1471,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[NetSalesResponse]:
         """Per-order breakdown: gross sales → discounts → tax → shipping → net sales."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        orders = self._filter_by_seller(orders, seller_id)
-
-        users = await self.user_storage.findAll()
-
-        result: List[NetSalesResponse] = []
-        for order in orders:
-            if order.subtotal is None:
-                raise ValueError('Order subtotal is None')
-            subtotal = float(order.subtotal)
-            if order.discount is None:
-                raise ValueError('Order discount is None')
-            discount = float(order.discount)
-            if order.tax is None:
-                raise ValueError('Order tax is None')
-            tax = float(order.tax)
-            shipping = float(order.shipping or order.delivery_charge or 0)
-            net = round(subtotal - discount + tax + shipping, 2)
-
-            user = next((u for u in users if u.id == order.user), None) if order.user else None
-            customer_name = user.name if user and user.name else "Unknown"
-            result.append(
-                NetSalesResponse(
-                    orderId=order.id,
-                    orderNumber=order.order_number,
-                    customerName=customer_name,
-                    grossSales=round(subtotal, 2),
-                    discount=round(discount, 2),
-                    tax=round(tax, 2),
-                    shipping=round(shipping, 2),
-                    netSales=net,
-                    status=order.status,
-                    createdAt=str(order.created_at) if order.created_at else "",
-                )
-            )
-
-        return sorted(result, key=lambda x: x.created_at, reverse=True)
+        return await self.order_storage.get_net_sales_by_order_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_heatmap(
@@ -2184,41 +1483,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SalesHeatmapResponse]:
         """Order volume and revenue grouped by day-of-week (0=Mon) and hour-of-day (0-23)."""
-        DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        orders = self._filter_by_seller(orders, seller_id)
-
-        class HeatmapStat(BaseModel):
-            dow: int
-            hour: int
-            order_count: int = 0
-            revenue: float = 0.0
-
-        heat_stats: List[HeatmapStat] = []
-        for order in orders:
-            dt = self._parse_date(order.created_at)
-            if not dt:
-                continue
-            h_stat = next((h for h in heat_stats if h.dow == dt.weekday() and h.hour == dt.hour), None)
-            if not h_stat:
-                h_stat = HeatmapStat(dow=dt.weekday(), hour=dt.hour)
-                heat_stats.append(h_stat)
-            h_stat.order_count += 1
-            h_stat.revenue += (order.total or 0.0)
-
-        heat_stats.sort(key=lambda h: (h.dow, h.hour))
-        return [
-            SalesHeatmapResponse(
-                dayOfWeek=DAY_NAMES[h.dow],
-                hour=h.hour,
-                orderCount=h.order_count,
-                revenue=round(h.revenue, 2),
-            )
-            for h in heat_stats
-        ]
+        return await self.order_storage.get_sales_heatmap_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_inventory_runway(
@@ -2228,66 +1495,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[InventoryRunwayResponse]:
         """Days of stock remaining per product based on 30-day average daily sales velocity."""
-        from datetime import timedelta
-
-        # 30-day window for velocity
-        window_end = datetime.now(timezone.utc).replace(tzinfo=None)
-        window_start = window_end - timedelta(days=30)
-
-        orders = await self.order_storage.findAll()
-        products = await self.product_storage.findAll()
-
-        if seller_id:
-            products = [p for p in products if p.has_seller(seller_id)]
-
-        class ProductRunwayStat(BaseModel):
-            product: Any
-            units_sold_30d: int = 0
-
-        product_stats: List[ProductRunwayStat] = [ProductRunwayStat(product=p) for p in products]
-
-        for order in orders:
-            dt = self._to_naive_utc(self._parse_date(order.created_at))
-            if not dt or dt < window_start:
-                continue
-            for item in order.items:
-                pid = item.product_id or item.product
-                if not pid:
-                    continue
-                stat = next((s for s in product_stats if s.product.id == pid), None)
-                if stat:
-                    stat.units_sold_30d += (item.quantity or 0)
-
-        result: List[InventoryRunwayResponse] = []
-        for stat in product_stats:
-            product = stat.product
-            stock = int(product.stock or 0)
-            sold_30d = stat.units_sold_30d
-            avg_daily = round(sold_30d / 30, 2)
-            days_remaining = round(stock / avg_daily) if avg_daily > 0 else None
-
-            result.append(
-                InventoryRunwayResponse(
-                    productId=product.id,
-                    name=product.name,
-                    category=product.category or "",
-                    currentStock=stock,
-                    unitsSold30d=sold_30d,
-                    avgDailySales=avg_daily,
-                    daysRemaining=days_remaining,
-                )
-            )
-
-        # Sort: products running out soonest first; None (no sales) at the end
-        return sorted(
-            result,
-            key=lambda x: (x.days_remaining is None, x.days_remaining if x.days_remaining is not None else 9999),
+        return await self.order_storage.get_inventory_runway_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
         )
-
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # BATCH 2 ADDITIONAL REPORTS
-    # ─────────────────────────────────────────────────────────────────────────
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_channel_detailed(
@@ -2296,44 +1506,9 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
     ) -> List[SalesByChannelDetailedResponse]:
         """Revenue, order count, and AOV broken down by sales channel (desktop_web / mobile_web / mobile_app)."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        class ChannelStat(BaseModel):
-            channel: str
-            revenue: float = 0.0
-            order_count: int = 0
-
-        channel_stats: List[ChannelStat] = [
-            ChannelStat(channel="desktop_web"),
-            ChannelStat(channel="mobile_web"),
-            ChannelStat(channel="mobile_app"),
-        ]
-
-        for order in orders:
-            ch_name = order.channel or "desktop_web"
-            c_stat = next((cs for cs in channel_stats if cs.channel == ch_name), channel_stats[0])
-            c_stat.revenue += (order.total or 0.0)
-            c_stat.order_count += 1
-
-        total_rev = sum(cs.revenue for cs in channel_stats)
-        result: List[SalesByChannelDetailedResponse] = []
-        for cs in channel_stats:
-            count = cs.order_count
-            rev = round(cs.revenue, 2)
-            pct = round(rev / total_rev * 100, 1) if total_rev > 0 else 0.0
-            result.append(
-                SalesByChannelDetailedResponse(
-                    channel=cs.channel,
-                    channelLabel=cs.channel.replace("_", " ").title(),
-                    orderCount=count,
-                    revenue=rev,
-                    aov=round(rev / count, 2) if count > 0 else 0.0,
-                    revenuePct=pct,
-                )
-            )
-
-        return sorted(result, key=lambda x: x.revenue, reverse=True)
+        return await self.order_storage.get_sales_by_channel_detailed_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_discounts_audit(
@@ -2343,44 +1518,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[DiscountsAuditResponse]:
         """Per-order line-item audit: coupon code, discount type/value, gross, discount applied, net."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        orders = self._filter_by_seller(orders, seller_id)
-
-        users = await self.user_storage.findAll()
-
-        result: List[DiscountsAuditResponse] = []
-        for order in orders:
-            if order.discount is None:
-                raise ValueError('Order discount is None')
-            discount = float(order.discount)
-            if discount == 0 and not order.coupon_code:
-                continue  # skip orders with no discount at all
-
-            coupon_info = order.couponInfo
-            customer = next((u for u in users if u.id == order.user), None) if order.user else None
-            customer_name = customer.name if (customer and customer.name) else "Unknown"
-            gross = float(order.subtotal or order.total or 0)
-            net = round(gross - discount, 2)
-
-            result.append(
-                DiscountsAuditResponse(
-                    orderId=order.id,
-                    orderNumber=order.order_number or "",
-                    customerName=customer_name,
-                    couponCode=order.coupon_code or "—",
-                    discountType=coupon_info.discountType if coupon_info else None,
-                    discountValue=coupon_info.discountValue if coupon_info else None,
-                    grossSales=round(gross, 2),
-                    discountApplied=round(discount, 2),
-                    netAfterDiscount=net,
-                    discountPct=round(discount / gross * 100, 1) if gross > 0 else 0.0,
-                    createdAt=str(order.created_at) if order.created_at else "",
-                )
-            )
-
-        return sorted(result, key=lambda x: x.created_at or "", reverse=True)
+        return await self.order_storage.get_discounts_audit_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_products_pct_sold(
@@ -2390,50 +1530,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[ProductsPctSoldResponse]:
         """Units sold in the period as a % of current stock (sell-through by quantity)."""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        products = await self.product_storage.findAll()
-        if seller_id:
-            products = [p for p in products if p.has_seller(seller_id)]
-
-        class ProductPctStat(BaseModel):
-            product: Any
-            sold: int = 0
-
-        product_stats: List[ProductPctStat] = [ProductPctStat(product=p) for p in products]
-
-        for order in orders:
-            for item in order.items:
-                pid = item.product_id or item.product
-                if not pid:
-                    continue
-                stat = next((s for s in product_stats if s.product.id == pid), None)
-                if stat:
-                    stat.sold += (item.quantity or 0)
-
-        result: List[ProductsPctSoldResponse] = []
-        for stat in product_stats:
-            product = stat.product
-            stock = int(product.stock or 0)
-            sold = stat.sold
-            total = stock + sold  # opening stock approximation
-            pct = round(sold / total * 100, 1) if total > 0 else 0.0
-
-            result.append(
-                ProductsPctSoldResponse(
-                    productId=product.id,
-                    name=product.name,
-                    category=product.category or "",
-                    sku=product.sku,
-                    unitsSold=sold,
-                    currentStock=stock,
-                    openingStock=total,
-                    pctSold=pct,
-                )
-            )
-
-        return sorted(result, key=lambda x: x.pct_sold, reverse=True)
+        return await self.order_storage.get_products_pct_sold_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
 
 analytics_repository = AnalyticsRepository()

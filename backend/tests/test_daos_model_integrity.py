@@ -573,11 +573,27 @@ async def test_analytics_batch_5_methods_model_integrity():
         sellers=[ProductSellerEntry(seller_id=10, request_status="approved")],
     )
 
-    orig_order_findAll = analytics_repository.order_storage.findAll
-    orig_product_findAll = analytics_repository.product_storage.findAll
+    orig_sot = getattr(analytics_repository.order_storage, "get_sales_over_time_stats", None)
+    orig_aov = getattr(analytics_repository.order_storage, "get_average_order_value_over_time_stats", None)
+    orig_sbc = getattr(analytics_repository.order_storage, "get_sales_by_channel_stats", None)
+    orig_sbp = getattr(analytics_repository.order_storage, "get_sales_by_product_stats", None)
     try:
-        analytics_repository.order_storage.findAll = AsyncMock(return_value=[mock_order])
-        analytics_repository.product_storage.findAll = AsyncMock(return_value=[mock_product])
+        analytics_repository.order_storage.get_sales_over_time_stats = AsyncMock(
+            return_value=[SalesOverTimeResponse(period="2026-03-15", sales=150.0, orderCount=1, aov=150.0)]
+        )
+        analytics_repository.order_storage.get_average_order_value_over_time_stats = AsyncMock(
+            return_value=[AverageOrderValueResponse(period="2026-03-15", average_order_value=150.0)]
+        )
+        analytics_repository.order_storage.get_sales_by_channel_stats = AsyncMock(
+            return_value=[
+                SalesByChannelResponse(channel="mobile_web", sales=150.0),
+                SalesByChannelResponse(channel="desktop_web", sales=0.0),
+                SalesByChannelResponse(channel="mobile_app", sales=0.0),
+            ]
+        )
+        analytics_repository.order_storage.get_sales_by_product_stats = AsyncMock(
+            return_value=[SalesByProductResponse(productId=50, name="Notebook", quantity=3, revenue=150.0)]
+        )
 
         # 1. get_sales_over_time
         res_sot = await analytics_repository.get_sales_over_time(group_by="day", seller_id=10)
@@ -609,8 +625,10 @@ async def test_analytics_batch_5_methods_model_integrity():
         assert res_sbp[0].quantity == 3
         assert res_sbp[0].revenue == 150.0
     finally:
-        analytics_repository.order_storage.findAll = orig_order_findAll
-        analytics_repository.product_storage.findAll = orig_product_findAll
+        analytics_repository.order_storage.get_sales_over_time_stats = orig_sot
+        analytics_repository.order_storage.get_average_order_value_over_time_stats = orig_aov
+        analytics_repository.order_storage.get_sales_by_channel_stats = orig_sbc
+        analytics_repository.order_storage.get_sales_by_product_stats = orig_sbp
 
 
 @pytest.mark.asyncio
@@ -710,18 +728,60 @@ async def test_analytics_batch_6_methods_model_integrity():
         ],
     )
 
-    orig_order_findAll = analytics_repository.order_storage.findAll
-    orig_product_findAll = analytics_repository.product_storage.findAll
-    orig_user_findAll = analytics_repository.user_storage.findAll
-
-    from app.repositories.return_request_repository import return_request_repository
-    orig_return_findAll = return_request_repository.findAll
+    orig_ret = getattr(analytics_repository.order_storage, "get_returns_report_stats", None)
+    orig_pm = getattr(analytics_repository.order_storage, "get_payment_methods_report_stats", None)
+    orig_cat = getattr(analytics_repository.order_storage, "get_revenue_by_category_stats", None)
+    orig_ft = getattr(analytics_repository.order_storage, "get_fulfillment_time_report_stats", None)
 
     try:
-        analytics_repository.order_storage.findAll = AsyncMock(return_value=[mock_order])
-        analytics_repository.product_storage.findAll = AsyncMock(return_value=[mock_product])
-        analytics_repository.user_storage.findAll = AsyncMock(return_value=[mock_user])
-        return_request_repository.findAll = AsyncMock(return_value=[mock_return])
+        analytics_repository.order_storage.get_returns_report_stats = AsyncMock(
+            return_value=[
+                ReturnsReportResponse(
+                    returnId="RET-001",
+                    orderId=101,
+                    userName="Alice Smith",
+                    userEmail="alice@example.com",
+                    itemCount=1,
+                    paymentMethod="card",
+                    refundValue=50.0,
+                    status="approved",
+                    createdAt=datetime(2026, 3, 16, 12, 0, 0),
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_payment_methods_report_stats = AsyncMock(
+            return_value=[
+                PaymentMethodsReportResponse(
+                    paymentMethod="card",
+                    orderCount=1,
+                    revenue=250.0,
+                    avgOrderValue=250.0,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_revenue_by_category_stats = AsyncMock(
+            return_value=[
+                RevenueByCategoryResponse(
+                    category="Stationery",
+                    orderCount=1,
+                    quantity=5,
+                    revenue=250.0,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_fulfillment_time_report_stats = AsyncMock(
+            return_value=[
+                FulfillmentTimeReportResponse(
+                    orderId=101,
+                    orderNumber="ORD-101",
+                    userName="Alice Smith",
+                    status="delivered",
+                    fulfillmentHours=4.0,
+                    orderTotal=250.0,
+                    createdAt=datetime(2026, 3, 15, 10, 0, 0),
+                )
+            ]
+        )
 
         # 1. get_returns_report
         res_ret = await analytics_repository.get_returns_report(seller_id=10)
@@ -763,10 +823,10 @@ async def test_analytics_batch_6_methods_model_integrity():
         assert res_ft[0].orderTotal == 250.0
         assert res_ft[0].createdAt == datetime(2026, 3, 15, 10, 0, 0)
     finally:
-        analytics_repository.order_storage.findAll = orig_order_findAll
-        analytics_repository.product_storage.findAll = orig_product_findAll
-        analytics_repository.user_storage.findAll = orig_user_findAll
-        return_request_repository.findAll = orig_return_findAll
+        analytics_repository.order_storage.get_returns_report_stats = orig_ret
+        analytics_repository.order_storage.get_payment_methods_report_stats = orig_pm
+        analytics_repository.order_storage.get_revenue_by_category_stats = orig_cat
+        analytics_repository.order_storage.get_fulfillment_time_report_stats = orig_ft
 
 
 

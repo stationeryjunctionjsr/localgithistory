@@ -548,5 +548,71 @@ async def test_pushdown_analytics_batch4():
         assert alerts[0].status == "low_stock"
 
 
+@pytest.mark.asyncio
+async def test_analytics_repository_batch_7_delegation():
+    from app.repositories.analytics_repository import analytics_repository
+    from app.models.analytics_schemas import (
+        RFMSegmentsResponse,
+        CustomerFrequencyResponse,
+        NetSalesResponse,
+        SalesHeatmapResponse,
+        InventoryRunwayResponse,
+        SalesByChannelDetailedResponse,
+        DiscountsAuditResponse,
+        ProductsPctSoldResponse,
+    )
+
+    mock_rfm = [RFMSegmentsResponse(userId="1", name="Alice", email="alice@test.com", segment="Champion", recencyDays=5, orderCount=10, totalSpend=500.0)]
+    mock_freq = [CustomerFrequencyResponse(type="One-Time Buyers", customers=1, customerPct=100.0, orders=1, avgOrders=1.0, revenue=50.0)]
+    mock_net = [NetSalesResponse(orderId=1, orderNumber="ORD-1", customerName="Alice", grossSales=100.0, discount=10.0, tax=5.0, shipping=5.0, netSales=100.0, status="delivered", createdAt="2026-03-15T10:00:00")]
+    mock_heat = [SalesHeatmapResponse(dayOfWeek="Monday", hour=10, orderCount=2, revenue=200.0)]
+    mock_runway = [InventoryRunwayResponse(productId=1, name="Notebook", category="Stationery", currentStock=50, unitsSold30d=10, avgDailySales=0.33, daysRemaining=151.0)]
+    mock_chan = [SalesByChannelDetailedResponse(channel="desktop_web", channelLabel="Desktop Web", orderCount=5, revenue=500.0, aov=100.0, revenuePct=100.0)]
+    mock_disc = [DiscountsAuditResponse(orderId=1, orderNumber="ORD-1", customerName="Alice", couponCode="SAVE10", discountType="percentage", discountValue=10.0, grossSales=100.0, discountApplied=10.0, netAfterDiscount=90.0, discountPct=10.0, createdAt="2026-03-15T10:00:00")]
+    mock_pct = [ProductsPctSoldResponse(productId=1, name="Notebook", category="Stationery", sku="NB-1", unitsSold=5, currentStock=20, openingStock=25, pctSold=20.0)]
+
+    with patch.object(analytics_repository.order_storage, "get_rfm_segments_stats", new_callable=AsyncMock, return_value=mock_rfm) as m_rfm, \
+         patch.object(analytics_repository.order_storage, "get_customer_frequency_stats", new_callable=AsyncMock, return_value=mock_freq) as m_freq, \
+         patch.object(analytics_repository.order_storage, "get_net_sales_by_order_stats", new_callable=AsyncMock, return_value=mock_net) as m_net, \
+         patch.object(analytics_repository.order_storage, "get_sales_heatmap_stats", new_callable=AsyncMock, return_value=mock_heat) as m_heat, \
+         patch.object(analytics_repository.order_storage, "get_inventory_runway_stats", new_callable=AsyncMock, return_value=mock_runway) as m_runway, \
+         patch.object(analytics_repository.order_storage, "get_sales_by_channel_detailed_stats", new_callable=AsyncMock, return_value=mock_chan) as m_chan, \
+         patch.object(analytics_repository.order_storage, "get_discounts_audit_stats", new_callable=AsyncMock, return_value=mock_disc) as m_disc, \
+         patch.object(analytics_repository.order_storage, "get_products_pct_sold_stats", new_callable=AsyncMock, return_value=mock_pct) as m_pct:
+
+        res_rfm = await analytics_repository.get_rfm_segments(seller_id=10)
+        assert res_rfm == mock_rfm
+        m_rfm.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+        res_freq = await analytics_repository.get_customer_frequency_report(seller_id=10)
+        assert res_freq == mock_freq
+        m_freq.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+        res_net = await analytics_repository.get_net_sales_by_order(seller_id=10)
+        assert res_net == mock_net
+        m_net.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+        res_heat = await analytics_repository.get_sales_heatmap(seller_id=10)
+        assert res_heat == mock_heat
+        m_heat.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+        res_runway = await analytics_repository.get_inventory_runway(seller_id=10)
+        assert res_runway == mock_runway
+        m_runway.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+        res_chan = await analytics_repository.get_sales_by_channel_detailed()
+        assert res_chan == mock_chan
+        m_chan.assert_awaited_once_with(start_date=None, end_date=None)
+
+        res_disc = await analytics_repository.get_discounts_audit(seller_id=10)
+        assert res_disc == mock_disc
+        m_disc.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+        res_pct = await analytics_repository.get_products_pct_sold(seller_id=10)
+        assert res_pct == mock_pct
+        m_pct.assert_awaited_once_with(start_date=None, end_date=None, seller_id=10)
+
+
+
 
 
