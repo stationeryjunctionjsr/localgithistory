@@ -730,3 +730,10 @@ class OrderFilter(CamelBaseModel):
     assigned_valet: Optional[str] = None
     pending_valet_id: Optional[str] = None
 
+
+from app.models.product import Product
+from app.models.bundle import Bundle
+
+ProductInternal = Product
+BundleInternal = Bundle
+

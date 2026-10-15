@@ -9,10 +9,12 @@ import logging
 import time
 import asyncio
 import inspect
-from typing import Any, Callable, Tuple, Type, TypeVar
+from typing import Any, Callable, ParamSpec, Tuple, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 
+P = ParamSpec("P")
+T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Any])
 
 

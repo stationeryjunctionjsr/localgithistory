@@ -16,7 +16,8 @@ from app.models.tracking import (
     MostAbandonedProductItem,
     ReturningUserItem,
 )
-from app.models.schemas import ItemSnippet
+from app.models.base import CamelBaseModel
+from app.models.schemas import ItemSnippet, AnalyticsEventCreate
 from app.models.analytics_schemas import (
     SearchesNoClicksResponse,
     SearchConversionResponse,
@@ -659,7 +660,7 @@ class MySQLTrackingDAO:
     async def findById(self, id: int) -> Optional['Tracking']:
         return await self.findOne(id=id)
 
-    async def create(self, data: 'AnalyticsEventCreate') -> 'AnalyticsEvent':
+    async def create(self, data: 'AnalyticsEventCreate') -> Optional['Tracking']:
         now = now_utc()
         
         cols = ["created_at", "updated_at"]

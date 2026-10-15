@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import SchemeInternal
-from app.models.daos_flat import SchemeInternalCreate, SchemeInternalUpdate
+from app.models.base import CamelBaseModel
+from app.models.daos_flat import SchemeInternal, SchemeInternalCreate, SchemeInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)

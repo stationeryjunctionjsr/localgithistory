@@ -1124,3 +1124,10 @@ class SellerAvailabilityFilter(FlatCamelBaseModel):
     status: Optional[str] = None
     statuses: Optional[List[str]] = None
 
+
+from app.models.product import Product
+from app.models.bundle import Bundle
+
+ProductInternal = Product
+BundleInternal = Bundle
+

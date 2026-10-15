@@ -12,7 +12,6 @@ import { recordEvent, trackBackendProductClick, trackBackendFilterClick, getSess
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import AuthModal from '@/components/AuthModal';
 import { usePincode } from '@/context/PincodeContext';
-import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
 import { logger } from '@/utils/logger';
 import { useSellerAvailability, formatUnavailableUntil } from '@/hooks/useSellerAvailability';
 import RecentlyViewed from '@/components/RecentlyViewed';

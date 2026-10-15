@@ -4,7 +4,7 @@ import time as time_module
 from typing import List, Optional, Tuple
 
 from app.db.storage_factory import get_storage
-from app.models.daos import ProductInternalCreate, ProductInternalUpdate
+from app.models.daos import ProductInternal, ProductInternalCreate, ProductInternalUpdate
 from app.models.daos_flat import CollectionInternal, SearchTagInternal
 from app.models.product import (
     Product,

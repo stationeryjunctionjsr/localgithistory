@@ -1,11 +1,20 @@
-import uuid
 import logging
-from app.models.user import User
-from app.models.schemas import MessageResponse
-from app.models.payment import Payment, PaymentEntry
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import AliasChoices, BaseModel, Field
+
 from app.models.daos import PaymentEntryInternal
-from typing import List
-from pydantic import BaseModel, Field, AliasChoices
+from app.models.payment import Payment, PaymentEntry
+from app.models.schemas import MessageResponse
+from app.models.user import User
+from app.repositories.notification_repository import notification_repository
+from app.repositories.payment_repository import payment_repository
+from app.repositories.user_repository import user_repository
+from app.utils.auth import require_roles, require_super_admin
+from app.utils.logger import logger
 
 class BillInfoResponse(BaseModel):
     orderId: str
@@ -31,18 +40,6 @@ class DuesResponse(BaseModel):
 class SettlementResponse(BaseModel):
     message: str
     payment: Payment
-
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-
-from app.repositories.notification_repository import notification_repository
-from app.repositories.payment_repository import payment_repository
-from app.repositories.user_repository import user_repository
-from app.utils.auth import require_roles, require_super_admin
-from app.utils.logger import logger
 
 router = APIRouter()
 require_wholesaler = require_roles("wholesaler")

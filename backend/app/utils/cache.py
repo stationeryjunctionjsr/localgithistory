@@ -36,7 +36,9 @@ Multi-VM mode (commented out — see _start_invalidation_listener below):
 
 import asyncio
 import time
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, TypeVar
+
+T = TypeVar("T")
 
 
 class _CacheEntry:

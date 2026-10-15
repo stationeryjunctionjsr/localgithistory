@@ -15,6 +15,7 @@ from app.models.tracking import (
 )
 
 from app.db.storage_factory import get_storage
+from app.models.daos import CartItemInternal
 from app.models.schemas import AnalyticsEventCreate, AnalyticsSessionCreate
 from app.db.mysql_analytics_session_dao import MySQLAnalyticsSessionDAO
 

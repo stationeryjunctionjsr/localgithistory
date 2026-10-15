@@ -11,6 +11,8 @@ from app.models.daos_flat import (
     CouponOverlapDetail,
     CouponQuantityTierInternal,
 )
+from app.models.daos import BundleInternal, ProductInternal
+from app.models.order import Order
 from app.models.product import Product, ProductFilter
 from app.models.schemas import (
     BxGyEvaluationResponse,

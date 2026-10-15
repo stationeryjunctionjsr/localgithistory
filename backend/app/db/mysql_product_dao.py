@@ -13,6 +13,7 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.db_utils import now_utc
+from app.models.base import CamelBaseModel
 from app.models.daos import ProductInternalCreate, ProductInternalUpdate
 from app.models.product import Product, ProductFilter, ProductCatalogQuery, ProductFacets
 
