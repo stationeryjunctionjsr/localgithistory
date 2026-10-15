@@ -168,6 +168,7 @@ class PushNotificationService:
                         targeted_guest_match = True
 
             # 3. Filter targeted devices
+            all_devices = await push_notification_repository.device_storage.findAll()
             targeted_devices = []
             if target_segment == "all" and target_behavior == "none":
                 targeted_devices = all_devices

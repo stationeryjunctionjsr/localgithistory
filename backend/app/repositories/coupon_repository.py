@@ -112,6 +112,7 @@ class CouponRepository:
                 (coupon.bxgy_applies_to_ids if coupon.bxgy_applies_to_ids is not None else None),
                 (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
             )
+            pid = product.id
             for _ in range(element_qty):
                 elements.append(
                     {
