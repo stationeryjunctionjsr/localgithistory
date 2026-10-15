@@ -151,10 +151,26 @@ export default function Cart() {
   const [checkoutDistricts, setCheckoutDistricts] = useState<string[]>([]);
   const [newAddrDistricts, setNewAddrDistricts] = useState<string[]>([]);
   const router = useRouter();
-  const { user, login, loginWithTokens } = useAuth();
+  const { user, login, loginWithTokens, fetchUser } = useAuth();
   const isValet = (user as any)?.role === 'valet';
   const { theme } = useTheme();
   const { activeMode } = usePincode();
+
+  const allUserAddresses = useMemo(() => {
+    const list: any[] = [];
+    if (user?.address && (user.address.street || user.address.pincode)) {
+      list.push({ ...user.address, is_primary: true });
+    }
+    if (Array.isArray((user as any)?.savedAddresses)) {
+      (user as any).savedAddresses.forEach((sa: any) => {
+        const isDup = list.some(
+          (a) => a.street === sa.street && (a.zipCode || a.pincode) === (sa.zipCode || sa.pincode)
+        );
+        if (!isDup) list.push(sa);
+      });
+    }
+    return list;
+  }, [user]);
   // const { duesInfo, fetchDuesInfo } = useCart();
   const duesInfo     = useCartStore((s) => s.duesInfo);
   const fetchDuesInfo = useCartStore((s) => s.fetchDuesInfo);
@@ -1268,11 +1284,8 @@ export default function Cart() {
   const handleStartCheckout = () => {
     const inStock = cart?.items?.filter((item: any) => !item.outOfStock) || [];
     if (inStock.length === 0) {
-      // For guests, cart?.items may not be populated yet — open checkout modal anyway
-      // so they can sign in and see their cart
       if (!user) {
-        setShowCheckout(true);
-        setCheckoutStep(1);
+        router.push('/checkout');
         return;
       }
       toast.error('No in-stock items in your cart to checkout');
@@ -1294,8 +1307,7 @@ export default function Cart() {
           })),
       });
     } catch (e: any) { logger.warn("Background task failed", e); }
-    setShowCheckout(true);
-    setCheckoutStep(1);
+    router.push('/checkout');
   };
 
   const handleCheckout = async () => {
@@ -3403,7 +3415,7 @@ export default function Cart() {
                     <h3 className={ck.sectionTitle}>?? Delivery Address</h3>
                     {/* Saved addresses grid */}
                     <div className={ck.addressGrid}>
-                      {((user as any).savedAddresses || []).map((addr: any, idx: number) => {
+                      {allUserAddresses.map((addr: any, idx: number) => {
                         const isSelected =
                           checkoutData.shippingAddress.street === addr.street &&
                           checkoutData.shippingAddress.zipCode === (addr.zipCode || addr.pincode);
@@ -4451,6 +4463,20 @@ export default function Cart() {
                     selectSavedAddress(newAddress);
                     if (newAddress.zipCode) checkPincodeServiceability(newAddress.zipCode);
                     setShowAddressModal(false);
+
+                    if (user?.id) {
+                      const existingSaved = Array.isArray((user as any).savedAddresses) ? [...(user as any).savedAddresses] : [];
+                      const alreadyExists = existingSaved.some(
+                        (a: any) => a.street === newAddress.street && (a.zipCode || a.pincode) === newAddress.zipCode
+                      );
+                      if (!alreadyExists) {
+                        const updated = [...existingSaved, { ...newAddress, pincode: newAddress.zipCode }];
+                        api.put(`/users/${user.id}`, { savedAddresses: updated }).then(() => {
+                          if (fetchUser) fetchUser();
+                        }).catch(() => {});
+                      }
+                    }
+
                     setNewAddress({
                       street: '',
                       city: '',
