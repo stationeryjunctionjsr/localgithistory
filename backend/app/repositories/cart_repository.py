@@ -1,5 +1,5 @@
 from app.models.saved_for_later import SavedForLater, SavedForLaterItem
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional, List, Union
 from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
@@ -79,27 +79,16 @@ class CartRepository:
 
         return await self.storage.update_items_atomic(user_id, _merge)
 
-    async def saveForLater(self, user_id: str, product_id: str) -> Optional[SavedForLater]:
-        """Save item for later"""
+    async def saveForLater(self, user_id: int, product_id: Union[int, str]) -> Optional[SavedForLater]:
+        """Save item for later via atomic single-row SQL."""
         saved_storage = get_storage("savedForLater")
-        existing = await saved_storage.findOne(user=user_id)
-        saved_item = SavedForLaterItem(user=user_id, product_id=product_id, saved_at=datetime.now(timezone.utc))
+        await saved_storage.add_item(user_id, product_id)
+        return await saved_storage.findOne(user=user_id)
 
-        if existing:
-            # Check if already saved
-            items = (existing.items if existing.items is not None else [])
-            already_saved = any(item.product_id == product_id or item.product == product_id for item in items)
-            if already_saved:
-                return existing
-            items.append(saved_item)
-            return await saved_storage.update(existing.id, SavedForLater(user=user_id, items=items))
-        else:
-            return await saved_storage.create(SavedForLater(user=user_id, items=[saved_item]))
-
-    async def getSavedForLater(self, user_id: str) -> SavedForLater:
+    async def getSavedForLater(self, user_id: int) -> SavedForLater:
         """Get saved for later items"""
         saved_storage = get_storage("savedForLater")
-        return await saved_storage.findOne(user=user_id) or SavedForLater(user=user_id, items=[])
+        return await saved_storage.findOne(user=user_id) or SavedForLater(user=str(user_id), items=[])
 
 
 from datetime import datetime, timezone
