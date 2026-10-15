@@ -222,9 +222,12 @@ class PushNotificationService:
             logger.error("Error in sending targeted push: %s", str(e), exc_info=True)
             raise
 
-    async def send_to_user(self, user_id: int, notification: 'PushNotification'):
+    async def send_to_user(self, user_id: int, notification: Any):
         """Send push notification to a specific user's devices"""
         try:
+            if isinstance(notification, dict):
+                from app.models.schemas import PushNotificationPayload
+                notification = PushNotificationPayload(**notification)
             devices = await push_notification_repository.getDeviceSubscriptionsByUser(user_id)
             delivered_count = 0
 

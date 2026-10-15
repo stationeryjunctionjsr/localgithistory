@@ -14,6 +14,7 @@ from app.models.daos import OrderFilter, ValetAvailabilityFilter
 from app.models.daos_flat import ReturnRequestInternalUpdate
 from app.repositories.user_repository import user_repository
 from app.models.user import UserFilter
+from app.models.schemas import PushNotificationPayload, PushNotificationMetadata
 from app.utils.logger import logger
 URGENT_TIMEOUT_MINUTES = 5
 NORMAL_TIMEOUT_MINUTES = 20

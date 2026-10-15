@@ -2109,6 +2109,25 @@ class PushNotificationResponse(CamelBaseModel):
     updated_at: Optional[datetime] = None
 
 
+class PushNotificationMetadata(CamelBaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    order_id: Optional[Union[int, str]] = None
+    return_id: Optional[Union[int, str]] = None
+    type: Optional[str] = None
+    is_urgent: Optional[bool] = None
+    timeout_minutes: Optional[int] = None
+
+
+class PushNotificationPayload(CamelBaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    id: Optional[Union[int, str]] = None
+    title: Optional[str] = ""
+    message: Optional[str] = ""
+    link: Optional[str] = None
+    image: Optional[str] = None
+    data: Optional[Union[PushNotificationMetadata, Dict[str, Any]]] = None
+
+
 class PushAnalyticsResponse(BaseModel):
     delivered: int = 0
     clicked: int = 0

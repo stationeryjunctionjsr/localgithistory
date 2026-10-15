@@ -919,6 +919,33 @@ export default function ProductCatalog({
   // Note: isUnmapped pincodes can still browse - Add-to-Cart buttons are disabled instead of blocking the catalog
   const isUnmapped = pincode !== null && isServiceable === false;
 
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PRODUCTS_PAGE_SIZE));
+
+  const handleCatalogPageChange = (newPage: number) => {
+    if (loading || newPage < 1 || newPage > totalPages) return;
+    if (newPage === page) return;
+    void fetchProducts(newPage);
+  };
+
+  // Infinite scroll — observe the sentinel div at the bottom of the product grid
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loading && page < totalPages) {
+          handleCatalogPageChange(page + 1);
+        }
+      },
+      { rootMargin: '200px' } // start loading 200px before the sentinel is visible
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, page, totalPages]);
+
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8" aria-live="polite" aria-busy="true">
@@ -957,7 +984,6 @@ export default function ProductCatalog({
   }
 
   const filteredProducts = products;
-  const totalPages = Math.max(1, Math.ceil(totalProducts / PRODUCTS_PAGE_SIZE));
 
   // Merge bundles into product list: insert 1 bundle after every 8 products, append remainder at end
   const displayItems: any[] = (() => {
@@ -975,31 +1001,6 @@ export default function ProductCatalog({
     }
     return merged;
   })();
-
-  const handleCatalogPageChange = (newPage: number) => {
-    if (loading || newPage < 1 || newPage > totalPages) return;
-    if (newPage === page) return;
-    void fetchProducts(newPage);
-  };
-
-  // Infinite scroll — observe the sentinel div at the bottom of the product grid
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loading && page < totalPages) {
-          handleCatalogPageChange(page + 1);
-        }
-      },
-      { rootMargin: '200px' } // start loading 200px before the sentinel is visible
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, page, totalPages]);
 
   // eslint-disable-next-line unused-imports/no-unused-vars
   const newlyAdded = [...products]
