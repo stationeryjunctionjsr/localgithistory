@@ -6,7 +6,7 @@ from app.models.base import CamelBaseModel
 
 class UserOrderStatsResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    userId: str
+    userId: int
     name: str
     email: str
     totalOrders: int
@@ -358,7 +358,7 @@ class SalesByProductResponse(CamelBaseModel):
 
 class TopUsersReportResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    userId: str
+    userId: int
     name: str
     userName: str
     email: str

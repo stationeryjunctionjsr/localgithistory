@@ -186,7 +186,7 @@ class UserEngagementResponse(BaseModel):
     error: Optional[str] = None
 
 class TopUsersReportResponse(BaseModel):
-    userId: str
+    userId: int
     name: str
     userName: str
     email: str

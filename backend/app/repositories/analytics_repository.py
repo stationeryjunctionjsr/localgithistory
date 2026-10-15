@@ -51,6 +51,9 @@ from app.models.analytics_schemas import (
     BounceRateResponse,
     SessionsOverTimeResponse,
     SessionsByDeviceResponse,
+    CustomerCohortResponse,
+    TopUsersReportResponse,
+    UserOrderStatsResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -436,46 +439,9 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_customer_cohort_analysis(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[CustomerCohortResponse]:
         """Get customer cohort analysis"""
-        orders = await self.order_storage.findAll()
-
-        # Pre-group orders by user_id so inner lookup is O(1) not O(N)
-        orders_by_user: Dict[str, list] = defaultdict(list)
-        for order in orders:
-            if order.user:
-                orders_by_user[order.user].append(order)
-
-        # Find each user's first order date
-        user_first_order: Dict[str, datetime] = {}
-        for user_id, user_orders in orders_by_user.items():
-            for order in user_orders:
-                order_date = self._parse_date(order.created_at)
-                if not order_date:
-                    continue
-                if user_id not in user_first_order or order_date < user_first_order[user_id]:
-                    user_first_order[user_id] = order_date
-
-        # Build cohort matrix — O(total orders) not O(users × orders)
-        cohorts: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
-        for user_id, first_order_date in user_first_order.items():
-            cohort_month = first_order_date.strftime("%Y-%m")
-            for order in orders_by_user[user_id]:
-                order_date = self._parse_date(order.created_at)
-                if not order_date or order_date < first_order_date:
-                    continue
-                month_index = (order_date.year - first_order_date.year) * 12 + (
-                    order_date.month - first_order_date.month
-                )
-                cohorts[cohort_month][month_index] += 1
-
-        result = []
-        for cohort_month in sorted(cohorts.keys()):
-            cohort_data = cohorts[cohort_month]
-            max_months = max(cohort_data.keys()) if cohort_data else 0
-            result.append({"cohort": cohort_month, "months": [(cohort_data[i] if i in cohort_data else 0) for i in range(max_months + 1)]})
-
-        return result
+        return await self.order_storage.get_customer_cohort_stats()
 
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_landing_page(
@@ -683,108 +649,20 @@ class AnalyticsRepository:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 10,
-    ) -> List[Dict]:
+    ) -> List[TopUsersReportResponse]:
         """Get top users by revenue, optionally filtered by role"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        users = await self.user_storage.findAll()
-
-        user_revenue = defaultdict(float)
-        user_orders = defaultdict(int)
-        for order in orders:
-            uid = order.user
-            if not uid:
-                continue
-            user_revenue[uid] += order.total
-            user_orders[uid] += 1
-
-        result = []
-        for uid, revenue in user_revenue.items():
-            user = next((u for u in users if u.id == uid), None)
-            if not user:
-                continue
-            if role and user.role != role:
-                continue
-
-            result.append(
-                {
-                    "userId": uid,
-                    "name": user.name,
-                    "userName": user.name,
-                    "email": user.email,
-                    "userEmail": user.email,
-                    "role": user.role,
-                    "revenue": revenue,
-                    "orderCount": user_orders[uid],
-                }
-            )
-
-        return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
+        return await self.order_storage.get_top_users_by_revenue_stats(
+            role=role, start_date=start_date, end_date=end_date, limit=limit
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_user_order_stats(
         self, role: Optional[str] = None, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[UserOrderStatsResponse]:
         """Get order statistics for users, optionally filtered by role"""
-        orders = await self.order_storage.findAll()
-        users = await self.user_storage.findAll()
-
-        user_orders_map = defaultdict(list)
-        for order in orders:
-            uid = order.user
-            if not uid:
-                continue
-            user_orders_map[uid].append(order)
-
-        result = []
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-        for uid, u_orders in user_orders_map.items():
-            user = next((u for u in users if u.id == uid), None)
-            if not user:
-                continue
-            if role and user.role != role:
-                continue
-
-            # 1. Orders in the filtered range
-            u_orders_filtered = self._filter_by_date_range(u_orders, start_date, end_date)
-
-            if not u_orders_filtered and (start_date or end_date):
-                continue
-
-            total_orders = len(u_orders_filtered)
-            total_revenue = sum(o.total for o in u_orders_filtered)
-            aov = round(total_revenue / total_orders, 2) if total_orders > 0 else 0
-
-            # 2. Average orders in a month (Overall frequency sejak awal)
-            order_dates = [self._to_naive_utc(self._parse_date(o.created_at)) for o in u_orders]
-            order_dates = [d for d in order_dates if d]
-
-            avg_orders_per_month = 0
-            days_since_last = 0
-
-            if order_dates:
-                first_order_date = min(order_dates)
-                last_order_date = max(order_dates)
-                delta_total = now - first_order_date
-                months_active = max(1, delta_total.days / 30.44)
-                avg_orders_per_month = round(len(u_orders) / months_active, 2)
-                days_since_last = (now - last_order_date).days
-
-            result.append(
-                {
-                    "userId": uid,
-                    "name": user.name,
-                    "email": user.email,
-                    "totalOrders": total_orders,
-                    "avgOrdersPerMonth": avg_orders_per_month,
-                    "daysSinceLastOrder": days_since_last,
-                    "averageOrderValue": aov,
-                }
-            )
-
-        return result
+        return await self.order_storage.get_user_order_stats_report(
+            role=role, start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_items_by_user_type(

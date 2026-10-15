@@ -1233,6 +1233,115 @@ async def test_tracking_and_session_pushdown_dao_methods():
         assert "GROUP BY device" in query_sbd
 
 
+@pytest.mark.asyncio
+async def test_user_and_cohort_order_dao_pushdowns():
+    from unittest.mock import patch, MagicMock, AsyncMock
+    from datetime import datetime, timezone
+    from typing import List
+    from app.repositories.analytics_repository import analytics_repository
+    from app.db.mysql_order_dao import MySQLOrderDAO
+    from app.models.analytics_schemas import (
+        CustomerCohortResponse,
+        TopUsersReportResponse,
+        UserOrderStatsResponse,
+    )
+
+    # 1. Verify signatures on analytics_repository
+    assert inspect.signature(analytics_repository.get_customer_cohort_analysis).return_annotation == List[CustomerCohortResponse]
+    assert inspect.signature(analytics_repository.get_top_users_by_revenue).return_annotation == List[TopUsersReportResponse]
+    assert inspect.signature(analytics_repository.get_user_order_stats).return_annotation == List[UserOrderStatsResponse]
+
+    # 2. Verify userId is native int
+    assert TopUsersReportResponse.model_fields["userId"].annotation is int
+    assert UserOrderStatsResponse.model_fields["userId"].annotation is int
+
+    # 3. Verify repository delegation
+    orig_cohort = getattr(analytics_repository.order_storage, "get_customer_cohort_stats", None)
+    orig_top = getattr(analytics_repository.order_storage, "get_top_users_by_revenue_stats", None)
+    orig_user = getattr(analytics_repository.order_storage, "get_user_order_stats_report", None)
+
+    try:
+        analytics_repository.order_storage.get_customer_cohort_stats = AsyncMock(
+            return_value=[CustomerCohortResponse(cohort="2026-01", months=[10, 5, 2])]
+        )
+        analytics_repository.order_storage.get_top_users_by_revenue_stats = AsyncMock(
+            return_value=[
+                TopUsersReportResponse(
+                    userId=101,
+                    name="Alice",
+                    userName="Alice",
+                    email="alice@example.com",
+                    userEmail="alice@example.com",
+                    role="customer",
+                    revenue=500.0,
+                    orderCount=3,
+                )
+            ]
+        )
+        analytics_repository.order_storage.get_user_order_stats_report = AsyncMock(
+            return_value=[
+                UserOrderStatsResponse(
+                    userId=101,
+                    name="Alice",
+                    email="alice@example.com",
+                    totalOrders=3,
+                    averageOrderValue=166.67,
+                    daysSinceLastOrder=5,
+                    avgOrdersPerMonth=1.5,
+                )
+            ]
+        )
+
+        res_c = await analytics_repository.get_customer_cohort_analysis()
+        assert len(res_c) == 1
+        assert res_c[0].cohort == "2026-01"
+        assert res_c[0].months == [10, 5, 2]
+
+        res_t = await analytics_repository.get_top_users_by_revenue()
+        assert len(res_t) == 1
+        assert res_t[0].userId == 101
+        assert isinstance(res_t[0].userId, int)
+        assert res_t[0].revenue == 500.0
+
+        res_u = await analytics_repository.get_user_order_stats()
+        assert len(res_u) == 1
+        assert res_u[0].userId == 101
+        assert isinstance(res_u[0].userId, int)
+        assert res_u[0].totalOrders == 3
+        assert res_u[0].averageOrderValue == 166.67
+    finally:
+        analytics_repository.order_storage.get_customer_cohort_stats = orig_cohort
+        analytics_repository.order_storage.get_top_users_by_revenue_stats = orig_top
+        analytics_repository.order_storage.get_user_order_stats_report = orig_user
+
+    # 4. Direct DAO mock verification
+    dao_order = MySQLOrderDAO()
+    mock_session = AsyncMock()
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    row_top = MagicMock()
+    row_top.user_id = 101
+    row_top.user_name = "Alice"
+    row_top.user_email = "alice@example.com"
+    row_top.user_role = "customer"
+    row_top.revenue = 500.0
+    row_top.order_count = 3
+    mock_res_top = MagicMock()
+    mock_res_top.fetchall.return_value = [row_top]
+    mock_session.execute.return_value = mock_res_top
+
+    with patch("app.db.mysql_order_dao.get_async_session_factory", return_value=mock_factory):
+        res_dao_top = await dao_order.get_top_users_by_revenue_stats(limit=5)
+        assert len(res_dao_top) == 1
+        assert res_dao_top[0].userId == 101
+        assert type(res_dao_top[0].userId) is int
+        query_top = str(mock_session.execute.call_args[0][0])
+        assert "CAST(o.user_id AS CHAR)" not in query_top
+        assert "o.user_id AS user_id" in query_top
+
+
+
 
 
 

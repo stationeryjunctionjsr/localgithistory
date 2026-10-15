@@ -1562,11 +1562,11 @@ class MySQLOrderDAO:
         sql = text(
             f"""
             SELECT 
-                CAST(o.user_id AS CHAR) AS user_id,
+                o.user_id AS user_id,
                 COALESCE(u.name, 'Unknown') AS user_name,
                 COALESCE(u.email, 'Unknown') AS user_email,
                 COALESCE(u.role, 'customer') AS user_role,
-                COALESCE(SUM(o.total), 0.0) AS revenue,
+                ROUND(COALESCE(SUM(o.total), 0.0), 2) AS revenue,
                 COUNT(*) AS order_count
             FROM {self.TABLE} o
             JOIN sj_users u ON u.id = o.user_id
@@ -1587,7 +1587,7 @@ class MySQLOrderDAO:
                     email=r.user_email,
                     userEmail=r.user_email,
                     role=r.user_role,
-                    revenue=round(float(r.revenue or 0.0), 2),
+                    revenue=r.revenue or 0.0,
                     orderCount=r.order_count or 0,
                 )
                 for r in rows
@@ -1619,21 +1619,18 @@ class MySQLOrderDAO:
         sql = text(
             f"""
             SELECT 
-                CAST(o.user_id AS CHAR) AS user_id,
+                o.user_id AS user_id,
                 COALESCE(u.name, 'Unknown') AS user_name,
                 COALESCE(u.email, 'Unknown') AS user_email,
                 COUNT(*) AS total_orders,
-                COALESCE(SUM(o.total), 0.0) AS total_revenue,
+                ROUND(COALESCE(SUM(o.total), 0.0), 2) AS total_revenue,
+                ROUND(COALESCE(SUM(o.total) / COUNT(*), 0.0), 2) AS average_order_value,
                 CASE 
                     WHEN MAX(o.created_at) IS NOT NULL 
                     THEN GREATEST(0, DATEDIFF(UTC_TIMESTAMP(), MAX(o.created_at)))
                     ELSE NULL 
                 END AS days_since_last,
-                CASE 
-                    WHEN MIN(o.created_at) IS NOT NULL 
-                    THEN GREATEST(1, DATEDIFF(UTC_TIMESTAMP(), MIN(o.created_at)))
-                    ELSE NULL 
-                END AS delta_days
+                ROUND(COUNT(*) / GREATEST(1.0, GREATEST(1, DATEDIFF(UTC_TIMESTAMP(), MIN(o.created_at))) / 30.44), 2) AS avg_orders_per_month
             FROM {self.TABLE} o
             JOIN sj_users u ON u.id = o.user_id
             WHERE {where_sql} {role_clause}
@@ -1644,30 +1641,18 @@ class MySQLOrderDAO:
         async_session = get_async_session_factory()
         async with async_session() as session:
             rows = (await session.execute(sql, params)).fetchall()
-            result = []
-            for r in rows:
-                tot_orders = r.total_orders or 0
-                tot_rev = float(r.total_revenue or 0.0)
-                aov = round(tot_rev / tot_orders, 2) if tot_orders > 0 else 0.0
-
-                days_since_last = r.days_since_last
-                avg_orders_per_month = 0.0
-                if r.delta_days is not None:
-                    months_active = max(1.0, r.delta_days / 30.44)
-                    avg_orders_per_month = round(tot_orders / months_active, 2)
-
-                result.append(
-                    UserOrderStatsResponse(
-                        userId=r.user_id,
-                        name=r.user_name,
-                        email=r.user_email,
-                        totalOrders=tot_orders,
-                        averageOrderValue=aov,
-                        daysSinceLastOrder=days_since_last,
-                        avgOrdersPerMonth=avg_orders_per_month,
-                    )
+            return [
+                UserOrderStatsResponse(
+                    userId=r.user_id,
+                    name=r.user_name,
+                    email=r.user_email,
+                    totalOrders=r.total_orders or 0,
+                    averageOrderValue=r.average_order_value or 0.0,
+                    daysSinceLastOrder=r.days_since_last,
+                    avgOrdersPerMonth=r.avg_orders_per_month or 0.0,
                 )
-            return result
+                for r in rows
+            ]
 
     async def get_payment_methods_report_stats(
         self,
