@@ -5,6 +5,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from typing import Optional, List, Union
 from dotenv import load_dotenv
 
 from app.models.schemas import PopulatedOrderResponse, ReturnRequestResponse
@@ -112,7 +113,14 @@ class EmailService:
             logger.error("Failed to send email with attachment: %s", str(e), exc_info=True)
             return False
 
-    def send_error_alert(self, subject: str, body: str, to_emails: 'Union[str, List[str]]' = None):
+    def _resolve_to_emails(self, to_emails: Optional[Union[str, List[str]]] = None) -> List[str]:
+        if not to_emails:
+            return self.admin_emails
+        if isinstance(to_emails, str):
+            return [e.strip() for e in to_emails.split(",") if e.strip()]
+        return [e.strip() for e in to_emails if e.strip()]
+
+    def send_error_alert(self, subject: str, body: str, to_emails: Optional[Union[str, List[str]]] = None) -> bool:
         """Simple text-only email for system alerts to one or more recipients."""
         from app.utils.logger import logger
         

@@ -44,11 +44,11 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
 def _resolve_seller_id(current_user: User, requested_seller_id: Optional[int] = None) -> Optional[int]:
     """
     Resolves the effective seller_id for a request.
-    - Sellers (wholesaler role): always scoped to their own _id, ignores any requested_seller_id.
+    - Sellers (wholesaler or seller role): always scoped to their own id, ignores any requested_seller_id.
     - Super admin: uses requested_seller_id if provided, otherwise None (all sellers).
     """
     role = (current_user.role or "")
-    if role == "wholesaler":
+    if role in ("wholesaler", "seller"):
         return current_user.id
     # super_admin / admin
     return requested_seller_id
@@ -341,7 +341,7 @@ async def get_sales_over_time(
     end_date: Optional[str] = Query(None),
     group_by: str = Query("hour", pattern="^(hour|day|month)$"),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get sales over time. Sellers are auto-scoped to their own orders."""
     try:
@@ -413,7 +413,7 @@ async def get_sales_by_product(
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get top products by sales. Sellers are auto-scoped to their own products."""
     try:
@@ -527,7 +527,7 @@ async def get_products_sell_through(
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get products by sell-through rate. Sellers are auto-scoped to their own catalogue."""
     try:
@@ -660,7 +660,7 @@ async def get_returns_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get returns and refund requests report. Sellers see only their own returns."""
     try:
@@ -678,7 +678,7 @@ async def get_payment_methods_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get orders and revenue broken down by payment method. Sellers see their own orders."""
     try:
@@ -697,7 +697,7 @@ async def get_revenue_by_category(
     end_date: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get revenue broken down by product category. Sellers see their own categories."""
     try:
@@ -714,7 +714,7 @@ async def get_revenue_by_category(
 async def get_inventory_alerts(
     threshold: int = Query(10, ge=0, le=1000),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get products with stock at or below the given threshold. Sellers see their own products."""
     try:
@@ -730,7 +730,7 @@ async def get_fulfillment_time_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get average order fulfillment time per order. Sellers see their own orders."""
     try:
@@ -748,7 +748,7 @@ async def get_coupon_usage_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get coupon/discount usage report. Sellers see coupons used on their orders."""
     try:
@@ -767,7 +767,7 @@ async def get_sales_by_location_report(
     end_date: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get sales grouped by location (city/state). Sellers see their own delivery destinations."""
     try:
@@ -835,7 +835,7 @@ async def get_top_returned_products_report(
     end_date: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=1000),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get most frequently returned products. Sellers see only their own products."""
     try:
@@ -851,7 +851,7 @@ async def get_top_returned_products_report(
 @router.get("/reports/inventory-value-by-category", response_model=List[InventoryValueByCategoryResponse])
 async def get_inventory_value_by_category_report(
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Get inventory value grouped by category. Sellers see only their own catalogue."""
     try:
@@ -979,7 +979,7 @@ async def get_net_sales_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Per-order gross-to-net breakdown. Sellers see only their own orders."""
     try:
@@ -997,7 +997,7 @@ async def get_sales_heatmap_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Orders by day-of-week x hour-of-day. Sellers see only their own orders."""
     try:
@@ -1015,7 +1015,7 @@ async def get_inventory_runway_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Days of stock remaining per product. Sellers see only their own products."""
     try:
@@ -1051,7 +1051,7 @@ async def get_discounts_audit_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Per-order discount/coupon audit. Sellers see only their own orders."""
     try:
@@ -1069,7 +1069,7 @@ async def get_products_pct_sold_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     seller_id: Optional[int] = Query(None),
-    current_user: User = Depends(require_roles("super_admin", "wholesaler")),
+    current_user: User = Depends(require_roles("super_admin", "wholesaler", "seller")),
 ):
     """Units sold as % of opening stock. Sellers see only their own catalogue."""
     try:
