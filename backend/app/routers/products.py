@@ -491,11 +491,13 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
             categories.add(p_category)
 
         if len(matched_products) < limit:
+            pid = p["id"]
             matched_products.append({
-                "productId": str(p["_id"] if "_id" in p else ""),
+                "id": pid,
+                "productId": pid,
                 "name": name,
                 "productName": name,
-                "displayImage": p["displayImage"] if "displayImage" in p else None,
+                "displayImage": p["displayImage"],
             })
 
         if len(matched_products) >= limit and len(brands) >= 3 and len(categories) >= 3:
@@ -1184,7 +1186,8 @@ class UploadVideosResponse(BaseModel):
     urls: List[str]
 
 class SearchSuggestProduct(BaseModel):
-    productId: str
+    id: int
+    productId: int
     name: str
     productName: str
     displayImage: Optional[str] = None
