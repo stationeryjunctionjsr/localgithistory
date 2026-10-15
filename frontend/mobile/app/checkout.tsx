@@ -12,6 +12,8 @@ import {
   Image,
   BackHandler,
   Animated,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +22,7 @@ import * as StoreReview from 'expo-store-review';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Clipboard from 'expo-clipboard';
+import * as Linking from 'expo-linking';
 import api from '../src/api/client';
 import { colors, shadows } from '../src/theme';
 import Toast from 'react-native-toast-message';
@@ -95,6 +98,26 @@ const PaymentOption = ({ value, label, icon, currentMethod, onPress }: any) => {
   );
 };
 
+export interface UpiAppConfig {
+  id: string;
+  name: string;
+  scheme: string;
+  bgColor: string;
+  textColor: string;
+  iconName: any;
+  subtext: string;
+  badge?: string;
+}
+
+export const SUPPORTED_UPI_APPS: UpiAppConfig[] = [
+  { id: 'phonepe', name: 'Pay via PhonePe', scheme: 'phonepe://pay', bgColor: '#5f259f', textColor: '#ffffff', iconName: 'flash', subtext: 'Open PhonePe app & pay', badge: 'Popular' },
+  { id: 'bhim', name: 'Pay via BHIM', scheme: 'bhim://pay', bgColor: '#005b9f', textColor: '#ffffff', iconName: 'shield-checkmark', subtext: 'Official NPCI BHIM UPI', badge: 'NPCI' },
+  { id: 'gpay', name: 'Pay via Google Pay', scheme: 'tez://upi/pay', bgColor: '#1a73e8', textColor: '#ffffff', iconName: 'logo-google', subtext: 'Open Google Pay & pay' },
+  { id: 'paytm', name: 'Pay via Paytm', scheme: 'paytmmp://pay', bgColor: '#002970', textColor: '#ffffff', iconName: 'wallet', subtext: 'Open Paytm UPI & pay' },
+  { id: 'cred', name: 'Pay via CRED', scheme: 'cred://pay', bgColor: '#111111', textColor: '#ffffff', iconName: 'card', subtext: 'Open CRED app & pay' },
+  { id: 'other', name: 'All Other UPI Apps', scheme: 'upi://pay', bgColor: '#1a4d33', textColor: '#ffffff', iconName: 'apps-outline', subtext: 'Choose any installed UPI app', badge: 'All Apps' },
+];
+
 // ═════════════════════════════════════════════════════════════════════
 export default function Checkout() {
   const router = useRouter();
@@ -140,6 +163,14 @@ export default function Checkout() {
   // Step 2 – Payment
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'credit' | 'upi'>('cod');
   const [upiScreenshot, setUpiScreenshot] = useState('');
+  const [upiTxnRef, setUpiTxnRef] = useState('');
+  const [upiAppUsed, setUpiAppUsed] = useState('');
+  const [upiPaymentConfirmed, setUpiPaymentConfirmed] = useState(false);
+  const [upiUtr, setUpiUtr] = useState('');
+  const [showManualUtr, setShowManualUtr] = useState(false);
+  const [showAdvancedUpi, setShowAdvancedUpi] = useState(false);
+  const [availableUpiApps, setAvailableUpiApps] = useState<UpiAppConfig[]>(SUPPORTED_UPI_APPS);
+  const [detectingUpiApps, setDetectingUpiApps] = useState(false);
   const [printedBill, setPrintedBill] = useState(false);
 
   // Step 3 – Review
@@ -261,6 +292,113 @@ export default function Checkout() {
     };
     fetchUPI();
   }, []);
+
+  const finalPayableTotal = Math.max(
+    0,
+    cartTotal -
+      (appliedCoupon?.discount || 0) +
+      (deliveryChargeInfo?.totalCharge || 0),
+  );
+
+  // Auto-detect installed UPI apps on the device
+  useEffect(() => {
+    let isMounted = true;
+    const detectApps = async () => {
+      setDetectingUpiApps(true);
+      try {
+        const detected: UpiAppConfig[] = [];
+        for (const app of SUPPORTED_UPI_APPS) {
+          if (app.id === 'other') {
+            detected.push(app);
+            continue;
+          }
+          try {
+            const canOpen = await Linking.canOpenURL(app.scheme);
+            if (canOpen) {
+              detected.push(app);
+            }
+          } catch {
+            // Ignore scheme check failures
+          }
+        }
+        if (isMounted) {
+          if (detected.length <= 1) {
+            setAvailableUpiApps(SUPPORTED_UPI_APPS);
+          } else {
+            setAvailableUpiApps(detected);
+          }
+        }
+      } catch {
+        if (isMounted) setAvailableUpiApps(SUPPORTED_UPI_APPS);
+      } finally {
+        if (isMounted) setDetectingUpiApps(false);
+      }
+    };
+    detectApps();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Listen to AppState when user returns from UPI app
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active' && upiTxnRef && !upiPaymentConfirmed) {
+        Toast.show({
+          type: 'info',
+          text1: 'Back in checkout',
+          text2: 'Confirm your payment to complete your order.',
+        });
+      }
+    });
+    return () => sub.remove();
+  }, [upiTxnRef, upiPaymentConfirmed]);
+
+  const handleOpenUpiApp = async (app: UpiAppConfig) => {
+    if (!upiDetails?.upiId) {
+      Toast.show({ type: 'error', text1: 'UPI Unavailable', text2: 'UPI payment details could not be loaded.' });
+      return;
+    }
+    const pa = upiDetails.upiId;
+    const pn = 'Stationery Junction';
+    const am = finalPayableTotal.toFixed(2);
+    const ref = `SJ${Date.now().toString().slice(-8)}`;
+    const tn = `Order Payment SJ`;
+    const cu = 'INR';
+
+    setUpiTxnRef(ref);
+    setUpiAppUsed(app.name);
+
+    const callbackUrl = 'stationeryjunction://payment-callback';
+    const query = `pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${encodeURIComponent(am)}&tr=${encodeURIComponent(ref)}&tn=${encodeURIComponent(tn)}&cu=${encodeURIComponent(cu)}&url=${encodeURIComponent(callbackUrl)}`;
+    const targetUrl = app.scheme.includes('?') ? `${app.scheme}&${query}` : `${app.scheme}?${query}`;
+
+    try {
+      const supported = await Linking.canOpenURL(targetUrl);
+      if (supported) {
+        await Linking.openURL(targetUrl);
+      } else {
+        const fallbackUrl = `upi://pay?${query}`;
+        await Linking.openURL(fallbackUrl);
+      }
+      Toast.show({
+        type: 'info',
+        text1: `Opening ${app.name}`,
+        text2: `Completing payment of ₹${am}...`,
+      });
+    } catch {
+      try {
+        const fallbackUrl = `upi://pay?${query}`;
+        await Linking.openURL(fallbackUrl);
+      } catch {
+        Toast.show({
+          type: 'error',
+          text1: 'Could not launch UPI app',
+          text2: 'Please try another app or copy the UPI ID below.',
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -609,8 +747,8 @@ export default function Checkout() {
       Toast.show({ type: 'error', text1: 'Missing info', text2: 'Please fill all required address fields.' });
       return;
     }
-    if (paymentMethod === 'upi' && !upiScreenshot) {
-      Toast.show({ type: 'error', text1: 'UPI required', text2: 'Add UPI payment screenshot/link before placing order.' });
+    if (paymentMethod === 'upi' && !upiPaymentConfirmed && !upiScreenshot && !upiTxnRef) {
+      Toast.show({ type: 'error', text1: 'Payment required', text2: 'Please select a UPI app to pay before placing your order.' });
       return;
     }
     try {
@@ -632,6 +770,15 @@ export default function Checkout() {
       };
       if (paymentMethod === 'upi') {
         orderData.upiPaymentScreenshot = upiScreenshot || null;
+        const refParts = [
+          upiTxnRef ? `UPI-Ref: ${upiTxnRef}` : null,
+          upiUtr ? `UTR: ${upiUtr}` : null,
+          upiAppUsed ? `via ${upiAppUsed}` : null,
+          notes || null,
+        ].filter(Boolean);
+        if (refParts.length > 0) {
+          orderData.notes = refParts.join(' | ');
+        }
       }
       // Save address to account if checkbox is checked and user is logged in
       if (user && saveAddress && showNewAddress) {
@@ -1474,94 +1621,226 @@ export default function Checkout() {
               </View>
 
               {paymentMethod === 'upi' && upiDetails && (
-                <View className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <Text className="mb-2 font-bold text-slate-800">Pay via UPI</Text>
-                  <Text className="mb-4 text-sm text-slate-600">{upiDetails.instructions}</Text>
-                  <View className="mb-4 items-center">
-                    {upiDetails.qrCodeUrl && (
-                      <View className="mb-3 rounded-xl bg-white p-2 shadow-sm" style={shadows.sm}>
-                        <Image
-                          source={{
-                            uri: api.defaults.baseURL?.replace('/api', '') + upiDetails.qrCodeUrl,
-                          }}
-                          style={{ width: 160, height: 160 }}
-                          resizeMode="contain"
-                        />
-                      </View>
-                    )}
-                    <View
-                      className="w-full flex-row items-center justify-between rounded-xl bg-white px-4 py-3"
-                      style={shadows.sm}
-                    >
-                      <Text className="font-semibold" style={{ color: colors.primary }}>{upiDetails.upiId}</Text>
-                      <TouchableOpacity
-                        className="rounded-lg px-3 py-1.5"
-                        style={{ backgroundColor: `${colors.primary}20` }}
-                        onPress={async () => {
-                          await Clipboard.setStringAsync(upiDetails.upiId);
-                          Toast.show({ type: 'success', text1: 'Copied', text2: 'UPI ID copied to clipboard' });
-                        }}
-                      >
-                        <Text className="text-xs font-bold" style={{ color: colors.primary }}>
-                          Copy
-                        </Text>
-                      </TouchableOpacity>
+                <View className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  {/* Total Payable Badge */}
+                  <View className="mb-4 flex-row items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <View>
+                      <Text className="text-xs font-semibold text-emerald-800">Total Payable Amount</Text>
+                      <Text className="text-xl font-black text-emerald-950">₹{finalPayableTotal.toFixed(2)}</Text>
+                    </View>
+                    <View className="rounded-full bg-emerald-600/15 px-3 py-1">
+                      <Text className="text-xs font-bold text-emerald-700">0% Payment Fee</Text>
                     </View>
                   </View>
-                  <Text className="mb-2 font-medium text-slate-700">
-                    Upload Payment Screenshot *
-                  </Text>
-                  {upiScreenshot ? (
-                    <View className="mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                      <Image
-                        source={{ uri: upiScreenshot }}
-                        style={{ width: '100%', height: 180, borderRadius: 8 }}
-                        resizeMode="cover"
-                      />
+
+                  {/* Payment In-Progress / Confirmation Card */}
+                  {upiTxnRef ? (
+                    <View className="mb-4 rounded-xl border border-emerald-300 bg-white p-4 shadow-sm" style={shadows.sm}>
+                      <View className="mb-2 flex-row items-center">
+                        <Ionicons name="checkmark-circle" size={22} color="#16a34a" style={{ marginRight: 8 }} />
+                        <Text className="text-base font-bold text-slate-800">
+                          Payment Opened in {upiAppUsed || 'UPI App'}
+                        </Text>
+                      </View>
+                      <Text className="mb-1 text-xs text-slate-600">
+                        Order Ref: <Text className="font-bold text-slate-800">{upiTxnRef}</Text> (embedded in payment)
+                      </Text>
+                      <Text className="mb-4 text-xs text-slate-500">
+                        Once you enter your UPI PIN in {upiAppUsed || 'your UPI app'}, tap below to proceed:
+                      </Text>
+
+                      <View className="flex-row gap-2">
+                        <TouchableOpacity
+                          className="flex-1 items-center justify-center rounded-xl bg-emerald-600 py-3.5"
+                          onPress={() => {
+                            setUpiPaymentConfirmed(true);
+                            setStep(3);
+                          }}
+                        >
+                          <Text className="font-bold text-white text-sm">Yes, Payment Done →</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          className="items-center justify-center rounded-xl border border-slate-300 bg-slate-100 px-4 py-3.5"
+                          onPress={() => {
+                            setUpiTxnRef('');
+                            setUpiPaymentConfirmed(false);
+                          }}
+                        >
+                          <Text className="text-xs font-semibold text-slate-700">Retry</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Optional UTR entry */}
                       <TouchableOpacity
-                        className="absolute right-4 top-4 h-8 w-8 items-center justify-center rounded-full bg-red-500"
-                        onPress={() => setUpiScreenshot('')}
+                        className="mt-3 items-center border-t border-slate-100 pt-2"
+                        onPress={() => setShowManualUtr(!showManualUtr)}
                       >
-                        <Ionicons name="close" size={20} color={colors.surface} />
+                        <Text className="text-xs font-medium text-emerald-700">
+                          {showManualUtr ? 'Hide UTR input' : '+ Have a 12-digit UPI UTR? (Optional)'}
+                        </Text>
                       </TouchableOpacity>
+                      {showManualUtr && (
+                        <View className="mt-2">
+                          <TextInput
+                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800"
+                            placeholder="e.g. 428901234567"
+                            placeholderTextColor="#94A3B8"
+                            value={upiUtr}
+                            onChangeText={setUpiUtr}
+                            keyboardType="numeric"
+                            maxLength={16}
+                          />
+                        </View>
+                      )}
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      className="items-center rounded-xl border border-dashed border-slate-300 bg-white py-6 text-center"
-                      onPress={async () => {
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                          allowsEditing: true,
-                          quality: 1,
-                        });
-                        if (!result.canceled && result.assets[0].uri) {
-                          try {
-                            const compressed = await ImageManipulator.manipulateAsync(
-                              result.assets[0].uri,
-                              [{ resize: { width: 1200 } }],
-                              { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-                            );
-                            setUpiScreenshot('data:image/jpeg;base64,' + compressed.base64);
-                          } catch {
-                            // Fallback: use original with base64
-                            const fallback = await ImagePicker.launchImageLibraryAsync({
+                    /* App Selection List */
+                    <View className="mb-4">
+                      <View className="mb-3 flex-row items-center justify-between">
+                        <Text className="font-bold text-slate-800">Tap your UPI App to Pay</Text>
+                        {detectingUpiApps && <ActivityIndicator size="small" color={colors.primary} />}
+                      </View>
+                      <View className="gap-2.5">
+                        {availableUpiApps.map((app) => (
+                          <TouchableOpacity
+                            key={app.id}
+                            className="flex-row items-center justify-between rounded-xl bg-white px-4 py-3.5 border border-slate-200 shadow-sm"
+                            style={shadows.sm}
+                            onPress={() => handleOpenUpiApp(app)}
+                            activeOpacity={0.8}
+                          >
+                            <View className="flex-row items-center">
+                              <View
+                                className="h-10 w-10 items-center justify-center rounded-xl"
+                                style={{ backgroundColor: app.bgColor }}
+                              >
+                                <Ionicons name={app.iconName} size={22} color={app.textColor} />
+                              </View>
+                              <View className="ml-3">
+                                <Text className="font-bold text-slate-800 text-sm">{app.name}</Text>
+                                <Text className="text-xs text-slate-500">{app.subtext}</Text>
+                              </View>
+                            </View>
+                            <View className="flex-row items-center">
+                              {app.badge && (
+                                <View className="mr-2 rounded-full bg-slate-100 px-2 py-0.5">
+                                  <Text className="text-[10px] font-bold text-slate-600">{app.badge}</Text>
+                                </View>
+                              )}
+                              <View className="h-7 w-7 items-center justify-center rounded-full bg-slate-100">
+                                <Ionicons name="arrow-forward" size={14} color="#64748B" />
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Expandable Manual / QR / Screenshot Accordion for edge cases */}
+                  <TouchableOpacity
+                    className="flex-row items-center justify-between border-t border-slate-200 pt-3"
+                    onPress={() => setShowAdvancedUpi(!showAdvancedUpi)}
+                  >
+                    <Text className="text-xs font-semibold text-slate-600">
+                      {showAdvancedUpi ? 'Hide manual QR & screenshot' : 'Trouble opening app? Show QR & UPI ID'}
+                    </Text>
+                    <Ionicons
+                      name={showAdvancedUpi ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color="#64748B"
+                    />
+                  </TouchableOpacity>
+
+                  {showAdvancedUpi && (
+                    <View className="mt-4 border-t border-slate-100 pt-3">
+                      <View className="mb-3 items-center">
+                        {upiDetails.qrCodeUrl && (
+                          <View className="mb-3 rounded-xl bg-white p-2 shadow-sm" style={shadows.sm}>
+                            <Image
+                              source={{
+                                uri: api.defaults.baseURL?.replace('/api', '') + upiDetails.qrCodeUrl,
+                              }}
+                              style={{ width: 140, height: 140 }}
+                              resizeMode="contain"
+                            />
+                          </View>
+                        )}
+                        <View
+                          className="w-full flex-row items-center justify-between rounded-xl bg-white px-4 py-3"
+                          style={shadows.sm}
+                        >
+                          <Text className="font-semibold text-xs" style={{ color: colors.primary }}>{upiDetails.upiId}</Text>
+                          <TouchableOpacity
+                            className="rounded-lg px-3 py-1.5"
+                            style={{ backgroundColor: `${colors.primary}20` }}
+                            onPress={async () => {
+                              await Clipboard.setStringAsync(upiDetails.upiId);
+                              Toast.show({ type: 'success', text1: 'Copied', text2: 'UPI ID copied to clipboard' });
+                            }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: colors.primary }}>
+                              Copy
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <Text className="mb-2 text-xs font-medium text-slate-700">
+                        Upload Screenshot (Optional)
+                      </Text>
+                      {upiScreenshot ? (
+                        <View className="mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                          <Image
+                            source={{ uri: upiScreenshot }}
+                            style={{ width: '100%', height: 160, borderRadius: 8 }}
+                            resizeMode="cover"
+                          />
+                          <TouchableOpacity
+                            className="absolute right-4 top-4 h-8 w-8 items-center justify-center rounded-full bg-red-500"
+                            onPress={() => setUpiScreenshot('')}
+                          >
+                            <Ionicons name="close" size={20} color={colors.surface} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          className="items-center rounded-xl border border-dashed border-slate-300 bg-white py-4 text-center"
+                          onPress={async () => {
+                            const result = await ImagePicker.launchImageLibraryAsync({
                               mediaTypes: ImagePicker.MediaTypeOptions.Images,
                               allowsEditing: true,
-                              quality: 0.7,
-                              base64: true,
+                              quality: 1,
                             });
-                            if (!fallback.canceled && fallback.assets[0].base64) {
-                              setUpiScreenshot('data:image/jpeg;base64,' + fallback.assets[0].base64);
+                            if (!result.canceled && result.assets[0].uri) {
+                              try {
+                                const compressed = await ImageManipulator.manipulateAsync(
+                                  result.assets[0].uri,
+                                  [{ resize: { width: 1200 } }],
+                                  { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+                                );
+                                setUpiScreenshot('data:image/jpeg;base64,' + compressed.base64);
+                              } catch {
+                                const fallback = await ImagePicker.launchImageLibraryAsync({
+                                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                  allowsEditing: true,
+                                  quality: 0.7,
+                                  base64: true,
+                                });
+                                if (!fallback.canceled && fallback.assets[0].base64) {
+                                  setUpiScreenshot('data:image/jpeg;base64,' + fallback.assets[0].base64);
+                                }
+                              }
                             }
-                          }
-                        }
-                      }}
-                    >
-                      <Ionicons name="cloud-upload-outline" size={32} color="#94A3B8" />
-                      <Text className="mt-2 font-medium" style={{ color: colors.primary }}>
-                        Tap to upload screenshot
-                      </Text>
-                    </TouchableOpacity>
+                          }}
+                        >
+                          <Ionicons name="cloud-upload-outline" size={24} color="#94A3B8" />
+                          <Text className="mt-1 text-xs font-medium" style={{ color: colors.primary }}>
+                            Tap to attach screenshot (optional)
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
                 </View>
               )}

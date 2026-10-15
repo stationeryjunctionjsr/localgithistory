@@ -35,6 +35,7 @@ import Header from '@/components/Header';
 import ck from './checkout.module.css';
 import SearchableSelect from '@/components/SearchableSelect';
 import { logger } from '@/utils/logger';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function Cart() {
   const [cart, setCart] = useState<any>(null);
@@ -90,6 +91,13 @@ export default function Cart() {
   const [upiDetails, setUpiDetails] = useState<any>(null);
   const [upiDetailsError, setUpiDetailsError] = useState(false);
   const [showUpiPayment, setShowUpiPayment] = useState(false);
+  const [upiTxnRef, setUpiTxnRef] = useState('');
+  const [upiAppUsed, setUpiAppUsed] = useState('');
+  const [upiPaymentConfirmed, setUpiPaymentConfirmed] = useState(false);
+  const [upiUtr, setUpiUtr] = useState('');
+  const [showManualUtr, setShowManualUtr] = useState(false);
+  const [showAdvancedUpi, setShowAdvancedUpi] = useState(false);
+  const [upiModalTab, setUpiModalTab] = useState<'qr' | 'apps'>('qr');
   const [pincodeServiceable, setPincodeServiceable] = useState<boolean | null>(null);
   const [checkingServiceability, setCheckingServiceability] = useState(false);
   const [mixedCartWarning, setMixedCartWarning] = useState(false);
@@ -640,6 +648,70 @@ export default function Cart() {
       setUpiDetailsError(false);
     } catch {
       setUpiDetailsError(true);
+    }
+  };
+
+  const WEB_UPI_APPS = [
+    { id: 'phonepe', name: 'Pay via PhonePe', scheme: 'phonepe://pay', bgColor: '#5f259f', textColor: '#ffffff', subtext: 'Open PhonePe app & pay', badge: 'Popular' },
+    { id: 'bhim', name: 'Pay via BHIM', scheme: 'bhim://pay', bgColor: '#005b9f', textColor: '#ffffff', subtext: 'Official NPCI BHIM UPI', badge: 'NPCI' },
+    { id: 'gpay', name: 'Pay via Google Pay', scheme: 'tez://upi/pay', bgColor: '#1a73e8', textColor: '#ffffff', subtext: 'Open Google Pay & pay' },
+    { id: 'paytm', name: 'Pay via Paytm', scheme: 'paytmmp://pay', bgColor: '#002970', textColor: '#ffffff', subtext: 'Open Paytm UPI & pay' },
+    { id: 'other', name: 'All Other UPI Apps', scheme: 'upi://pay', bgColor: '#1a4d33', textColor: '#ffffff', subtext: 'Choose any installed UPI app', badge: 'All Apps' },
+  ];
+
+  const ensureUpiRef = () => {
+    if (!upiTxnRef) {
+      const ref = `SJ${Date.now().toString().slice(-8)}`;
+      setUpiTxnRef(ref);
+      return ref;
+    }
+    return upiTxnRef;
+  };
+
+  const dynamicUpiUri = useMemo(() => {
+    if (!upiDetails?.upiId) return '';
+    const ref = upiTxnRef || `SJ${Date.now().toString().slice(-8)}`;
+    const pa = upiDetails.upiId;
+    const pn = 'Stationery Junction';
+    const am = finalTotalAmount.toFixed(2);
+    const tn = `Order Payment ${ref}`;
+    const cu = 'INR';
+    const callbackUrl = typeof window !== 'undefined' ? window.location.href : '';
+    return `upi://pay?pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${encodeURIComponent(am)}&tr=${encodeURIComponent(ref)}&tn=${encodeURIComponent(tn)}&cu=${encodeURIComponent(cu)}&url=${encodeURIComponent(callbackUrl)}`;
+  }, [upiDetails?.upiId, upiTxnRef, finalTotalAmount]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && upiTxnRef && !upiPaymentConfirmed) {
+        toast.info('Back in checkout! Confirm your payment to proceed.');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [upiTxnRef, upiPaymentConfirmed]);
+
+  const handleLaunchWebUpiApp = (app: typeof WEB_UPI_APPS[0]) => {
+    if (!upiDetails?.upiId) {
+      toast.error('UPI payment details not loaded');
+      return;
+    }
+    const ref = ensureUpiRef();
+    setUpiAppUsed(app.name);
+    const pa = upiDetails.upiId;
+    const pn = 'Stationery Junction';
+    const am = finalTotalAmount.toFixed(2);
+    const tn = `Order Payment ${ref}`;
+    const cu = 'INR';
+    const callbackUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    const query = `pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${encodeURIComponent(am)}&tr=${encodeURIComponent(ref)}&tn=${encodeURIComponent(tn)}&cu=${encodeURIComponent(cu)}&url=${encodeURIComponent(callbackUrl)}`;
+    const targetUrl = app.scheme.includes('?') ? `${app.scheme}&${query}` : `${app.scheme}?${query}`;
+
+    try {
+      window.location.href = targetUrl;
+      toast.info(`Launching ${app.name} with â‚¹${am} pre-filled...`);
+    } catch {
+      window.location.href = `upi://pay?${query}`;
     }
   };
 
@@ -1196,7 +1268,7 @@ export default function Cart() {
   const handleStartCheckout = () => {
     const inStock = cart?.items?.filter((item: any) => !item.outOfStock) || [];
     if (inStock.length === 0) {
-      // For guests, cart?.items may not be populated yet — open checkout modal anyway
+      // For guests, cart?.items may not be populated yet â€” open checkout modal anyway
       // so they can sign in and see their cart
       if (!user) {
         setShowCheckout(true);
@@ -1270,7 +1342,8 @@ export default function Cart() {
     }
 
     // UPI payment screen
-    if (checkoutData.paymentMethod === 'upi' && !checkoutData.upiPaymentScreenshot) {
+    if (checkoutData.paymentMethod === 'upi' && !upiPaymentConfirmed && !checkoutData.upiPaymentScreenshot && !upiTxnRef) {
+      ensureUpiRef();
       setShowUpiPayment(true);
       return;
     }
@@ -1300,6 +1373,15 @@ export default function Cart() {
       };
       if (checkoutData.paymentMethod === 'upi') {
         orderData.upiPaymentScreenshot = checkoutData.upiPaymentScreenshot || null;
+        const refParts = [
+          upiTxnRef ? `UPI-Ref: ${upiTxnRef}` : null,
+          upiUtr ? `UTR: ${upiUtr}` : null,
+          upiAppUsed ? `via ${upiAppUsed}` : null,
+          checkoutData.notes || null,
+        ].filter(Boolean);
+        if (refParts.length > 0) {
+          orderData.notes = refParts.join(' | ');
+        }
       }
 
       const response = await api.post('/orders', orderData);
@@ -1373,7 +1455,7 @@ export default function Cart() {
     <div
       className={`w-full max-w-full overflow-x-hidden ${isMobile ? 'min-h-screen bg-neutral-50 pb-32' : 'pb-20'}`}
     >
-      {/* Desktop Header – hidden on mobile via CSS (avoids SSR-hydration flash) */}
+      {/* Desktop Header â€“ hidden on mobile via CSS (avoids SSR-hydration flash) */}
       <div className="hidden md:block">
         <Header />
       </div>
@@ -2790,7 +2872,7 @@ export default function Cart() {
                                     }}
                                     className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none bg-white"
                                   >
-                                    <option value="">Choose a date…</option>
+                                    <option value="">Choose a dateâ€¦</option>
                                     {deliveryOptions.availableDates.map((d) => (
                                       <option key={d} value={d}>{d}</option>
                                     ))}
@@ -2802,7 +2884,7 @@ export default function Cart() {
                                   <div>
                                     <label className="mb-2 block text-xs font-medium text-slate-600">Select Time Slot</label>
                                     {loadingSlots ? (
-                                      <p className="text-xs text-slate-400">Loading slots…</p>
+                                      <p className="text-xs text-slate-400">Loading slotsâ€¦</p>
                                     ) : availableSlots.filter(s => !s.isUrgent).length === 0 ? (
                                       <p className="text-xs text-slate-400">No standard slots available for this date.</p>
                                     ) : (
@@ -2830,7 +2912,7 @@ export default function Cart() {
                                             }`}
                                           >
                                             <span className="font-medium">
-                                              {slot.isFullDay ? 'Full Day' : `${slot.startTime} – ${slot.endTime}`}
+                                              {slot.isFullDay ? 'Full Day' : `${slot.startTime} â€“ ${slot.endTime}`}
                                             </span>
                                           </button>
                                         ))}
@@ -2930,7 +3012,7 @@ export default function Cart() {
                         <span className="flex items-center gap-1.5">
                           ???
                           {appliedCoupon
-                            ? <span className="text-emerald-600">&quot;{appliedCoupon.code}&quot; applied — save ?{appliedCoupon.discount.toFixed(2)}</span>
+                            ? <span className="text-emerald-600">&quot;{appliedCoupon.code}&quot; applied â€” save ?{appliedCoupon.discount.toFixed(2)}</span>
                             : 'Have a promo code?'}
                         </span>
                       </label>
@@ -2977,7 +3059,7 @@ export default function Cart() {
                     </div>
 
                     <div>
-                      <label className="mb-1 block">Payment Method</label>
+                      <label className="mb-1 block text-sm font-semibold text-neutral-800">Payment Method</label>
                       <select
                         value={checkoutData.paymentMethod}
                         onChange={(e) => {
@@ -2988,17 +3070,51 @@ export default function Cart() {
                             upiPaymentScreenshot:
                               m !== 'upi' ? null : checkoutData.upiPaymentScreenshot,
                           });
-                          if (m === 'upi') setShowUpiPayment(true);
+                          if (m === 'upi') {
+                            ensureUpiRef();
+                            setUpiModalTab('apps');
+                            setShowUpiPayment(true);
+                          }
                         }}
-                        className="w-full rounded border border-gray-300 px-3 py-2"
+                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                       >
                         <option value="cod">Cash on Delivery</option>
-                        <option value="upi">UPI</option>
+                        <option value="upi">UPI (PhonePe, BHIM, GPay, Paytm)</option>
                         {(user as any)?.role === 'wholesaler' && (
                           <option value="credit">Credit (B2B Only)</option>
                         )}
                       </select>
                     </div>
+
+                    {checkoutData.paymentMethod === 'upi' && (
+                      <div className="mt-2 rounded-lg border border-purple-200 bg-purple-50 p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-purple-950 uppercase tracking-wider">UPI Payment</span>
+                            {upiPaymentConfirmed ? (
+                              <div className="text-xs font-semibold text-emerald-700 mt-0.5">
+                                âœ“ Confirmed ({upiTxnRef})
+                              </div>
+                            ) : (
+                              <div className="text-xs text-purple-700 mt-0.5">
+                                Ref: <code className="font-mono font-bold">{upiTxnRef || 'SJ...'}</code>
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              ensureUpiRef();
+                              setUpiModalTab('apps');
+                              setShowUpiPayment(true);
+                            }}
+                            className="rounded bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
+                          >
+                            {upiPaymentConfirmed ? 'Change / View' : 'âš¡ Open UPI Apps'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {checkoutData.paymentMethod === 'upi' && checkoutData.upiPaymentScreenshot && (
                       <div>
                         <label className="mb-1 block">Payment Screenshot</label>
@@ -3331,7 +3447,7 @@ export default function Cart() {
                               {addr.city}
                               {addr.district ? `, ${addr.district}` : ''}
                               <br />
-                              {addr.state} — {addr.zipCode || addr.pincode}
+                              {addr.state} â€” {addr.zipCode || addr.pincode}
                               <br />
                               {addr.country || 'India'}
                             </div>
@@ -3376,7 +3492,7 @@ export default function Cart() {
                             : ''}
                           , {checkoutData.shippingAddress.city}
                           <br />
-                          {checkoutData.shippingAddress.state} —{' '}
+                          {checkoutData.shippingAddress.state} â€”{' '}
                           {checkoutData.shippingAddress.zipCode}
                         </div>
                         {checkingServiceability && (
@@ -3450,6 +3566,8 @@ export default function Cart() {
                           className={`${ck.paymentOption} ${checkoutData.paymentMethod === 'upi' ? ck.selected : ''}`}
                           onClick={() => {
                             setCheckoutData({ ...checkoutData, paymentMethod: 'upi' });
+                            ensureUpiRef();
+                            setUpiModalTab(isMobile ? 'apps' : 'qr');
                             setShowUpiPayment(true);
                           }}
                         >
@@ -3457,10 +3575,10 @@ export default function Cart() {
                             className={ck.paymentIcon}
                             style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}
                           >
-                            ??
+                            âš¡
                           </div>
                           <div className={ck.paymentLabel}>UPI Payment</div>
-                          <div className={ck.paymentDesc}>GPay, PhonePe, Paytm</div>
+                          <div className={ck.paymentDesc}>PhonePe, BHIM, GPay, Paytm</div>
                         </div>
                       )}
                       {isCreditEnabled && (
@@ -3485,6 +3603,44 @@ export default function Cart() {
                         </div>
                       )}
                     </div>
+
+                    {checkoutData.paymentMethod === 'upi' && (upiPaymentConfirmed || upiTxnRef) && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 16px',
+                          background: '#ecfdf5',
+                          borderRadius: 12,
+                          border: '1px solid #a7f3d0',
+                          marginBottom: 16,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 20 }}>âœ…</span>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#065f46', fontSize: 13 }}>
+                              {upiPaymentConfirmed ? 'Payment Confirmed' : `UPI Payment Ready (${upiAppUsed || 'Dynamic QR'})`}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#047857' }}>
+                              Ref: <strong>{upiTxnRef}</strong> {upiUtr ? `â€¢ UTR: ${upiUtr}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={ck.btnOutline}
+                          style={{ padding: '6px 14px', fontSize: 12 }}
+                          onClick={() => {
+                            ensureUpiRef();
+                            setShowUpiPayment(true);
+                          }}
+                        >
+                          Change / View QR
+                        </button>
+                      </div>
+                    )}
 
                     {checkoutData.paymentMethod === 'upi' && checkoutData.upiPaymentScreenshot && (
                       <div
@@ -3628,7 +3784,7 @@ export default function Cart() {
                       </div>
                     )}
 
-                    {/* Coupon / promo code — desktop checkout */}
+                    {/* Coupon / promo code â€” desktop checkout */}
                     <div
                       style={{
                         border: '1px solid #e2e8f0',
@@ -3648,7 +3804,7 @@ export default function Cart() {
                       >
                         ???{' '}
                         {appliedCoupon
-                          ? `"${appliedCoupon.code}" applied — you save ?${appliedCoupon.discount.toFixed(2)}`
+                          ? `"${appliedCoupon.code}" applied â€” you save ?${appliedCoupon.discount.toFixed(2)}`
                           : 'Have a promo code?'}
                       </div>
                       {!appliedCoupon ? (
@@ -3773,11 +3929,11 @@ export default function Cart() {
                       <button
                         className={ck.btnPrimary}
                         disabled={
-                          checkoutData.paymentMethod === 'upi' && !checkoutData.upiPaymentScreenshot
+                          checkoutData.paymentMethod === 'upi' && !upiPaymentConfirmed && !checkoutData.upiPaymentScreenshot && !upiTxnRef
                         }
                         onClick={() => setCheckoutStep(3)}
                       >
-                        Review Order ?
+                        Review Order â†’
                       </button>
                     </div>
                   </>
@@ -3845,6 +4001,11 @@ export default function Cart() {
                               ? 'UPI Payment'
                               : 'Credit (B2B)'}
                         </div>
+                        {checkoutData.paymentMethod === 'upi' && (
+                          <div style={{ fontSize: 12, color: upiPaymentConfirmed ? '#059669' : '#6d28d9', marginTop: 4, fontWeight: 500 }}>
+                            {upiPaymentConfirmed ? 'âœ“ Confirmed' : 'Payment Ready'} â€¢ Ref: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{upiTxnRef}</span>
+                          </div>
+                        )}
                         {checkoutData.printedBill && (
                           <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
                             ?? Printed bill requested
@@ -3873,7 +4034,7 @@ export default function Cart() {
                       {cart.items?.slice(0, 5).map((item: any) => (
                         <div key={item._id} className={ck.summaryRow}>
                           <span style={{ flex: 1, color: '#334155' }}>
-                            {item.product?.name} × {item.quantity}
+                            {item.product?.name} Ã— {item.quantity}
                           </span>
                           <span style={{ fontWeight: 600, color: '#0f172a' }}>
                             ?{((item.price || 0) * (item.quantity || 0)).toFixed(2)}
@@ -3976,15 +4137,15 @@ export default function Cart() {
                 <div style={{ marginBottom: '16px', padding: '16px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                   {duesInfo.hasOverdueBills ? (
                     <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#334155' }}>
-                      <div>• <strong>Current overdue:</strong> ?{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
-                      <div>• <strong>Minimum overdue (date has crossed):</strong> ?{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
-                      <div style={{ fontWeight: '600', color: '#dc2626' }}>• Pay the minimum amount to continue placing orders.</div>
+                      <div>â€¢ <strong>Current overdue:</strong> ?{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
+                      <div>â€¢ <strong>Minimum overdue (date has crossed):</strong> ?{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
+                      <div style={{ fontWeight: '600', color: '#dc2626' }}>â€¢ Pay the minimum amount to continue placing orders.</div>
                     </div>
                   ) : (
                     <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#334155' }}>
-                      <div>• <strong>Current overdue:</strong> ?{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
-                      <div>• <strong>Minimum overdue (cutoff date is nearest):</strong> ?{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
-                      <div>• <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
+                      <div>â€¢ <strong>Current overdue:</strong> ?{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
+                      <div>â€¢ <strong>Minimum overdue (cutoff date is nearest):</strong> ?{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
+                      <div>â€¢ <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
                     </div>
                   )}
                 </div>
@@ -4235,7 +4396,29 @@ export default function Cart() {
                       placeholder="6-digit pincode"
                       maxLength={6}
                       value={newAddress.zipCode}
-                      onChange={(e) => setNewAddress({ ...newAddress, zipCode: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setNewAddress((prev) => ({ ...prev, zipCode: val }));
+                        if (val.length === 6) {
+                          fetch(`https://api.postalpincode.in/pincode/${val}`)
+                            .then((r) => r.json())
+                            .then((data) => {
+                              if (data?.[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
+                                const po = data[0].PostOffice[0];
+                                setNewAddress((prev) => ({
+                                  ...prev,
+                                  city: prev.city || po.District || po.Block || po.Name || '',
+                                  state: prev.state || po.State || '',
+                                  district: prev.district || po.District || '',
+                                }));
+                                if (po.State) {
+                                  fetchCheckoutDistricts(po.State, setNewAddrDistricts);
+                                }
+                              }
+                            })
+                            .catch(() => {});
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -4288,16 +4471,35 @@ export default function Cart() {
           </div>
         )}
 
-        {/* UPI Payment Modal */}
+        {/* Enhanced UPI Payment Modal */}
         {showUpiPayment && (
           <div className={ck.addrModalOverlay} onClick={() => setShowUpiPayment(false)}>
             <div className={ck.upiModal} onClick={(e) => e.stopPropagation()}>
               <div className={ck.upiHeader}>
-                <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>?? UPI Payment</h3>
-                <p style={{ margin: '6px 0 0', opacity: 0.85, fontSize: 14 }}>
-                  Scan or use UPI ID to pay
+                <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>âš¡ Instant UPI Payment</h3>
+                <p style={{ margin: '6px 0 0', opacity: 0.9, fontSize: 13 }}>
+                  Pay â‚¹{finalTotalAmount.toFixed(2)} with 0% fee â€¢ NPCI Verified
                 </p>
               </div>
+
+              {/* Tab Switcher */}
+              <div className={ck.upiTabs}>
+                <button
+                  type="button"
+                  className={`${ck.upiTab} ${upiModalTab === 'qr' ? ck.active : ''}`}
+                  onClick={() => setUpiModalTab('qr')}
+                >
+                  ðŸ“± Scan QR on Phone
+                </button>
+                <button
+                  type="button"
+                  className={`${ck.upiTab} ${upiModalTab === 'apps' ? ck.active : ''}`}
+                  onClick={() => setUpiModalTab('apps')}
+                >
+                  âš¡ Pay via UPI App
+                </button>
+              </div>
+
               {!upiDetails && (
                 <div style={{ padding: '24px 16px', textAlign: 'center' }}>
                   {upiDetailsError ? (
@@ -4313,59 +4515,217 @@ export default function Cart() {
                       </button>
                     </>
                   ) : (
-                    <p style={{ color: '#6b7280' }}>Loading UPI details…</p>
+                    <p style={{ color: '#6b7280' }}>Loading UPI detailsâ€¦</p>
                   )}
                 </div>
               )}
+
               <div className={ck.upiBody} style={!upiDetails ? { display: 'none' } : undefined}>
-                {upiDetails.qrCodeUrl && (
-                  <img
-                    src={upiDetails.qrCodeUrl}
-                    alt="UPI QR Code"
-                    className={ck.upiQr}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                )}
-                <div className={ck.upiIdBox}>
-                  <span style={{ fontWeight: 600, color: '#6d28d9' }}>{upiDetails.upiId}</span>
-                  <button
-                    className={ck.btnPrimary}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: 12,
-                      background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
-                    }}
-                    onClick={() => {
-                      navigator.clipboard.writeText(upiDetails.upiId);
-                      toast.success('UPI ID copied!');
-                    }}
-                  >
-                    Copy
-                  </button>
+                {/* Total & Ref Badge */}
+                <div className={ck.upiAmountBadge}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#065f46' }}>Payable Total</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#064e3b' }}>â‚¹{finalTotalAmount.toFixed(2)}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 11, color: '#047857' }}>Order Ref</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'monospace', color: '#065f46' }}>
+                      {upiTxnRef || ensureUpiRef()}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'left', marginTop: 16 }}>
-                  <label className={ck.formLabel}>Upload Payment Screenshot *</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className={ck.formInput}
-                    style={{ marginTop: 6 }}
-                  />
+
+                {/* TAB 1: DYNAMIC QR CODE */}
+                {upiModalTab === 'qr' && (
+                  <div>
+                    {dynamicUpiUri && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 14 }}>
+                        <QRCodeSVG
+                          value={dynamicUpiUri}
+                          size={190}
+                          level="M"
+                          style={{
+                            borderRadius: 14,
+                            border: '2px solid #e2e8f0',
+                            padding: 8,
+                            background: '#fff',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                          }}
+                        />
+                        <span style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
+                          Scan with PhonePe, BHIM, Google Pay, or Paytm camera
+                        </span>
+                      </div>
+                    )}
+                    <div className={ck.upiIdBox}>
+                      <span style={{ fontWeight: 600, color: '#6d28d9', fontSize: 13 }}>{upiDetails?.upiId}</span>
+                      <button
+                        className={ck.btnPrimary}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: 11,
+                          background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                        }}
+                        onClick={() => {
+                          if (upiDetails?.upiId) {
+                            navigator.clipboard.writeText(upiDetails.upiId);
+                            toast.success('UPI ID copied!');
+                          }
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: 1-TAP UPI APP BUTTONS */}
+                {upiModalTab === 'apps' && (
+                  <div className={ck.upiAppList}>
+                    {WEB_UPI_APPS.map((app) => (
+                      <button
+                        key={app.id}
+                        type="button"
+                        className={ck.upiAppBtn}
+                        onClick={() => handleLaunchWebUpiApp(app)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div className={ck.upiAppIcon} style={{ backgroundColor: app.bgColor }}>
+                            âš¡
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>{app.name}</div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>{app.subtext}</div>
+                          </div>
+                        </div>
+                        {app.badge && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              background: '#f1f5f9',
+                              color: '#475569',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                            }}
+                          >
+                            {app.badge}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Confirmation Box */}
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    borderRadius: 12,
+                    border: '1px solid #e2e8f0',
+                    padding: 12,
+                    marginTop: 10,
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                      Completed payment on your phone?
+                    </span>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background: '#16a34a',
+                        color: '#fff',
+                        borderRadius: 8,
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        setUpiPaymentConfirmed(true);
+                        setShowUpiPayment(false);
+                        toast.success('Payment confirmed!');
+                      }}
+                    >
+                      Yes, Done!
+                    </button>
+                  </div>
+
+                  {/* Optional UTR Input */}
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#4f46e5',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontWeight: 600,
+                      }}
+                      onClick={() => setShowManualUtr(!showManualUtr)}
+                    >
+                      {showManualUtr ? 'Hide UTR input' : '+ Enter 12-digit UPI Reference / UTR (Optional)'}
+                    </button>
+                    {showManualUtr && (
+                      <input
+                        type="text"
+                        placeholder="e.g. 428901234567"
+                        value={upiUtr}
+                        onChange={(e) => setUpiUtr(e.target.value)}
+                        className={ck.formInput}
+                        style={{ marginTop: 6, fontSize: 12, padding: '6px 10px' }}
+                        maxLength={16}
+                      />
+                    )}
+                  </div>
+
+                  {/* Optional Screenshot Upload */}
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#64748b',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontWeight: 500,
+                      }}
+                      onClick={() => setShowAdvancedUpi(!showAdvancedUpi)}
+                    >
+                      {showAdvancedUpi ? 'Hide screenshot uploader' : '+ Having issues? Attach screenshot (Optional)'}
+                    </button>
+                    {showAdvancedUpi && (
+                      <div style={{ marginTop: 6 }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileUpload}
+                          className={ck.formInput}
+                          style={{ fontSize: 11 }}
+                        />
+                        {checkoutData.upiPaymentScreenshot && (
+                          <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4, fontWeight: 600 }}>
+                            âœ“ Screenshot attached
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+
               <div className={ck.addrModalFooter}>
                 <button
                   className={ck.btnSecondary}
                   onClick={() => {
                     setShowUpiPayment(false);
-                    setCheckoutData({
-                      ...checkoutData,
-                      paymentMethod: 'cod',
-                      upiPaymentScreenshot: null,
-                    });
                   }}
                 >
                   Cancel
@@ -4373,20 +4733,14 @@ export default function Cart() {
                 <button
                   className={ck.btnPrimary}
                   style={{
-                    background: checkoutData.upiPaymentScreenshot
-                      ? 'linear-gradient(135deg,#1a4d33,#2d7a50)'
-                      : '#94a3b8',
+                    background: 'linear-gradient(135deg,#1a4d33,#2d7a50)',
                   }}
                   onClick={() => {
-                    if (checkoutData.upiPaymentScreenshot) {
-                      setShowUpiPayment(false);
-                    } else {
-                      toast.error('Please upload payment screenshot');
-                    }
+                    setUpiPaymentConfirmed(true);
+                    setShowUpiPayment(false);
                   }}
-                  disabled={!checkoutData.upiPaymentScreenshot}
                 >
-                  Proceed
+                  Continue â†’
                 </button>
               </div>
             </div>
@@ -4445,7 +4799,7 @@ export default function Cart() {
             <span className="font-semibold">
               {pendingRemoveItem.item?.product?.name || 'Item'}
             </span>
-            {' '}— what would you like to do?
+            {' '}â€” what would you like to do?
           </p>
           <div className="flex shrink-0 gap-3">
             <button

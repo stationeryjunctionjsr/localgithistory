@@ -18,13 +18,24 @@
       "androidMode": "default"
     },
     "ios": {
+      "bundleIdentifier": "com.stationeryjunction.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
-        }
+        },
+        "LSApplicationQueriesSchemes": [
+          "phonepe",
+          "tez",
+          "paytmmp",
+          "bhim",
+          "credpay",
+          "cred",
+          "upi"
+        ]
       }
     },
     "android": {
+      "package": "com.stationeryjunction.app"
     },
     "plugins": [
       "expo-router",

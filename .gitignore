@@ -167,3 +167,6 @@ backend/move_route.py
 backend/add_import.py
 backend/finish_*.py
 backend/run.py
+ 
+.expo/
+frontend/mobile/.expo/
