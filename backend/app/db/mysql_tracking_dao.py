@@ -723,10 +723,8 @@ class MySQLTrackingDAO:
             await session.commit()
         return await self.findById(new_id)
 
-    async def update(self, id: int, data: 'AnalyticsEventUpdate') -> Optional['AnalyticsEvent']:
-        if not id:
-            return None
-        return await self.findById(id)
+    async def update(self, id: int, data: object = None) -> Optional[Tracking]:
+        raise NotImplementedError("Analytics events in sj_tracking are strictly append-only; update() is not supported.")
 
     async def delete(self, id: int) -> bool:
         if not id:
