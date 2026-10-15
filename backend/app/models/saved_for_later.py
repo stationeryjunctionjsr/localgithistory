@@ -4,9 +4,9 @@ from pydantic import Field, field_validator
 from app.models.base import CamelBaseModel
 
 class SavedForLaterItem(CamelBaseModel):
-    user: Optional[str] = None
-    product_id: Optional[str] = None
-    product: Optional[str] = None
+    user: Optional[int] = None
+    product_id: Optional[int] = None
+    product: Optional[int] = None
     saved_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
@@ -18,8 +18,8 @@ class SavedForLaterItem(CamelBaseModel):
         return v
 
 class SavedForLater(CamelBaseModel):
-    id: Optional[str] = None
-    user: Optional[str] = None
+    id: Optional[int] = None
+    user: Optional[int] = None
     items: List[SavedForLaterItem] = Field(default_factory=list)
     updated_at: Optional[datetime] = None
 

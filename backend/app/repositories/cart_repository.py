@@ -1,5 +1,5 @@
 from app.models.saved_for_later import SavedForLater, SavedForLaterItem
-from typing import TYPE_CHECKING, Optional, List, Union
+from typing import TYPE_CHECKING, Optional, List
 from app.models.cart import Cart
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
@@ -79,7 +79,7 @@ class CartRepository:
 
         return await self.storage.update_items_atomic(user_id, _merge)
 
-    async def saveForLater(self, user_id: int, product_id: Union[int, str]) -> Optional[SavedForLater]:
+    async def saveForLater(self, user_id: int, product_id: int) -> Optional[SavedForLater]:
         """Save item for later via atomic single-row SQL."""
         saved_storage = get_storage("savedForLater")
         await saved_storage.add_item(user_id, product_id)
@@ -88,7 +88,7 @@ class CartRepository:
     async def getSavedForLater(self, user_id: int) -> SavedForLater:
         """Get saved for later items"""
         saved_storage = get_storage("savedForLater")
-        return await saved_storage.findOne(user=user_id) or SavedForLater(user=str(user_id), items=[])
+        return await saved_storage.findOne(user=user_id) or SavedForLater(user=user_id, items=[])
 
 
 from datetime import datetime, timezone
