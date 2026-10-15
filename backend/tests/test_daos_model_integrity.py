@@ -1612,7 +1612,7 @@ async def test_final_batch_analytics_pushdowns():
                 duration_buckets=[DurationBucket(range="0-60s", count=5)],
                 user_metrics=[
                     UserMetric(
-                        userId="101",
+                        userId=101,
                         name="Alice",
                         email="alice@example.com",
                         averageSessionTimeSeconds=45.0,
@@ -1623,7 +1623,7 @@ async def test_final_batch_analytics_pushdowns():
         )
         analytics_repository.session_storage.get_user_engagement_metrics_stats = AsyncMock(
             return_value=UserEngagementResponse(
-                userId="101",
+                userId=101,
                 registrationDate="2026-01-01T00:00:00",
                 totalSessions=5,
                 averageSessionTimeSeconds=120.0,
@@ -1648,9 +1648,13 @@ async def test_final_batch_analytics_pushdowns():
         res_all_eng = await analytics_repository.get_all_user_engagement_aggregate()
         assert len(res_all_eng.duration_buckets) == 1
         assert len(res_all_eng.user_metrics) == 1
+        assert res_all_eng.user_metrics[0].userId == 101
+        assert isinstance(res_all_eng.user_metrics[0].userId, int)
         assert isinstance(res_all_eng, AllUserEngagementResponse)
 
-        res_user_eng = await analytics_repository.get_user_engagement_metrics("101")
+        res_user_eng = await analytics_repository.get_user_engagement_metrics(101)
+        assert res_user_eng.userId == 101
+        assert isinstance(res_user_eng.userId, int)
         assert res_user_eng.totalSessions == 5
         assert res_user_eng.sessionOrderRate == 0.4
         assert isinstance(res_user_eng, UserEngagementResponse)
@@ -1723,7 +1727,8 @@ async def test_final_batch_analytics_pushdowns():
     with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=mock_factory):
         dao_agg = await session_dao.get_all_user_engagement_aggregate_stats()
         assert len(dao_agg.user_metrics) == 1
-        assert dao_agg.user_metrics[0].userId == "101"
+        assert dao_agg.user_metrics[0].userId == 101
+        assert isinstance(dao_agg.user_metrics[0].userId, int)
         assert dao_agg.user_metrics[0].averageSessionTimeSeconds == 150.0
         assert any(b.range == "60-300s" and b.count == 1 for b in dao_agg.duration_buckets)
         query_agg = str(mock_session.execute.call_args[0][0])
@@ -1731,55 +1736,38 @@ async def test_final_batch_analytics_pushdowns():
         assert "TIMESTAMPDIFF(SECOND" in query_agg
 
     # 5. Direct DAO: MySQLSessionDAO.get_user_engagement_metrics_stats
-    user_row = MagicMock()
-    user_row.id = 101
-    user_row.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-    row_user_sess = MagicMock()
-    row_user_sess.total_sessions = 5
-    row_user_sess.average_session_time_seconds = 180.0
-
-    row_gaps = MagicMock()
-    row_gaps.avg_days_between_sessions = 3.2
-
-    row_pages = MagicMock()
-    row_pages.avg_pages_per_session = 4.5
-
-    row_orders = MagicMock()
-    row_orders.sessions_with_order = 2
+    row_user = MagicMock()
+    row_user.user_id = 101
+    row_user.registration_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    row_user.total_sessions = 5
+    row_user.average_session_time_seconds = 180.0
+    row_user.average_days_between_sessions = 3.2
+    row_user.average_pages_per_session = 4.5
+    row_user.sessions_with_order = 2
+    row_user.session_order_rate = 0.4
 
     mock_res_user = MagicMock()
-    mock_res_user.fetchone.return_value = user_row
-
-    mock_res_sess = MagicMock()
-    mock_res_sess.fetchone.return_value = row_user_sess
-
-    mock_res_gaps = MagicMock()
-    mock_res_gaps.fetchone.return_value = row_gaps
-
-    mock_res_pages = MagicMock()
-    mock_res_pages.fetchone.return_value = row_pages
-
-    mock_res_orders = MagicMock()
-    mock_res_orders.fetchone.return_value = row_orders
-
-    mock_session.execute.side_effect = [
-        mock_res_user,
-        mock_res_sess,
-        mock_res_gaps,
-        mock_res_pages,
-        mock_res_orders,
-    ]
+    mock_res_user.fetchone.return_value = row_user
+    mock_session.execute.return_value = mock_res_user
 
     with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=mock_factory):
-        dao_user = await session_dao.get_user_engagement_metrics_stats("101")
-        assert dao_user.userId == "101"
+        dao_user = await session_dao.get_user_engagement_metrics_stats(101)
+        assert dao_user.userId == 101
+        assert isinstance(dao_user.userId, int)
         assert dao_user.totalSessions == 5
         assert dao_user.averageSessionTimeSeconds == 180.0
         assert dao_user.averageDaysBetweenSessions == 3.2
         assert dao_user.averagePagesPerSession == 4.5
         assert dao_user.sessionsWithOrder == 2
         assert dao_user.sessionOrderRate == 0.4
+        query_user = str(mock_session.execute.call_args[0][0])
+        assert "WITH user_info AS" in query_user
+        assert "valid_sessions AS" in query_user
+        assert "session_metrics AS" in query_user
+        assert "pages_per_session AS" in query_user
+        assert "order_metrics AS" in query_user
+        assert "CROSS JOIN order_metrics" in query_user
+
 
 
 

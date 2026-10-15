@@ -448,7 +448,7 @@ class DurationBucket(CamelBaseModel):
 
 class UserMetric(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    userId: str
+    userId: int
     name: str
     email: str
     averageSessionTimeSeconds: float
@@ -463,7 +463,7 @@ class AllUserEngagementResponse(CamelBaseModel):
 
 class UserEngagementResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    userId: Optional[str] = None
+    userId: Optional[int] = None
     registrationDate: Optional[str] = None
     totalSessions: Optional[int] = None
     averageSessionTimeSeconds: Optional[float] = None

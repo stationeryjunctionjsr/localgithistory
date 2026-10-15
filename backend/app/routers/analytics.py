@@ -175,7 +175,7 @@ class SessionsByLandingPageResponse(BaseModel):
     sessions: int
 
 class UserEngagementResponse(BaseModel):
-    userId: Optional[str] = None
+    userId: Optional[int] = None
     registrationDate: Optional[str] = None
     totalSessions: Optional[int] = None
     averageSessionTimeSeconds: Optional[float] = None
@@ -590,7 +590,7 @@ async def get_my_user_engagement(current_user: User = Depends(get_current_user))
 
 @router.get("/user-engagement/{user_id}", response_model=UserEngagementResponse)
 async def get_user_engagement_by_id(
-    user_id: str,
+    user_id: int,
     current_user: User = Depends(require_roles("super_admin")),
 ):
     """
@@ -598,8 +598,8 @@ async def get_user_engagement_by_id(
     """
     try:
         result = await analytics_repository.get_user_engagement_metrics(user_id)
-        if "error" in result and result["error"]:
-            raise HTTPException(status_code=404, detail=result["error"])
+        if result.error:
+            raise HTTPException(status_code=404, detail=result.error)
         return result
     except HTTPException:
         raise

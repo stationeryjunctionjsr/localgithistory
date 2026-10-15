@@ -1,7 +1,7 @@
 from typing import Any
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from pathlib import Path
 import json
 import time
@@ -336,7 +336,7 @@ class AnalyticsRepository:
         return await self.session_storage.get_all_user_engagement_aggregate_stats()
 
     @cache.ttl_cache(ttl=300)
-    async def get_user_engagement_metrics(self, user_id: Union[int, str]) -> UserEngagementResponse:
+    async def get_user_engagement_metrics(self, user_id: int) -> UserEngagementResponse:
         """
         Per-user engagement metrics calculated since the user's registration date.
         All sessions (all devices) are included.
