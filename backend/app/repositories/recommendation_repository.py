@@ -719,7 +719,7 @@ class RecommendationRepository:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
         except Exception as e:
-            logging.warning("recommendation_repository._to_aware_dt: could not parse date value %r: %s", raw_date, e, exc_info=e)
+            logging.warning("recommendation_repository._parse_created_at: could not parse date value %r: %s", raw, e, exc_info=e)
             return None
 
     async def _derive_neglected_subcats(self, user_id: str, days: int) -> list:

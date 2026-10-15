@@ -7,6 +7,8 @@ import psutil
 from sqlalchemy import text
 
 
+logger = logging.getLogger("stationery_junction")
+
 # Global state for throttling (in-memory)
 # Format: { error_hash: { last_sent: datetime, users: set(), created_at: datetime } }
 notified_errors_data = {}
