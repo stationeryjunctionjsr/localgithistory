@@ -1142,6 +1142,8 @@ async def test_tracking_and_session_pushdown_dao_methods():
     row_scr = MagicMock()
     row_scr.total_search_sessions = 10
     row_scr.converted_sessions = 3
+    row_scr.non_converted_sessions = 7
+    row_scr.conversion_rate = 30.0
     mock_res_scr = MagicMock()
     mock_res_scr.fetchone.return_value = row_scr
     mock_session.execute.return_value = mock_res_scr
@@ -1163,6 +1165,7 @@ async def test_tracking_and_session_pushdown_dao_methods():
     row_br.period = "2026-03-15"
     row_br.total_sessions = 10
     row_br.bounced_sessions = 4
+    row_br.bounce_rate = 40.0
     mock_res_br = MagicMock()
     mock_res_br.fetchall.return_value = [row_br]
     mock_session.execute.return_value = mock_res_br

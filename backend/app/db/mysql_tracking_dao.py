@@ -799,7 +799,7 @@ class MySQLTrackingDAO:
                     term=r.term,
                     searchCount=r.search_count,
                     totalResults=r.total_results,
-                    avgResults=float(r.avg_results or 0.0),
+                    avgResults=r.avg_results or 0.0,
                 )
                 for r in rows
             ]
@@ -839,7 +839,9 @@ class MySQLTrackingDAO:
             )
             SELECT 
                 COUNT(s.session_id) AS total_search_sessions,
-                COUNT(o.session_id) AS converted_sessions
+                COUNT(o.session_id) AS converted_sessions,
+                (COUNT(s.session_id) - COUNT(o.session_id)) AS non_converted_sessions,
+                ROUND(COALESCE(COUNT(o.session_id) * 100.0 / NULLIF(COUNT(s.session_id), 0), 0.0), 2) AS conversion_rate
             FROM search_sessions s
             LEFT JOIN order_sessions o ON o.session_id = s.session_id
             """
@@ -847,16 +849,12 @@ class MySQLTrackingDAO:
         async_session = get_async_session_factory()
         async with async_session() as session:
             row = (await session.execute(sql, params)).fetchone()
-            total = row.total_search_sessions if row and row.total_search_sessions else 0
-            converted = row.converted_sessions if row and row.converted_sessions else 0
-            not_converted = total - converted
-            rate = round((converted / total) * 100, 2) if total > 0 else 0.0
             return [
                 SearchConversionResponse(
-                    totalSearchSessions=total,
-                    convertedSessions=converted,
-                    nonConvertedSessions=not_converted,
-                    conversionRate=rate,
+                    totalSearchSessions=row.total_search_sessions or 0 if row else 0,
+                    convertedSessions=row.converted_sessions or 0 if row else 0,
+                    nonConvertedSessions=row.non_converted_sessions or 0 if row else 0,
+                    conversionRate=row.conversion_rate or 0.0 if row else 0.0,
                 )
             ]
 
@@ -890,7 +888,8 @@ class MySQLTrackingDAO:
             SELECT 
                 DATE_FORMAT(day_date, '%Y-%m-%d') AS period,
                 COUNT(session_id) AS total_sessions,
-                SUM(CASE WHEN pv_count <= 1 THEN 1 ELSE 0 END) AS bounced_sessions
+                SUM(CASE WHEN pv_count <= 1 THEN 1 ELSE 0 END) AS bounced_sessions,
+                ROUND(COALESCE(SUM(CASE WHEN pv_count <= 1 THEN 1.0 ELSE 0.0 END) / NULLIF(COUNT(session_id), 0) * 100.0, 0.0), 1) AS bounce_rate
             FROM session_daily_views
             GROUP BY day_date
             ORDER BY day_date ASC
@@ -904,7 +903,7 @@ class MySQLTrackingDAO:
                     period=r.period,
                     totalSessions=r.total_sessions or 0,
                     bouncedSessions=r.bounced_sessions or 0,
-                    bounceRate=round((float(r.bounced_sessions or 0) / float(r.total_sessions)) * 100, 1) if r.total_sessions else 0.0,
+                    bounceRate=r.bounce_rate or 0.0,
                 )
                 for r in rows
             ]
