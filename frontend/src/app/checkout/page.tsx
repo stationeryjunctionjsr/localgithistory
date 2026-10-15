@@ -12,7 +12,6 @@ import { useCartStore } from '@/store/cartStore';
 import api from '@/utils/api';
 import { getImageUrl } from '@/utils/imageUrl';
 import { trackEcommerceEvent } from '@/utils/analytics';
-import SearchableSelect from '@/components/SearchableSelect';
 import ck from './checkout.module.css';
 
 // Web UPI App launch schemes
@@ -33,22 +32,24 @@ export default function CheckoutPage() {
   const cart = useCartStore((s) => s.cart);
   const fetchCart = useCartStore((s) => s.fetchCart);
 
-  // Stepper state: 1 = Address/Contact, 2 = Delivery Slot, 3 = Payment, 4 = Review
+  // Stepper state: 1 = Address, 2 = Delivery Slot, 3 = Payment, 4 = Review
   const [checkoutStep, setCheckoutStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Guest / Contact state
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [showSignInModal, setShowSignInModal] = useState(false);
+  // ── Auth-in-Checkout State (Users MUST be logged in to order) ──
+  const [authPhone, setAuthPhone] = useState('');
+  const [authName, setAuthName] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authConfirmPassword, setAuthConfirmPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
-  const [isExistingAccount, setIsExistingAccount] = useState<boolean | null>(null);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpValue, setOtpValue] = useState('');
-  const [otpVerified, setOtpVerified] = useState(false);
+  const [authPhoneChecked, setAuthPhoneChecked] = useState(false);
+  const [authIsExisting, setAuthIsExisting] = useState(false);
+  const [authOtpSent, setAuthOtpSent] = useState(false);
+  const [authOtp, setAuthOtp] = useState('');
+  const [authOtpVerified, setAuthOtpVerified] = useState(false);
+  const [authOtpToken, setAuthOtpToken] = useState('');
+  const [authCanResend, setAuthCanResend] = useState(false);
 
-  // Delivery Address state
+  // ── Delivery Address State ──
   const [selectedAddress, setSelectedAddress] = useState<any>({
     name: '',
     street: '',
@@ -75,8 +76,6 @@ export default function CheckoutPage() {
     landmark: '',
     saveToProfile: true,
   });
-  const [newAddrDistricts, setNewAddrDistricts] = useState<string[]>([]);
-  const [checkoutStates, setCheckoutStates] = useState<string[]>([]);
 
   // Serviceability & Delivery Slot state
   const [checkingServiceability, setCheckingServiceability] = useState(false);
@@ -109,8 +108,6 @@ export default function CheckoutPage() {
   const [upiAppUsed, setUpiAppUsed] = useState('');
   const [upiModalTab, setUpiModalTab] = useState<'qr' | 'apps'>('qr');
   const [upiUtr, setUpiUtr] = useState('');
-  const [showManualUtr, setShowManualUtr] = useState(false);
-  const [upiPaymentScreenshot, setUpiPaymentScreenshot] = useState<string | null>(null);
 
   // Order notes & options
   const [printedBill, setPrintedBill] = useState(false);
@@ -123,59 +120,20 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState('');
   const [verifyingCoupon, setVerifyingCoupon] = useState(false);
 
-  const [referralCodeInput, setReferralCodeInput] = useState('');
   const [appliedReferralCode, setAppliedReferralCode] = useState<string | null>(null);
   const [referralDiscountInfo, setReferralDiscountInfo] = useState<any>(null);
-  const [referralError, setReferralError] = useState('');
-  const [verifyingReferral, setVerifyingReferral] = useState(false);
 
-  // Segment flags for payment options
-  const [enabledFlags, setEnabledFlags] = useState<string[]>([]);
-
-  // ── 1. Load initial user / guest details & location master ──
+  // Auto-fill from localStorage if user had previously typed phone
   useEffect(() => {
-    // Fetch feature flags
-    api.get('/super-admin/features')
-      .then((res) => {
-        if (Array.isArray(res.data?.features)) {
-          setEnabledFlags(res.data.features.filter((f: any) => f.isEnabled).map((f: any) => f.flagKey));
-        }
-      })
-      .catch(() => {});
-
-    // Fetch checkout states for address selection
-    api.get('/locations/states')
-      .then((res) => {
-        if (Array.isArray(res.data)) {
-          setCheckoutStates(res.data.map((s: any) => s.name || s));
-        }
-      })
-      .catch(() => {});
-
-    // Auto-fill from localStorage if guest
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem('sj_checkout_guest_info');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.name) setContactName(parsed.name);
-          if (parsed.phone) setContactPhone(parsed.phone);
-          if (parsed.email) setContactEmail(parsed.email);
-        }
+        const lastPhone = localStorage.getItem('sj_last_auth_phone');
+        if (lastPhone && !authPhone) setAuthPhone(lastPhone);
       } catch {}
     }
   }, []);
 
-  // ── 2. Sync logged-in user profile details ──
-  useEffect(() => {
-    if (user) {
-      if (user.name && !contactName) setContactName(user.name);
-      if (user.phone && !contactPhone) setContactPhone(user.phone);
-      if (user.email && !contactEmail) setContactEmail(user.email);
-    }
-  }, [user]);
-
-  // ── 3. Manage Multiple Saved Addresses ──
+  // ── 1. Consolidate & Manage Multiple Saved Addresses ──
   const userAddresses = useMemo(() => {
     const list: any[] = [];
     if (user?.address && (user.address.street || user.address.pincode)) {
@@ -204,7 +162,7 @@ export default function CheckoutPage() {
     return list;
   }, [user]);
 
-  // Auto-select primary address if not yet selected
+  // Auto-select primary address when logged in
   useEffect(() => {
     if (userAddresses.length > 0 && !selectedAddress.street) {
       const primary = userAddresses.find((a) => a.is_primary) || userAddresses[0];
@@ -212,11 +170,10 @@ export default function CheckoutPage() {
     }
   }, [userAddresses]);
 
-  // Select an address card
   const handleSelectAddress = (addr: any) => {
     const zip = addr.zipCode || addr.pincode || '';
     const updated = {
-      name: addr.name || contactName || user?.name || '',
+      name: addr.name || user?.name || '',
       street: addr.street || '',
       city: addr.city || '',
       state: addr.state || '',
@@ -232,7 +189,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── 4. India Post Pincode Lookup ──
+  // ── 2. India Post Pincode Lookup ──
   const fetchAddressByPincode = (pincode: string, isModal = false) => {
     if (pincode.length !== 6 || !/^\d{6}$/.test(pincode)) return;
     fetch(`https://api.postalpincode.in/pincode/${pincode}`)
@@ -251,7 +208,6 @@ export default function CheckoutPage() {
               state: prev.state || autoState,
               district: prev.district || autoDistrict,
             }));
-            if (autoState) fetchDistricts(autoState, setNewAddrDistricts);
           } else {
             setSelectedAddress((prev: any) => ({
               ...prev,
@@ -265,18 +221,7 @@ export default function CheckoutPage() {
       .catch(() => {});
   };
 
-  const fetchDistricts = async (stateName: string, setter: (d: string[]) => void) => {
-    try {
-      const res = await api.get('/locations/districts', { params: { state: stateName } });
-      if (Array.isArray(res.data)) {
-        setter(res.data.map((d: any) => d.name || d));
-      }
-    } catch {
-      setter([]);
-    }
-  };
-
-  // ── 5. Check Pincode Serviceability & Delivery Slots ──
+  // ── 3. Check Pincode Serviceability & Delivery Slots ──
   const checkServiceability = async (pincode: string) => {
     if (!pincode || pincode.length !== 6) {
       setPincodeServiceable(null);
@@ -323,7 +268,7 @@ export default function CheckoutPage() {
         params: { date: dateStr, pincode: pin, segment },
       });
       setAvailableSlots(res.data || []);
-      // Auto-select "anytime" as friendly default
+      // Auto-select "anytime" as default
       setSelectedSlot({ slotId: 'anytime', isFullDay: true, isUrgent: false });
     } catch {
       setAvailableSlots([]);
@@ -332,7 +277,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // Calculate delivery charge whenever address or subtotal updates
+  // Calculate delivery charge
   useEffect(() => {
     if (selectedAddress.zipCode?.length === 6 && pincodeServiceable) {
       fetchDeliveryFee();
@@ -367,7 +312,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── 6. Save New Address & Persist to MySQL User Profile ──
+  // ── 4. Save New Address & Persist to MySQL Profile ──
   const handleSaveNewAddress = async () => {
     if (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
       toast.error('Please fill in Street, City, State, and Pincode');
@@ -376,13 +321,12 @@ export default function CheckoutPage() {
 
     const addrToUse = {
       ...newAddress,
-      name: newAddress.name || contactName || user?.name || '',
+      name: newAddress.name || user?.name || '',
     };
 
     handleSelectAddress(addrToUse);
     setShowAddressModal(false);
 
-    // If logged in, persist to backend user saved_addresses
     if (user?.id && newAddress.saveToProfile) {
       try {
         const existing = Array.isArray(user.savedAddresses) ? [...user.savedAddresses] : [];
@@ -401,7 +345,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Delete saved address
   const handleDeleteAddress = async (e: React.MouseEvent, addr: any) => {
     e.stopPropagation();
     if (!user?.id) return;
@@ -418,7 +361,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── 7. Price Calculations ──
+  // ── 5. Price Calculations ──
   const cartSubtotal = useMemo(() => {
     if (!cart?.items) return 0;
     return cart.items.reduce(
@@ -432,7 +375,7 @@ export default function CheckoutPage() {
   const deliveryFee = deliveryChargeInfo?.totalCharge || 0;
   const grandTotal = Math.max(0, cartSubtotal - referralDiscountAmount - couponDiscountAmount + deliveryFee);
 
-  // ── 8. NPCI UPI URI with 0% Commission & Dynamic QR ──
+  // ── 6. Direct NPCI UPI Flow (0% Commission) ──
   const ensureUpiRef = () => {
     if (!upiTxnRef) {
       const generated = `SJ${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
@@ -458,71 +401,90 @@ export default function CheckoutPage() {
     window.location.href = deepLink;
   };
 
-  // ── 9. Guest Phone Verification / Silent Sign Up ──
+  // ── 7. Login & Registration Flow (Required to Order) ──
   const handleCheckPhone = async () => {
-    const raw = contactPhone.replace(/\D/g, '');
-    if (raw.length < 10) {
-      toast.error('Please enter a valid 10-digit mobile number');
-      return;
+    const raw = authPhone.trim();
+    const isEmail = raw.includes('@');
+    let clean = raw;
+    if (!isEmail) {
+      clean = raw.replace(/\D/g, '');
+      if (clean.length < 10) {
+        toast.error('Enter a valid 10-digit mobile number or email');
+        return;
+      }
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+        toast.error('Enter a valid email address');
+        return;
+      }
     }
+
     setAuthBusy(true);
     try {
-      const res = await api.post('/auth/check-phone', { phone: raw });
-      setIsExistingAccount(res.data.exists);
-      if (!res.data.exists) {
-        // Send OTP
-        await api.post('/auth/send-otp', { phone: raw, purpose: 'register' });
-        setOtpSent(true);
-        toast.info('OTP sent to your phone');
+      const res = await api.post('/auth/check-phone', { phone: clean });
+      setAuthIsExisting(res.data.exists);
+      setAuthPhoneChecked(true);
+
+      // Cache phone in localStorage for browser autofill ease
+      try {
+        localStorage.setItem('sj_last_auth_phone', clean);
+      } catch {}
+
+      if (!res.data.exists && !isEmail) {
+        // Send OTP for new mobile users
+        handleSendOtp(clean);
       }
     } catch {
-      toast.error('Could not verify mobile number. Try again.');
+      toast.error('Could not verify phone. Please try again.');
     } finally {
       setAuthBusy(false);
     }
   };
 
-  const handleQuickRegister = async () => {
-    const raw = contactPhone.replace(/\D/g, '');
-    if (!authPassword || authPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
+  const handleSendOtp = async (cleanPhone?: string) => {
+    const phone = cleanPhone || authPhone.replace(/\D/g, '');
     setAuthBusy(true);
     try {
-      const payload: any = {
-        phone: raw,
-        password: authPassword,
-        name: contactName,
-        email: contactEmail || undefined,
-        role: 'customer',
-        otp: otpValue,
-        address: selectedAddress.street ? selectedAddress : undefined,
-      };
-      const res = await api.post('/auth/register', payload);
-      const { token, refreshToken, sessionId, user: userData } = res.data;
-      await loginWithTokens({ token, refreshToken, sessionId, user: userData });
-      toast.success('Account created successfully!');
-      setShowSignInModal(false);
-      if (fetchCart) fetchCart();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Registration failed');
+      await api.post('/auth/send-otp', { phone, purpose: 'register' });
+      setAuthOtpSent(true);
+      setAuthCanResend(false);
+      setTimeout(() => setAuthCanResend(true), 30000);
+      toast.success('OTP sent to your mobile');
+    } catch {
+      toast.error('Failed to send OTP');
     } finally {
       setAuthBusy(false);
     }
   };
 
-  const handleQuickLogin = async () => {
+  const handleVerifyOtp = async () => {
+    if (!authOtp) {
+      toast.error('Enter the OTP');
+      return;
+    }
+    const clean = authPhone.replace(/\D/g, '');
+    setAuthBusy(true);
+    try {
+      await api.post('/auth/verify-otp', { phone: clean, otp: authOtp });
+      setAuthOtpVerified(true);
+      toast.success('Phone verified');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Invalid OTP');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleAuthLogin = async () => {
     if (!authPassword) {
       toast.error('Enter your password');
       return;
     }
     setAuthBusy(true);
     try {
-      await login(contactPhone.replace(/\D/g, ''), authPassword);
+      await login(authPhone, authPassword);
       toast.success('Logged in successfully!');
-      setShowSignInModal(false);
-      if (fetchCart) fetchCart();
+      if (fetchCart) await fetchCart();
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Invalid credentials');
     } finally {
@@ -530,16 +492,52 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── 10. Place Order ──
+  const handleAuthRegister = async () => {
+    if (!authName.trim()) {
+      toast.error('Please enter your full name');
+      return;
+    }
+    if (!authPassword || authPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (authPassword !== authConfirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    const clean = authPhone.replace(/\D/g, '');
+    setAuthBusy(true);
+    try {
+      const payload: any = {
+        phone: clean,
+        name: authName.trim(),
+        password: authPassword,
+        role: 'customer',
+        otp: authOtp,
+      };
+      if (authOtpToken) payload.msg91Token = authOtpToken;
+
+      const res = await api.post('/auth/register', payload);
+      const { token, refreshToken, sessionId, user: userData } = res.data;
+      await loginWithTokens({ token, refreshToken, sessionId, user: userData });
+      toast.success('Account created successfully!');
+      if (fetchCart) await fetchCart();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Registration failed');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  // ── 8. Place Order (Strictly Authenticated) ──
   const handlePlaceOrder = async () => {
     if (!user) {
-      setShowSignInModal(true);
-      toast.info('Please sign in or create an account to finalize your order');
+      toast.error('You must be signed in to place an order');
       return;
     }
 
     if (!selectedAddress.street || !selectedAddress.zipCode) {
-      toast.error('Please select or enter a valid delivery address');
+      toast.error('Please select or add a delivery address');
       setCheckoutStep(1);
       return;
     }
@@ -560,7 +558,6 @@ export default function CheckoutPage() {
         shippingAddress: selectedAddress,
         billingAddress: selectedAddress,
         paymentMethod: paymentMethod,
-        upiPaymentScreenshot: upiPaymentScreenshot || undefined,
         notes: finalNotes || undefined,
         couponCode: appliedCoupon?.code || undefined,
         referralCode: appliedReferralCode || undefined,
@@ -573,17 +570,8 @@ export default function CheckoutPage() {
         deliverySlotDate: activeMode === 'pan_india' ? null : (selectedDeliveryType === 'urgent' ? null : (selectedSlot ? selectedSlotDate : null)),
       };
 
-      const res = await api.post('/orders', payload);
+      await api.post('/orders', payload);
       toast.success('Order placed successfully!');
-
-      // Save contact info to localStorage for next time
-      try {
-        localStorage.setItem(
-          'sj_checkout_guest_info',
-          JSON.stringify({ name: contactName, phone: contactPhone, email: contactEmail })
-        );
-      } catch {}
-
       if (fetchCart) await fetchCart();
       router.push('/customer/orders');
     } catch (err: any) {
@@ -594,7 +582,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── Render ──
   return (
     <div className={ck.checkoutContainer}>
       {/* ── Minimal Checkout Header ── */}
@@ -614,113 +601,257 @@ export default function CheckoutPage() {
         </div>
       </header>
 
-      {/* ── Main Layout (Left: Steps, Right: Summary) ── */}
+      {/* ── Main Layout ── */}
       <main className={ck.checkoutMain}>
         <div>
-          {/* Stepper Navigation */}
-          <div className={ck.stepperContainer}>
-            <div className={ck.stepper}>
-              <div
-                className={`${ck.stepItem} ${checkoutStep === 1 ? ck.active : ''} ${checkoutStep > 1 ? ck.completed : ''}`}
-                onClick={() => setCheckoutStep(1)}
-              >
-                <div className={ck.stepCircle}>{checkoutStep > 1 ? '✓' : '1'}</div>
-                <span className={ck.stepLabel}>Address</span>
-              </div>
-              <div className={`${ck.stepSeparator} ${checkoutStep > 1 ? ck.done : ''}`} />
-
-              <div
-                className={`${ck.stepItem} ${checkoutStep === 2 ? ck.active : ''} ${checkoutStep > 2 ? ck.completed : ''}`}
-                onClick={() => {
-                  if (selectedAddress.street && selectedAddress.zipCode) setCheckoutStep(2);
-                }}
-              >
-                <div className={ck.stepCircle}>{checkoutStep > 2 ? '✓' : '2'}</div>
-                <span className={ck.stepLabel}>Delivery Slot</span>
-              </div>
-              <div className={`${ck.stepSeparator} ${checkoutStep > 2 ? ck.done : ''}`} />
-
-              <div
-                className={`${ck.stepItem} ${checkoutStep === 3 ? ck.active : ''} ${checkoutStep > 3 ? ck.completed : ''}`}
-                onClick={() => {
-                  if (selectedAddress.street) setCheckoutStep(3);
-                }}
-              >
-                <div className={ck.stepCircle}>{checkoutStep > 3 ? '✓' : '3'}</div>
-                <span className={ck.stepLabel}>Payment</span>
-              </div>
-              <div className={`${ck.stepSeparator} ${checkoutStep > 3 ? ck.done : ''}`} />
-
-              <div
-                className={`${ck.stepItem} ${checkoutStep === 4 ? ck.active : ''}`}
-                onClick={() => {
-                  if (selectedAddress.street) setCheckoutStep(4);
-                }}
-              >
-                <div className={ck.stepCircle}>4</div>
-                <span className={ck.stepLabel}>Review</span>
-              </div>
-            </div>
-          </div>
-
           {/* ═══════════════════════════════════════════════════════
-             STEP 1: Contact & Delivery Address
+             AUTH GATE: Users must be logged in to order (No guest delivery)
              ═══════════════════════════════════════════════════════ */}
-          {checkoutStep === 1 && (
-            <div className={ck.stepContentBox}>
-              <h2 className={ck.stepHeading}>
-                <span>📍</span>
-                <span>Delivery Address &amp; Contact</span>
+          {!user ? (
+            <div className={ck.authBox}>
+              <h2 className={ck.authTitle}>
+                <span>🔐</span>
+                <span>Sign in to complete order</span>
               </h2>
-              <p className={ck.stepSubheading}>Where should we deliver your order?</p>
+              <p className={ck.authSubtitle}>
+                We deliver to registered accounts. Please sign in or create an account to proceed to checkout.
+              </p>
 
-              {/* Guest Contact Information & Autofill */}
-              <div className={ck.contactBox}>
-                <div className={ck.contactHeader}>
-                  <span className={ck.contactTitle}>Contact Information</span>
-                  {!user && (
+              {/* Step 0A: Enter mobile or email */}
+              <div className={ck.formGroup}>
+                <label className={ck.formLabel}>Mobile Number or Email</label>
+                <input
+                  type="text"
+                  className={ck.formInput}
+                  placeholder="10-digit mobile number or email"
+                  autoComplete="username tel"
+                  value={authPhone}
+                  onChange={(e) => {
+                    setAuthPhone(e.target.value);
+                    setAuthPhoneChecked(false);
+                    setAuthOtpSent(false);
+                    setAuthOtpVerified(false);
+                  }}
+                />
+              </div>
+
+              {!authPhoneChecked ? (
+                <button
+                  type="button"
+                  className={ck.btnPrimary}
+                  style={{ width: '100%' }}
+                  disabled={authBusy || !authPhone.trim()}
+                  onClick={handleCheckPhone}
+                >
+                  {authBusy ? 'Checking...' : 'Continue to Checkout →'}
+                </button>
+              ) : authIsExisting ? (
+                /* Step 0B: Existing User - Password Login */
+                <div>
+                  <div className={ck.formGroup}>
+                    <label className={ck.formLabel}>Password</label>
+                    <input
+                      type="password"
+                      className={ck.formInput}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className={ck.btnPrimary}
+                    style={{ width: '100%', marginBottom: 12 }}
+                    disabled={authBusy}
+                    onClick={handleAuthLogin}
+                  >
+                    {authBusy ? 'Logging in...' : 'Log In & Continue'}
+                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button
                       type="button"
-                      className={ck.contactToggleLink}
-                      onClick={() => setShowSignInModal(true)}
+                      onClick={() => setAuthPhoneChecked(false)}
+                      style={{ fontSize: 13, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
-                      Already have an account? Sign In
+                      ← Use different number
                     </button>
-                  )}
+                    <Link
+                      href="/login"
+                      target="_blank"
+                      style={{ fontSize: 13, color: '#2563eb', textDecoration: 'none' }}
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                 </div>
-                <div className={ck.contactGrid}>
-                  <div>
+              ) : (
+                /* Step 0C: New User - Quick Registration */
+                <div>
+                  <div className={ck.formGroup}>
                     <label className={ck.formLabel}>Full Name *</label>
                     <input
                       type="text"
                       className={ck.formInput}
                       placeholder="Your full name"
                       autoComplete="name"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
                     />
                   </div>
-                  <div>
-                    <label className={ck.formLabel}>Mobile Number *</label>
-                    <input
-                      type="tel"
-                      className={ck.formInput}
-                      placeholder="10-digit mobile number"
-                      autoComplete="tel"
-                      maxLength={10}
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ''))}
-                    />
+
+                  {/* OTP Verification */}
+                  <div className={ck.formGroup}>
+                    <label className={ck.formLabel}>SMS OTP Verification *</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className={ck.formInput}
+                        placeholder="Enter 6-digit OTP"
+                        maxLength={6}
+                        value={authOtp}
+                        onChange={(e) => setAuthOtp(e.target.value)}
+                        disabled={!authOtpSent || authOtpVerified}
+                        style={{ flex: 1 }}
+                      />
+                      {!authOtpSent ? (
+                        <button
+                          type="button"
+                          className={ck.btnSecondary}
+                          style={{ whiteSpace: 'nowrap' }}
+                          disabled={authBusy}
+                          onClick={() => handleSendOtp()}
+                        >
+                          Send OTP
+                        </button>
+                      ) : !authOtpVerified ? (
+                        <button
+                          type="button"
+                          className={ck.btnPrimary}
+                          style={{ whiteSpace: 'nowrap' }}
+                          disabled={authBusy || !authOtp}
+                          onClick={handleVerifyOtp}
+                        >
+                          Verify
+                        </button>
+                      ) : (
+                        <span style={{ padding: '10px 16px', background: '#ecfdf5', color: '#059669', borderRadius: 8, fontWeight: 700 }}>
+                          ✓ Verified
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {authOtpVerified && (
+                    <>
+                      <div className={ck.formRow}>
+                        <div className={ck.formGroup}>
+                          <label className={ck.formLabel}>Set Password *</label>
+                          <input
+                            type="password"
+                            className={ck.formInput}
+                            placeholder="Min 6 characters"
+                            autoComplete="new-password"
+                            value={authPassword}
+                            onChange={(e) => setAuthPassword(e.target.value)}
+                          />
+                        </div>
+                        <div className={ck.formGroup}>
+                          <label className={ck.formLabel}>Confirm Password *</label>
+                          <input
+                            type="password"
+                            className={ck.formInput}
+                            placeholder="Re-enter password"
+                            autoComplete="new-password"
+                            value={authConfirmPassword}
+                            onChange={(e) => setAuthConfirmPassword(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={ck.btnPrimary}
+                        style={{ width: '100%', marginTop: 8 }}
+                        disabled={authBusy}
+                        onClick={handleAuthRegister}
+                      >
+                        {authBusy ? 'Creating account...' : 'Create Account & Continue'}
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setAuthPhoneChecked(false)}
+                    style={{ fontSize: 13, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', marginTop: 14 }}
+                  >
+                    ← Use different number
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ═══════════════════════════════════════════════════════
+               LOGGED-IN CHECKOUT STEPPER (Steps 1–4)
+               ═══════════════════════════════════════════════════════ */
+            <>
+              {/* Stepper Header */}
+              <div className={ck.stepperContainer}>
+                <div className={ck.stepper}>
+                  <div
+                    className={`${ck.stepItem} ${checkoutStep === 1 ? ck.active : ''} ${checkoutStep > 1 ? ck.completed : ''}`}
+                    onClick={() => setCheckoutStep(1)}
+                  >
+                    <div className={ck.stepCircle}>{checkoutStep > 1 ? '✓' : '1'}</div>
+                    <span className={ck.stepLabel}>Address</span>
+                  </div>
+                  <div className={`${ck.stepSeparator} ${checkoutStep > 1 ? ck.done : ''}`} />
+
+                  <div
+                    className={`${ck.stepItem} ${checkoutStep === 2 ? ck.active : ''} ${checkoutStep > 2 ? ck.completed : ''}`}
+                    onClick={() => {
+                      if (selectedAddress.street && selectedAddress.zipCode) setCheckoutStep(2);
+                    }}
+                  >
+                    <div className={ck.stepCircle}>{checkoutStep > 2 ? '✓' : '2'}</div>
+                    <span className={ck.stepLabel}>Delivery Slot</span>
+                  </div>
+                  <div className={`${ck.stepSeparator} ${checkoutStep > 2 ? ck.done : ''}`} />
+
+                  <div
+                    className={`${ck.stepItem} ${checkoutStep === 3 ? ck.active : ''} ${checkoutStep > 3 ? ck.completed : ''}`}
+                    onClick={() => {
+                      if (selectedAddress.street) setCheckoutStep(3);
+                    }}
+                  >
+                    <div className={ck.stepCircle}>{checkoutStep > 3 ? '✓' : '3'}</div>
+                    <span className={ck.stepLabel}>Payment</span>
+                  </div>
+                  <div className={`${ck.stepSeparator} ${checkoutStep > 3 ? ck.done : ''}`} />
+
+                  <div
+                    className={`${ck.stepItem} ${checkoutStep === 4 ? ck.active : ''}`}
+                    onClick={() => {
+                      if (selectedAddress.street) setCheckoutStep(4);
+                    }}
+                  >
+                    <div className={ck.stepCircle}>4</div>
+                    <span className={ck.stepLabel}>Review</span>
                   </div>
                 </div>
               </div>
 
-              {/* Saved Addresses (Logged in) */}
-              {user && userAddresses.length > 0 && (
-                <div>
-                  <label className={ck.formLabel} style={{ marginBottom: 12 }}>
-                    Saved Addresses ({userAddresses.length})
-                  </label>
+              {/* ── STEP 1: Delivery Address ── */}
+              {checkoutStep === 1 && (
+                <div className={ck.stepContentBox}>
+                  <h2 className={ck.stepHeading}>
+                    <span>📍</span>
+                    <span>Select Delivery Address</span>
+                  </h2>
+                  <p className={ck.stepSubheading}>
+                    Logged in as <strong>{user.name || user.phone}</strong>. Select where to deliver your order:
+                  </p>
+
                   <div className={ck.addressGrid}>
                     {userAddresses.map((addr, idx) => {
                       const isSelected =
@@ -765,541 +896,441 @@ export default function CheckoutPage() {
                       <div className={ck.addNewLabel}>Add New Address</div>
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Direct Address Input (Guests or Users with no saved address) */}
-              {(!user || userAddresses.length === 0) && (
-                <div style={{ marginTop: 16 }}>
-                  <div className={ck.formGroup}>
-                    <label className={ck.formLabel}>Street Address *</label>
-                    <input
-                      type="text"
-                      className={ck.formInput}
-                      placeholder="House/Flat number, building name, street"
-                      autoComplete="street-address"
-                      value={selectedAddress.street}
-                      onChange={(e) => setSelectedAddress({ ...selectedAddress, street: e.target.value })}
-                    />
-                  </div>
-                  <div className={ck.formRow}>
-                    <div className={ck.formGroup}>
-                      <label className={ck.formLabel}>Postal Pin Code *</label>
-                      <input
-                        type="text"
-                        className={ck.formInput}
-                        placeholder="6-digit pincode"
-                        maxLength={6}
-                        autoComplete="postal-code"
-                        value={selectedAddress.zipCode}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          setSelectedAddress({ ...selectedAddress, zipCode: val });
-                          if (val.length === 6) {
-                            fetchAddressByPincode(val, false);
-                            checkServiceability(val);
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className={ck.formGroup}>
-                      <label className={ck.formLabel}>City *</label>
-                      <input
-                        type="text"
-                        className={ck.formInput}
-                        placeholder="City"
-                        autoComplete="address-level2"
-                        value={selectedAddress.city}
-                        onChange={(e) => setSelectedAddress({ ...selectedAddress, city: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className={ck.formRow}>
-                    <div className={ck.formGroup}>
-                      <label className={ck.formLabel}>State *</label>
-                      <input
-                        type="text"
-                        className={ck.formInput}
-                        placeholder="State"
-                        autoComplete="address-level1"
-                        value={selectedAddress.state}
-                        onChange={(e) => setSelectedAddress({ ...selectedAddress, state: e.target.value })}
-                      />
-                    </div>
-                    <div className={ck.formGroup}>
-                      <label className={ck.formLabel}>District / Area</label>
-                      <input
-                        type="text"
-                        className={ck.formInput}
-                        placeholder="District"
-                        value={selectedAddress.district}
-                        onChange={(e) => setSelectedAddress({ ...selectedAddress, district: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Serviceability Badge */}
-              {selectedAddress.zipCode?.length === 6 && (
-                <div style={{ marginTop: 12 }}>
-                  {checkingServiceability && (
-                    <div style={{ fontSize: 13, color: '#64748b' }}>⏳ Verifying delivery serviceability...</div>
-                  )}
-                  {pincodeServiceable === true && !checkingServiceability && (
-                    <div style={{ fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
-                      ✓ Delivery available to {selectedAddress.zipCode}
-                    </div>
-                  )}
-                  {pincodeServiceable === false && !checkingServiceability && (
-                    <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
-                      ⚠️ Delivery is not currently available for this pincode
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Stepper Footer */}
-              <div className={ck.stepFooter}>
-                <Link href="/customer/cart" className={ck.btnSecondary}>
-                  ← Back to Cart
-                </Link>
-                <button
-                  type="button"
-                  className={ck.btnPrimary}
-                  disabled={
-                    !selectedAddress.street ||
-                    !selectedAddress.zipCode ||
-                    selectedAddress.zipCode.length !== 6 ||
-                    pincodeServiceable === false
-                  }
-                  onClick={() => setCheckoutStep(2)}
-                >
-                  Continue to Delivery Slot →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════
-             STEP 2: Delivery Slot (in Checkout Step Only!)
-             ═══════════════════════════════════════════════════════ */}
-          {checkoutStep === 2 && (
-            <div className={ck.stepContentBox}>
-              <h2 className={ck.stepHeading}>
-                <span>🚚</span>
-                <span>Select Delivery Option &amp; Slot</span>
-              </h2>
-              <p className={ck.stepSubheading}>Choose when you would like to receive your delivery</p>
-
-              {/* Pan-India Courier Mode */}
-              {activeMode === 'pan_india' ? (
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontWeight: 700, color: '#1e40af', fontSize: 15, marginBottom: 4 }}>
-                    📦 Pan-India Standard Courier Delivery
-                  </div>
-                  <div style={{ color: '#3b82f6', fontSize: 13, lineHeight: 1.5 }}>
-                    Your items will be dispatched via express 3PL surface courier. Estimated delivery in 3 to 5 business days. Tracking details will be shared via SMS.
-                  </div>
-                </div>
-              ) : (
-                /* Hyperlocal Mode */
-                <div className={ck.slotSection}>
-                  <div className={ck.slotTypeGrid}>
-                    <div
-                      className={`${ck.slotTypeCard} ${selectedDeliveryType === 'standard' ? ck.selected : ''}`}
-                      onClick={() => {
-                        setSelectedDeliveryType('standard');
-                        if (deliveryOptions?.availableDates?.length) {
-                          const first = deliveryOptions.availableDates[0];
-                          setSelectedSlotDate(first);
-                          loadSlotsForDate(first);
-                        }
-                      }}
-                    >
-                      <div className={ck.slotTypeTitle}>
-                        <span>🛵</span>
-                        <span>Standard Delivery</span>
-                      </div>
-                      <div className={ck.slotTypeDesc}>Select your preferred date &amp; time slot</div>
-                    </div>
-
-                    {deliveryOptions?.urgentAvailable && (
-                      <div
-                        className={`${ck.slotTypeCard} ${selectedDeliveryType === 'urgent' ? ck.selected : ''}`}
-                        onClick={() => setSelectedDeliveryType('urgent')}
-                      >
-                        <div className={ck.slotTypeTitle}>
-                          <span>⚡</span>
-                          <span>Express Urgent Delivery</span>
-                        </div>
-                        <div className={ck.slotTypeDesc}>
-                          Delivered within 60–90 mins (+₹{deliveryOptions.urgentCharge || 49})
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Standard Slot Date & Time Selector */}
-                  {selectedDeliveryType === 'standard' && (
-                    <div>
-                      {deliveryOptions?.availableDates && deliveryOptions.availableDates.length > 0 && (
-                        <div>
-                          <label className={ck.formLabel}>Select Delivery Date</label>
-                          <div className={ck.datesRow}>
-                            {deliveryOptions.availableDates.map((dateStr) => (
-                              <button
-                                key={dateStr}
-                                type="button"
-                                className={`${ck.dateChip} ${selectedSlotDate === dateStr ? ck.selected : ''}`}
-                                onClick={() => {
-                                  setSelectedSlotDate(dateStr);
-                                  loadSlotsForDate(dateStr);
-                                }}
-                              >
-                                {dateStr}
-                              </button>
-                            ))}
-                          </div>
+                  {/* Serviceability Notice */}
+                  {selectedAddress.zipCode?.length === 6 && (
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      {checkingServiceability && (
+                        <div style={{ fontSize: 13, color: '#64748b' }}>⏳ Verifying delivery serviceability...</div>
+                      )}
+                      {pincodeServiceable === true && !checkingServiceability && (
+                        <div style={{ fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+                          ✓ Delivery available to {selectedAddress.zipCode}
                         </div>
                       )}
+                      {pincodeServiceable === false && !checkingServiceability && (
+                        <div style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                          ⚠️ Delivery is not currently available for this pincode
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                      {/* Time Slot Chips */}
-                      {selectedSlotDate && (
+                  <div className={ck.stepFooter}>
+                    <Link href="/customer/cart" className={ck.btnSecondary}>
+                      ← Back to Cart
+                    </Link>
+                    <button
+                      type="button"
+                      className={ck.btnPrimary}
+                      disabled={
+                        !selectedAddress.street ||
+                        !selectedAddress.zipCode ||
+                        pincodeServiceable === false
+                      }
+                      onClick={() => setCheckoutStep(2)}
+                    >
+                      Continue to Delivery Slot →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 2: Delivery Slot (in Checkout Step Only) ── */}
+              {checkoutStep === 2 && (
+                <div className={ck.stepContentBox}>
+                  <h2 className={ck.stepHeading}>
+                    <span>🚚</span>
+                    <span>Delivery Option &amp; Slot</span>
+                  </h2>
+                  <p className={ck.stepSubheading}>Select when you would like to receive your items</p>
+
+                  {activeMode === 'pan_india' ? (
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 20 }}>
+                      <div style={{ fontWeight: 700, color: '#1e40af', fontSize: 15, marginBottom: 4 }}>
+                        📦 Pan-India Standard Courier Delivery
+                      </div>
+                      <div style={{ color: '#3b82f6', fontSize: 13, lineHeight: 1.5 }}>
+                        Items dispatched via express surface courier across India. Estimated delivery in 3 to 5 business days. Tracking details sent via SMS.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={ck.slotSection}>
+                      <div className={ck.slotTypeGrid}>
+                        <div
+                          className={`${ck.slotTypeCard} ${selectedDeliveryType === 'standard' ? ck.selected : ''}`}
+                          onClick={() => {
+                            setSelectedDeliveryType('standard');
+                            if (deliveryOptions?.availableDates?.length) {
+                              const first = deliveryOptions.availableDates[0];
+                              setSelectedSlotDate(first);
+                              loadSlotsForDate(first);
+                            }
+                          }}
+                        >
+                          <div className={ck.slotTypeTitle}>
+                            <span>🛵</span>
+                            <span>Standard Delivery</span>
+                          </div>
+                          <div className={ck.slotTypeDesc}>Select your preferred date &amp; time slot</div>
+                        </div>
+
+                        {deliveryOptions?.urgentAvailable && (
+                          <div
+                            className={`${ck.slotTypeCard} ${selectedDeliveryType === 'urgent' ? ck.selected : ''}`}
+                            onClick={() => setSelectedDeliveryType('urgent')}
+                          >
+                            <div className={ck.slotTypeTitle}>
+                              <span>⚡</span>
+                              <span>Express Urgent Delivery</span>
+                            </div>
+                            <div className={ck.slotTypeDesc}>
+                              Delivered within 60–90 mins (+₹{deliveryOptions.urgentCharge || 49})
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedDeliveryType === 'standard' && (
                         <div>
-                          <label className={ck.formLabel}>Select Time Window</label>
-                          {loadingSlots ? (
-                            <div style={{ fontSize: 13, color: '#64748b', padding: '12px 0' }}>Loading available slots...</div>
-                          ) : (
-                            <div className={ck.slotGrid}>
-                              <button
-                                type="button"
-                                className={`${ck.slotChip} ${selectedSlot?.slotId === 'anytime' ? ck.selected : ''}`}
-                                onClick={() => setSelectedSlot({ slotId: 'anytime', isFullDay: true, isUrgent: false })}
-                              >
-                                Anytime (Full Day)
-                              </button>
-                              {availableSlots
-                                .filter((s) => !s.isUrgent)
-                                .map((slot) => (
+                          {deliveryOptions?.availableDates && deliveryOptions.availableDates.length > 0 && (
+                            <div>
+                              <label className={ck.formLabel}>Select Delivery Date</label>
+                              <div className={ck.datesRow}>
+                                {deliveryOptions.availableDates.map((dateStr) => (
                                   <button
-                                    key={slot.slotId}
+                                    key={dateStr}
                                     type="button"
-                                    className={`${ck.slotChip} ${selectedSlot?.slotId === slot.slotId ? ck.selected : ''}`}
-                                    onClick={() => setSelectedSlot(slot)}
+                                    className={`${ck.dateChip} ${selectedSlotDate === dateStr ? ck.selected : ''}`}
+                                    onClick={() => {
+                                      setSelectedSlotDate(dateStr);
+                                      loadSlotsForDate(dateStr);
+                                    }}
                                   >
-                                    {slot.isFullDay ? 'Full Day' : `${slot.startTime} – ${slot.endTime}`}
+                                    {dateStr}
                                   </button>
                                 ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedSlotDate && (
+                            <div>
+                              <label className={ck.formLabel}>Select Time Window</label>
+                              {loadingSlots ? (
+                                <div style={{ fontSize: 13, color: '#64748b', padding: '12px 0' }}>Loading available slots...</div>
+                              ) : (
+                                <div className={ck.slotGrid}>
+                                  <button
+                                    type="button"
+                                    className={`${ck.slotChip} ${selectedSlot?.slotId === 'anytime' ? ck.selected : ''}`}
+                                    onClick={() => setSelectedSlot({ slotId: 'anytime', isFullDay: true, isUrgent: false })}
+                                  >
+                                    Anytime (Full Day)
+                                  </button>
+                                  {availableSlots
+                                    .filter((s) => !s.isUrgent)
+                                    .map((slot) => (
+                                      <button
+                                        key={slot.slotId}
+                                        type="button"
+                                        className={`${ck.slotChip} ${selectedSlot?.slotId === slot.slotId ? ck.selected : ''}`}
+                                        onClick={() => setSelectedSlot(slot)}
+                                      >
+                                        {slot.isFullDay ? 'Full Day' : `${slot.startTime} – ${slot.endTime}`}
+                                      </button>
+                                    ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
                       )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Stepper Footer */}
-              <div className={ck.stepFooter}>
-                <button type="button" className={ck.btnSecondary} onClick={() => setCheckoutStep(1)}>
-                  ← Back to Address
-                </button>
-                <button
-                  type="button"
-                  className={ck.btnPrimary}
-                  disabled={
-                    activeMode !== 'pan_india' &&
-                    selectedDeliveryType === 'standard' &&
-                    deliveryOptions?.slotBookingAvailable &&
-                    !selectedSlot
-                  }
-                  onClick={() => {
-                    ensureUpiRef();
-                    setCheckoutStep(3);
-                  }}
-                >
-                  Continue to Payment →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════
-             STEP 3: Payment (0% Commission Direct UPI Flow)
-             ═══════════════════════════════════════════════════════ */}
-          {checkoutStep === 3 && (
-            <div className={ck.stepContentBox}>
-              <h2 className={ck.stepHeading}>
-                <span>💳</span>
-                <span>Payment Method</span>
-              </h2>
-              <p className={ck.stepSubheading}>Select how you would like to pay for your order</p>
-
-              <div className={ck.paymentGrid}>
-                {/* Direct UPI */}
-                <div
-                  className={`${ck.paymentOption} ${paymentMethod === 'upi' ? ck.selected : ''}`}
-                  onClick={() => {
-                    setPaymentMethod('upi');
-                    ensureUpiRef();
-                  }}
-                >
-                  <div className={ck.paymentIcon} style={{ background: '#ede9fe' }}>
-                    ⚡
-                  </div>
-                  <div className={ck.paymentTitle}>UPI Payment</div>
-                  <div className={ck.paymentDesc}>PhonePe, BHIM, GPay, Paytm (0% fee)</div>
-                </div>
-
-                {/* Cash on Delivery */}
-                <div
-                  className={`${ck.paymentOption} ${paymentMethod === 'cod' ? ck.selected : ''}`}
-                  onClick={() => setPaymentMethod('cod')}
-                >
-                  <div className={ck.paymentIcon} style={{ background: '#fef3c7' }}>
-                    💵
-                  </div>
-                  <div className={ck.paymentTitle}>Cash on Delivery</div>
-                  <div className={ck.paymentDesc}>Pay cash upon delivery</div>
-                </div>
-
-                {/* B2B Credit (Wholesalers only) */}
-                {(user as any)?.role === 'wholesaler' && (
-                  <div
-                    className={`${ck.paymentOption} ${paymentMethod === 'credit' ? ck.selected : ''}`}
-                    onClick={() => setPaymentMethod('credit')}
-                  >
-                    <div className={ck.paymentIcon} style={{ background: '#e0f2fe' }}>
-                      🏢
-                    </div>
-                    <div className={ck.paymentTitle}>Credit (B2B)</div>
-                    <div className={ck.paymentDesc}>Net-30 business account</div>
-                  </div>
-                )}
-              </div>
-
-              {/* UPI Payment Card */}
-              {paymentMethod === 'upi' && (
-                <div className={ck.upiCard}>
-                  <div className={ck.upiTabs}>
-                    <button
-                      type="button"
-                      className={`${ck.upiTab} ${upiModalTab === 'qr' ? ck.active : ''}`}
-                      onClick={() => setUpiModalTab('qr')}
-                    >
-                      📷 Scan Dynamic QR Code
+                  <div className={ck.stepFooter}>
+                    <button type="button" className={ck.btnSecondary} onClick={() => setCheckoutStep(1)}>
+                      ← Back to Address
                     </button>
                     <button
                       type="button"
-                      className={`${ck.upiTab} ${upiModalTab === 'apps' ? ck.active : ''}`}
-                      onClick={() => setUpiModalTab('apps')}
-                    >
-                      🚀 Open Installed UPI App
-                    </button>
-                  </div>
-
-                  {/* Tab 1: Dynamic QR Code */}
-                  {upiModalTab === 'qr' && (
-                    <div className={ck.qrContainer}>
-                      <div style={{ padding: 12, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                        <QRCodeSVG value={dynamicUpiUri} size={200} level="M" />
-                      </div>
-                      <div className={ck.amountBadge}>₹{grandTotal.toFixed(2)}</div>
-                      <div style={{ fontSize: 13, color: '#64748b', marginTop: 10, textAlign: 'center' }}>
-                        Scan with PhonePe, BHIM, Google Pay, or Paytm. Payee and exact total are already embedded!
-                      </div>
-                      <div style={{ fontSize: 12, color: '#7c3aed', marginTop: 4 }}>
-                        Reference Code: <strong style={{ fontFamily: 'monospace' }}>{ensureUpiRef()}</strong>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tab 2: 1-Tap App Launcher */}
-                  {upiModalTab === 'apps' && (
-                    <div>
-                      <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
-                        Tap your preferred UPI app to open and pay instantly:
-                      </p>
-                      <div className={ck.upiAppList}>
-                        {WEB_UPI_APPS.map((app) => (
-                          <button
-                            key={app.name}
-                            type="button"
-                            className={ck.upiAppBtn}
-                            onClick={() => handleLaunchUpiApp(app.scheme, app.name)}
-                          >
-                            <span style={{ fontSize: 22 }}>{app.icon}</span>
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 14 }}>Pay via {app.name}</div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>Exact ₹{grandTotal.toFixed(2)}</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 1-Tap Payment Confirmation Card */}
-                  <div className={ck.confirmCard}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#065f46', fontSize: 14 }}>
-                        {upiPaymentConfirmed ? '✓ Payment Confirmed' : 'Completed your payment in the UPI app?'}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#047857', marginTop: 2 }}>
-                        {upiPaymentConfirmed
-                          ? `Ready to place order with reference ${ensureUpiRef()}`
-                          : 'Tap below to mark payment done. No screenshot required!'}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setUpiPaymentConfirmed(!upiPaymentConfirmed)}
-                      style={{
-                        background: upiPaymentConfirmed ? '#10b981' : '#047857',
-                        color: '#fff',
-                        padding: '8px 18px',
-                        borderRadius: 8,
-                        fontWeight: 700,
-                        fontSize: 13,
-                        border: 'none',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
+                      className={ck.btnPrimary}
+                      disabled={
+                        activeMode !== 'pan_india' &&
+                        selectedDeliveryType === 'standard' &&
+                        deliveryOptions?.slotBookingAvailable &&
+                        !selectedSlot
+                      }
+                      onClick={() => {
+                        ensureUpiRef();
+                        setCheckoutStep(3);
                       }}
                     >
-                      {upiPaymentConfirmed ? '✓ Confirmed' : '✓ I Have Paid'}
+                      Continue to Payment →
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Stepper Footer */}
-              <div className={ck.stepFooter}>
-                <button type="button" className={ck.btnSecondary} onClick={() => setCheckoutStep(2)}>
-                  ← Back to Delivery Slot
-                </button>
-                <button type="button" className={ck.btnPrimary} onClick={() => setCheckoutStep(4)}>
-                  Review Order →
-                </button>
-              </div>
-            </div>
-          )}
+              {/* ── STEP 3: Payment Method (0% Commission Direct UPI Flow) ── */}
+              {checkoutStep === 3 && (
+                <div className={ck.stepContentBox}>
+                  <h2 className={ck.stepHeading}>
+                    <span>💳</span>
+                    <span>Payment Method</span>
+                  </h2>
+                  <p className={ck.stepSubheading}>Choose how you want to pay</p>
 
-          {/* ═══════════════════════════════════════════════════════
-             STEP 4: Review & Place Order
-             ═══════════════════════════════════════════════════════ */}
-          {checkoutStep === 4 && (
-            <div className={ck.stepContentBox}>
-              <h2 className={ck.stepHeading}>
-                <span>📋</span>
-                <span>Review Your Order</span>
-              </h2>
-              <p className={ck.stepSubheading}>Please review your order details before placing</p>
+                  <div className={ck.paymentGrid}>
+                    <div
+                      className={`${ck.paymentOption} ${paymentMethod === 'upi' ? ck.selected : ''}`}
+                      onClick={() => {
+                        setPaymentMethod('upi');
+                        ensureUpiRef();
+                      }}
+                    >
+                      <div className={ck.paymentIcon} style={{ background: '#ede9fe' }}>
+                        ⚡
+                      </div>
+                      <div className={ck.paymentTitle}>UPI Payment</div>
+                      <div className={ck.paymentDesc}>PhonePe, BHIM, GPay, Paytm (0% fee)</div>
+                    </div>
 
-              {/* Address Summary */}
-              <div className={ck.reviewBox}>
-                <div className={ck.reviewBoxHeader}>
-                  <span className={ck.reviewBoxTitle}>📍 Delivery Address</span>
-                  <button type="button" className={ck.reviewChangeBtn} onClick={() => setCheckoutStep(1)}>
-                    Change
-                  </button>
-                </div>
-                <div style={{ fontSize: 14, color: '#334155', lineHeight: 1.5 }}>
-                  <strong>{contactName || selectedAddress.name || user?.name}</strong>
-                  {contactPhone ? ` • ${contactPhone}` : ''}
-                  <br />
-                  {selectedAddress.street}
-                  {selectedAddress.addressLine2 ? `, ${selectedAddress.addressLine2}` : ''}
-                  <br />
-                  {selectedAddress.city}, {selectedAddress.state} — {selectedAddress.zipCode}
-                </div>
-              </div>
+                    <div
+                      className={`${ck.paymentOption} ${paymentMethod === 'cod' ? ck.selected : ''}`}
+                      onClick={() => setPaymentMethod('cod')}
+                    >
+                      <div className={ck.paymentIcon} style={{ background: '#fef3c7' }}>
+                        💵
+                      </div>
+                      <div className={ck.paymentTitle}>Cash on Delivery</div>
+                      <div className={ck.paymentDesc}>Pay cash upon delivery</div>
+                    </div>
 
-              {/* Delivery Slot Summary */}
-              <div className={ck.reviewBox}>
-                <div className={ck.reviewBoxHeader}>
-                  <span className={ck.reviewBoxTitle}>🚚 Delivery Option</span>
-                  <button type="button" className={ck.reviewChangeBtn} onClick={() => setCheckoutStep(2)}>
-                    Change
-                  </button>
-                </div>
-                <div style={{ fontSize: 14, color: '#334155' }}>
-                  {activeMode === 'pan_india' ? (
-                    'Pan-India Courier Delivery (3–5 business days)'
-                  ) : selectedDeliveryType === 'urgent' ? (
-                    '⚡ Urgent Delivery (60–90 mins)'
-                  ) : (
-                    <>
-                      Standard Delivery on <strong>{selectedSlotDate || 'Scheduled date'}</strong>
-                      {selectedSlot ? ` (${selectedSlot.isFullDay ? 'Anytime' : `${selectedSlot.startTime} – ${selectedSlot.endTime}`})` : ''}
-                    </>
+                    {(user as any)?.role === 'wholesaler' && (
+                      <div
+                        className={`${ck.paymentOption} ${paymentMethod === 'credit' ? ck.selected : ''}`}
+                        onClick={() => setPaymentMethod('credit')}
+                      >
+                        <div className={ck.paymentIcon} style={{ background: '#e0f2fe' }}>
+                          🏢
+                        </div>
+                        <div className={ck.paymentTitle}>Credit (B2B)</div>
+                        <div className={ck.paymentDesc}>Net-30 business account</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {paymentMethod === 'upi' && (
+                    <div className={ck.upiCard}>
+                      <div className={ck.upiTabs}>
+                        <button
+                          type="button"
+                          className={`${ck.upiTab} ${upiModalTab === 'qr' ? ck.active : ''}`}
+                          onClick={() => setUpiModalTab('qr')}
+                        >
+                          📷 Scan Dynamic QR Code
+                        </button>
+                        <button
+                          type="button"
+                          className={`${ck.upiTab} ${upiModalTab === 'apps' ? ck.active : ''}`}
+                          onClick={() => setUpiModalTab('apps')}
+                        >
+                          🚀 Open Installed UPI App
+                        </button>
+                      </div>
+
+                      {upiModalTab === 'qr' && (
+                        <div className={ck.qrContainer}>
+                          <div style={{ padding: 12, background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                            <QRCodeSVG value={dynamicUpiUri} size={200} level="M" />
+                          </div>
+                          <div className={ck.amountBadge}>₹{grandTotal.toFixed(2)}</div>
+                          <div style={{ fontSize: 13, color: '#64748b', marginTop: 10, textAlign: 'center' }}>
+                            Scan with PhonePe, BHIM, Google Pay, or Paytm. Payee and exact total are already embedded!
+                          </div>
+                          <div style={{ fontSize: 12, color: '#7c3aed', marginTop: 4 }}>
+                            Reference Code: <strong style={{ fontFamily: 'monospace' }}>{ensureUpiRef()}</strong>
+                          </div>
+                        </div>
+                      )}
+
+                      {upiModalTab === 'apps' && (
+                        <div>
+                          <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
+                            Tap your preferred UPI app to open and pay instantly:
+                          </p>
+                          <div className={ck.upiAppList}>
+                            {WEB_UPI_APPS.map((app) => (
+                              <button
+                                key={app.name}
+                                type="button"
+                                className={ck.upiAppBtn}
+                                onClick={() => handleLaunchUpiApp(app.scheme, app.name)}
+                              >
+                                <span style={{ fontSize: 22 }}>{app.icon}</span>
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: 14 }}>Pay via {app.name}</div>
+                                  <div style={{ fontSize: 11, color: '#64748b' }}>Exact ₹{grandTotal.toFixed(2)}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={ck.confirmCard}>
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#065f46', fontSize: 14 }}>
+                            {upiPaymentConfirmed ? '✓ Payment Confirmed' : 'Completed your payment in the UPI app?'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#047857', marginTop: 2 }}>
+                            {upiPaymentConfirmed
+                              ? `Ready to place order with reference ${ensureUpiRef()}`
+                              : 'Tap below to mark payment done. No screenshot required!'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUpiPaymentConfirmed(!upiPaymentConfirmed)}
+                          style={{
+                            background: upiPaymentConfirmed ? '#10b981' : '#047857',
+                            color: '#fff',
+                            padding: '8px 18px',
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            fontSize: 13,
+                            border: 'none',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {upiPaymentConfirmed ? '✓ Confirmed' : '✓ I Have Paid'}
+                        </button>
+                      </div>
+                    </div>
                   )}
+
+                  <div className={ck.stepFooter}>
+                    <button type="button" className={ck.btnSecondary} onClick={() => setCheckoutStep(2)}>
+                      ← Back to Delivery Slot
+                    </button>
+                    <button type="button" className={ck.btnPrimary} onClick={() => setCheckoutStep(4)}>
+                      Review Order →
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Payment Summary */}
-              <div className={ck.reviewBox}>
-                <div className={ck.reviewBoxHeader}>
-                  <span className={ck.reviewBoxTitle}>💳 Payment Method</span>
-                  <button type="button" className={ck.reviewChangeBtn} onClick={() => setCheckoutStep(3)}>
-                    Change
-                  </button>
+              {/* ── STEP 4: Review & Place Order ── */}
+              {checkoutStep === 4 && (
+                <div className={ck.stepContentBox}>
+                  <h2 className={ck.stepHeading}>
+                    <span>📋</span>
+                    <span>Review Your Order</span>
+                  </h2>
+                  <p className={ck.stepSubheading}>Please review your order details before placing</p>
+
+                  <div className={ck.reviewBox}>
+                    <div className={ck.reviewBoxHeader}>
+                      <span className={ck.reviewBoxTitle}>📍 Delivery Address</span>
+                      <button type="button" className={ck.reviewChangeBtn} onClick={() => setCheckoutStep(1)}>
+                        Change
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 14, color: '#334155', lineHeight: 1.5 }}>
+                      <strong>{selectedAddress.name || user.name}</strong> • {user.phone}
+                      <br />
+                      {selectedAddress.street}
+                      {selectedAddress.addressLine2 ? `, ${selectedAddress.addressLine2}` : ''}
+                      <br />
+                      {selectedAddress.city}, {selectedAddress.state} — {selectedAddress.zipCode}
+                    </div>
+                  </div>
+
+                  <div className={ck.reviewBox}>
+                    <div className={ck.reviewBoxHeader}>
+                      <span className={ck.reviewBoxTitle}>🚚 Delivery Option</span>
+                      <button type="button" className={ck.reviewChangeBtn} onClick={() => setCheckoutStep(2)}>
+                        Change
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 14, color: '#334155' }}>
+                      {activeMode === 'pan_india' ? (
+                        'Pan-India Courier Delivery (3–5 business days)'
+                      ) : selectedDeliveryType === 'urgent' ? (
+                        '⚡ Urgent Delivery (60–90 mins)'
+                      ) : (
+                        <>
+                          Standard Delivery on <strong>{selectedSlotDate || 'Scheduled date'}</strong>
+                          {selectedSlot ? ` (${selectedSlot.isFullDay ? 'Anytime' : `${selectedSlot.startTime} – ${selectedSlot.endTime}`})` : ''}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={ck.reviewBox}>
+                    <div className={ck.reviewBoxHeader}>
+                      <span className={ck.reviewBoxTitle}>💳 Payment Method</span>
+                      <button type="button" className={ck.reviewChangeBtn} onClick={() => setCheckoutStep(3)}>
+                        Change
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 14, color: '#334155' }}>
+                      {paymentMethod === 'cod' ? (
+                        'Cash on Delivery'
+                      ) : paymentMethod === 'credit' ? (
+                        'B2B Credit Account'
+                      ) : (
+                        <>
+                          Direct UPI {upiAppUsed ? `(${upiAppUsed})` : ''} • Ref: <strong>{ensureUpiRef()}</strong>
+                          {upiPaymentConfirmed && <span style={{ color: '#059669', marginLeft: 8 }}>✓ Confirmed</span>}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#334155' }}>
+                      <input
+                        type="checkbox"
+                        checked={printedBill}
+                        onChange={(e) => setPrintedBill(e.target.checked)}
+                        style={{ width: 16, height: 16 }}
+                      />
+                      <span>I would like a printed paper invoice during delivery</span>
+                    </label>
+                  </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <label className={ck.formLabel}>Order Notes (Optional)</label>
+                    <input
+                      type="text"
+                      className={ck.formInput}
+                      placeholder="Special instructions for delivery (e.g. call upon arrival)"
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                    />
+                  </div>
+
+                  <div className={ck.stepFooter}>
+                    <button type="button" className={ck.btnSecondary} onClick={() => setCheckoutStep(3)}>
+                      ← Back to Payment
+                    </button>
+                    <button
+                      type="button"
+                      className={ck.btnPrimary}
+                      disabled={placingOrder}
+                      onClick={handlePlaceOrder}
+                      style={{ padding: '14px 36px', fontSize: 16 }}
+                    >
+                      {placingOrder ? 'Placing Order...' : `Place Order (₹${grandTotal.toFixed(2)})`}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ fontSize: 14, color: '#334155' }}>
-                  {paymentMethod === 'cod' ? (
-                    'Cash on Delivery'
-                  ) : paymentMethod === 'credit' ? (
-                    'B2B Credit Account'
-                  ) : (
-                    <>
-                      Direct UPI {upiAppUsed ? `(${upiAppUsed})` : ''} • Ref: <strong>{ensureUpiRef()}</strong>
-                      {upiPaymentConfirmed && <span style={{ color: '#059669', marginLeft: 8 }}>✓ Confirmed</span>}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Printed bill checkbox */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#334155' }}>
-                  <input
-                    type="checkbox"
-                    checked={printedBill}
-                    onChange={(e) => setPrintedBill(e.target.checked)}
-                    style={{ width: 16, height: 16 }}
-                  />
-                  <span>I would like a printed paper invoice during delivery</span>
-                </label>
-              </div>
-
-              {/* Order Notes */}
-              <div style={{ marginBottom: 20 }}>
-                <label className={ck.formLabel}>Order Notes (Optional)</label>
-                <input
-                  type="text"
-                  className={ck.formInput}
-                  placeholder="Special instructions for delivery (e.g. call upon arrival)"
-                  value={orderNotes}
-                  onChange={(e) => setOrderNotes(e.target.value)}
-                />
-              </div>
-
-              {/* Final Place Order Action */}
-              <div className={ck.stepFooter}>
-                <button type="button" className={ck.btnSecondary} onClick={() => setCheckoutStep(3)}>
-                  ← Back to Payment
-                </button>
-                <button
-                  type="button"
-                  className={ck.btnPrimary}
-                  disabled={placingOrder}
-                  onClick={handlePlaceOrder}
-                  style={{ padding: '14px 36px', fontSize: 16 }}
-                >
-                  {placingOrder ? 'Placing Order...' : `Place Order (₹${grandTotal.toFixed(2)})`}
-                </button>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1310,7 +1341,6 @@ export default function CheckoutPage() {
           <div className={ck.summaryCard}>
             <h3 className={ck.summaryTitle}>Order Summary ({cart?.items?.length || 0} items)</h3>
 
-            {/* Cart Items List */}
             <div className={ck.itemList}>
               {cart?.items?.map((item: any) => (
                 <div key={item._id || item.id} className={ck.itemRow}>
@@ -1388,7 +1418,6 @@ export default function CheckoutPage() {
               {couponError && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>{couponError}</div>}
             </div>
 
-            {/* Price Calculations */}
             <div className={ck.calcRow}>
               <span>Items Subtotal</span>
               <span>₹{cartSubtotal.toFixed(2)}</span>
@@ -1464,6 +1493,7 @@ export default function CheckoutPage() {
                 type="text"
                 className={ck.formInput}
                 placeholder="Full name"
+                autoComplete="name"
                 value={newAddress.name}
                 onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
               />
@@ -1475,6 +1505,7 @@ export default function CheckoutPage() {
                 type="text"
                 className={ck.formInput}
                 placeholder="House/flat no, street, locality"
+                autoComplete="street-address"
                 value={newAddress.street}
                 onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
               />
@@ -1488,6 +1519,7 @@ export default function CheckoutPage() {
                   className={ck.formInput}
                   placeholder="6-digit pincode"
                   maxLength={6}
+                  autoComplete="postal-code"
                   value={newAddress.zipCode}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '').slice(0, 6);
@@ -1502,6 +1534,7 @@ export default function CheckoutPage() {
                   type="text"
                   className={ck.formInput}
                   placeholder="City"
+                  autoComplete="address-level2"
                   value={newAddress.city}
                   onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                 />
@@ -1515,6 +1548,7 @@ export default function CheckoutPage() {
                   type="text"
                   className={ck.formInput}
                   placeholder="State"
+                  autoComplete="address-level1"
                   value={newAddress.state}
                   onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
                 />
@@ -1531,18 +1565,16 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {user && (
-              <div style={{ marginTop: 10, marginBottom: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#334155' }}>
-                  <input
-                    type="checkbox"
-                    checked={newAddress.saveToProfile}
-                    onChange={(e) => setNewAddress({ ...newAddress, saveToProfile: e.target.checked })}
-                  />
-                  <span>Save this address to my profile for future orders</span>
-                </label>
-              </div>
-            )}
+            <div style={{ marginTop: 10, marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  checked={newAddress.saveToProfile}
+                  onChange={(e) => setNewAddress({ ...newAddress, saveToProfile: e.target.checked })}
+                />
+                <span>Save this address to my profile for future orders</span>
+              </label>
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
               <button type="button" className={ck.btnSecondary} onClick={() => setShowAddressModal(false)}>
@@ -1552,132 +1584,6 @@ export default function CheckoutPage() {
                 Save &amp; Use Address
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Sign In / Quick Account Modal ── */}
-      {showSignInModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 16,
-          }}
-          onClick={() => setShowSignInModal(false)}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              maxWidth: 420,
-              width: '100%',
-              padding: 24,
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700 }}>
-                {isExistingAccount ? 'Sign In' : isExistingAccount === false ? 'Create Account' : 'Account Verification'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowSignInModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className={ck.formGroup}>
-              <label className={ck.formLabel}>Mobile Number</label>
-              <input
-                type="tel"
-                className={ck.formInput}
-                placeholder="10-digit mobile number"
-                maxLength={10}
-                value={contactPhone}
-                onChange={(e) => {
-                  setContactPhone(e.target.value.replace(/\D/g, ''));
-                  setIsExistingAccount(null);
-                  setOtpSent(false);
-                }}
-              />
-            </div>
-
-            {isExistingAccount === null ? (
-              <button
-                type="button"
-                className={ck.btnPrimary}
-                style={{ width: '100%' }}
-                disabled={authBusy || contactPhone.length < 10}
-                onClick={handleCheckPhone}
-              >
-                {authBusy ? 'Checking...' : 'Continue'}
-              </button>
-            ) : isExistingAccount ? (
-              <div>
-                <div className={ck.formGroup}>
-                  <label className={ck.formLabel}>Password</label>
-                  <input
-                    type="password"
-                    className={ck.formInput}
-                    placeholder="Enter your password"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={ck.btnPrimary}
-                  style={{ width: '100%' }}
-                  disabled={authBusy}
-                  onClick={handleQuickLogin}
-                >
-                  {authBusy ? 'Logging in...' : 'Log In & Continue'}
-                </button>
-              </div>
-            ) : (
-              <div>
-                {otpSent && (
-                  <div className={ck.formGroup}>
-                    <label className={ck.formLabel}>Enter SMS OTP</label>
-                    <input
-                      type="text"
-                      className={ck.formInput}
-                      placeholder="6-digit OTP"
-                      value={otpValue}
-                      onChange={(e) => setOtpValue(e.target.value)}
-                    />
-                  </div>
-                )}
-                <div className={ck.formGroup}>
-                  <label className={ck.formLabel}>Set Account Password</label>
-                  <input
-                    type="password"
-                    className={ck.formInput}
-                    placeholder="Min 6 characters"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={ck.btnPrimary}
-                  style={{ width: '100%' }}
-                  disabled={authBusy}
-                  onClick={handleQuickRegister}
-                >
-                  {authBusy ? 'Creating account...' : 'Create Account & Continue'}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
