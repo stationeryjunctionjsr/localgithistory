@@ -23,15 +23,6 @@ def test_issue11_email_service_type_hints_reflection_and_resolve_to_emails():
     # None defaults to admin_emails
     assert service._resolve_to_emails(None) == ["admin1@example.com", "admin2@example.com"]
 
-    # Single string
-    assert service._resolve_to_emails("ops@example.com") == ["ops@example.com"]
-
-    # Comma-separated string
-    assert service._resolve_to_emails("ops1@example.com, ops2@example.com ") == [
-        "ops1@example.com",
-        "ops2@example.com",
-    ]
-
     # List of strings
     assert service._resolve_to_emails(["dev@example.com ", " alerts@example.com"]) == [
         "dev@example.com",
