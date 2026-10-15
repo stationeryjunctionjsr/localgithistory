@@ -1588,6 +1588,8 @@ async def create_order_service(
                     str(e),
                     exc_info=True,
                 )
+                if isinstance(e, ValueError):
+                    raise
 
         # Increment sales volume for product bundles included in this order.
         # Increment by the actual number of bundle copies purchased (not always +1).
@@ -1788,6 +1790,10 @@ async def create_order_service(
                     exc_info=True,
                 )
 
+        if isinstance(_post_order_exc, ValueError):
+            raise HTTPException(
+                status_code=400, detail=str(_post_order_exc))
+
         raise HTTPException(
             status_code=500, detail="Order could not be completed. Please try again.")
 
@@ -1823,6 +1829,7 @@ async def create_order_service(
     # a seller bucket with seller_id=None).
     # ────────────────────────────────────────────────────────────────
     try:
+        sub_order_ids: list[str] = []
         super_admin_doc = await user_repository.findSuperAdmin()
         super_admin_id = str(super_admin_doc.id) if super_admin_doc else None
 
@@ -1943,7 +1950,7 @@ async def create_order_service(
                     "notes": order_data.notes or "",
                     "couponCode": coupon_code,
                     "couponInfo": coupon_info,
-                    "createdAt": order.created_at.isoformat() if order.created_at else None,
+                    "createdAt": order.created_at.isoformat() if hasattr(order.created_at, "isoformat") else (str(order.created_at) if order.created_at else None),
                 }
                 sub = await sub_order_repository.create(SubOrderInternalCreate.model_validate(sub_order_data))
                 sub_order_ids.append(sub.id)
@@ -1978,13 +1985,92 @@ async def create_order_service(
             )
             # Refresh populated_order to include subOrderIds
             updated_parent = await order_repository.findById(str(order.id))
-            updated_parent = await order_repository.findById(str(order.id))
-            print(f"DEBUG: updated_parent={updated_parent}")
-            populated_order = await populate_order(updated_parent)
-            print(f"DEBUG: populated_order={populated_order}")
+            if updated_parent:
+                populated_order = await populate_order(updated_parent)
     except Exception as sub_err:
         logger.error(
-            "Sub-order creation failed (parent order %s still valid): %s", order.id, str(sub_err), exc_info=True
+            "[OrderCreate] Sub-order creation failed for parent order %s — rolling back and marking order as failed: %s",
+            order.id,
+            str(sub_err),
+            exc_info=True,
+        )
+        # 1. Delete any partially created sub-orders in this batch
+        for so_id in sub_order_ids:
+            try:
+                await sub_order_repository.delete(str(so_id))
+            except Exception as del_err:
+                logger.error("[OrderCreate] Could not delete orphaned sub-order %s: %s", so_id, del_err)
+
+        # 2. Mark parent order as failed
+        try:
+            await order_repository.update(str(order.id), OrderInternalUpdate(status="failed"))
+        except Exception as upd_err:
+            logger.error("[OrderCreate] Could not mark order %s as failed: %s", order.id, upd_err)
+
+        # 3. Restore credit if pre-deducted
+        if _credit_deducted:
+            try:
+                await user_repository.add_credit_used_atomic(current_user.id, -total)
+            except Exception as cred_err:
+                logger.error("[OrderCreate] Could not restore credit for user %s: %s", current_user.id, cred_err)
+
+        # 4. Restore decremented product stock
+        for item in cart_items:
+            if item.product and item.quantity:
+                try:
+                    await product_repository.increment_stock_atomic(str(item.product), int(item.quantity))
+                except Exception as stk_err:
+                    logger.error("[OrderCreate] Could not restore stock for product %s: %s", item.product, stk_err)
+
+        # 5. Decrement delivery slot bookedCount if a slot was booked
+        if selected_slot_info:
+            try:
+                factory = get_async_session_factory()
+                if factory:
+                    slot_storage = _get_storage("deliverySlots")
+                    _cfg_id = selected_slot_info["configId"] if selected_slot_info and "configId" in selected_slot_info else selected_slot_info.configId
+                    _s_id = selected_slot_info["slotId"] if selected_slot_info and "slotId" in selected_slot_info else selected_slot_info.slotId
+                    _slot_cfg = await slot_storage.findById(_cfg_id)
+                    if _slot_cfg:
+                        _db_id = _slot_cfg.id if _slot_cfg.id is not None else _cfg_id
+                        async with factory() as session:
+                            await session.execute(
+                                text(f"""
+                                    UPDATE {slot_storage.CHILD_TABLE}
+                                    SET booked_count = GREATEST(0, booked_count - 1)
+                                    WHERE parent_id = :id AND slot_uuid = :slot_id
+                                """),
+                                {"id": _db_id, "slot_id": _s_id},
+                            )
+                            await session.commit()
+            except Exception as slot_err:
+                logger.error("[OrderCreate] Could not rollback delivery slot: %s", slot_err)
+
+        # 6. Cancel payment record if created
+        try:
+            from app.models.daos import PaymentInternalUpdate
+            existing_payments = await payment_repository.findByOrderId(str(order.id))
+            if existing_payments:
+                for pay in existing_payments:
+                    await payment_repository.update(pay.id, PaymentInternalUpdate(amount_remaining=0))
+        except Exception as pay_err:
+            logger.error("[OrderCreate] Could not update payment status: %s", pay_err)
+
+        # 7. Log failure to order timeline
+        try:
+            from app.utils.order_timeline import log_order_status as _log_tl
+            await _log_tl(
+                order_id=order.id,
+                status="failed",
+                changed_by=str(current_user.id),
+                note=f"Order failed: sub-order error - {sub_err}",
+            )
+        except Exception:
+            pass
+
+        raise HTTPException(
+            status_code=500,
+            detail="Order could not be completed due to multi-seller sub-order allocation failure. Please try again.",
         )
 
     # Log initial placed status to history table (best-effort)

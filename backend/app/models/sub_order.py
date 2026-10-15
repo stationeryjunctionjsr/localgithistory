@@ -180,5 +180,6 @@ class SubOrderFilter(CamelBaseModel):
     end_date: Optional[str] = None
 
 
+from app.models.schemas import AddressSnippet as Address
 
-
+SubOrderInternalCreate.model_rebuild()
