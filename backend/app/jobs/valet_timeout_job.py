@@ -37,7 +37,15 @@ async def _cascade_or_revert(order):
         try:
             from app.services.push_notification_service import push_notification_service
             timeout_label = '5 minutes' if is_urgent else '20 minutes'
-            await push_notification_service.send_to_user(next_valet_id, {'title': 'New Delivery Request', 'message': f"You have a new delivery order #{(order.order_number or order_id)}. Please respond within {timeout_label}.", 'link': f'/valet/orders/{order_id}', 'data': {'orderId': order_id, 'type': 'valet_assignment', 'isUrgent': is_urgent}})
+            await push_notification_service.send_to_user(
+                next_valet_id,
+                PushNotificationPayload(
+                    title='New Delivery Request',
+                    message=f"You have a new delivery order #{(order.order_number or order_id)}. Please respond within {timeout_label}.",
+                    link=f'/valet/orders/{order_id}',
+                    data=PushNotificationMetadata(order_id=order.id, type='valet_assignment', is_urgent=is_urgent),
+                ),
+            )
         except Exception as e:
             logger.error('[ValetTimeout] Failed to notify next valet %s: %s', next_valet_id, e)
         logger.info('[ValetTimeout] Order %s cascaded to valet %s (cascade #%d)', order_id, next_valet_id, cascade_count)
@@ -46,7 +54,15 @@ async def _cascade_or_revert(order):
         if seller_id:
             try:
                 from app.services.push_notification_service import push_notification_service
-                await push_notification_service.send_to_user(seller_id, {'title': 'Valet Unavailable — Reassign Required', 'message': f"No valets accepted order #{(order.order_number or order_id)}. Please reassign manually.", 'link': f'/seller/orders/{order_id}', 'data': {'orderId': order_id, 'type': 'valet_all_declined'}})
+                await push_notification_service.send_to_user(
+                    seller_id,
+                    PushNotificationPayload(
+                        title='Valet Unavailable — Reassign Required',
+                        message=f"No valets accepted order #{(order.order_number or order_id)}. Please reassign manually.",
+                        link=f'/seller/orders/{order_id}',
+                        data=PushNotificationMetadata(order_id=order.id, type='valet_all_declined'),
+                    ),
+                )
             except Exception as e:
                 logger.error('[ValetTimeout] Failed to notify seller %s: %s', seller_id, e)
         logger.info('[ValetTimeout] Order %s reverted to processing — no valets available', order_id)

@@ -1,4 +1,3 @@
-from typing import Any
 import json
 import os
 from datetime import datetime, timezone, timedelta
@@ -10,6 +9,7 @@ from app.repositories.order_repository import order_repository
 from app.repositories.push_notification_repository import push_notification_repository
 from app.models.user import UserFilter
 from app.repositories.user_repository import user_repository
+from app.models.schemas import PushNotificationPayload
 from app.utils.logger import logger
 
 try:
@@ -88,7 +88,7 @@ class PushNotificationService:
 
         return delivered
 
-    async def send_to_all_devices(self, notification: 'PushNotification'):
+    async def send_to_all_devices(self, notification: PushNotificationPayload):
         """Send push notification to registered devices based on targeting criteria (Optimized)"""
         try:
             # 1. Fetch registered user IDs directly via SQL pushdown
@@ -222,12 +222,9 @@ class PushNotificationService:
             logger.error("Error in sending targeted push: %s", str(e), exc_info=True)
             raise
 
-    async def send_to_user(self, user_id: int, notification: Any):
+    async def send_to_user(self, user_id: int, notification: PushNotificationPayload):
         """Send push notification to a specific user's devices"""
         try:
-            if isinstance(notification, dict):
-                from app.models.schemas import PushNotificationPayload
-                notification = PushNotificationPayload(**notification)
             devices = await push_notification_repository.getDeviceSubscriptionsByUser(user_id)
             delivered_count = 0
 

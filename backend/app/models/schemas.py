@@ -2111,8 +2111,8 @@ class PushNotificationResponse(CamelBaseModel):
 
 class PushNotificationMetadata(CamelBaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
-    order_id: Optional[Union[int, str]] = None
-    return_id: Optional[Union[int, str]] = None
+    order_id: Optional[int] = None
+    return_id: Optional[int] = None
     type: Optional[str] = None
     is_urgent: Optional[bool] = None
     timeout_minutes: Optional[int] = None
@@ -2120,12 +2120,18 @@ class PushNotificationMetadata(CamelBaseModel):
 
 class PushNotificationPayload(CamelBaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
-    id: Optional[Union[int, str]] = None
+    id: Optional[int] = None
     title: Optional[str] = ""
     message: Optional[str] = ""
     link: Optional[str] = None
     image: Optional[str] = None
-    data: Optional[Union[PushNotificationMetadata, Dict[str, Any]]] = None
+    status: Optional[str] = None
+    scheduled_for: Optional[str] = Field(default=None, alias="scheduledFor")
+    delivered_count: int = Field(default=0, alias="deliveredCount")
+    read_count: int = Field(default=0, alias="readCount")
+    user_segment: Optional[str] = Field(default=None, alias="userSegment")
+    user_behavior: Optional[str] = Field(default=None, alias="userBehavior")
+    data: Optional[PushNotificationMetadata] = None
 
 
 class PushAnalyticsResponse(BaseModel):
