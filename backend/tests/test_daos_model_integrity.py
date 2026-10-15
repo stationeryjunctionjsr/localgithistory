@@ -1573,6 +1573,216 @@ async def test_batch_a_analytics_pushdowns():
         assert "GROUP BY location" in query_loc
 
 
+@pytest.mark.asyncio
+async def test_final_batch_analytics_pushdowns():
+    from datetime import datetime, timezone
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from app.repositories.analytics_repository import analytics_repository
+    from app.models.analytics_schemas import (
+        ConversionRateResponse,
+        AllUserEngagementResponse,
+        DurationBucket,
+        UserMetric,
+        UserEngagementResponse,
+        ItemsByUserTypeResponse,
+        FunnelStage,
+        FunnelStageNoDrop,
+    )
+    from app.db.mysql_tracking_dao import MySQLTrackingDAO
+    from app.db.mysql_session_dao import MySQLSessionDAO
+
+    # 1. Verify Repository delegation for all 4 methods
+    orig_conv = analytics_repository.tracking_storage.get_conversion_funnel_stats
+    orig_all_eng = analytics_repository.session_storage.get_all_user_engagement_aggregate_stats
+    orig_user_eng = analytics_repository.session_storage.get_user_engagement_metrics_stats
+    orig_items_type = analytics_repository.tracking_storage.get_items_by_user_type_stats
+
+    try:
+        analytics_repository.tracking_storage.get_conversion_funnel_stats = AsyncMock(
+            return_value=ConversionRateResponse(
+                sessions=FunnelStageNoDrop(count=100, percentage=100.0),
+                added_to_cart=FunnelStage(count=50, percentage=50.0, drop_percentage=50.0),
+                reached_checkout=FunnelStage(count=30, percentage=30.0, drop_percentage=40.0),
+                completed=FunnelStage(count=10, percentage=10.0, drop_percentage=66.67),
+                overall_conversion_rate=10.0,
+            )
+        )
+        analytics_repository.session_storage.get_all_user_engagement_aggregate_stats = AsyncMock(
+            return_value=AllUserEngagementResponse(
+                duration_buckets=[DurationBucket(range="0-60s", count=5)],
+                user_metrics=[
+                    UserMetric(
+                        userId="101",
+                        name="Alice",
+                        email="alice@example.com",
+                        averageSessionTimeSeconds=45.0,
+                        totalSessions=2,
+                    )
+                ],
+            )
+        )
+        analytics_repository.session_storage.get_user_engagement_metrics_stats = AsyncMock(
+            return_value=UserEngagementResponse(
+                userId="101",
+                registrationDate="2026-01-01T00:00:00",
+                totalSessions=5,
+                averageSessionTimeSeconds=120.0,
+                averageDaysBetweenSessions=2.5,
+                averagePagesPerSession=4.0,
+                sessionsWithOrder=2,
+                sessionOrderRate=0.4,
+            )
+        )
+        analytics_repository.tracking_storage.get_items_by_user_type_stats = AsyncMock(
+            return_value=[
+                ItemsByUserTypeResponse(role="customer", views=100, searches=50),
+                ItemsByUserTypeResponse(role="guest", views=20, searches=10),
+            ]
+        )
+
+        res_conv = await analytics_repository.get_conversion_rate_over_time()
+        assert res_conv.sessions.count == 100
+        assert res_conv.overall_conversion_rate == 10.0
+        assert isinstance(res_conv, ConversionRateResponse)
+
+        res_all_eng = await analytics_repository.get_all_user_engagement_aggregate()
+        assert len(res_all_eng.duration_buckets) == 1
+        assert len(res_all_eng.user_metrics) == 1
+        assert isinstance(res_all_eng, AllUserEngagementResponse)
+
+        res_user_eng = await analytics_repository.get_user_engagement_metrics("101")
+        assert res_user_eng.totalSessions == 5
+        assert res_user_eng.sessionOrderRate == 0.4
+        assert isinstance(res_user_eng, UserEngagementResponse)
+
+        res_items_type = await analytics_repository.get_items_by_user_type()
+        assert len(res_items_type) == 2
+        assert res_items_type[0].role == "customer"
+        assert isinstance(res_items_type[0], ItemsByUserTypeResponse)
+    finally:
+        analytics_repository.tracking_storage.get_conversion_funnel_stats = orig_conv
+        analytics_repository.session_storage.get_all_user_engagement_aggregate_stats = orig_all_eng
+        analytics_repository.session_storage.get_user_engagement_metrics_stats = orig_user_eng
+        analytics_repository.tracking_storage.get_items_by_user_type_stats = orig_items_type
+
+    # 2. Direct DAO: MySQLTrackingDAO.get_conversion_funnel_stats
+    tracking_dao = MySQLTrackingDAO()
+    mock_session = AsyncMock()
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    row_conv = MagicMock()
+    row_conv.session_count = 100
+    row_conv.added_to_cart_count = 50
+    row_conv.reached_checkout_count = 30
+    row_conv.completed_sessions = 10
+    mock_res_conv = MagicMock()
+    mock_res_conv.fetchone.return_value = row_conv
+    mock_session.execute.return_value = mock_res_conv
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        dao_conv = await tracking_dao.get_conversion_funnel_stats()
+        assert dao_conv.sessions.count == 100
+        assert dao_conv.added_to_cart.count == 50
+        assert dao_conv.overall_conversion_rate == 10.0
+        query_conv = str(mock_session.execute.call_args[0][0])
+        assert "WITH tracking_counts AS" in query_conv
+        assert "order_counts AS" in query_conv
+        assert "event_type = 'cart_add'" in query_conv
+
+    # 3. Direct DAO: MySQLTrackingDAO.get_items_by_user_type_stats
+    row_items = MagicMock()
+    row_items.role = "customer"
+    row_items.views = 42
+    row_items.searches = 15
+    mock_res_items = MagicMock()
+    mock_res_items.fetchall.return_value = [row_items]
+    mock_session.execute.return_value = mock_res_items
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        dao_items = await tracking_dao.get_items_by_user_type_stats()
+        assert len(dao_items) == 1
+        assert dao_items[0].role == "customer"
+        assert dao_items[0].views == 42
+        query_items = str(mock_session.execute.call_args[0][0])
+        assert "WHEN t.user_id IS NULL" in query_items
+        assert "GROUP BY role" in query_items
+
+    # 4. Direct DAO: MySQLSessionDAO.get_all_user_engagement_aggregate_stats
+    session_dao = MySQLSessionDAO()
+    row_agg = MagicMock()
+    row_agg.user_id = 101
+    row_agg.name = "Bob"
+    row_agg.email = "bob@example.com"
+    row_agg.average_session_time_seconds = 150.0
+    row_agg.total_sessions = 3
+    mock_res_agg = MagicMock()
+    mock_res_agg.fetchall.return_value = [row_agg]
+    mock_session.execute.return_value = mock_res_agg
+
+    with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=mock_factory):
+        dao_agg = await session_dao.get_all_user_engagement_aggregate_stats()
+        assert len(dao_agg.user_metrics) == 1
+        assert dao_agg.user_metrics[0].userId == "101"
+        assert dao_agg.user_metrics[0].averageSessionTimeSeconds == 150.0
+        assert any(b.range == "60-300s" and b.count == 1 for b in dao_agg.duration_buckets)
+        query_agg = str(mock_session.execute.call_args[0][0])
+        assert "WITH user_session_agg AS" in query_agg
+        assert "TIMESTAMPDIFF(SECOND" in query_agg
+
+    # 5. Direct DAO: MySQLSessionDAO.get_user_engagement_metrics_stats
+    user_row = MagicMock()
+    user_row.id = 101
+    user_row.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    row_user_sess = MagicMock()
+    row_user_sess.total_sessions = 5
+    row_user_sess.average_session_time_seconds = 180.0
+
+    row_gaps = MagicMock()
+    row_gaps.avg_days_between_sessions = 3.2
+
+    row_pages = MagicMock()
+    row_pages.avg_pages_per_session = 4.5
+
+    row_orders = MagicMock()
+    row_orders.sessions_with_order = 2
+
+    mock_res_user = MagicMock()
+    mock_res_user.fetchone.return_value = user_row
+
+    mock_res_sess = MagicMock()
+    mock_res_sess.fetchone.return_value = row_user_sess
+
+    mock_res_gaps = MagicMock()
+    mock_res_gaps.fetchone.return_value = row_gaps
+
+    mock_res_pages = MagicMock()
+    mock_res_pages.fetchone.return_value = row_pages
+
+    mock_res_orders = MagicMock()
+    mock_res_orders.fetchone.return_value = row_orders
+
+    mock_session.execute.side_effect = [
+        mock_res_user,
+        mock_res_sess,
+        mock_res_gaps,
+        mock_res_pages,
+        mock_res_orders,
+    ]
+
+    with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=mock_factory):
+        dao_user = await session_dao.get_user_engagement_metrics_stats("101")
+        assert dao_user.userId == "101"
+        assert dao_user.totalSessions == 5
+        assert dao_user.averageSessionTimeSeconds == 180.0
+        assert dao_user.averageDaysBetweenSessions == 3.2
+        assert dao_user.averagePagesPerSession == 4.5
+        assert dao_user.sessionsWithOrder == 2
+        assert dao_user.sessionOrderRate == 0.4
+
+
+
 
 
 

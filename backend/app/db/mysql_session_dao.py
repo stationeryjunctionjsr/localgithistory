@@ -1,12 +1,19 @@
 from app.models.daos import SessionInternalCreate, SessionInternalUpdate, DeviceSnippet
-from app.models.analytics_schemas import SessionsByDeviceResponse, SessionsByLocationResponse
+from app.models.analytics_schemas import (
+    SessionsByDeviceResponse,
+    SessionsByLocationResponse,
+    AllUserEngagementResponse,
+    DurationBucket,
+    UserMetric,
+    UserEngagementResponse,
+)
 import logging
 """
 MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from app.models.session import Session
 
 from sqlalchemy import text
@@ -425,6 +432,178 @@ class MySQLSessionDAO:
                 )
                 for r in rows
             ]
+
+    async def get_all_user_engagement_aggregate_stats(self) -> AllUserEngagementResponse:
+        sql = text(
+            f"""
+            WITH user_session_agg AS (
+                SELECT 
+                    u.id AS user_id,
+                    COALESCE(u.name, 'Unknown') AS name,
+                    COALESCE(u.email, 'Unknown') AS email,
+                    COALESCE(
+                        ROUND(AVG(
+                            CASE 
+                                WHEN TIMESTAMPDIFF(SECOND, s.created_at, COALESCE(s.revoked_at, s.last_active_at, NOW())) >= 0 
+                                THEN TIMESTAMPDIFF(SECOND, s.created_at, COALESCE(s.revoked_at, s.last_active_at, NOW()))
+                                ELSE 0 
+                            END
+                        ), 2),
+                        0.0
+                    ) AS average_session_time_seconds,
+                    COUNT(s.id) AS total_sessions
+                FROM sj_users u
+                LEFT JOIN {self.TABLE} s ON s.user_id = u.id AND s.is_guest = 0
+                GROUP BY u.id, u.name, u.email
+            )
+            SELECT 
+                user_id,
+                name,
+                email,
+                average_session_time_seconds,
+                total_sessions
+            FROM user_session_agg
+            ORDER BY user_id ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql)).fetchall()
+            buckets = {"0-60s": 0, "60-300s": 0, "300-600s": 0, "600s+": 0}
+            user_metrics = []
+            for r in rows:
+                avg_time = float(r.average_session_time_seconds or 0.0)
+                if avg_time <= 60:
+                    buckets["0-60s"] += 1
+                elif avg_time <= 300:
+                    buckets["60-300s"] += 1
+                elif avg_time <= 600:
+                    buckets["300-600s"] += 1
+                else:
+                    buckets["600s+"] += 1
+
+                user_metrics.append(
+                    UserMetric(
+                        userId=str(r.user_id),
+                        name=r.name,
+                        email=r.email,
+                        averageSessionTimeSeconds=avg_time,
+                        totalSessions=r.total_sessions or 0,
+                    )
+                )
+
+            return AllUserEngagementResponse(
+                duration_buckets=[DurationBucket(range=k, count=v) for k, v in buckets.items()],
+                user_metrics=user_metrics,
+            )
+
+    async def get_user_engagement_metrics_stats(self, user_id: Union[int, str]) -> UserEngagementResponse:
+        user_sql = text("SELECT id, created_at FROM sj_users WHERE id = :user_id OR external_id = :user_id LIMIT 1")
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            user_row = (await session.execute(user_sql, {"user_id": str(user_id)})).fetchone()
+            if not user_row:
+                return UserEngagementResponse(
+                    error="User not found",
+                    totalSessions=0,
+                    sessionsWithOrder=0,
+                )
+
+            uid = user_row.id
+            reg_dt = user_row.created_at
+            params = {"uid": uid, "reg_dt": reg_dt}
+
+            # 1. Total sessions and average duration
+            sess_sql = text(
+                f"""
+                SELECT 
+                    COUNT(s.id) AS total_sessions,
+                    ROUND(AVG(
+                        CASE 
+                            WHEN TIMESTAMPDIFF(SECOND, s.created_at, COALESCE(s.revoked_at, s.last_active_at, NOW())) >= 0 
+                            THEN TIMESTAMPDIFF(SECOND, s.created_at, COALESCE(s.revoked_at, s.last_active_at, NOW()))
+                            ELSE 0 
+                        END
+                    ), 2) AS average_session_time_seconds
+                FROM {self.TABLE} s
+                WHERE s.user_id = :uid AND s.is_guest = 0
+                  AND (:reg_dt IS NULL OR s.created_at >= :reg_dt)
+                """
+            )
+            row_sess = (await session.execute(sess_sql, params)).fetchone()
+            total_sessions = row_sess.total_sessions or 0 if row_sess else 0
+            avg_session_time = float(row_sess.average_session_time_seconds) if row_sess and row_sess.average_session_time_seconds is not None else None
+
+            # 2. Average days between consecutive sessions using LAG()
+            gaps_sql = text(
+                f"""
+                WITH user_sessions AS (
+                    SELECT 
+                        created_at,
+                        LAG(created_at) OVER (ORDER BY created_at ASC) AS prev_created_at
+                    FROM {self.TABLE}
+                    WHERE user_id = :uid AND is_guest = 0
+                      AND (:reg_dt IS NULL OR created_at >= :reg_dt)
+                )
+                SELECT 
+                    ROUND(AVG(TIMESTAMPDIFF(SECOND, prev_created_at, created_at) / 86400.0), 2) AS avg_days_between_sessions
+                FROM user_sessions
+                WHERE prev_created_at IS NOT NULL
+                """
+            )
+            row_gaps = (await session.execute(gaps_sql, params)).fetchone()
+            avg_days = float(row_gaps.avg_days_between_sessions) if row_gaps and row_gaps.avg_days_between_sessions is not None else None
+
+            # 3. Average pages per session
+            pages_sql = text(
+                f"""
+                WITH user_sess AS (
+                    SELECT id
+                    FROM {self.TABLE}
+                    WHERE user_id = :uid AND is_guest = 0
+                      AND (:reg_dt IS NULL OR created_at >= :reg_dt)
+                )
+                SELECT 
+                    ROUND(AVG(COALESCE(pv.cnt, 0)), 2) AS avg_pages_per_session
+                FROM user_sess s
+                LEFT JOIN (
+                    SELECT session_id, COUNT(*) AS cnt
+                    FROM sj_tracking
+                    WHERE event_type = 'page_view'
+                    GROUP BY session_id
+                ) pv ON pv.session_id = CAST(s.id AS CHAR)
+                """
+            )
+            row_pages = (await session.execute(pages_sql, params)).fetchone()
+            avg_pages = float(row_pages.avg_pages_per_session) if row_pages and row_pages.avg_pages_per_session is not None else None
+
+            # 4. Sessions with orders
+            orders_sql = text(
+                """
+                SELECT 
+                    COUNT(DISTINCT o.session_id) AS sessions_with_order
+                FROM sj_orders o
+                WHERE o.user_id = :uid
+                  AND (:reg_dt IS NULL OR o.created_at >= :reg_dt)
+                  AND o.session_id IS NOT NULL AND o.session_id != ''
+                """
+            )
+            row_orders = (await session.execute(orders_sql, params)).fetchone()
+            sessions_with_order = row_orders.sessions_with_order or 0 if row_orders else 0
+            session_order_rate = round(sessions_with_order / total_sessions, 4) if total_sessions > 0 else None
+
+            reg_str = reg_dt.isoformat() if isinstance(reg_dt, datetime) else (str(reg_dt) if reg_dt else None)
+
+            return UserEngagementResponse(
+                userId=str(user_id),
+                registrationDate=reg_str,
+                totalSessions=total_sessions,
+                averageSessionTimeSeconds=avg_session_time,
+                averageDaysBetweenSessions=avg_days,
+                averagePagesPerSession=avg_pages,
+                sessionsWithOrder=sessions_with_order,
+                sessionOrderRate=session_order_rate,
+            )
 
     find_all = findAll
     find_by_id = findById

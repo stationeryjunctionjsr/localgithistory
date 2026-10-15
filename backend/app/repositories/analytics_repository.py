@@ -1,8 +1,7 @@
 from typing import Any
 import logging
-from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from pathlib import Path
 import json
 import time
@@ -57,6 +56,10 @@ from app.models.analytics_schemas import (
     CheckoutFunnelResponse,
     SessionsByLocationResponse,
     SessionsByLandingPageResponse,
+    ConversionRateResponse,
+    AllUserEngagementResponse,
+    UserEngagementResponse,
+    ItemsByUserTypeResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -265,83 +268,11 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_conversion_rate_over_time(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, group_by: str = "hour"
-    ) -> Dict:
+    ) -> ConversionRateResponse:
         """Get conversion rate over time (orders / sessions) calculated from actual tracking events"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        # 1. Sessions count (unique sessions in the date range)
-        sessions_tracking = await self.tracking_storage.find_by_date_range("session", start_date, end_date)
-        session_count = len(set(s.session_id for s in sessions_tracking if s.session_id))
-
-        # Fallback to estimated sessions if zero tracking traffic exists
-        if session_count == 0:
-            session_count = len(orders) * 10 if orders else 10
-
-        # 2. Cart Additions (unique sessions adding items to cart)
-        cart_add_tracking = await self.tracking_storage.find_by_date_range("cart_add", start_date, end_date)
-        added_to_cart_count = len(set(c.session_id for c in cart_add_tracking if c.session_id))
-
-        # Fallback if no cart additions tracked
-        if added_to_cart_count == 0:
-            carts = await self.cart_storage.findAll()
-            carts = self._filter_by_date_range(carts, start_date, end_date)
-            added_to_cart_count = len(carts) + len([o for o in orders if o.status not in ["cancelled"]])
-
-        # Enforce valid funnel hierarchy
-        added_to_cart_count = min(session_count, added_to_cart_count)
-
-        # 3. Reached Checkout (unique sessions landing on checkout page step 1)
-        all_checkout_tracking = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
-        checkout_tracking = [e for e in all_checkout_tracking if e.page == "/checkout/step1"]
-        reached_checkout_count = len(set(c.session_id for c in checkout_tracking if c.session_id))
-
-        # Fallback if zero tracking events exist
-        if reached_checkout_count == 0:
-            reached_checkout_count = len(
-                [
-                    o
-                    for o in orders
-                    if o.status in ["pending", "confirmed", "processing", "dispatched", "delivered", "completed"]
-                ]
-            )
-
-        reached_checkout_count = min(added_to_cart_count, reached_checkout_count)
-
-        # 4. Completed purchases (unique sessions with order placement)
-        completed_orders_list = [o for o in orders if o.status not in ["cancelled"]]
-        completed_count = len(set(o.session_id for o in completed_orders_list if o.session_id))
-
-        if completed_count == 0:
-            completed_count = len(completed_orders_list)
-
-        completed_count = min(reached_checkout_count, completed_count)
-
-        return {
-            "sessions": {"count": session_count, "percentage": 100.0, "drop_percentage": 0.0},
-            "added_to_cart": {
-                "count": added_to_cart_count,
-                "percentage": (added_to_cart_count / session_count * 100) if session_count > 0 else 0,
-                "drop_percentage": ((session_count - added_to_cart_count) / session_count * 100)
-                if session_count > 0
-                else 0,
-            },
-            "reached_checkout": {
-                "count": reached_checkout_count,
-                "percentage": (reached_checkout_count / session_count * 100) if session_count > 0 else 0,
-                "drop_percentage": ((added_to_cart_count - reached_checkout_count) / added_to_cart_count * 100)
-                if added_to_cart_count > 0
-                else 0,
-            },
-            "completed": {
-                "count": completed_count,
-                "percentage": (completed_count / session_count * 100) if session_count > 0 else 0,
-                "drop_percentage": ((reached_checkout_count - completed_count) / reached_checkout_count * 100)
-                if reached_checkout_count > 0
-                else 0,
-            },
-            "overall_conversion_rate": (completed_count / session_count * 100) if session_count > 0 else 0,
-        }
+        return await self.tracking_storage.get_conversion_funnel_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_checkout_funnel(
@@ -400,172 +331,17 @@ class AnalyticsRepository:
         )
 
     @cache.ttl_cache(ttl=300)
-    async def get_all_user_engagement_aggregate(self) -> Dict:
+    async def get_all_user_engagement_aggregate(self) -> AllUserEngagementResponse:
         """Get aggregated engagement metrics across all users, bucketed by durations."""
-        users = await self.user_storage.findAll()
-        sessions = await self.session_storage.findAll()
-
-        valid_sessions = [s for s in sessions if not s.is_guest]
-
-        user_durations = defaultdict(list)
-        user_session_counts = defaultdict(int)
-        for s in valid_sessions:
-            uid = s.userId
-            if not uid:
-                continue
-            user_session_counts[uid] += 1
-            start_dt = self._parse_date(s.created_at)
-            end_dt = self._parse_date(s.revokedAt or s.lastActiveAt)
-            if not start_dt:
-                continue
-            if not end_dt:
-                end_dt = datetime.now(timezone.utc)
-            start_naive = self._to_naive_utc(start_dt)
-            end_naive = self._to_naive_utc(end_dt)
-            if start_naive and end_naive:
-                delta = (end_naive - start_naive).total_seconds()
-                if delta >= 0:
-                    user_durations[uid].append(delta)
-
-        buckets = {"0-60s": 0, "60-300s": 0, "300-600s": 0, "600s+": 0}
-
-        user_metrics = []
-        for u in users:
-            uid = u.id
-            durations = (user_durations[uid] if uid in user_durations else [])
-            avg_duration = sum(durations) / len(durations) if durations else 0
-
-            # Bucketing
-            if avg_duration <= 60:
-                buckets["0-60s"] += 1
-            elif avg_duration <= 300:
-                buckets["60-300s"] += 1
-            elif avg_duration <= 600:
-                buckets["300-600s"] += 1
-            else:
-                buckets["600s+"] += 1
-
-            user_metrics.append(
-                {
-                    "userId": uid,
-                    "name": u.name if u.name else "Unknown",
-                    "email": u.email if u.email else "Unknown",
-                    "averageSessionTimeSeconds": round(avg_duration, 2),
-                    "totalSessions": (user_session_counts[uid] if uid in user_session_counts else 0),
-                }
-            )
-
-        return {
-            "duration_buckets": [{"range": k, "count": v} for k, v in buckets.items()],
-            "user_metrics": user_metrics,
-        }
+        return await self.session_storage.get_all_user_engagement_aggregate_stats()
 
     @cache.ttl_cache(ttl=300)
-    async def get_user_engagement_metrics(self, user_id: str) -> Dict:
+    async def get_user_engagement_metrics(self, user_id: Union[int, str]) -> UserEngagementResponse:
         """
         Per-user engagement metrics calculated since the user's registration date.
         All sessions (all devices) are included.
-        Returns:
-          - averageSessionTimeSeconds: average session duration in seconds
-          - averageDaysBetweenSessions: average days between two consecutive sessions
-          - averagePagesPerSession: average number of pages visited per session
-          - sessionOrderRate: share of sessions that had at least one order (0-1)
-          - totalSessions, sessionsWithOrder, registrationDate for context
         """
-        user = await self.user_storage.findById(user_id)
-        if not user:
-            return {
-                "error": "User not found",
-                "averageSessionTimeSeconds": None,
-                "averageDaysBetweenSessions": None,
-                "averagePagesPerSession": None,
-                "sessionOrderRate": None,
-                "totalSessions": 0,
-                "sessionsWithOrder": 0,
-                "registrationDate": None,
-            }
-
-        registration_dt = self._parse_date(user.created_at)
-        reg_naive = self._to_naive_utc(registration_dt) if registration_dt else None
-        all_sessions = await self.session_storage.findAll()
-        # Non-guest sessions for this user; optionally since registration
-        sessions = [s for s in all_sessions if s.userId == user_id and not s.is_guest]
-        if reg_naive is not None:
-            sessions = [
-                s
-                for s in sessions
-                if self._to_naive_utc(self._parse_date(s.created_at)) is not None
-                and self._to_naive_utc(self._parse_date(s.created_at)) >= reg_naive
-            ]
-
-        total_sessions = len(sessions)
-        registration_date_str = user.created_at
-
-        # 1) Average session time (all devices): end = revokedAt or lastActiveAt, start = createdAt
-        session_durations_sec = []
-        for s in sessions:
-            start_dt = self._to_naive_utc(self._parse_date(s.created_at))
-            end_dt = self._to_naive_utc(self._parse_date(s.revokedAt or s.lastActiveAt))
-            if not start_dt:
-                continue
-            if not end_dt:
-                end_dt = datetime.now(timezone.utc)
-            delta = (end_dt - start_dt).total_seconds()
-            if delta >= 0:
-                session_durations_sec.append(delta)
-        average_session_time_seconds = (
-            round(sum(session_durations_sec) / len(session_durations_sec), 2) if session_durations_sec else None
-        )
-
-        # 2) Average days between two consecutive sessions
-        sorted_sessions = sorted(
-            [s for s in sessions if s.created_at],
-            key=lambda s: s.created_at,
-        )
-        gaps_days = []
-        for i in range(len(sorted_sessions) - 1):
-            d1 = self._to_naive_utc(self._parse_date(sorted_sessions[i].created_at))
-            d2 = self._to_naive_utc(self._parse_date(sorted_sessions[i + 1].created_at))
-            if d1 and d2:
-                gaps_days.append((d2 - d1).total_seconds() / 86400.0)
-        average_days_between_sessions = round(sum(gaps_days) / len(gaps_days), 2) if gaps_days else None
-
-        # 3) Average pages per session — only fetch page_view events (not whole table)
-        session_ids = {s.id for s in sessions if s.id}
-        page_view_events = await self.tracking_storage.find_by_date_range("page_view", None, None)
-        page_views_by_session: Dict[str, int] = {sid: 0 for sid in session_ids}
-        for t in page_view_events:
-            sid = t.session_id
-            if sid in session_ids:
-                page_views_by_session[sid] += 1
-        page_counts = list(page_views_by_session.values())
-        average_pages_per_session = round(sum(page_counts) / len(page_counts), 2) if page_counts else None
-
-        # 4) Sessions with orders — only load orders for this user
-        all_orders = await self.order_storage.findAll(self._build_order_filter(user_id=user_id))
-        orders_for_user = []
-        for o in all_orders:
-            if o.user != user_id:
-                continue
-            if reg_naive is not None:
-                o_dt = self._to_naive_utc(self._parse_date(o.created_at))
-                if not o_dt or o_dt < reg_naive:
-                    continue
-            orders_for_user.append(o)
-        order_session_ids = {o.session_id for o in orders_for_user if o.session_id}
-        sessions_with_order = len(order_session_ids)
-        session_order_rate = round(sessions_with_order / total_sessions, 4) if total_sessions > 0 else None
-
-        return {
-            "userId": user_id,
-            "registrationDate": registration_date_str,
-            "totalSessions": total_sessions,
-            "averageSessionTimeSeconds": average_session_time_seconds,
-            "averageDaysBetweenSessions": average_days_between_sessions,
-            "averagePagesPerSession": average_pages_per_session,
-            "sessionsWithOrder": sessions_with_order,
-            "sessionOrderRate": session_order_rate,
-        }
+        return await self.session_storage.get_user_engagement_metrics_stats(user_id=user_id)
 
     async def record_event(self, event) -> None:
         """
@@ -601,32 +377,11 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_items_by_user_type(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[ItemsByUserTypeResponse]:
         """Get engagement counts (searches, views) broken down by user role"""
-        # Use find_by_date_range with no event_type to push date filtering to SQL
-        filtered_tracking = await self.tracking_storage.find_by_date_range(None, start_date, end_date)
-
-        users = await self.user_storage.findAll()
-
-        from pydantic import BaseModel
-        class RoleStats(BaseModel):
-            searches: int = 0
-            views: int = 0
-
-        role_stats = defaultdict(RoleStats)
-        for t in filtered_tracking:
-            uid = t.userId
-            user = next((u for u in users if u.id == uid), None) if uid else None
-            role = user.role if user and user.role else ("guest" if not uid else "customer")
-
-            if t.type == "product_search":
-                role_stats[role].searches += 1
-            elif t.type == "product_view":
-                role_stats[role].views += 1
-
-        return [
-            {"role": role, "searches": stats.searches, "views": stats.views} for role, stats in role_stats.items()
-        ]
+        return await self.tracking_storage.get_items_by_user_type_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_all_reports_summary(
@@ -672,7 +427,7 @@ class AnalyticsRepository:
             "highest_selling_products": len(top_products),
             "top_business_customers": len(top_business),
             "top_retail_customers": len(top_retail),
-            "user_engagement": len((engagement["user_metrics"] if "user_metrics" in engagement else [])),
+            "user_engagement": len(engagement.user_metrics) if hasattr(engagement, "user_metrics") else len((engagement["user_metrics"] if "user_metrics" in engagement else [])),
             "returns": len(returns),
             "payment_methods": len(payment_methods),
             "revenue_by_category": len(revenue_by_cat),
