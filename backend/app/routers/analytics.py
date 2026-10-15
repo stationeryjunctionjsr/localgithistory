@@ -149,7 +149,7 @@ class DurationBucket(BaseModel):
     count: int
 
 class UserMetric(BaseModel):
-    userId: str
+    userId: int
     name: str
     email: str
     averageSessionTimeSeconds: float

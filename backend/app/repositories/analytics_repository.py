@@ -427,7 +427,7 @@ class AnalyticsRepository:
             "highest_selling_products": len(top_products),
             "top_business_customers": len(top_business),
             "top_retail_customers": len(top_retail),
-            "user_engagement": len(engagement.user_metrics) if hasattr(engagement, "user_metrics") else len((engagement["user_metrics"] if "user_metrics" in engagement else [])),
+            "user_engagement": len(engagement.user_metrics),
             "returns": len(returns),
             "payment_methods": len(payment_methods),
             "revenue_by_category": len(revenue_by_cat),

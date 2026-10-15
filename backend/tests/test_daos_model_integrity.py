@@ -1769,6 +1769,28 @@ async def test_final_batch_analytics_pushdowns():
         assert "CROSS JOIN order_metrics" in query_user
 
 
+def test_no_jugaad_user_engagement_and_funnel_types():
+    from app.models.analytics_schemas import UserMetric as SchemaUserMetric, UserEngagementResponse as SchemaEngagement
+    import app.routers.analytics as router_mod
+    import app.repositories.analytics_repository as repo_mod
+
+    # 1. Verify schema types
+    assert SchemaUserMetric.model_fields["userId"].annotation is int
+    assert router_mod.UserMetric.model_fields["userId"].annotation is int
+
+    # 2. Verify no hasattr in analytics_repository
+    repo_src = inspect.getsource(repo_mod.AnalyticsRepository.get_all_reports_summary)
+    assert 'hasattr(engagement, "user_metrics")' not in repo_src
+    assert '"user_engagement": len(engagement.user_metrics)' in repo_src
+
+    # 3. Verify no Union[int, str] in analytics_repository or mysql_session_dao
+    import app.db.mysql_session_dao as session_dao_mod
+    dao_src = inspect.getsource(session_dao_mod.MySQLSessionDAO.get_user_engagement_metrics_stats)
+    assert "Union[int, str]" not in dao_src
+    assert "user_id: int" in dao_src
+
+
+
 
 
 
