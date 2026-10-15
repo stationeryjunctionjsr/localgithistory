@@ -403,13 +403,9 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[SessionsByDeviceResponse]:
         """Get sessions by device type"""
-        sessions = await self.session_storage.findAll()
-        sessions = self._filter_by_date_range(sessions, start_date, end_date)
-        device_counts = defaultdict(int)
-        for s in sessions:
-            device_type = (s.device.type or s.device.deviceType or "desktop") if s.device else "desktop"
-            device_counts[device_type] += 1
-        return [SessionsByDeviceResponse(device=k, sessions=v) for k, v in sorted(device_counts.items())]
+        return await self.session_storage.get_sessions_by_device_type_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_location(
@@ -1127,29 +1123,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SessionsOverTimeResponse]:
         """Daily session count and unique visitor count from tracking data."""
-        sessions = await self.tracking_storage.find_by_date_range("session", start_date, end_date)
-
-        by_day_sessions = defaultdict(int)
-        by_day_visitors = defaultdict(set)
-        for s in sessions:
-            ts = self._parse_date(s.timestamp)
-            if not ts:
-                continue
-            day = ts.strftime("%Y-%m-%d")
-            by_day_sessions[day] += 1
-            uid = s.user_id or s.session_id
-            if uid:
-                by_day_visitors[day].add(uid)
-
-        return [
-            SessionsOverTimeResponse(
-                period=day,
-                sessions=by_day_sessions[day],
-                visitors=len(by_day_visitors[day]),
-                uniqueVisitors=len(by_day_visitors[day]),
-            )
-            for day in sorted(by_day_sessions.keys())
-        ]
+        return await self.tracking_storage.get_sessions_over_time_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=30)
     async def get_active_visitors_now(self, seller_id: Optional[int] = None) -> VisitorsNowResponse:
@@ -1188,33 +1164,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SearchesNoClicksResponse]:
         """Search terms whose sessions never produced a product_click event."""
-        searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
-
-        clicks = await self.tracking_storage.findAll({"type": "product_click"})
-        clicked_sessions = {c.session_id for c in clicks if c.session_id}
-
-        term_counts = defaultdict(int)
-        term_results = defaultdict(int)
-        for s in searches:
-            sid = s.session_id
-            if sid in clicked_sessions:
-                continue  # this session had a click — skip
-            term = (s.search_term or "").strip().lower()
-            if not term:
-                continue
-            term_counts[term] += 1
-            term_results[term] += (s.results_count or 0)
-
-        result = [
-            SearchesNoClicksResponse(
-                term=term,
-                searchCount=count,
-                totalResults=term_results[term],
-                avgResults=round(term_results[term] / count, 1) if count else 0.0,
-            )
-            for term, count in term_counts.items()
-        ]
-        return sorted(result, key=lambda x: x.searchCount, reverse=True)
+        return await self.tracking_storage.get_searches_with_no_clicks_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_search_conversion_rate(
@@ -1224,26 +1176,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[SearchConversionResponse]:
         """Percentage of sessions that searched AND placed an order."""
-        searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
-        search_sessions = {s.session_id for s in searches if s.session_id}
-
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-        order_sessions = {o.session_id for o in orders if o.session_id}
-
-        total = len(search_sessions)
-        converted = len(search_sessions & order_sessions)
-        not_converted = total - converted
-        rate = round(converted / total * 100, 2) if total > 0 else 0.0
-
-        return [
-            SearchConversionResponse(
-                totalSearchSessions=total,
-                convertedSessions=converted,
-                nonConvertedSessions=not_converted,
-                conversionRate=rate,
-            )
-        ]
+        return await self.tracking_storage.get_search_conversion_rate_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_bounce_rate_over_time(
@@ -1253,36 +1188,9 @@ class AnalyticsRepository:
         seller_id: Optional[int] = None,
     ) -> List[BounceRateResponse]:
         """Daily bounce rate: sessions with only 1 page view / total sessions."""
-        page_views = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
-
-        # Count page views per (day, sessionId)
-        session_day: dict[str, str] = {}  # sid -> day
-        session_views = defaultdict(int)  # sid -> count
-        for pv in page_views:
-            sid = pv.session_id
-            ts = self._parse_date(pv.timestamp)
-            if not sid or not ts:
-                continue
-            day = ts.strftime("%Y-%m-%d")
-            session_day.setdefault(sid, day)
-            session_views[sid] += 1
-
-        by_day_total = defaultdict(int)
-        by_day_bounced = defaultdict(int)
-        for sid, day in session_day.items():
-            by_day_total[day] += 1
-            if session_views[sid] <= 1:
-                by_day_bounced[day] += 1
-
-        return [
-            BounceRateResponse(
-                period=day,
-                totalSessions=by_day_total[day],
-                bouncedSessions=by_day_bounced[day],
-                bounceRate=round(by_day_bounced[day] / by_day_total[day] * 100, 1) if by_day_total[day] else 0.0,
-            )
-            for day in sorted(by_day_total.keys())
-        ]
+        return await self.tracking_storage.get_bounce_rate_over_time_stats(
+            start_date=start_date, end_date=end_date, seller_id=seller_id
+        )
 
     @cache.ttl_cache(ttl=600)
     async def get_rfm_segments(

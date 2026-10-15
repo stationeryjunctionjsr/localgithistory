@@ -1,4 +1,5 @@
 from app.models.daos import SessionInternalCreate, SessionInternalUpdate, DeviceSnippet
+from app.models.analytics_schemas import SessionsByDeviceResponse
 import logging
 """
 MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
@@ -344,6 +345,43 @@ class MySQLSessionDAO:
         async with async_session() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} {where_sql}"), params)
             return int(result.scalar() or 0)
+
+    async def get_sessions_by_device_type_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[SessionsByDeviceResponse]:
+        where_clauses = []
+        params = {}
+        if start_date:
+            where_clauses.append("start_time >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("start_time <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(LOWER(NULLIF(device_type, '')), 'desktop') AS device,
+                COUNT(*) AS sessions
+            FROM sj_analytics_sessions
+            {where_sql}
+            GROUP BY device
+            ORDER BY sessions DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SessionsByDeviceResponse(
+                    device=r.device,
+                    sessions=r.sessions or 0,
+                )
+                for r in rows
+            ]
 
     find_all = findAll
     find_by_id = findById

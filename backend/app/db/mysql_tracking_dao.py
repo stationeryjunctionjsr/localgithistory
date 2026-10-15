@@ -17,6 +17,12 @@ from app.models.tracking import (
     ReturningUserItem,
 )
 from app.models.schemas import ItemSnippet
+from app.models.analytics_schemas import (
+    SearchesNoClicksResponse,
+    SearchConversionResponse,
+    BounceRateResponse,
+    SessionsOverTimeResponse,
+)
 
 from sqlalchemy import text
 
@@ -750,5 +756,199 @@ class MySQLTrackingDAO:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)
             await session.commit()
             return res.rowcount
+
+    async def get_searches_with_no_clicks_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[SearchesNoClicksResponse]:
+        where_clauses = [
+            "t.event_type = 'product_search'",
+            "t.search_term IS NOT NULL",
+            "TRIM(t.search_term) != ''",
+            f"NOT EXISTS (SELECT 1 FROM {self.TABLE} c WHERE c.event_type = 'product_click' AND c.session_id = t.session_id)",
+        ]
+        params = {}
+        if start_date:
+            where_clauses.append("t.event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("t.event_timestamp <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                LOWER(TRIM(t.search_term)) AS term,
+                COUNT(*) AS search_count,
+                COALESCE(SUM(COALESCE(t.results_count, 0)), 0) AS total_results,
+                ROUND(AVG(COALESCE(t.results_count, 0)), 1) AS avg_results
+            FROM {self.TABLE} t
+            WHERE {where_sql}
+            GROUP BY LOWER(TRIM(t.search_term))
+            ORDER BY search_count DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SearchesNoClicksResponse(
+                    term=r.term,
+                    searchCount=r.search_count,
+                    totalResults=r.total_results,
+                    avgResults=float(r.avg_results or 0.0),
+                )
+                for r in rows
+            ]
+
+    async def get_search_conversion_rate_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[SearchConversionResponse]:
+        where_clauses_search = ["event_type = 'product_search'", "session_id IS NOT NULL"]
+        where_clauses_order = ["session_id IS NOT NULL", "status NOT IN ('cancelled', 'declined')"]
+        params = {}
+        if start_date:
+            where_clauses_search.append("event_timestamp >= :start_date")
+            where_clauses_order.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses_search.append("event_timestamp <= :end_date")
+            where_clauses_order.append("created_at <= :end_date")
+            params["end_date"] = end_date
+
+        where_search_sql = " AND ".join(where_clauses_search)
+        where_order_sql = " AND ".join(where_clauses_order)
+
+        sql = text(
+            f"""
+            WITH search_sessions AS (
+                SELECT DISTINCT session_id
+                FROM {self.TABLE}
+                WHERE {where_search_sql}
+            ),
+            order_sessions AS (
+                SELECT DISTINCT session_id
+                FROM sj_orders
+                WHERE {where_order_sql}
+            )
+            SELECT 
+                COUNT(s.session_id) AS total_search_sessions,
+                COUNT(o.session_id) AS converted_sessions
+            FROM search_sessions s
+            LEFT JOIN order_sessions o ON o.session_id = s.session_id
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            row = (await session.execute(sql, params)).fetchone()
+            total = row.total_search_sessions if row and row.total_search_sessions else 0
+            converted = row.converted_sessions if row and row.converted_sessions else 0
+            not_converted = total - converted
+            rate = round((converted / total) * 100, 2) if total > 0 else 0.0
+            return [
+                SearchConversionResponse(
+                    totalSearchSessions=total,
+                    convertedSessions=converted,
+                    nonConvertedSessions=not_converted,
+                    conversionRate=rate,
+                )
+            ]
+
+    async def get_bounce_rate_over_time_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[BounceRateResponse]:
+        where_clauses = ["event_type = 'page_view'", "session_id IS NOT NULL", "event_timestamp IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            WITH session_daily_views AS (
+                SELECT 
+                    DATE(event_timestamp) AS day_date,
+                    session_id,
+                    COUNT(*) AS pv_count
+                FROM {self.TABLE}
+                WHERE {where_sql}
+                GROUP BY DATE(event_timestamp), session_id
+            )
+            SELECT 
+                DATE_FORMAT(day_date, '%Y-%m-%d') AS period,
+                COUNT(session_id) AS total_sessions,
+                SUM(CASE WHEN pv_count <= 1 THEN 1 ELSE 0 END) AS bounced_sessions
+            FROM session_daily_views
+            GROUP BY day_date
+            ORDER BY day_date ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                BounceRateResponse(
+                    period=r.period,
+                    totalSessions=r.total_sessions or 0,
+                    bouncedSessions=r.bounced_sessions or 0,
+                    bounceRate=round((float(r.bounced_sessions or 0) / float(r.total_sessions)) * 100, 1) if r.total_sessions else 0.0,
+                )
+                for r in rows
+            ]
+
+    async def get_sessions_over_time_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[int] = None,
+    ) -> List[SessionsOverTimeResponse]:
+        where_clauses = ["event_type = 'session'", "event_timestamp IS NOT NULL"]
+        params = {}
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = " AND ".join(where_clauses)
+        sql = text(
+            f"""
+            SELECT 
+                DATE_FORMAT(event_timestamp, '%Y-%m-%d') AS period,
+                COUNT(*) AS sessions,
+                COUNT(DISTINCT COALESCE(user_id, session_id)) AS visitors,
+                COUNT(DISTINCT COALESCE(user_id, session_id)) AS unique_visitors
+            FROM {self.TABLE}
+            WHERE {where_sql}
+            GROUP BY DATE_FORMAT(event_timestamp, '%Y-%m-%d')
+            ORDER BY period ASC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SessionsOverTimeResponse(
+                    period=r.period,
+                    sessions=r.sessions or 0,
+                    visitors=r.visitors or 0,
+                    uniqueVisitors=r.unique_visitors or 0,
+                )
+                for r in rows
+            ]
 
 

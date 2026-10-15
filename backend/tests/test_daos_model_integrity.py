@@ -883,11 +883,28 @@ async def test_analytics_repository_next_10_methods_model_integrity():
         sig = inspect.signature(fn)
         assert sig.parameters["seller_id"].annotation == Optional[int], f"{method_name} seller_id must be Optional[int]"
 
-    # 3. Verify MySQLOrderDAO signatures
+    # 3. Verify DAO signatures
+    from app.db.mysql_tracking_dao import MySQLTrackingDAO
+    from app.db.mysql_session_dao import MySQLSessionDAO
+
     for dao_method in ["get_coupon_usage_report_stats", "get_sales_by_location_stats"]:
         fn = getattr(MySQLOrderDAO, dao_method)
         sig = inspect.signature(fn)
         assert sig.parameters["seller_id"].annotation == Optional[int], f"{dao_method} seller_id must be Optional[int]"
+
+    for dao_method in [
+        "get_searches_with_no_clicks_stats",
+        "get_search_conversion_rate_stats",
+        "get_bounce_rate_over_time_stats",
+        "get_sessions_over_time_stats",
+    ]:
+        fn = getattr(MySQLTrackingDAO, dao_method)
+        sig = inspect.signature(fn)
+        assert sig.parameters["seller_id"].annotation == Optional[int], f"{dao_method} seller_id must be Optional[int]"
+
+    fn_sbd = getattr(MySQLSessionDAO, "get_sessions_by_device_type_stats")
+    sig_sbd = inspect.signature(fn_sbd)
+    assert sig_sbd.return_annotation == List[SessionsByDeviceResponse]
 
     # 4. Verify ItemsBoughtTogetherResponse IDs are native int
     assert ItemsBoughtTogetherResponse.model_fields["productAId"].annotation is int
@@ -989,99 +1006,229 @@ async def test_analytics_repository_next_10_methods_model_integrity():
         analytics_repository.order_storage.get_items_bought_together_stats = orig_ibt
         analytics_repository.order_storage.get_sales_by_device_type_stats = orig_sbd
 
-    # 6. Test runtime execution of Methods 6-10 (Tracking and session reports)
-    orig_find_date = analytics_repository.tracking_storage.find_by_date_range
-    orig_find_all_track = analytics_repository.tracking_storage.findAll
-    orig_find_all_orders = analytics_repository.order_storage.findAll
-    orig_find_all_sessions = analytics_repository.session_storage.findAll
+    # 6. Test runtime execution of Methods 6-10 (Tracking and session pushdowns)
+    orig_snc = getattr(analytics_repository.tracking_storage, "get_searches_with_no_clicks_stats", None)
+    orig_scr = getattr(analytics_repository.tracking_storage, "get_search_conversion_rate_stats", None)
+    orig_br = getattr(analytics_repository.tracking_storage, "get_bounce_rate_over_time_stats", None)
+    orig_sot = getattr(analytics_repository.tracking_storage, "get_sessions_over_time_stats", None)
+    orig_dev = getattr(analytics_repository.session_storage, "get_sessions_by_device_type_stats", None)
 
     try:
-        # 6. get_searches_with_no_clicks
-        mock_searches = [
-            Tracking(session_id="s1", search_term="gel pen", results_count=5),
-            Tracking(session_id="s2", search_term="gel pen", results_count=3),
-            Tracking(session_id="s3", search_term="notebook", results_count=10),
-        ]
-        # s3 had a click
-        mock_clicks = [Tracking(session_id="s3", type="product_click")]
-
-        analytics_repository.tracking_storage.find_by_date_range = AsyncMock(return_value=mock_searches)
-        analytics_repository.tracking_storage.findAll = AsyncMock(return_value=mock_clicks)
+        analytics_repository.tracking_storage.get_searches_with_no_clicks_stats = AsyncMock(
+            return_value=[
+                SearchesNoClicksResponse(
+                    term="gel pen",
+                    searchCount=2,
+                    totalResults=8,
+                    avgResults=4.0,
+                )
+            ]
+        )
+        analytics_repository.tracking_storage.get_search_conversion_rate_stats = AsyncMock(
+            return_value=[
+                SearchConversionResponse(
+                    totalSearchSessions=3,
+                    convertedSessions=1,
+                    nonConvertedSessions=2,
+                    conversionRate=33.33,
+                )
+            ]
+        )
+        analytics_repository.tracking_storage.get_bounce_rate_over_time_stats = AsyncMock(
+            return_value=[
+                BounceRateResponse(
+                    period="2026-03-15",
+                    totalSessions=2,
+                    bouncedSessions=1,
+                    bounceRate=50.0,
+                )
+            ]
+        )
+        analytics_repository.tracking_storage.get_sessions_over_time_stats = AsyncMock(
+            return_value=[
+                SessionsOverTimeResponse(
+                    period="2026-03-15",
+                    sessions=3,
+                    visitors=2,
+                    uniqueVisitors=2,
+                )
+            ]
+        )
+        analytics_repository.session_storage.get_sessions_by_device_type_stats = AsyncMock(
+            return_value=[
+                SessionsByDeviceResponse(device="desktop", sessions=2),
+                SessionsByDeviceResponse(device="mobile", sessions=2),
+            ]
+        )
 
         res_snc = await analytics_repository.get_searches_with_no_clicks()
         assert len(res_snc) == 1
         assert isinstance(res_snc[0], SearchesNoClicksResponse)
         assert res_snc[0].term == "gel pen"
-        assert res_snc[0].searchCount == 2
-        assert res_snc[0].totalResults == 8
-        assert res_snc[0].avgResults == 4.0
-
-        # 7. get_search_conversion_rate
-        from app.models.order import Order
-        mock_orders = [Order(id=1, session_id="s1")]
-        analytics_repository.order_storage.findAll = AsyncMock(return_value=mock_orders)
 
         res_scr = await analytics_repository.get_search_conversion_rate()
         assert len(res_scr) == 1
         assert isinstance(res_scr[0], SearchConversionResponse)
         assert res_scr[0].totalSearchSessions == 3
-        assert res_scr[0].convertedSessions == 1
-        assert res_scr[0].nonConvertedSessions == 2
-        assert res_scr[0].conversionRate == 33.33
-
-        # 8. get_bounce_rate_over_time
-        mock_page_views = [
-            Tracking(session_id="s1", timestamp="2026-03-15T10:00:00Z"),
-            Tracking(session_id="s1", timestamp="2026-03-15T10:05:00Z"),
-            Tracking(session_id="s2", timestamp="2026-03-15T11:00:00Z"),
-        ]
-        analytics_repository.tracking_storage.find_by_date_range = AsyncMock(return_value=mock_page_views)
 
         res_br = await analytics_repository.get_bounce_rate_over_time()
         assert len(res_br) == 1
         assert isinstance(res_br[0], BounceRateResponse)
         assert res_br[0].period == "2026-03-15"
-        assert res_br[0].totalSessions == 2
-        assert res_br[0].bouncedSessions == 1
-        assert res_br[0].bounceRate == 50.0
-
-        # 9. get_sessions_over_time
-        mock_sessions_track = [
-            Tracking(session_id="s1", user_id="u1", timestamp="2026-03-15T10:00:00Z"),
-            Tracking(session_id="s2", user_id="u1", timestamp="2026-03-15T12:00:00Z"),
-            Tracking(session_id="s3", user_id="u2", timestamp="2026-03-15T14:00:00Z"),
-        ]
-        analytics_repository.tracking_storage.find_by_date_range = AsyncMock(return_value=mock_sessions_track)
 
         res_sot = await analytics_repository.get_sessions_over_time()
         assert len(res_sot) == 1
         assert isinstance(res_sot[0], SessionsOverTimeResponse)
         assert res_sot[0].period == "2026-03-15"
-        assert res_sot[0].sessions == 3
-        assert res_sot[0].uniqueVisitors == 2
-
-        # 10. get_sessions_by_device_type
-        mock_sessions = [
-            Session(id=1, device=DeviceSnippet(type="mobile")),
-            Session(id=2, device=DeviceSnippet(type="mobile")),
-            Session(id=3, device=DeviceSnippet(type="desktop")),
-            Session(id=4, device=None),
-        ]
-        analytics_repository.session_storage.findAll = AsyncMock(return_value=mock_sessions)
 
         res_dev = await analytics_repository.get_sessions_by_device_type()
         assert len(res_dev) == 2
         assert isinstance(res_dev[0], SessionsByDeviceResponse)
         assert res_dev[0].device == "desktop"
-        assert res_dev[0].sessions == 2
-        assert res_dev[1].device == "mobile"
-        assert res_dev[1].sessions == 2
 
     finally:
-        analytics_repository.tracking_storage.find_by_date_range = orig_find_date
-        analytics_repository.tracking_storage.findAll = orig_find_all_track
-        analytics_repository.order_storage.findAll = orig_find_all_orders
-        analytics_repository.session_storage.findAll = orig_find_all_sessions
+        analytics_repository.tracking_storage.get_searches_with_no_clicks_stats = orig_snc
+        analytics_repository.tracking_storage.get_search_conversion_rate_stats = orig_scr
+        analytics_repository.tracking_storage.get_bounce_rate_over_time_stats = orig_br
+        analytics_repository.tracking_storage.get_sessions_over_time_stats = orig_sot
+        analytics_repository.session_storage.get_sessions_by_device_type_stats = orig_dev
+
+
+@pytest.mark.asyncio
+async def test_tracking_and_session_pushdown_dao_methods():
+    from unittest.mock import patch, MagicMock, AsyncMock
+    from datetime import datetime, timezone
+    from app.db.mysql_tracking_dao import MySQLTrackingDAO
+    from app.db.mysql_session_dao import MySQLSessionDAO
+    from app.models.analytics_schemas import (
+        SearchesNoClicksResponse,
+        SearchConversionResponse,
+        BounceRateResponse,
+        SessionsOverTimeResponse,
+        SessionsByDeviceResponse,
+    )
+
+    # 1. Test MySQLTrackingDAO.get_searches_with_no_clicks_stats
+    dao_track = MySQLTrackingDAO()
+    mock_session = AsyncMock()
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    row_snc = MagicMock()
+    row_snc.term = "fountain pen"
+    row_snc.search_count = 5
+    row_snc.total_results = 20
+    row_snc.avg_results = 4.0
+    mock_res_snc = MagicMock()
+    mock_res_snc.fetchall.return_value = [row_snc]
+    mock_session.execute.return_value = mock_res_snc
+
+    start = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 3, 31, tzinfo=timezone.utc)
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        res = await dao_track.get_searches_with_no_clicks_stats(start_date=start, end_date=end, seller_id=10)
+        assert len(res) == 1
+        assert isinstance(res[0], SearchesNoClicksResponse)
+        assert res[0].term == "fountain pen"
+        assert res[0].searchCount == 5
+        assert res[0].totalResults == 20
+        assert res[0].avgResults == 4.0
+        query_snc = str(mock_session.execute.call_args[0][0])
+        assert "GROUP BY LOWER(TRIM(t.search_term))" in query_snc
+        assert "NOT EXISTS" in query_snc
+
+    # 2. Test MySQLTrackingDAO.get_search_conversion_rate_stats
+    row_scr = MagicMock()
+    row_scr.total_search_sessions = 10
+    row_scr.converted_sessions = 3
+    mock_res_scr = MagicMock()
+    mock_res_scr.fetchone.return_value = row_scr
+    mock_session.execute.return_value = mock_res_scr
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        res = await dao_track.get_search_conversion_rate_stats(start_date=start, end_date=end, seller_id=10)
+        assert len(res) == 1
+        assert isinstance(res[0], SearchConversionResponse)
+        assert res[0].totalSearchSessions == 10
+        assert res[0].convertedSessions == 3
+        assert res[0].nonConvertedSessions == 7
+        assert res[0].conversionRate == 30.0
+        query_scr = str(mock_session.execute.call_args[0][0])
+        assert "WITH search_sessions AS" in query_scr
+        assert "LEFT JOIN order_sessions" in query_scr
+
+    # 3. Test MySQLTrackingDAO.get_bounce_rate_over_time_stats
+    row_br = MagicMock()
+    row_br.period = "2026-03-15"
+    row_br.total_sessions = 10
+    row_br.bounced_sessions = 4
+    mock_res_br = MagicMock()
+    mock_res_br.fetchall.return_value = [row_br]
+    mock_session.execute.return_value = mock_res_br
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        res = await dao_track.get_bounce_rate_over_time_stats(start_date=start, end_date=end, seller_id=10)
+        assert len(res) == 1
+        assert isinstance(res[0], BounceRateResponse)
+        assert res[0].period == "2026-03-15"
+        assert res[0].totalSessions == 10
+        assert res[0].bouncedSessions == 4
+        assert res[0].bounceRate == 40.0
+        query_br = str(mock_session.execute.call_args[0][0])
+        assert "WITH session_daily_views AS" in query_br
+        assert "pv_count <= 1" in query_br
+
+    # 4. Test MySQLTrackingDAO.get_sessions_over_time_stats
+    row_sot = MagicMock()
+    row_sot.period = "2026-03-15"
+    row_sot.sessions = 25
+    row_sot.visitors = 18
+    row_sot.unique_visitors = 18
+    mock_res_sot = MagicMock()
+    mock_res_sot.fetchall.return_value = [row_sot]
+    mock_session.execute.return_value = mock_res_sot
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        res = await dao_track.get_sessions_over_time_stats(start_date=start, end_date=end, seller_id=10)
+        assert len(res) == 1
+        assert isinstance(res[0], SessionsOverTimeResponse)
+        assert res[0].period == "2026-03-15"
+        assert res[0].sessions == 25
+        assert res[0].visitors == 18
+        assert res[0].uniqueVisitors == 18
+        query_sot = str(mock_session.execute.call_args[0][0])
+        assert "DATE_FORMAT(event_timestamp, '%Y-%m-%d')" in query_sot
+        assert "COUNT(DISTINCT COALESCE(user_id, session_id))" in query_sot
+
+    # 5. Test MySQLSessionDAO.get_sessions_by_device_type_stats
+    dao_session = MySQLSessionDAO()
+    mock_session_s = AsyncMock()
+    mock_factory_s = MagicMock()
+    mock_factory_s.return_value.__aenter__.return_value = mock_session_s
+
+    row_s1 = MagicMock()
+    row_s1.device = "mobile"
+    row_s1.sessions = 15
+    row_s2 = MagicMock()
+    row_s2.device = "desktop"
+    row_s2.sessions = 10
+    mock_res_sbd = MagicMock()
+    mock_res_sbd.fetchall.return_value = [row_s1, row_s2]
+    mock_session_s.execute.return_value = mock_res_sbd
+
+    with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=mock_factory_s):
+        res = await dao_session.get_sessions_by_device_type_stats(start_date=start, end_date=end)
+        assert len(res) == 2
+        assert isinstance(res[0], SessionsByDeviceResponse)
+        assert res[0].device == "mobile"
+        assert res[0].sessions == 15
+        assert res[1].device == "desktop"
+        assert res[1].sessions == 10
+        query_sbd = str(mock_session_s.execute.call_args[0][0])
+        assert "FROM sj_analytics_sessions" in query_sbd
+        assert "GROUP BY device" in query_sbd
+
 
 
 

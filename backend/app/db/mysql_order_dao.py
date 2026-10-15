@@ -2443,9 +2443,9 @@ class MySQLOrderDAO:
             rows = (await session.execute(sql, params)).fetchall()
             return [
                 ItemsBoughtTogetherResponse(
-                    productAId=int(r.product_a_id),
+                    productAId=r.product_a_id,
                     productAName=r.product_a_name,
-                    productBId=int(r.product_b_id),
+                    productBId=r.product_b_id,
                     productBName=r.product_b_name,
                     frequency=r.frequency or 0,
                 )
@@ -2474,7 +2474,7 @@ class MySQLOrderDAO:
                 COUNT(o.id) AS order_count,
                 COALESCE(SUM(o.total), 0.0) AS revenue
             FROM {self.TABLE} o
-            LEFT JOIN sj_sessions s ON s.session_id = o.session_id
+            LEFT JOIN sj_analytics_sessions s ON s.session_id = o.session_id
             WHERE {where_sql}
             GROUP BY device_type
             HAVING order_count > 0
