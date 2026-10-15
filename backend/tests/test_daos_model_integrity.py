@@ -1341,6 +1341,240 @@ async def test_user_and_cohort_order_dao_pushdowns():
         assert "o.user_id AS user_id" in query_top
 
 
+@pytest.mark.asyncio
+async def test_pydantic_email_and_invoice_models():
+    from unittest.mock import patch
+    from app.models.schemas import PopulatedOrderResponse, PopulatedOrderItemResponse, UserSnippet, Address, ReturnRequestResponse, ReturnRequestStatus
+    from app.models.product import Product
+    from app.utils.invoice_generator import generate_invoice_pdf
+    from app.services.email_service import email_service
+
+    prod = Product(
+        id=10,
+        product_id=10,
+        name="Test Notebook",
+        sku="NB-10",
+        hsn_code="4820",
+    )
+    item = PopulatedOrderItemResponse(
+        product=prod,
+        quantity=2,
+        price=150.0,
+        tax_rate=18.0,
+        tax_amount=27.0,
+    )
+    user = UserSnippet(
+        name="Test Customer",
+        email="customer@example.com",
+        company_name="Acme Corp",
+    )
+    addr = Address(
+        name="Test Customer",
+        street="123 Main St",
+        city="Mumbai",
+        state="Maharashtra",
+        pincode="400001",
+    )
+    order = PopulatedOrderResponse(
+        id="1001",
+        order_id="ORD-1001",
+        user=user,
+        items=[item],
+        shipping_address=addr,
+        payment_method="UPI",
+        total=300.0,
+        shipping_charge=40.0,
+        discount=20.0,
+    )
+
+    # 1. Test Invoice PDF generation with Pydantic model
+    buf = await generate_invoice_pdf(order)
+    pdf_bytes = buf.getvalue()
+    assert pdf_bytes.startswith(b"%PDF")
+
+    # 2. Test send_order_placed_email with Pydantic model
+    from app.services.email_service import EmailService
+    svc = EmailService()
+    with patch.object(svc, "send_email", return_value=True) as mock_send:
+        ok = svc.send_order_placed_email("customer@example.com", order)
+        assert ok is True
+        assert mock_send.called
+        call_args = mock_send.call_args[0]
+        assert "ORD-1001" in call_args[1]  # subject contains order number
+        assert "Test Notebook" in call_args[3]  # html body contains item name
+
+    # 3. Test send_order_returned_email with ReturnRequestResponse
+    ret_req = ReturnRequestResponse(
+        id=55,
+        order_id=1001,
+        user_id=12,
+        items=[],
+        payment_method="UPI",
+        status=ReturnRequestStatus.PENDING,
+        deliveryCharge=0.0,
+    )
+    with patch.object(svc, "send_email", return_value=True) as mock_send_ret:
+        ok = svc.send_order_returned_email("customer@example.com", ret_req)
+        assert ok is True
+        assert mock_send_ret.called
+        call_args_ret = mock_send_ret.call_args[0]
+        assert "Return #55" in call_args_ret[1]
+        assert "1001" in call_args_ret[2]
+
+
+@pytest.mark.asyncio
+async def test_batch_a_analytics_pushdowns():
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from app.repositories.analytics_repository import analytics_repository
+    from app.models.analytics_schemas import (
+        VisitorsNowResponse,
+        SessionsByLandingPageResponse,
+        CheckoutFunnelResponse,
+        SessionsByLocationResponse,
+        FunnelStage,
+        FunnelStageNoDrop,
+    )
+    from app.db.mysql_tracking_dao import MySQLTrackingDAO
+    from app.db.mysql_session_dao import MySQLSessionDAO
+
+    # 1. Verify Repository delegation for all 4 methods
+    orig_act = analytics_repository.tracking_storage.get_active_visitors_now_stats
+    orig_lan = analytics_repository.tracking_storage.get_sessions_by_landing_page_stats
+    orig_fun = analytics_repository.tracking_storage.get_checkout_funnel_stats
+    orig_loc = analytics_repository.session_storage.get_sessions_by_location_stats
+
+    try:
+        analytics_repository.tracking_storage.get_active_visitors_now_stats = AsyncMock(
+            return_value=VisitorsNowResponse(activeVisitors=15, loggedInSessions=10, guestSessions=5, windowMinutes=15)
+        )
+        analytics_repository.tracking_storage.get_sessions_by_landing_page_stats = AsyncMock(
+            return_value=[SessionsByLandingPageResponse(landing_page="/home", sessions=50)]
+        )
+        analytics_repository.tracking_storage.get_checkout_funnel_stats = AsyncMock(
+            return_value=CheckoutFunnelResponse(
+                cart=FunnelStageNoDrop(count=100, percentage=100.0),
+                shipping=FunnelStage(count=80, percentage=80.0, drop_percentage=20.0),
+                review=FunnelStage(count=60, percentage=60.0, drop_percentage=25.0),
+                payment=FunnelStage(count=40, percentage=40.0, drop_percentage=33.33),
+                completed=FunnelStage(count=30, percentage=30.0, drop_percentage=25.0),
+                overall_checkout_conversion=30.0,
+            )
+        )
+        analytics_repository.session_storage.get_sessions_by_location_stats = AsyncMock(
+            return_value=[SessionsByLocationResponse(location="Mumbai", sessions=45)]
+        )
+
+        res_act = await analytics_repository.get_active_visitors_now()
+        assert res_act.activeVisitors == 15
+        assert res_act.loggedInSessions == 10
+        assert res_act.guestSessions == 5
+        assert isinstance(res_act, VisitorsNowResponse)
+
+        res_lan = await analytics_repository.get_sessions_by_landing_page()
+        assert len(res_lan) == 1
+        assert res_lan[0].landing_page == "/home"
+        assert res_lan[0].sessions == 50
+        assert isinstance(res_lan[0], SessionsByLandingPageResponse)
+
+        res_fun = await analytics_repository.get_checkout_funnel()
+        assert res_fun.cart.count == 100
+        assert res_fun.overall_checkout_conversion == 30.0
+        assert isinstance(res_fun, CheckoutFunnelResponse)
+
+        res_loc = await analytics_repository.get_sessions_by_location()
+        assert len(res_loc) == 1
+        assert res_loc[0].location == "Mumbai"
+        assert res_loc[0].sessions == 45
+        assert isinstance(res_loc[0], SessionsByLocationResponse)
+    finally:
+        analytics_repository.tracking_storage.get_active_visitors_now_stats = orig_act
+        analytics_repository.tracking_storage.get_sessions_by_landing_page_stats = orig_lan
+        analytics_repository.tracking_storage.get_checkout_funnel_stats = orig_fun
+        analytics_repository.session_storage.get_sessions_by_location_stats = orig_loc
+
+    # 2. Verify MySQLTrackingDAO.get_active_visitors_now_stats
+    tracking_dao = MySQLTrackingDAO()
+    mock_session = AsyncMock()
+    mock_factory = MagicMock()
+    mock_factory.return_value.__aenter__.return_value = mock_session
+
+    row_act = MagicMock()
+    row_act.active_visitors = 22
+    row_act.logged_in_sessions = 12
+    row_act.guest_sessions = 10
+    mock_res_act = MagicMock()
+    mock_res_act.fetchone.return_value = row_act
+    mock_session.execute.return_value = mock_res_act
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        dao_act = await tracking_dao.get_active_visitors_now_stats(window_minutes=15)
+        assert dao_act.activeVisitors == 22
+        assert dao_act.loggedInSessions == 12
+        assert dao_act.guestSessions == 10
+        query_act = str(mock_session.execute.call_args[0][0])
+        assert "COUNT(DISTINCT session_id) AS active_visitors" in query_act
+        assert "COUNT(DISTINCT CASE WHEN user_id IS NOT NULL" in query_act
+
+    # 3. Verify MySQLTrackingDAO.get_sessions_by_landing_page_stats
+    row_lan = MagicMock()
+    row_lan.landing_page = "/products"
+    row_lan.sessions = 75
+    mock_res_lan = MagicMock()
+    mock_res_lan.fetchall.return_value = [row_lan]
+    mock_session.execute.return_value = mock_res_lan
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        dao_lan = await tracking_dao.get_sessions_by_landing_page_stats()
+        assert len(dao_lan) == 1
+        assert dao_lan[0].landing_page == "/products"
+        assert dao_lan[0].sessions == 75
+        query_lan = str(mock_session.execute.call_args[0][0])
+        assert "WITH first_pages AS" in query_lan
+        assert "ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY event_timestamp ASC)" in query_lan
+
+    # 4. Verify MySQLTrackingDAO.get_checkout_funnel_stats
+    row_fun = MagicMock()
+    row_fun.cart_sessions = 100
+    row_fun.step1_sessions = 80
+    row_fun.step2_sessions = 60
+    row_fun.step3_sessions = 40
+    row_fun.completed_sessions = 30
+    mock_res_fun = MagicMock()
+    mock_res_fun.fetchone.return_value = row_fun
+    mock_session.execute.return_value = mock_res_fun
+
+    with patch("app.db.mysql_tracking_dao.get_async_session_factory", return_value=mock_factory):
+        dao_fun = await tracking_dao.get_checkout_funnel_stats()
+        assert dao_fun.cart.count == 100
+        assert dao_fun.shipping.count == 80
+        assert dao_fun.overall_checkout_conversion == 30.0
+        query_fun = str(mock_session.execute.call_args[0][0])
+        assert "WITH tracking_counts AS" in query_fun
+        assert "order_counts AS" in query_fun
+        assert "CROSS JOIN order_counts" in query_fun
+
+    # 5. Verify MySQLSessionDAO.get_sessions_by_location_stats
+    session_dao = MySQLSessionDAO()
+    row_loc = MagicMock()
+    row_loc.location = "Bengaluru"
+    row_loc.sessions = 120
+    mock_res_loc = MagicMock()
+    mock_res_loc.fetchall.return_value = [row_loc]
+    mock_session.execute.return_value = mock_res_loc
+
+    with patch("app.db.mysql_session_dao.get_async_session_factory", return_value=mock_factory):
+        dao_loc = await session_dao.get_sessions_by_location_stats()
+        assert len(dao_loc) == 1
+        assert dao_loc[0].location == "Bengaluru"
+        assert dao_loc[0].sessions == 120
+        query_loc = str(mock_session.execute.call_args[0][0])
+        assert "sj_analytics_sessions" in query_loc
+        assert "sj_user_addresses" in query_loc
+        assert "GROUP BY location" in query_loc
+
+
+
+
 
 
 

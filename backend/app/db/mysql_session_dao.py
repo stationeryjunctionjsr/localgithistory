@@ -1,5 +1,5 @@
 from app.models.daos import SessionInternalCreate, SessionInternalUpdate, DeviceSnippet
-from app.models.analytics_schemas import SessionsByDeviceResponse
+from app.models.analytics_schemas import SessionsByDeviceResponse, SessionsByLocationResponse
 import logging
 """
 MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
@@ -378,6 +378,49 @@ class MySQLSessionDAO:
             return [
                 SessionsByDeviceResponse(
                     device=r.device,
+                    sessions=r.sessions or 0,
+                )
+                for r in rows
+            ]
+
+    async def get_sessions_by_location_stats(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[SessionsByLocationResponse]:
+        where_clauses = []
+        params = {}
+        if start_date:
+            where_clauses.append("s.start_time >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("s.start_time <= :end_date")
+            params["end_date"] = end_date
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        sql = text(
+            f"""
+            SELECT 
+                COALESCE(NULLIF(TRIM(a.city), ''), NULLIF(TRIM(a.state), ''), 'Unknown') AS location,
+                COUNT(DISTINCT s.session_id) AS sessions
+            FROM sj_analytics_sessions s
+            LEFT JOIN sj_users u ON (s.user_id = u.id OR s.user_id = u.external_id)
+            LEFT JOIN (
+                SELECT user_id, city, state,
+                       ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY is_primary DESC, id ASC) as rn
+                FROM sj_user_addresses
+            ) a ON a.user_id = u.id AND a.rn = 1
+            {where_sql}
+            GROUP BY location
+            ORDER BY sessions DESC
+            """
+        )
+        async_session = get_async_session_factory()
+        async with async_session() as session:
+            rows = (await session.execute(sql, params)).fetchall()
+            return [
+                SessionsByLocationResponse(
+                    location=r.location,
                     sessions=r.sessions or 0,
                 )
                 for r in rows

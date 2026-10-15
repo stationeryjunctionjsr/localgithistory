@@ -54,6 +54,9 @@ from app.models.analytics_schemas import (
     CustomerCohortResponse,
     TopUsersReportResponse,
     UserOrderStatsResponse,
+    CheckoutFunnelResponse,
+    SessionsByLocationResponse,
+    SessionsByLandingPageResponse,
 )
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -343,63 +346,11 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_checkout_funnel(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> Dict:
+    ) -> CheckoutFunnelResponse:
         """Get detailed checkout funnel stages breakdown"""
-        order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
-        orders = await self.order_storage.findAll(order_filter)
-
-        async def get_unique_sessions_for_page(page_path: str) -> int:
-            events = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
-            events = [e for e in events if e.page == page_path]
-            return len(set(e.session_id for e in events if e.session_id))
-
-        cart_sessions = await get_unique_sessions_for_page("/customer/cart")
-        step1_sessions = await get_unique_sessions_for_page("/checkout/step1")
-        step2_sessions = await get_unique_sessions_for_page("/checkout/step2")
-        step3_sessions = await get_unique_sessions_for_page("/checkout/step3")
-
-        completed_orders = [o for o in orders if o.status not in ["cancelled"]]
-        completed_sessions = len(set(o.session_id for o in completed_orders if o.session_id))
-        if completed_sessions == 0:
-            completed_sessions = len(completed_orders)
-
-        # Fallbacks for dev preview
-        if cart_sessions == 0:
-            cart_sessions = int(max(10, completed_sessions * 3))
-        if step1_sessions == 0:
-            step1_sessions = int(max(0, min(cart_sessions, completed_sessions * 2)))
-        if step2_sessions == 0:
-            step2_sessions = int(max(0, min(step1_sessions, completed_sessions * 1.5)))
-        if step3_sessions == 0:
-            step3_sessions = int(max(0, min(step2_sessions, completed_sessions * 1.1)))
-
-        # Enforce valid hierarchy bounds
-        step3_sessions = min(step2_sessions, step3_sessions)
-        step2_sessions = min(step1_sessions, step2_sessions)
-        step1_sessions = min(cart_sessions, step1_sessions)
-        completed_sessions = min(step3_sessions, completed_sessions)
-
-        def make_stage(count, total, drop_percentage=None):
-            pct = (count / total * 100) if total > 0 else 0
-            if drop_percentage is not None:
-                return {"count": count, "percentage": pct, "drop_percentage": drop_percentage}
-            return {"count": count, "percentage": pct}
-
-        drop_cart_to_step1 = ((cart_sessions - step1_sessions) / cart_sessions * 100) if cart_sessions > 0 else 0
-        drop_step1_to_step2 = ((step1_sessions - step2_sessions) / step1_sessions * 100) if step1_sessions > 0 else 0
-        drop_step2_to_step3 = ((step2_sessions - step3_sessions) / step2_sessions * 100) if step2_sessions > 0 else 0
-        drop_step3_to_complete = (
-            ((step3_sessions - completed_sessions) / step3_sessions * 100) if step3_sessions > 0 else 0
+        return await self.tracking_storage.get_checkout_funnel_stats(
+            start_date=start_date, end_date=end_date
         )
-
-        return {
-            "cart": make_stage(cart_sessions, cart_sessions),
-            "shipping": make_stage(step1_sessions, cart_sessions, drop_cart_to_step1),
-            "review": make_stage(step2_sessions, cart_sessions, drop_step1_to_step2),
-            "payment": make_stage(step3_sessions, cart_sessions, drop_step2_to_step3),
-            "completed": make_stage(completed_sessions, cart_sessions, drop_step3_to_complete),
-            "overall_checkout_conversion": (completed_sessions / cart_sessions * 100) if cart_sessions > 0 else 0,
-        }
 
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_device_type(
@@ -413,15 +364,11 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_location(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[SessionsByLocationResponse]:
         """Get sessions by location"""
-        sessions = await self.session_storage.findAll()
-        sessions = self._filter_by_date_range(sessions, start_date, end_date)
-        location_counts = defaultdict(int)
-        for s in sessions:
-            location = s.location
-            location_counts[location] += 1
-        return [{"location": k, "sessions": v} for k, v in location_counts.items()]
+        return await self.session_storage.get_sessions_by_location_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_products_by_sell_through_rate(
@@ -446,24 +393,11 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_landing_page(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> List[Dict]:
+    ) -> List[SessionsByLandingPageResponse]:
         """Get sessions by landing page"""
-        tracking = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
-
-        session_landing = {}
-        for t in tracking:
-            sid = t.session_id
-            if not sid:
-                continue
-            ts = self._parse_date(t.timestamp)
-            if sid not in session_landing or ts < session_landing[sid]["ts"]:
-                session_landing[sid] = {"ts": ts, "page": t.page}
-
-        landing_counts = defaultdict(int)
-        for val in session_landing.values():
-            landing_counts[val["page"]] += 1
-
-        return [{"landing_page": k, "sessions": v} for k, v in landing_counts.items()]
+        return await self.tracking_storage.get_sessions_by_landing_page_stats(
+            start_date=start_date, end_date=end_date
+        )
 
     @cache.ttl_cache(ttl=300)
     async def get_all_user_engagement_aggregate(self) -> Dict:
@@ -1008,31 +942,7 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=30)
     async def get_active_visitors_now(self, seller_id: Optional[int] = None) -> VisitorsNowResponse:
         """Count of unique sessions active in the last 15 minutes."""
-        from datetime import timedelta
-
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=15)
-        sessions = await self.tracking_storage.findAll({"type": "session"})
-
-        active, logged_in, guest = set(), set(), set()
-        for s in sessions:
-            ts = self._to_naive_utc(self._parse_date(s.timestamp))
-            if not ts or ts < cutoff:
-                continue
-            sid = s.session_id
-            if not sid:
-                continue
-            active.add(sid)
-            if s.user_id:
-                logged_in.add(sid)
-            else:
-                guest.add(sid)
-
-        return VisitorsNowResponse(
-            activeVisitors=len(active),
-            loggedInSessions=len(logged_in),
-            guestSessions=len(guest),
-            windowMinutes=15,
-        )
+        return await self.tracking_storage.get_active_visitors_now_stats(seller_id=seller_id)
 
     @cache.ttl_cache(ttl=300)
     async def get_searches_with_no_clicks(
