@@ -1,8 +1,10 @@
 from app.models.user import User
+import asyncio
 import logging
 import os
+import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Set
 
 import bcrypt
 from fastapi import Depends, HTTPException, Request, status
@@ -27,6 +29,57 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour; frontend refreshes automatically via refresh token when this expires
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 INACTIVITY_DAYS = 30  # session revoked after this many days without any request; user must log in again
+
+# In-memory debounce for session activity touch via strict Pydantic model
+SESSION_TOUCH_DEBOUNCE_SECONDS = 300.0  # 5 minutes
+
+
+class SessionTouchEntry(BaseModel):
+    session_id: int
+    last_touched_monotonic: float
+
+
+class SessionTouchDebouncer(BaseModel):
+    debounce_seconds: float = SESSION_TOUCH_DEBOUNCE_SECONDS
+    entries: list[SessionTouchEntry] = []
+
+    def should_touch(self, session_id: int, now_monotonic: float) -> bool:
+        for entry in self.entries:
+            if entry.session_id == session_id:
+                if now_monotonic - entry.last_touched_monotonic >= self.debounce_seconds:
+                    entry.last_touched_monotonic = now_monotonic
+                    return True
+                return False
+
+        self.entries.append(
+            SessionTouchEntry(session_id=session_id, last_touched_monotonic=now_monotonic)
+        )
+        if len(self.entries) > 2000:
+            stale_threshold = now_monotonic - (self.debounce_seconds * 2)
+            self.entries = [
+                e for e in self.entries if e.last_touched_monotonic >= stale_threshold
+            ]
+        return True
+
+
+_session_debouncer = SessionTouchDebouncer()
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def _async_touch_session(s_id: int) -> None:
+    from app.repositories.session_repository import session_repository
+    try:
+        await session_repository.touch(s_id)
+    except Exception as exc:
+        logger.warning("Background session touch failed for session %s: %s", s_id, exc)
+
+
+def _trigger_session_touch(s_id: int) -> None:
+    now_mono = time.monotonic()
+    if _session_debouncer.should_touch(s_id, now_mono):
+        task = asyncio.create_task(_async_touch_session(s_id))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
 # Error codes
 ERR_SESSION_REVOKED = "SESSION_REVOKED"
@@ -154,7 +207,7 @@ async def verify_token(token: str) -> 'User':
             },
         )
 
-    await session_repository.touch(session_id)
+    _trigger_session_touch(session_id)
 
     user = await user_repository.findById(user_id)
     if user is None or not (user.is_active if user.is_active is not None else True):
@@ -243,7 +296,7 @@ async def get_current_user(
 async def get_optional_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_security),
-) -> Optional[dict]:
+) -> Optional['User']:
     """
     Get current user if token provided, otherwise return None.
     """

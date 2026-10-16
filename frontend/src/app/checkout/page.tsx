@@ -1657,7 +1657,7 @@ export default function CheckoutPage() {
 
             {deliverTo === 'someone_else' && (
               <div className={ck.formGroup}>
-                <label className={ck.formLabel}>Recipient's Contact Phone (Optional)</label>
+                <label className={ck.formLabel}>Recipient&apos;s Contact Phone (Optional)</label>
                 <input
                   type="tel"
                   className={ck.formInput}

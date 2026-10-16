@@ -1279,7 +1279,7 @@ class NotifyMeRequest(BaseModel):
 async def notify_me(
     product_id: int,
     data: NotifyMeRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """Register a user email for stock restock notification on a product."""
     email = None
