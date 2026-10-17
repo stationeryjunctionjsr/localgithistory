@@ -261,8 +261,9 @@ class RecommendationRepository:
         out: set = set()
         for item in (cart.items if cart.items is not None else []):
             pid = item.product or item.product_id
-            if pid:
-                out.add(str(pid))  # normalize int → str so exclude checks work correctly
+            if pid is not None:
+                out.add(pid)
+                out.add(str(pid))
         return out
 
     async def _get_retail_bestsellers_or_trending(
@@ -933,7 +934,9 @@ class RecommendationRepository:
         def to_products(ids: list[str]) -> list['SkinnyProductResponse']:
             out = []
             for pid in ids:
-                p = product_map[pid] if pid in product_map else None
+                p = product_map[pid] if pid in product_map else (
+                    product_map[int(pid)] if isinstance(pid, str) and pid.isdigit() and int(pid) in product_map else None
+                )
                 if p and self._is_available_in_zone(p, seller_id_set):
                     # Apply category-tag filter when requested
                     if _tag_category_names is not None:
@@ -956,7 +959,9 @@ class RecommendationRepository:
             """
             out = []
             for pid in ids:
-                p = product_map[pid] if pid in product_map else None
+                p = product_map[pid] if pid in product_map else (
+                    product_map[int(pid)] if isinstance(pid, str) and pid.isdigit() and int(pid) in product_map else None
+                )
                 if p:
                     # Apply category-tag filter when requested
                     if _tag_category_names is not None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel, computed_field
 from app.models.base import CamelBaseModel
@@ -235,7 +235,7 @@ class PincodeStat(BaseModel):
     count: int
     
 class SearchResultItem(BaseModel):
-    id: str
+    id: Union[int, str]
     name: str
     type: str
 
@@ -1198,7 +1198,7 @@ class ReturnRequest(CamelBaseModel):
 
 
 class ProductResponse(ProductBase):
-    id: str
+    id: Union[int, str]
     productId: Optional[int] = None
     productIdFormatted: Optional[str] = None
     price: Optional[float] = None
@@ -1264,7 +1264,7 @@ class RecommendationResponse(CamelBaseModel):
         return item in keys
 
 class SkinnyProductResponse(CamelBaseModel):
-    id: str
+    id: Union[int, str]
     product_id: Optional[int] = None
     product_id_formatted: Optional[str] = None
     name: str

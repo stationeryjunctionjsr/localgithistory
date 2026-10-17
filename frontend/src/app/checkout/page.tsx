@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
@@ -116,6 +116,17 @@ export default function CheckoutPage() {
   const [printedBill, setPrintedBill] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
+
+  // Stable idempotency key for the current checkout session.
+  // Generated once at mount (not on each click) so that if the network drops
+  // and the user clicks "Place Order" again, the same key is sent and the
+  // backend deduplicates the request instead of creating a duplicate order.
+  // Reset to a fresh UUID after a successful order submission.
+  const orderIdempotencyKey = useRef<string>(
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `chk-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  );
 
   // Coupons & Referrals
   const [couponInput, setCouponInput] = useState('');
@@ -674,15 +685,17 @@ export default function CheckoutPage() {
         deliverySlotDate: activeMode === 'pan_india' ? null : (selectedDeliveryType === 'urgent' ? null : (selectedSlot ? selectedSlotDate : null)),
       };
 
-      const idempotencyKey =
+      const res = await api.post('/orders', payload, {
+        headers: { 'Idempotency-Key': orderIdempotencyKey.current },
+      });
+      const createdOrder = res.data;
+
+      // Rotate the key immediately after a confirmed success so that a
+      // subsequent order in the same checkout session gets a fresh key.
+      orderIdempotencyKey.current =
         typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
           ? crypto.randomUUID()
           : `chk-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
-      const res = await api.post('/orders', payload, {
-        headers: { 'Idempotency-Key': idempotencyKey },
-      });
-      const createdOrder = res.data;
 
       // Track purchase conversion event for GA4 / GTM
       trackEcommerceEvent('purchase', {

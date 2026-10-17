@@ -2,6 +2,7 @@ from app.models.schemas import UserUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse, Msg91WebhookPayload
 import os
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import uuid4
 
@@ -451,25 +452,83 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
         )
 
     if session.refresh_token_id != refresh_id:
-        # refresh token mismatched -> revoke
-        session = await session_repository.revoke_session(session_id, "refresh_mismatch")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "code": ERR_SESSION_REVOKED,
-                "revokedAt": session.revoked_at,
-                "reason": session.revoked_reason,
-            },
-        )
+        # Determine whether this is a concurrent-request race or genuine token reuse.
+        #
+        # Race scenario: user has two browser tabs; both hit 401 simultaneously and both
+        # call /auth/refresh before the frontend mutex can suppress the second call.
+        # Tab A succeeds first, rotates refresh_token_id, and sets updated_at to NOW.
+        # Tab B arrives milliseconds later with the old refresh_id — it's a race, not
+        # an attack.  session.updated_at being very recent is a reliable signal of this.
+        #
+        # Attack scenario: a stolen refresh token is used from a different client.
+        # In that case updated_at will NOT be within a few seconds of now (the legitimate
+        # rotation happened earlier and the session has been idle since).
+        #
+        # Grace window: 15 seconds is generous for any network round-trip while being
+        # far too short for an attacker who obtained a token via a different channel.
+        RACE_GRACE_SECONDS = 15
+        is_race = False
+        if session.updated_at:
+            try:
+                updated = (
+                    session.updated_at
+                    if session.updated_at.tzinfo
+                    else session.updated_at.replace(tzinfo=timezone.utc)
+                )
+                is_race = (datetime.now(timezone.utc) - updated) < timedelta(seconds=RACE_GRACE_SECONDS)
+            except Exception:
+                pass  # if we can't parse the timestamp, treat as non-race → revoke
 
-    # touch activity and issue new tokens (60s SQL debounce via DAO)
+        if not is_race:
+            # Outside grace window → genuine reuse or stale token → revoke
+            session = await session_repository.revoke_session(session_id, "refresh_mismatch")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code": ERR_SESSION_REVOKED,
+                    "revokedAt": session.revoked_at,
+                    "reason": session.revoked_reason,
+                },
+            )
+
+        # Inside grace window → race condition; re-issue tokens from the CURRENT
+        # session.refresh_token_id without rotating it again (the winning request
+        # already did the rotation and the client-side mutex will propagate those
+        # tokens to this tab once both requests resolve).
+        access_token = create_access_token(user_id, session_id)
+        refresh_token = create_refresh_token(user_id, session_id, session.refresh_token_id)
+
+        user = await user_repository.findById(user_id)
+        if not user or not (user.is_active if user.is_active is not None else True):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+
+        effective_role = "customer"
+        if user.is_deactivated and user.role == "wholesaler":
+            effective_role = "customer"
+        else:
+            effective_role = (user.role if user.role is not None else "customer")
+
+        user_response = UserResponse.model_validate(user, from_attributes=True)
+        user_response.effectiveRole = effective_role
+        user_response.password = None
+        auth_data = AuthResponse(token=access_token, refresh_token=refresh_token, session_id=session_id, user=user_response)
+        set_auth_cookies(response, access_token, refresh_token, session_id)
+        return auth_data
+
+    # Happy path: refresh_id matches.
+    # Touch last_active_at (DAO has its own 60s debounce — a noop if recently touched).
     await session_repository.touch(session_id)
-    device = parse_device(request, default_type="web")
-    await session_repository.update_session(session_id, SessionInternalUpdate(device=device))
 
+    # Rotate refresh_token_id and update device in ONE round-trip instead of two
+    # separate update_session calls (each of which opens a connection and runs an
+    # UPDATE + COMMIT).
     access_token = create_access_token(user_id, session_id)
     new_refresh_id = str(uuid4())
-    await session_repository.update_session(session_id, SessionInternalUpdate(refresh_token_id=new_refresh_id))
+    device = parse_device(request, default_type="web")
+    await session_repository.update_session(
+        session_id,
+        SessionInternalUpdate(refresh_token_id=new_refresh_id, device=device),
+    )
     refresh_token = create_refresh_token(user_id, session_id, new_refresh_id)
 
     user = await user_repository.findById(user_id)

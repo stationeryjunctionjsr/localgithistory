@@ -756,29 +756,45 @@ export default function MobileHeader() {
                 ) : (
                   <div className="space-y-1">
                     {categoryTags.map((tag) => (
-                      <div key={tag._id}>
-                        <button
-                          onClick={() => toggleTag(tag.name!)}
-                          className="flex w-full items-center justify-between rounded-lg py-3 text-left transition-colors active:bg-gray-50"
-                        >
-                          <span
-                            className={`text-lg font-bold transition-colors ${expandedTag === tag.name ? '' : ''}`}
-                            style={{ color: theme.primary }}
+                      <div key={tag._id} className="border-b border-gray-100 last:border-b-0">
+                        <div className="flex w-full items-center justify-between rounded-lg transition-colors active:bg-gray-50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              router.push(`${getUserBasePath()}?categoryTag=${encodeURIComponent(tag.name!)}`);
+                            }}
+                            className="flex-1 py-3 text-left transition-colors active:opacity-70"
                           >
-                            {tag.name}
-                          </span>
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            className={`text-gray-400 transition-transform duration-200 ${expandedTag === tag.name ? 'rotate-180' : ''}`}
+                            <span
+                              className="text-lg font-bold transition-colors"
+                              style={{ color: theme.primary }}
+                            >
+                              {tag.name}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTag(tag.name!);
+                            }}
+                            className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors active:bg-gray-100"
+                            aria-label={`Toggle ${tag.name} categories`}
                           >
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </button>
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className={`transition-transform duration-200 ${expandedTag === tag.name ? 'rotate-180' : ''}`}
+                            >
+                              <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                          </button>
+                        </div>
 
                         {expandedTag === tag.name && (
                           <div

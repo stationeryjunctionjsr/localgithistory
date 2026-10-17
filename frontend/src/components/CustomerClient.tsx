@@ -443,7 +443,10 @@ export default function CustomerClient({
       setSelectedCategory('');
       setSelectedCategoryTag(null);
     } else if (categoryTagParam) {
-      setSelectedCategoryTag(categoryTagParam);
+      // Category tag clicked from header or mobile menu: filter dashboard recommendations by this tag
+      setSelectedRecoCategory(categoryTagParam);
+      setSelectedRecoSubCategory(null);
+      setSelectedCategoryTag(null);
       setSelectedCategory('');
       setSelectedCollection(null);
     } else if (categoryParam) {
@@ -454,6 +457,8 @@ export default function CustomerClient({
       setSelectedCategory('');
       setSelectedCategoryTag(null);
       setSelectedCollection(null);
+      setSelectedRecoCategory(null);
+      setSelectedRecoSubCategory(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
@@ -524,7 +529,7 @@ export default function CustomerClient({
 
               {/* ── Category / Subcategory Filter Pills ── */}
               {recoCategoryOptions.length > 1 && (
-                <div className="px-4 pb-4 pt-6 md:px-8 xl:px-12">
+                <div className="hidden px-4 pb-4 pt-6 md:px-8 xl:px-12">
                   {/* Category pills */}
                   <div className="flex flex-wrap gap-2">
                     <button

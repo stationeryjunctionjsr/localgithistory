@@ -128,8 +128,9 @@ async def get_recommendations(
                 user_doc = await user_repository.findById(user_id)
                 if user_doc:
                     addr = user_doc.address
-                    raw_city = addr.city or ""
-                    
+                    raw_city = addr.city if addr else ""
+                    if not raw_city and user_doc.saved_addresses:
+                        raw_city = user_doc.saved_addresses[0].city or ""
                     city = (raw_city or "").strip() or None
             except Exception:
                 logger.warning("Could not resolve city for wholesaler %s", user_id, exc_info=True)
@@ -188,8 +189,9 @@ async def get_favourites_page(
             user_doc = await user_repository.findById(user_id)
             if user_doc:
                 addr = user_doc.address
-                raw_city = addr.city or ""
-                
+                raw_city = addr.city if addr else ""
+                if not raw_city and user_doc.saved_addresses:
+                    raw_city = user_doc.saved_addresses[0].city or ""
                 resolved_city = (raw_city or "").strip() or None
         except Exception:
             logger.warning("Could not resolve city for wholesaler %s", user_id)
@@ -222,10 +224,13 @@ async def get_favourites_page(
     # Dual-key by both int and str: ranked_ids contains SQL CAST string IDs while p.id is int
     products_by_id: dict = {}
     for p in ranked_products:
-        if p.id:
+        if p.id is not None:
             products_by_id[p.id] = p
             products_by_id[str(p.id)] = p
-    ordered_products = [products_by_id[pid] for pid, _ in ranked_ids if pid in products_by_id]
+    ordered_products = [
+        products_by_id[pid] for pid, _ in ranked_ids
+        if pid in products_by_id or (isinstance(pid, str) and pid.isdigit() and int(pid) in products_by_id)
+    ]
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()

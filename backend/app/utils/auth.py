@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Set
+from typing import Optional
 
 import bcrypt
 from fastapi import Depends, HTTPException, Request, status
@@ -30,39 +30,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour; frontend refreshes automatically via
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 INACTIVITY_DAYS = 30  # session revoked after this many days without any request; user must log in again
 
-# In-memory debounce for session activity touch via strict Pydantic model
+# In-memory debounce for session activity touch.
+# Each worker process holds its own copy; under multi-worker deployments a session
+# may be touched at most once per worker per SESSION_TOUCH_DEBOUNCE_SECONDS. This is
+# an acceptable trade-off — the alternative (shared Redis key) would add a network
+# round-trip on every authenticated request. For single-worker or low-worker-count
+# deployments this eliminates >99% of sj_sessions UPDATE traffic.
 SESSION_TOUCH_DEBOUNCE_SECONDS = 300.0  # 5 minutes
 
+# Plain dict: session_id -> monotonic timestamp of last dispatched touch.
+# O(1) lookup and update. asyncio is single-threaded (cooperative multitasking),
+# so the read-modify-write below is atomic — no lock needed.
+_touch_cache: dict[int, float] = {}
 
-class SessionTouchEntry(BaseModel):
-    session_id: int
-    last_touched_monotonic: float
-
-
-class SessionTouchDebouncer(BaseModel):
-    debounce_seconds: float = SESSION_TOUCH_DEBOUNCE_SECONDS
-    entries: list[SessionTouchEntry] = []
-
-    def should_touch(self, session_id: int, now_monotonic: float) -> bool:
-        for entry in self.entries:
-            if entry.session_id == session_id:
-                if now_monotonic - entry.last_touched_monotonic >= self.debounce_seconds:
-                    entry.last_touched_monotonic = now_monotonic
-                    return True
-                return False
-
-        self.entries.append(
-            SessionTouchEntry(session_id=session_id, last_touched_monotonic=now_monotonic)
-        )
-        if len(self.entries) > 2000:
-            stale_threshold = now_monotonic - (self.debounce_seconds * 2)
-            self.entries = [
-                e for e in self.entries if e.last_touched_monotonic >= stale_threshold
-            ]
-        return True
-
-
-_session_debouncer = SessionTouchDebouncer()
 _background_tasks: set[asyncio.Task] = set()
 
 
@@ -75,11 +55,25 @@ async def _async_touch_session(s_id: int) -> None:
 
 
 def _trigger_session_touch(s_id: int) -> None:
-    now_mono = time.monotonic()
-    if _session_debouncer.should_touch(s_id, now_mono):
-        task = asyncio.create_task(_async_touch_session(s_id))
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
+    """Fire a non-blocking session touch at most once per 5 minutes per session."""
+    now = time.monotonic()
+    last = _touch_cache.get(s_id)
+    if last is not None and (now - last) < SESSION_TOUCH_DEBOUNCE_SECONDS:
+        return  # still within debounce window; skip write
+
+    _touch_cache[s_id] = now
+
+    # Periodic O(n) cleanup — runs only when the dict grows unusually large,
+    # evicting entries whose window has expired.
+    if len(_touch_cache) > 10_000:
+        cutoff = now - SESSION_TOUCH_DEBOUNCE_SECONDS
+        stale = [k for k, v in _touch_cache.items() if v < cutoff]
+        for k in stale:
+            _touch_cache.pop(k, None)
+
+    task = asyncio.create_task(_async_touch_session(s_id))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 # Error codes
 ERR_SESSION_REVOKED = "SESSION_REVOKED"
