@@ -218,7 +218,7 @@ class CourierDispatchPayload(CamelBaseModel):
 
 @router.put("/{order_id}/dispatch-courier", response_model=PopulatedOrderResponse)
 async def dispatch_courier_order(
-    order_id: str,
+    order_id: int,
     dispatch_data: CourierDispatchPayload,
     current_user: User = Depends(require_super_admin),
 ):
@@ -282,7 +282,7 @@ async def dispatch_courier_order(
 
 @router.put("/{order_id}/tracking")
 async def update_order_tracking(
-    order_id: str,
+    order_id: int,
     data: TrackingUpdateRequest,
     current_user: User = Depends(require_super_admin_or_seller),
 ):
@@ -346,7 +346,7 @@ class UpdateDeliveryChargeRequest(BaseModel):
 
 @router.put("/{order_id}/delivery-charge", response_model=DeliveryChargeUpdateResponse)
 async def update_delivery_charge(
-    order_id: str, request: UpdateDeliveryChargeRequest, current_user: User = Depends(require_super_admin)
+    order_id: int, request: UpdateDeliveryChargeRequest, current_user: User = Depends(require_super_admin)
 ):
     """Update delivery charge for an order (wholesaler only, before dispatch)"""
     # Get order
@@ -420,7 +420,7 @@ async def update_delivery_charge(
 
 @router.get("/{order_id}/timeline")
 async def get_order_status_timeline(
-    order_id: str,
+    order_id: int,
     current_user: User = Depends(get_current_user),
 ):
     """Return chronological status history for an order.
@@ -441,7 +441,7 @@ async def get_order_status_timeline(
 
 @router.put("/{order_id}/status", response_model=PopulatedOrderResponse)
 async def update_order_status(
-    order_id: str,
+    order_id: int,
     status_data: OrderStatusUpdate,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(require_super_admin_or_valet),
@@ -726,7 +726,7 @@ async def update_order_status(
 
 
 @router.put("/{order_id}/accept", response_model=PopulatedOrderResponse)
-async def accept_order(order_id: str, current_user: User = Depends(require_super_admin)):
+async def accept_order(order_id: int, current_user: User = Depends(require_super_admin)):
     """Accept order (Pending -> Processing)"""
     order = await order_repository.findById(order_id)
     if not order:
@@ -758,7 +758,7 @@ class DeclineOrderRequest(BaseModel):
 
 @router.put("/{order_id}/decline", response_model=PopulatedOrderResponse)
 async def decline_order(
-    order_id: str, decline_data: DeclineOrderRequest, current_user: User = Depends(require_super_admin)
+    order_id: int, decline_data: DeclineOrderRequest, current_user: User = Depends(require_super_admin)
 ):
     """Decline order (with reason, only COD/Credit)"""
     order = await order_repository.findById(order_id)
@@ -804,7 +804,7 @@ async def decline_order(
 
 @router.put("/{order_id}/dispatch", response_model=PopulatedOrderResponse)
 async def dispatch_order(
-    order_id: str,
+    order_id: int,
     valet_data: AssignValetRequest,
     current_user: User = Depends(require_super_admin_or_seller),
 ):
@@ -969,7 +969,7 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 
 
 @router.put("/{order_id}/cancel", response_model=PopulatedOrderResponse)
-async def cancel_order(order_id: str, current_user: User = Depends(get_current_user)):
+async def cancel_order(order_id: int, current_user: User = Depends(get_current_user)):
     """Cancel order (Customer/Wholesaler only, before Accept)"""
     order = await order_repository.findById(order_id)
     if not order:
@@ -1019,7 +1019,7 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
 
 @router.put("/{order_id}/assign-valet", response_model=PopulatedOrderResponse)
 async def assign_valet(
-    order_id: str, valet_data: AssignValetRequest, current_user: User = Depends(require_super_admin)
+    order_id: int, valet_data: AssignValetRequest, current_user: User = Depends(require_super_admin)
 ):
     order = await order_repository.findById(order_id)
     if not order:
@@ -1045,7 +1045,7 @@ class ValetResponseRequest(BaseModel):
 
 @router.put("/{order_id}/valet-response", response_model=PopulatedOrderResponse)
 async def valet_response(
-    order_id: str,
+    order_id: int,
     response_data: ValetResponseRequest,
     current_user: User = Depends(require_super_admin_or_valet),
 ):
@@ -1270,7 +1270,7 @@ async def valet_response(
 
 @router.put("/{order_id}/sub-orders/{sub_order_id}/confirm-pickup")
 async def confirm_sub_order_pickup(
-    order_id: str,
+    order_id: int,
     sub_order_id: int,
     pickup_data: ConfirmPickupRequest,
     current_user: User = Depends(require_super_admin_or_valet),
@@ -1375,7 +1375,7 @@ class SettleCreditRequest(BaseModel):
 
 @router.post("/{order_id}/settle-credit")
 async def settle_credit(
-    order_id: str, settle_data: SettleCreditRequest, current_user: User = Depends(get_current_user)
+    order_id: int, settle_data: SettleCreditRequest, current_user: User = Depends(get_current_user)
 ):
     """Submit a credit settlement for an order (wholesaler only).
 
@@ -1447,7 +1447,7 @@ async def settle_credit(
 
 
 @router.post("/{order_id}/generate-invoice", response_model=GenerateInvoiceResponse)
-async def generate_invoice(order_id: str, current_user: User = Depends(require_super_admin)):
+async def generate_invoice(order_id: int, current_user: User = Depends(require_super_admin)):
     """Generate invoice for an order (Super Admin only)"""
     from datetime import datetime
 
@@ -1494,7 +1494,7 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
 
 
 @router.get("/{order_id}/invoice", response_class=FileResponse)
-async def download_invoice(order_id: str, current_user: User = Depends(get_current_user)):
+async def download_invoice(order_id: int, current_user: User = Depends(get_current_user)):
     """Download invoice PDF for an order"""
     from pathlib import Path
 
@@ -1675,7 +1675,7 @@ async def get_all_sub_orders(
         "limit": limit,
     }
 @router.get("/{order_id}", response_model=PopulatedOrderResponse)
-async def get_order(order_id: str, current_user: User = Depends(get_current_user)):
+async def get_order(order_id: int, current_user: User = Depends(get_current_user)):
     order = await order_repository.findById(order_id)
 
     if not order:

@@ -89,7 +89,7 @@ async def get_valet_returns(current_user: User = Depends(require_super_admin_or_
 
 
 @router.get("/order/{order_id}/eligibility", response_model=ReturnEligibilityResponse)
-async def check_return_eligibility(order_id: str, current_user: User = Depends(get_current_user)):
+async def check_return_eligibility(order_id: int, current_user: User = Depends(get_current_user)):
     """Check which items in an order are eligible for return"""
     order = await order_repository.findById(order_id)
     if not order:

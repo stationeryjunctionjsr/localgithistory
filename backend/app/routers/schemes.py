@@ -57,7 +57,7 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
 
 
 @router.get("/applicable/{product_id}", )
-async def get_applicable_schemes(product_id: str, current_user: User = Depends(require_wholesaler)):
+async def get_applicable_schemes(product_id: int, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given product.
     Calculates the final effective unit price for each.
@@ -111,7 +111,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
 
 
 @router.get("/applicable/bundle/{bundle_id}", response_model=List[CouponResponse])
-async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Depends(require_wholesaler)):
+async def get_applicable_bundle_schemes(bundle_id: int, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given bundle.
     """

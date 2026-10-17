@@ -10,7 +10,7 @@ UserRole = Literal["customer", "seller", "valet", "super_admin", "wholesaler", "
 
 class UserFilter(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = None
+    id: Optional[int] = None
     role: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None

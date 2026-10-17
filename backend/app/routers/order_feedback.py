@@ -114,7 +114,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
 
 
 @router.get("/order/{order_id}", response_model=OrderFeedbackResponse)
-async def get_feedback_by_order(order_id: str, current_user: User = Depends(get_current_user)):
+async def get_feedback_by_order(order_id: int, current_user: User = Depends(get_current_user)):
     feedback = await order_feedback_repository.findByOrder(order_id)
     if not feedback:
         raise HTTPException(status_code=404, detail="Feedback not found")
