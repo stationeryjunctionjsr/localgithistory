@@ -284,7 +284,7 @@ class MySQLOrderDAO:
             )
 
     async def findOne(self, filter: Optional[OrderFilter] = None) -> Optional[Order]:
-        records = await self.findAll(filter)
+        records = await self.findAll(filter, skip=0, limit=1)
         return records[0] if records else None
 
     async def findById(self, id: int) -> Optional[Order]:
@@ -394,32 +394,39 @@ class MySQLOrderDAO:
             text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
             {"order_id": order_id},
         )
-        for it in items or []:
-            pid = it.product_id
-            if pid is None:
-                continue
-            qty = (it.quantity if it.quantity is not None else 0) or 0
-            price = (it.price if it.price is not None else 0) or 0
-            await session.execute(
-                text(
-                    f"""
-                    INSERT INTO {self.ITEMS_TABLE} (order_id, product_id, quantity, price)
-                    VALUES (:order_id, :product_id, :quantity, :price)
-                    """
-                ),
-                {"order_id": order_id, "product_id": pid, "quantity": qty, "price": price},
-            )
+        valid_items = [it for it in (items or []) if it.product_id is not None]
+        if not valid_items:
+            return
+        # Bulk INSERT — one round-trip regardless of how many items
+        placeholders = ", ".join(f"(:oid, :pid_{i}, :qty_{i}, :price_{i})" for i in range(len(valid_items)))
+        params: dict = {"oid": order_id}
+        for i, it in enumerate(valid_items):
+            params[f"pid_{i}"] = it.product_id
+            params[f"qty_{i}"] = (it.quantity if it.quantity is not None else 0) or 0
+            params[f"price_{i}"] = (it.price if it.price is not None else 0) or 0
+        await session.execute(
+            text(f"INSERT INTO {self.ITEMS_TABLE} (order_id, product_id, quantity, price) VALUES {placeholders}"),
+            params,
+        )
 
     async def _sync_valet_declines(self, session, order_id: int, declines: Optional[List[ValetDeclineHistoryEntry]]) -> None:
         await session.execute(
             text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
             {"order_id": order_id},
         )
-        for d in declines or []:
-            await session.execute(
-                text("INSERT INTO sj_order_valet_declines (parent_id, valet_id, reason) VALUES (:order_id, :vid, :r)"),
-                {"order_id": order_id, "vid": str((d.valet_id if d.valet_id is not None else "")), "r": d.reason}
-            )
+        valid = [d for d in (declines or []) if d is not None]
+        if not valid:
+            return
+        # Bulk INSERT — one round-trip regardless of how many declines
+        placeholders = ", ".join(f"(:oid, :vid_{i}, :r_{i})" for i in range(len(valid)))
+        params: dict = {"oid": order_id}
+        for i, d in enumerate(valid):
+            params[f"vid_{i}"] = str(d.valet_id if d.valet_id is not None else "")
+            params[f"r_{i}"] = d.reason
+        await session.execute(
+            text(f"INSERT INTO sj_order_valet_declines (parent_id, valet_id, reason) VALUES {placeholders}"),
+            params,
+        )
 
     async def _replace_children(self, session, order_id: int, items: List[ItemSnippet], declines: List[ValetDeclineHistoryEntry]) -> None:
         await self._sync_items(session, order_id, items)

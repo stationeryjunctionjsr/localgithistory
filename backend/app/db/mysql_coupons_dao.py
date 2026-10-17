@@ -468,20 +468,14 @@ class MySQLCouponsDAO:
             return 1
         async with session_factory() as session:
             res = await session.execute(
-                text(f"SELECT code FROM {self.TABLE} WHERE code LIKE :pat"),
+                text(
+                    f"SELECT IFNULL(MAX(CAST(REGEXP_SUBSTR(code, '[0-9]+$') AS UNSIGNED)), 0) AS max_num"
+                    f" FROM {self.TABLE} WHERE code LIKE :pat"
+                ),
                 {"pat": f"{prefix}%"},
             )
-            rows = res.fetchall()
-            max_num = 0
-            for r in rows:
-                code_str = r.code or ""
-                if code_str.startswith(prefix):
-                    try:
-                        num = int(code_str[len(prefix):])
-                        if num > max_num:
-                            max_num = num
-                    except ValueError:
-                        continue
+            row = res.fetchone()
+            max_num = int(row.max_num) if row and row.max_num is not None else 0
             return max_num + 1
 
     def _map_to_schema(
@@ -542,32 +536,40 @@ class MySQLCouponsDAO:
     async def _fetch_children(self, session, ids: List[int]):
         if not ids:
             return [], [], [], [], [], []
-            
-        id_list = ",".join(map(str, ids))
 
-        q_quantityTiers = text(f"SELECT parent_id, min_qty, discount_value FROM sj_coupon_quantity_tiers WHERE parent_id IN ({id_list})")
-        res_quantityTiers = await session.execute(q_quantityTiers)
-        rows_quantityTiers = res_quantityTiers.fetchall()
+        # Use parameterized IN clause to prevent SQL injection
+        id_params = {f"cid_{i}": int(id_) for i, id_ in enumerate(ids)}
+        placeholders = ", ".join(f":cid_{i}" for i in range(len(ids)))
 
-        q_applicableRoles = text(f"SELECT parent_id, role FROM sj_coupon_roles WHERE parent_id IN ({id_list})")
-        res_applicableRoles = await session.execute(q_applicableRoles)
-        rows_applicableRoles = res_applicableRoles.fetchall()
+        rows_quantityTiers = (await session.execute(
+            text(f"SELECT parent_id, min_qty, discount_value FROM sj_coupon_quantity_tiers WHERE parent_id IN ({placeholders})"),
+            id_params,
+        )).fetchall()
 
-        q_applicableUserIds = text(f"SELECT parent_id, user_id FROM sj_coupon_users WHERE parent_id IN ({id_list})")
-        res_applicableUserIds = await session.execute(q_applicableUserIds)
-        rows_applicableUserIds = res_applicableUserIds.fetchall()
+        rows_applicableRoles = (await session.execute(
+            text(f"SELECT parent_id, role FROM sj_coupon_roles WHERE parent_id IN ({placeholders})"),
+            id_params,
+        )).fetchall()
 
-        q_applicableCategories = text(f"SELECT parent_id, category FROM sj_coupon_categories WHERE parent_id IN ({id_list})")
-        res_applicableCategories = await session.execute(q_applicableCategories)
-        rows_applicableCategories = res_applicableCategories.fetchall()
+        rows_applicableUserIds = (await session.execute(
+            text(f"SELECT parent_id, user_id FROM sj_coupon_users WHERE parent_id IN ({placeholders})"),
+            id_params,
+        )).fetchall()
 
-        q_appliesToValueIds = text(f"SELECT parent_id, value_id FROM sj_coupon_applies_to_values WHERE parent_id IN ({id_list})")
-        res_appliesToValueIds = await session.execute(q_appliesToValueIds)
-        rows_appliesToValueIds = res_appliesToValueIds.fetchall()
+        rows_applicableCategories = (await session.execute(
+            text(f"SELECT parent_id, category FROM sj_coupon_categories WHERE parent_id IN ({placeholders})"),
+            id_params,
+        )).fetchall()
 
-        q_excludedProductIds = text(f"SELECT parent_id, product_id FROM sj_coupon_excluded_products WHERE parent_id IN ({id_list})")
-        res_excludedProductIds = await session.execute(q_excludedProductIds)
-        rows_excludedProductIds = res_excludedProductIds.fetchall()
+        rows_appliesToValueIds = (await session.execute(
+            text(f"SELECT parent_id, value_id FROM sj_coupon_applies_to_values WHERE parent_id IN ({placeholders})"),
+            id_params,
+        )).fetchall()
+
+        rows_excludedProductIds = (await session.execute(
+            text(f"SELECT parent_id, product_id FROM sj_coupon_excluded_products WHERE parent_id IN ({placeholders})"),
+            id_params,
+        )).fetchall()
 
         return (
             rows_quantityTiers,

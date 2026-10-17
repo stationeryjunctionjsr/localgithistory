@@ -1815,8 +1815,8 @@ CREATE TABLE `sj_users` (
   `qr_code_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_users_external` (`external_id`),
-  KEY `ix_sj_users_email` (`email`),
-  KEY `ix_sj_users_phone` (`phone`),
+  UNIQUE KEY `uq_sj_users_email` (`email`),
+  UNIQUE KEY `uq_sj_users_phone` (`phone`),
   KEY `ix_sj_users_role` (`role`),
   KEY `ix_sj_users_referral` (`referral_code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=519 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

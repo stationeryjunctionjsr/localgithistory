@@ -341,27 +341,38 @@ class CouponRepository:
             else:
                 if user_orders is None:
                     from app.repositories.order_repository import order_repository
+                    from app.models.daos import OrderFilter as _OrderFilter
 
-                    user_orders = await order_repository.findByUser(user_id)
+                    reference_date = datetime.now(timezone.utc)
+                    three_months_ago = reference_date - timedelta(days=90)
+                    # Use SQL COUNT queries instead of loading all user orders into memory
+                    order_count = await order_repository.countByUser(str(user_id))
+                    recent_count = await order_repository.count(
+                        _OrderFilter(
+                            user_id=str(user_id),
+                            start_date=three_months_ago.replace(tzinfo=None),
+                            end_date=reference_date.replace(tzinfo=None),
+                        )
+                    )
+                else:
+                    order_count = len(user_orders)
 
-                order_count = len(user_orders)
+                    reference_date = datetime.now(timezone.utc)
+                    three_months_ago = reference_date - timedelta(days=90)
 
-                reference_date = datetime.now(timezone.utc)
-                three_months_ago = reference_date - timedelta(days=90)
-
-                recent_count = 0
-                for o in user_orders:
-                    c_at = o.created_at
-                    if not c_at:
-                        continue
-                    try:
-                        if c_at.tzinfo:
-                            c_at = c_at.replace(tzinfo=None)
-                        if three_months_ago <= c_at <= reference_date:
-                            recent_count += 1
-                    except (ValueError, TypeError, AttributeError):
-                        logger.warning("Coupon eligibility: could not parse order createdAt %r; skipping.", c_at, exc_info=True)
-                        continue
+                    recent_count = 0
+                    for o in user_orders:
+                        c_at = o.created_at
+                        if not c_at:
+                            continue
+                        try:
+                            if c_at.tzinfo:
+                                c_at = c_at.replace(tzinfo=None)
+                            if three_months_ago <= c_at <= reference_date:
+                                recent_count += 1
+                        except (ValueError, TypeError, AttributeError):
+                            logger.warning("Coupon eligibility: could not parse order createdAt %r; skipping.", c_at, exc_info=True)
+                            continue
 
                 is_registered = True  # we're already in a flow with user_id
 
@@ -758,8 +769,14 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             applies_to_type = (coupon.applies_to_type if coupon.applies_to_type is not None else None) or "all"
             applies_to_ids = (coupon.applies_to_value_ids if coupon.applies_to_value_ids is not None else None) or []
             eligible_subtotal = 0.0
+            # Pre-load all cart products in a single batch query to avoid N+1 DB calls
+            cart_product_ids = [str(item.product_id) for item in cart_items if item.product_id is not None]
+            products_by_id: dict = {}
+            if cart_product_ids:
+                batch_products = await product_repository.findByIds([int(pid) for pid in cart_product_ids])
+                products_by_id = {p.id: p for p in batch_products if p.id is not None}
             for idx, item in enumerate(cart_items):
-                product = await product_repository.findById(item.product_id)
+                product = products_by_id.get(item.product_id)
                 if not product:
                     continue
                 if await self._product_eligible_async(
@@ -857,6 +874,13 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         now = datetime.now(timezone.utc)
         all_coupons = await self.storage.findAll(method="automatic", is_active=True)
         results = []
+        # Pre-load all cart products once before iterating over coupons to avoid N+1
+        _cart_products_by_id: dict = {}
+        if cart_items and product_repository:
+            _cart_pids = [int(item.product_id) for item in cart_items if item.product_id is not None]
+            if _cart_pids:
+                _batch = await product_repository.findByIds(_cart_pids)
+                _cart_products_by_id = {p.id: p for p in _batch if p.id is not None}
         for coupon in all_coupons:
             try:
                 if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
@@ -916,7 +940,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 eligible_quantity = 0
                 eligible_item_indices = []
                 for idx, item in enumerate(cart_items):
-                    product = await product_repository.findById(item.product_id)
+                    product = _cart_products_by_id.get(item.product_id)
                     if not product:
                         continue
                     if await self._product_eligible_async(

@@ -431,62 +431,90 @@ class MySQLProductDAO:
     async def _replace_children(self, session, pid: int, data: CamelBaseModel):
         fields_set = data.model_fields_set
 
-        # Images
+        # Images — bulk INSERT (one round-trip for all images)
         if "images" in fields_set:
             await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})
             images = (data.images if data.images is not None else []) or []
-            for i, img in enumerate(images):
+            if images:
+                ph = ", ".join(f"(:pid, :img_{i}, :idx_{i})" for i in range(len(images)))
+                p: dict = {"pid": pid}
+                for i, img in enumerate(images):
+                    p[f"img_{i}"] = img
+                    p[f"idx_{i}"] = i
                 await session.execute(
-                    text("INSERT INTO sj_product_images (product_id, image_url, order_index) VALUES (:pid, :img, :idx)"),
-                    {"pid": pid, "img": img, "idx": i},
+                    text(f"INSERT INTO sj_product_images (product_id, image_url, order_index) VALUES {ph}"), p
                 )
 
-        # Videos
+        # Videos — bulk INSERT
         if "videos" in fields_set:
             await session.execute(text("DELETE FROM sj_product_videos WHERE product_id = :pid"), {"pid": pid})
             videos = (data.videos if data.videos is not None else []) or []
-            for i, vid in enumerate(videos):
+            if videos:
+                ph = ", ".join(f"(:pid, :vid_{i}, :idx_{i})" for i in range(len(videos)))
+                p = {"pid": pid}
+                for i, v in enumerate(videos):
+                    p[f"vid_{i}"] = v
+                    p[f"idx_{i}"] = i
                 await session.execute(
-                    text("INSERT INTO sj_product_videos (product_id, video_url, order_index) VALUES (:pid, :vid, :idx)"),
-                    {"pid": pid, "vid": vid, "idx": i},
+                    text(f"INSERT INTO sj_product_videos (product_id, video_url, order_index) VALUES {ph}"), p
                 )
 
-        # Tags
+        # Tags — bulk INSERT
         if "tags" in fields_set:
             await session.execute(text("DELETE FROM sj_product_tags WHERE product_id = :pid"), {"pid": pid})
-            for tag in (data.tags if data.tags is not None else []) or []:
+            tags = (data.tags if data.tags is not None else []) or []
+            if tags:
+                ph = ", ".join(f"(:pid, :tag_{i})" for i in range(len(tags)))
+                p = {"pid": pid}
+                for i, tag in enumerate(tags):
+                    p[f"tag_{i}"] = tag
                 await session.execute(
-                    text("INSERT INTO sj_product_tags (product_id, tag) VALUES (:pid, :tag)"), {"pid": pid, "tag": tag}
+                    text(f"INSERT INTO sj_product_tags (product_id, tag) VALUES {ph}"), p
                 )
 
-        # Details
+        # Details — collect all (key, value) pairs then bulk INSERT
         if "details" in fields_set:
             await session.execute(text("DELETE FROM sj_product_details WHERE product_id = :pid"), {"pid": pid})
             details = data.details
             if details is not None:
+                detail_rows = []
                 if details.material is not None:
-                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "material", "v": str(details.material)})
+                    detail_rows.append(("material", str(details.material)))
                 if details.weight is not None:
-                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "weight", "v": str(details.weight)})
+                    detail_rows.append(("weight", str(details.weight)))
                 if details.dimensions is not None:
-                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "dimensions", "v": str(details.dimensions)})
+                    detail_rows.append(("dimensions", str(details.dimensions)))
                 if details.manufacturer is not None:
-                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "manufacturer", "v": str(details.manufacturer)})
+                    detail_rows.append(("manufacturer", str(details.manufacturer)))
                 if details.origin is not None:
-                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "origin", "v": str(details.origin)})
+                    detail_rows.append(("origin", str(details.origin)))
                 if details.warranty is not None:
-                    await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "warranty", "v": str(details.warranty)})
+                    detail_rows.append(("warranty", str(details.warranty)))
+                if detail_rows:
+                    ph = ", ".join(f"(:pid, :k_{i}, :v_{i})" for i in range(len(detail_rows)))
+                    p = {"pid": pid}
+                    for i, (k, v) in enumerate(detail_rows):
+                        p[f"k_{i}"] = k
+                        p[f"v_{i}"] = v
+                    await session.execute(
+                        text(f"INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES {ph}"), p
+                    )
 
-        # Variant Attributes
+        # Variant Attributes — bulk INSERT
         if "variant_attributes" in fields_set:
             await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
-            for attr in (data.variant_attributes if data.variant_attributes is not None else []) or []:
+            v_attrs = (data.variant_attributes if data.variant_attributes is not None else []) or []
+            if v_attrs:
+                ph = ", ".join(f"(:pid, :attr_{i})" for i in range(len(v_attrs)))
+                p = {"pid": pid}
+                for i, attr in enumerate(v_attrs):
+                    p[f"attr_{i}"] = str(attr)
                 await session.execute(
-                    text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
-                    {"pid": pid, "attr": str(attr)}
+                    text(f"INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES {ph}"), p
                 )
 
-        # Variants
+        # Variants — kept sequential (LAST_INSERT_ID() per variant);
+        # combo_attrs for each variant are bulk inserted in one shot.
         if "variants" in fields_set:
             await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
             for variant in (data.variants if data.variants is not None else []) or []:
@@ -497,33 +525,39 @@ class MySQLProductDAO:
                 vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
                 attrs = variant.attributes
                 if attrs is not None:
-                    if attrs.size is not None:
-                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "size", "v": str(attrs.size)})
-                    if attrs.color is not None:
-                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "color", "v": str(attrs.color)})
-                    if attrs.material is not None:
-                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "material", "v": str(attrs.material)})
-                    if attrs.style is not None:
-                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "style", "v": str(attrs.style)})
-                    if attrs.weight is not None:
-                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "weight", "v": str(attrs.weight)})
-                    if attrs.flavor is not None:
-                        await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "flavor", "v": str(attrs.flavor)})
+                    # Collect all present combo attrs then bulk INSERT
+                    attr_rows = []
+                    for key in ("size", "color", "material", "style", "weight", "flavor"):
+                        val = getattr(attrs, key, None)
+                        if val is not None:
+                            attr_rows.append((key, str(val)))
+                    if attr_rows:
+                        ph = ", ".join(f"(:vid, :ak_{j}, :av_{j})" for j in range(len(attr_rows)))
+                        ap: dict = {"vid": vid}
+                        for j, (ak, av) in enumerate(attr_rows):
+                            ap[f"ak_{j}"] = ak
+                            ap[f"av_{j}"] = av
+                        await session.execute(
+                            text(f"INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES {ph}"),
+                            ap,
+                        )
 
-        # Sellers
+        # Sellers — bulk INSERT
         if "sellers" in fields_set:
             await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
-            for seller in (data.sellers if data.sellers is not None else []):
-                s_entry = ProductSellerEntry.model_validate(seller)
+            sellers = (data.sellers if data.sellers is not None else []) or []
+            if sellers:
+                entries = [ProductSellerEntry.model_validate(s) for s in sellers]
+                ph = ", ".join(f"(:pid_ext, :sid_{i}, :stk_{i}, :act_{i}, :rs_{i})" for i in range(len(entries)))
+                p = {"pid_ext": f"PDT-{pid}"}
+                for i, s_entry in enumerate(entries):
+                    p[f"sid_{i}"] = s_entry.seller_id
+                    p[f"stk_{i}"] = s_entry.stock if s_entry.stock is not None else 0
+                    p[f"act_{i}"] = 1 if s_entry.is_active else 0
+                    p[f"rs_{i}"] = s_entry.request_status or "pending"
                 await session.execute(
-                    text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
-                    {
-                        "pid_ext": f"PDT-{pid}", 
-                        "seller_id": s_entry.seller_id, 
-                        "stock": s_entry.stock if s_entry.stock is not None else 0, 
-                        "is_active": 1 if s_entry.is_active else 0, 
-                        "request_status": s_entry.request_status or "pending"
-                    }
+                    text(f"INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES {ph}"),
+                    p,
                 )
 
 
@@ -684,15 +718,60 @@ class MySQLProductDAO:
             return result.rowcount > 0
 
     async def deleteMany(self, filter: Optional[ProductFilter] = None) -> int:
-        records = await self.findAll(filter)
-        deleted = 0
-        for r in records:
-            if await self.delete(r.id):
-                deleted += 1
-        return deleted
+        join_sql, where_sql, params = self._build_query_conditions(filter)
+        async_session = get_async_session_factory()
+        if not async_session:
+            return 0
+        async with async_session() as session:
+            # Gather matching IDs first
+            id_result = await session.execute(
+                text(f"SELECT id FROM {self.TABLE} p {join_sql} WHERE {where_sql}"),
+                params,
+            )
+            ids = [row.id for row in id_result.fetchall()]
+            if not ids:
+                return 0
+            # Bulk delete children then parents in chunks of 999
+            chunks = [ids[i:i + 999] for i in range(0, len(ids), 999)]
+            for chunk in chunks:
+                cp = {f"did_{i}": v for i, v in enumerate(chunk)}
+                ph = ", ".join(f":did_{i}" for i in range(len(chunk)))
+                for child_table in [
+                    "sj_product_images", "sj_product_videos", "sj_product_tags",
+                    "sj_product_details", "sj_product_variant_attributes",
+                    "sj_product_variants", "sj_product_sellers",
+                ]:
+                    if child_table == "sj_product_sellers":
+                        # sellers uses PDT-{id} as FK
+                        pid_params = {f"dpid_{i}": f"PDT-{v}" for i, v in enumerate(chunk)}
+                        pid_ph = ", ".join(f":dpid_{i}" for i in range(len(chunk)))
+                        await session.execute(
+                            text(f"DELETE FROM {child_table} WHERE product_id IN ({pid_ph})"),
+                            pid_params,
+                        )
+                    else:
+                        await session.execute(
+                            text(f"DELETE FROM {child_table} WHERE product_id IN ({ph})"),
+                            cp,
+                        )
+                await session.execute(
+                    text(f"DELETE FROM {self.TABLE} WHERE id IN ({ph})"),
+                    cp,
+                )
+            await session.commit()
+            return len(ids)
 
     async def count(self, filter: Optional[ProductFilter] = None) -> int:
-        return len(await self.findAll(filter))
+        join_sql, where_sql, params = self._build_query_conditions(filter)
+        async_session = get_async_session_factory()
+        if not async_session:
+            return 0
+        async with async_session() as session:
+            result = await session.execute(
+                text(f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"),
+                params,
+            )
+            return result.scalar() or 0
 
     find_all = findAll
     find_by_id = findById

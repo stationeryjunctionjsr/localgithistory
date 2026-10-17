@@ -359,46 +359,16 @@ class ProductRepository:
         products = await self.storage.findAll(filter)
         products = await self._attach_category_gst(products)
 
-        # Apply filters
-        if filter.category:
-            products = [p for p in products if p.category == filter.category]
-
-        # Filter by multiple categories (comma-separated)
-        if filter.categories:
-            category_list = [c.strip() for c in filter.categories.split(",") if c.strip()]
-            products = [p for p in products if p.category in category_list]
-
-        if filter.sub_category:
-            products = [p for p in products if p.sub_category == filter.sub_category]
-
-        if filter.brand:
-            # Support multiple brands (comma-separated)
-            brand_list = [b.strip().lower() for b in filter.brand.split(",") if b.strip()]
-            products = [p for p in products if (p.brand if p.brand is not None else "").lower() in brand_list]
+        # NOTE: category, categories, sub_category, brand, min_price, max_price,
+        # is_active, include_inactive and availability are already filtered by SQL
+        # in MySQLProductDAO._build_query_conditions. Do not re-filter here.
 
         role = filter.role or "customer"
-        if filter.min_price is not None:
-            min_price = float(filter.min_price)
-            products = [p for p in products if self.getPriceForRole(p, role) >= min_price]
-
-        if filter.max_price is not None:
-            max_price = float(filter.max_price)
-            products = [p for p in products if self.getPriceForRole(p, role) <= max_price]
 
         # Defer search to after tag resolution for weighted scoring
         search_query = (filter.search or "").strip()
 
         # categoryTag filtering will be handled after dynamic tags
-
-        # Filter active products
-        is_active = filter.is_active
-        include_inactive = filter.include_inactive
-        if is_active is True:
-            products = [p for p in products if (p.is_active if p.is_active is not None else True)]
-        elif is_active is False:
-            products = [p for p in products if not (p.is_active if p.is_active is not None else True)]
-        elif not include_inactive:
-            products = [p for p in products if (p.is_active if p.is_active is not None else True)]
 
         # Add dynamic tags (best selling, new)
         user_id = filter.user_id

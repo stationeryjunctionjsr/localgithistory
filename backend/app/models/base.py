@@ -10,5 +10,6 @@ class CamelBaseModel(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
         coerce_numbers_to_str=True,
-        from_attributes=True
+        from_attributes=True,
+        extra='forbid',
     )

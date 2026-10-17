@@ -89,8 +89,8 @@ def get_async_engine():
         # Use QueuePool for connection pooling in a long-running FastAPI app.
         # pool_pre_ping=False because we implement the same check ourselves via
         # the checkout event registered below (avoids the aiomysql ping() arity bug).
-        pool_size = int(os.getenv("DB_POOL_SIZE", 5))
-        max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
+        pool_size = int(os.getenv("DB_POOL_SIZE", 10))
+        max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 5))
 
         _async_engine = create_async_engine(
             DATABASE_URL,

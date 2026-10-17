@@ -47,6 +47,15 @@ _zone_seller_cache: Dict[int, Tuple[frozenset, float]] = {}
 _super_admin_id_cache: Optional[str] = None
 _super_admin_cache_expiry: float = 0.0
 
+# Module-level cache for the full zones list — avoids a DB round-trip on every
+# pincode lookup. Both get_zone_id_and_seller_ids_for_pincode() and
+# get_zone_for_pincode() call _fetch_all_zones(); without this cache, every
+# request that does pincode resolution (product listing, search, etc.) would
+# hit the DB just to scan the zones list.
+_all_zones_cache: Optional[list] = None
+_all_zones_expiry: float = 0.0
+_all_zones_lock: Optional[Any] = None  # asyncio.Lock created lazily
+
 async def get_super_admin_seller_id() -> Optional[str]:
     global _super_admin_id_cache, _super_admin_cache_expiry
     if _super_admin_id_cache and time.monotonic() < _super_admin_cache_expiry:
@@ -72,9 +81,33 @@ def _cache_zone(zone) -> frozenset:
 
 
 async def _fetch_all_zones() -> list:
-    """Fetch all active zones from storage."""
-    storage = get_storage("deliveryZones")
-    return await storage.findAll(is_active=True)
+    """Fetch all active zones from storage, with a module-level TTL cache.
+
+    The zone list changes rarely (admin-driven) so caching for ZONE_CACHE_TTL_S
+    (5 min) is safe.  Call invalidate_zone_cache() after any zone mutation to
+    force an immediate refresh.
+    """
+    global _all_zones_cache, _all_zones_expiry, _all_zones_lock
+    import asyncio
+
+    # Fast path: cache is warm
+    if _all_zones_cache is not None and time.monotonic() < _all_zones_expiry:
+        return _all_zones_cache
+
+    # Lazy-create the lock (cannot create at module level — no event loop yet)
+    if _all_zones_lock is None:
+        _all_zones_lock = asyncio.Lock()
+
+    async with _all_zones_lock:
+        # Double-checked: another coroutine may have populated it while we waited
+        if _all_zones_cache is not None and time.monotonic() < _all_zones_expiry:
+            return _all_zones_cache
+
+        storage = get_storage("deliveryZones")
+        zones = await storage.findAll(is_active=True)
+        _all_zones_cache = zones
+        _all_zones_expiry = time.monotonic() + ZONE_CACHE_TTL_S
+        return _all_zones_cache
 
 
 async def _get_sellers_for_zone(zone_id: int) -> frozenset:
@@ -221,7 +254,12 @@ def invalidate_zone_cache(zone_id: Optional[int] = None) -> None:
     Invalidate cache entries.
     Pass a zone_id to evict a specific zone, or None to clear everything.
     Call this from zone create/update/delete routes and when a seller updates their zones.
+    Also clears the cached zone list so the next lookup fetches a fresh copy from the DB.
     """
+    global _all_zones_cache, _all_zones_expiry
+    # Always clear the zone list cache — a mutation invalidates the full list
+    _all_zones_cache = None
+    _all_zones_expiry = 0.0
     if zone_id is not None:
         _zone_seller_cache.pop(zone_id, None)
     else:
