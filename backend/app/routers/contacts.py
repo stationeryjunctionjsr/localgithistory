@@ -27,7 +27,7 @@ async def get_public_contacts():
 
 
 @router.get("/{contact_id}", response_model=ContactResponse)
-async def get_contact(contact_id: str):
+async def get_contact(contact_id: int):
     contact = await contact_repository.findById(contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
@@ -44,7 +44,7 @@ async def create_contact(contact_data: ContactCreate, current_user: User = Depen
 
 @router.put("/{contact_id}", response_model=ContactResponse)
 async def update_contact(
-    contact_id: str, contact_data: ContactUpdate, current_user: User = Depends(require_super_admin)
+    contact_id: int, contact_data: ContactUpdate, current_user: User = Depends(require_super_admin)
 ):
     internal_data = ContactInternalUpdate.model_validate(contact_data, from_attributes=True)
     contact = await contact_repository.update(contact_id, internal_data)
@@ -54,7 +54,7 @@ async def update_contact(
 
 
 @router.delete("/{contact_id}", response_model=MessageResponse)
-async def delete_contact(contact_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_contact(contact_id: int, current_user: User = Depends(require_super_admin)):
     result = await contact_repository.delete(contact_id)
     if not result:
         raise HTTPException(status_code=404, detail="Contact not found")

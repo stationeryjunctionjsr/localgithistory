@@ -513,34 +513,54 @@ class MySQLProductDAO:
                     text(f"INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES {ph}"), p
                 )
 
-        # Variants — kept sequential (LAST_INSERT_ID() per variant);
-        # combo_attrs for each variant are bulk inserted in one shot.
+        # Variants — bulk INSERT all at once, then SELECT back IDs in insertion order.
+        # AUTO_INCREMENT guarantees sequential ascending IDs so we can zip the returned
+        # IDs with the original variant list. Total: 3 round-trips regardless of count.
+        # (Old approach: 2 round-trips per variant — INSERT + LAST_INSERT_ID.)
         if "variants" in fields_set:
             await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
-            for variant in (data.variants if data.variants is not None else []) or []:
+            variants_list = (data.variants if data.variants is not None else []) or []
+            if variants_list:
+                # 1. Bulk INSERT all variants in one statement
+                ph = ", ".join(f"(:pid, :sku_{i}, :price_{i}, :ppc_{i}, :stk_{i})" for i in range(len(variants_list)))
+                vp: dict = {"pid": pid}
+                for i, v in enumerate(variants_list):
+                    vp[f"sku_{i}"] = v.sku
+                    vp[f"price_{i}"] = v.price
+                    vp[f"ppc_{i}"] = v.pricePerCase
+                    vp[f"stk_{i}"] = v.stock if v.stock is not None else 0
                 await session.execute(
-                    text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
-                    {"pid": pid, "sku": variant.sku, "price": variant.price, "price_per_case": variant.pricePerCase, "stock": variant.stock if variant.stock is not None else 0}
+                    text(f"INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES {ph}"),
+                    vp,
                 )
-                vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
-                attrs = variant.attributes
-                if attrs is not None:
-                    # Collect all present combo attrs then bulk INSERT
-                    attr_rows = []
-                    for key in ("size", "color", "material", "style", "weight", "flavor"):
-                        val = getattr(attrs, key, None)
-                        if val is not None:
-                            attr_rows.append((key, str(val)))
-                    if attr_rows:
-                        ph = ", ".join(f"(:vid, :ak_{j}, :av_{j})" for j in range(len(attr_rows)))
-                        ap: dict = {"vid": vid}
-                        for j, (ak, av) in enumerate(attr_rows):
-                            ap[f"ak_{j}"] = ak
-                            ap[f"av_{j}"] = av
-                        await session.execute(
-                            text(f"INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES {ph}"),
-                            ap,
-                        )
+                # 2. SELECT back IDs in insertion order — AUTO_INCREMENT guarantees
+                #    the last `len(variants_list)` rows for this product_id are ours.
+                id_rows = (await session.execute(
+                    text("SELECT id FROM sj_product_variants WHERE product_id = :pid ORDER BY id ASC LIMIT :cnt"),
+                    {"pid": pid, "cnt": len(variants_list)},
+                )).fetchall()
+                variant_ids = [row.id for row in id_rows]
+                # 3. Bulk INSERT ALL combo_attrs for ALL variants in a single statement
+                all_attr_rows = []
+                for vid, variant in zip(variant_ids, variants_list):
+                    attrs = variant.attributes
+                    if attrs is not None:
+                        for key in ("size", "color", "material", "style", "weight", "flavor"):
+                            val = getattr(attrs, key, None)
+                            if val is not None:
+                                all_attr_rows.append((vid, key, str(val)))
+                if all_attr_rows:
+                    ph2 = ", ".join(f"(:vid_{j}, :ak_{j}, :av_{j})" for j in range(len(all_attr_rows)))
+                    ap: dict = {}
+                    for j, (vid, ak, av) in enumerate(all_attr_rows):
+                        ap[f"vid_{j}"] = vid
+                        ap[f"ak_{j}"] = ak
+                        ap[f"av_{j}"] = av
+                    await session.execute(
+                        text(f"INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES {ph2}"),
+                        ap,
+                    )
+
 
         # Sellers — bulk INSERT
         if "sellers" in fields_set:

@@ -236,7 +236,7 @@ class CouponRepository:
             type_of_discount=type_of_discount,
         )
 
-    async def findById(self, id: str) -> Optional[CouponInternal]:
+    async def findById(self, id: int) -> Optional[CouponInternal]:
         return await self.storage.findById(id)
 
     async def findByCode(self, code: str) -> Optional[CouponInternal]:
@@ -509,7 +509,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def update(self, id: str, update_data: CouponUpdate) -> Optional[CouponInternal]:
+    async def update(self, id: int, update_data: CouponUpdate) -> Optional[CouponInternal]:
         from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
         from app.models.schemas import Coupon, CouponValidationResponse, BxGyEvaluationResponseUpdate
         
@@ -566,7 +566,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         res = await self.storage.delete(id)
         self.invalidate_cache()
         return res

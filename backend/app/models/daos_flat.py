@@ -511,7 +511,7 @@ class CouponUserUsageInternal(FlatCamelBaseModel):
     usage_count: int
 
 class CouponInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     code: Optional[str] = None
     discount_type: Optional[str] = None
     discount_value: Optional[float] = None

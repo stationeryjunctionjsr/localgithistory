@@ -281,20 +281,77 @@ class ProductRepository:
 
         # Slow path: cache is cold or expired — acquire lock so only ONE
         # coroutine rebuilds it while all others wait, then serve from cache.
-        async with self._light_catalog_lock:
-            # Double-check: another coroutine may have built the cache
-            # while we were waiting for the lock.
-            entry = self._light_catalog_cache[effective_role] if effective_role in self._light_catalog_cache else None
-            if entry and now_m < entry["exp"]:
-                return entry["data"]
+        # asyncio.timeout(5.0): if we can't acquire the lock within 5 s (stampede),
+        # serve stale data rather than queuing 100+ coroutines behind the lock.
+        try:
+            async with asyncio.timeout(5.0):
+                async with self._light_catalog_lock:
+                    # Double-check: another coroutine may have built the cache
+                    # while we were waiting for the lock.
+                    entry = self._light_catalog_cache[effective_role] if effective_role in self._light_catalog_cache else None
+                    if entry and now_m < entry["exp"]:
+                        return entry["data"]
 
-            # We are genuinely the first — build the cache now.
+                    # We are genuinely the first — build the cache now.
+                    raw_products = await self.storage.findAll(ProductFilter(is_active=True))
+
+                    products = await self._attach_category_gst(raw_products)
+                    products = await self.add_dynamic_tags(products, effective_role, None)
+                    products = await self.resolve_search_tags(products)
+
+                    light_products = [
+                        {
+                            "id": p.id,
+                            "name": p.name,
+                            "sku": p.sku,
+                            "searchTags": p.search_tags,
+                            "category": p.category,
+                            "categoryTag": None,
+                            "subCategory": p.sub_category,
+                            "resolvedCollectionNames": p.resolved_collection_names or [],
+                            "brand": p.brand,
+                            "variantAttributes": p.variant_attributes or [],
+                            "description": p.description,
+                            # Seller IDs for pincode-based availability filtering in autocomplete
+                            "sellerIds": [
+                                str(s.seller_id)
+                                for s in (p.sellers or [])
+                                if s.is_active
+                                and (s.stock or 0) > 0
+                                and (s.request_status or "approved") == "approved"
+                            ],
+                            # Seller IDs for catalogue filtering (mega menu, brands, collections).
+                            # Includes out-of-stock items so they still appear in navigation.
+                            "catalogSellerIds": [
+                                str(s.seller_id)
+                                for s in (p.sellers or [])
+                                if s.is_active
+                                and (s.request_status or "approved") == "approved"
+                            ],
+                            "displayImage": p.display_image or (p.images[0] if p.images else None),
+                        }
+                        for p in products
+                    ]
+
+                    self._light_catalog_cache[effective_role] = {
+                        "data": light_products,
+                        "exp": time_module.monotonic() + _TTL,
+                    }
+                    return light_products
+
+        except asyncio.TimeoutError:
+            # Could not acquire the lock within 5 s — stampede protection.
+            # Serve stale data if we have any; otherwise build without the lock
+            # (two coroutines may build simultaneously, but that is far better than
+            # 100+ coroutines queued behind a lock for potentially seconds).
+            stale = self._light_catalog_cache.get(effective_role)
+            if stale:
+                return stale["data"]
+            # Absolute fallback: build without lock (worst case two parallel builds)
             raw_products = await self.storage.findAll(ProductFilter(is_active=True))
-
             products = await self._attach_category_gst(raw_products)
             products = await self.add_dynamic_tags(products, effective_role, None)
             products = await self.resolve_search_tags(products)
-
             light_products = [
                 {
                     "id": p.id,
@@ -308,7 +365,6 @@ class ProductRepository:
                     "brand": p.brand,
                     "variantAttributes": p.variant_attributes or [],
                     "description": p.description,
-                    # Seller IDs for pincode-based availability filtering in autocomplete
                     "sellerIds": [
                         str(s.seller_id)
                         for s in (p.sellers or [])
@@ -316,8 +372,6 @@ class ProductRepository:
                         and (s.stock or 0) > 0
                         and (s.request_status or "approved") == "approved"
                     ],
-                    # Seller IDs for catalogue filtering (mega menu, brands, collections).
-                    # Includes out-of-stock items so they still appear in navigation.
                     "catalogSellerIds": [
                         str(s.seller_id)
                         for s in (p.sellers or [])
@@ -328,12 +382,12 @@ class ProductRepository:
                 }
                 for p in products
             ]
-
             self._light_catalog_cache[effective_role] = {
                 "data": light_products,
                 "exp": time_module.monotonic() + _TTL,
             }
             return light_products
+
 
     async def _attach_category_gst(self, products: List[Product]) -> List[Product]:
         if not products:

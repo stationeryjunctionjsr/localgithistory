@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -13,6 +14,23 @@ if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     except AttributeError:
         pass
+
+
+def pytest_configure(config):
+    """Register custom markers so pytest doesn't warn about unknown marks."""
+    config.addinivalue_line(
+        "markers",
+        "requires_db: mark test as requiring a live DB connection (skipped in CI without DB_URL/CI_DB_URL)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-skip tests marked requires_db when no DB URL is configured."""
+    if not os.getenv("CI_DB_URL") and not os.getenv("DB_URL"):
+        skip_db = pytest.mark.skip(reason="No DB URL configured — set CI_DB_URL or DB_URL to run DB tests")
+        for item in items:
+            if "requires_db" in item.keywords:
+                item.add_marker(skip_db)
 
 @pytest.fixture(scope="session")
 def event_loop():

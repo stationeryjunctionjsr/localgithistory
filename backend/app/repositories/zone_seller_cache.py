@@ -56,6 +56,12 @@ _all_zones_cache: Optional[list] = None
 _all_zones_expiry: float = 0.0
 _all_zones_lock: Optional[Any] = None  # asyncio.Lock created lazily
 
+# O(1) pincode lookup index — built from _all_zones_cache whenever it is refreshed.
+# Maps pincode (str) → zone object. Same TTL as _all_zones_cache.
+# Eliminates the `for zone in zones: if pincode in zone.pincodes` O(n) linear scan.
+_pincode_to_zone: Dict[str, Any] = {}
+
+
 async def get_super_admin_seller_id() -> Optional[str]:
     global _super_admin_id_cache, _super_admin_cache_expiry
     if _super_admin_id_cache and time.monotonic() < _super_admin_cache_expiry:
@@ -86,11 +92,14 @@ async def _fetch_all_zones() -> list:
     The zone list changes rarely (admin-driven) so caching for ZONE_CACHE_TTL_S
     (5 min) is safe.  Call invalidate_zone_cache() after any zone mutation to
     force an immediate refresh.
+
+    Also builds _pincode_to_zone — a pincode→zone dict for O(1) lookups —
+    eliminating the previous O(n) linear scan on every pincode resolution request.
     """
-    global _all_zones_cache, _all_zones_expiry, _all_zones_lock
+    global _all_zones_cache, _all_zones_expiry, _all_zones_lock, _pincode_to_zone
     import asyncio
 
-    # Fast path: cache is warm
+    # Fast path: cache is warm (index is warm too — built at the same time)
     if _all_zones_cache is not None and time.monotonic() < _all_zones_expiry:
         return _all_zones_cache
 
@@ -105,6 +114,18 @@ async def _fetch_all_zones() -> list:
 
         storage = get_storage("deliveryZones")
         zones = await storage.findAll(is_active=True)
+
+        # Build the O(1) pincode → zone index atomically with the zone list.
+        # Each zone's pincodes list is iterated once here so every subsequent
+        # request pays O(1) dict lookup cost instead of O(zones × pincodes).
+        # Values are DeliveryZoneInternal Pydantic models (from storage.findAll).
+        new_index: Dict[str, Any] = {}
+        for zone in zones:
+            for pincode in (zone.pincodes or []):
+                if pincode:
+                    new_index[str(pincode)] = zone  # later zone wins on duplicate pincodes
+
+        _pincode_to_zone = new_index
         _all_zones_cache = zones
         _all_zones_expiry = time.monotonic() + ZONE_CACHE_TTL_S
         return _all_zones_cache
@@ -146,6 +167,9 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
     Unavailable sellers are intentionally included so their products can be shown
     as greyed-out in the UI rather than hidden completely.
 
+    O(1) lookup via _pincode_to_zone index built when the zone list is cached.
+    Previous implementation: O(n) loop over all zones per request.
+
     Returns:
         (None, None)        -> pincode not in any zone
         (zone_id, set())    -> zone found but no sellers declared
@@ -155,23 +179,23 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
         return None, None
 
     try:
-        zones = await _fetch_all_zones()
-        for zone in zones:
-            pincodes = zone.pincodes or []
-            if pincode not in pincodes:
-                continue
+        # Ensure cache and index are warm — fast no-op when already fresh
+        await _fetch_all_zones()
 
-            if zone.id is None:
-                logger.warning("zone_seller_cache: zone has no id: %s", zone)
-                return None, None
+        # O(1) dict lookup — replaces `for zone in zones: if pincode in zone.pincodes`
+        zone = _pincode_to_zone.get(str(pincode))
+        if zone is None:
+            return None, None
 
-            # Return the full seller set — unavailable sellers are NOT subtracted here.
-            # Use get_unavailable_seller_ids_for_pincode() to find the unavailable subset
-            # for UI tagging purposes.
-            seller_ids = set(await _get_sellers_for_zone(zone.id))
-            return zone.id, seller_ids
+        if zone.id is None:
+            logger.warning("zone_seller_cache: zone has no id: %s", zone)
+            return None, None
 
-        return None, None
+        # Return the full seller set — unavailable sellers are NOT subtracted here.
+        # Use get_unavailable_seller_ids_for_pincode() to find the unavailable subset.
+        seller_ids = set(await _get_sellers_for_zone(zone.id))
+        return zone.id, seller_ids
+
     except Exception as exc:
         logger.error("zone_seller_cache: failed to resolve pincode %s: %s", pincode, exc, exc_info=True)
         return None, None
@@ -239,11 +263,10 @@ async def get_zone_for_pincode(pincode: str) -> Optional[DeliveryZoneInternal]:
         return None
 
     try:
-        zones = await _fetch_all_zones()
-        for zone in zones:
-            if pincode in (zone.pincodes or []):
-                return zone
-        return None
+        # Ensure cache and index are warm — fast no-op when already fresh
+        await _fetch_all_zones()
+        # O(1) dict lookup — replaces O(n) `for zone in zones: if pincode in zone.pincodes`
+        return _pincode_to_zone.get(str(pincode))
     except Exception as exc:
         logger.error("zone_seller_cache: get_zone_for_pincode failed for %s: %s", pincode, exc, exc_info=True)
         return None
@@ -254,12 +277,15 @@ def invalidate_zone_cache(zone_id: Optional[int] = None) -> None:
     Invalidate cache entries.
     Pass a zone_id to evict a specific zone, or None to clear everything.
     Call this from zone create/update/delete routes and when a seller updates their zones.
-    Also clears the cached zone list so the next lookup fetches a fresh copy from the DB.
+    Also clears the cached zone list and the O(1) pincode index so the next lookup
+    fetches a fresh copy from the DB.
     """
-    global _all_zones_cache, _all_zones_expiry
+    global _all_zones_cache, _all_zones_expiry, _pincode_to_zone
     # Always clear the zone list cache — a mutation invalidates the full list
     _all_zones_cache = None
     _all_zones_expiry = 0.0
+    # Clear the O(1) pincode→zone index — it must be rebuilt from the fresh zone list
+    _pincode_to_zone = {}
     if zone_id is not None:
         _zone_seller_cache.pop(zone_id, None)
     else:

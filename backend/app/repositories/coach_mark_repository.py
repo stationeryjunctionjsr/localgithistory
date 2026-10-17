@@ -15,7 +15,7 @@ class CoachMarkRepository:
     async def findAll(self) -> List[CoachMarkInternal]:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional[CoachMarkInternal]:
+    async def findById(self, id: int) -> Optional[CoachMarkInternal]:
         return await self.storage.findById(id)
 
     async def findByAnchorId(self, anchor_id: str) -> Optional[CoachMarkInternal]:
@@ -26,10 +26,10 @@ class CoachMarkRepository:
             data.is_active = True
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: CoachMarkInternalUpdate) -> Optional[CoachMarkInternal]:
+    async def update(self, id: int, update_data: CoachMarkInternalUpdate) -> Optional[CoachMarkInternal]:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 
