@@ -110,7 +110,14 @@ export default function CheckoutPage() {
   const [upiPaymentConfirmed, setUpiPaymentConfirmed] = useState(false);
   const [upiTxnRef, setUpiTxnRef] = useState('');
   const [upiAppUsed, setUpiAppUsed] = useState('');
+  // On mobile the QR code can't be scanned on the same device — default to app deep-links.
+  // On desktop, QR is the right default (user scans with their phone).
   const [upiModalTab, setUpiModalTab] = useState<'qr' | 'apps'>('qr');
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setUpiModalTab('apps');
+    }
+  }, []);
   const [upiUtr, setUpiUtr] = useState('');
 
   // Order notes & options
@@ -1613,6 +1620,16 @@ export default function CheckoutPage() {
           </div>
         </aside>
       </main>
+
+      {/* ── Mobile Sticky Price Bar (hidden on desktop where sidebar is always visible) ── */}
+      <div className={ck.mobilePriceBar}>
+        <div className={ck.mobilePriceBarItems}>
+          🛒 <span>{cart?.items?.length || 0} item{(cart?.items?.length || 0) !== 1 ? 's' : ''}</span>
+        </div>
+        <div className={ck.mobilePriceBarTotal}>
+          Total: <strong>₹{grandTotal.toFixed(2)}</strong>
+        </div>
+      </div>
 
       {/* ── Add Address Modal ── */}
       {showAddressModal && (
