@@ -89,8 +89,13 @@ def get_async_engine():
         # Use QueuePool for connection pooling in a long-running FastAPI app.
         # pool_pre_ping=False because we implement the same check ourselves via
         # the checkout event registered below (avoids the aiomysql ping() arity bug).
-        pool_size = int(os.getenv("DB_POOL_SIZE", 10))
-        max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 5))
+        # PRODUCTION NOTE: With 4 uvicorn workers these defaults yield
+        # 4 × (pool_size + max_overflow) = 4 × 45 = 180 total MySQL connections.
+        # Ensure MySQL max_connections ≥ 200 BEFORE deploying.
+        # Run: SHOW VARIABLES LIKE 'max_connections';
+        # Cloud SQL default is 100 — raise it to 300 in the instance settings.
+        pool_size = int(os.getenv("DB_POOL_SIZE", 25))
+        max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 20))
 
         _async_engine = create_async_engine(
             DATABASE_URL,
