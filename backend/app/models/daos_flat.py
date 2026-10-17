@@ -474,7 +474,7 @@ class DeliverySlotConfigInternalUpdate(FlatCamelBaseModel):
     updated_at: Optional[datetime] = None
 
 class CustomerSegmentInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -1013,7 +1013,7 @@ class ActivityInternalUpdate(FlatCamelBaseModel):
     comments: Optional[str] = None
 
 class ActivityInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     user_id: Optional[str] = None
     session_id: Optional[str] = None
     action: str

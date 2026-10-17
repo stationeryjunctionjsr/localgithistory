@@ -15,7 +15,7 @@ def _ensure_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
     return v
 
 class CartItemInternal(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     product: Optional[int] = None
     quantity: Optional[int] = 0
     sell_as_case: Optional[bool] = False
@@ -619,7 +619,7 @@ from app.models.schemas import ProductSellerEntry, VariantOption, ReturnItemSche
 from app.models.customer_segment import CustomerSegmentFilters
 
 class CustomerSegmentInternalCreate(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: str
     type: str
     userIds: List[str]
@@ -677,7 +677,7 @@ class NotificationInternal(CamelBaseModel):
 
 
 class OrderFilter(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     user_id: Optional[str] = None
     user_ids: Optional[List[str]] = None
     status: Optional[str] = None

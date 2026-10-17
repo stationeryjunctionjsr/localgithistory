@@ -57,10 +57,10 @@ class OrderRepository:
     async def countByUser(self, user_id: str) -> int:
         return await self.count(OrderFilter(user_id=str(user_id)))
 
-    async def findById(self, id: str) -> Optional[Order]:
+    async def findById(self, id: int) -> Optional[Order]:
         return await self.storage.findById(id)
 
-    async def findByIds(self, ids: List[str]) -> List[Order]:
+    async def findByIds(self, ids: List[int]) -> List[Order]:
         return await self.storage.findByIds(ids)
 
     async def create(self, order_data: 'OrderInternalCreate'):
@@ -70,7 +70,7 @@ class OrderRepository:
         order_data.order_number = await self.generateOrderNumber(order_data.user_role or "")
         return await self.storage.create(order_data)
 
-    async def update(self, id: str, update_data: 'OrderInternalUpdate'):
+    async def update(self, id: int, update_data: 'OrderInternalUpdate'):
         if update_data.status == "out_for_delivery" and update_data.shipped_at is None:
             update_data.shipped_at = datetime.now(timezone.utc).isoformat()
 
@@ -106,7 +106,7 @@ class OrderRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str):
+    async def delete(self, id: int):
         return await self.storage.delete(id)
 
 

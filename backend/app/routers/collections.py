@@ -61,7 +61,7 @@ async def get_collections(current_user: User = Depends(require_super_admin)):
 
 @router.get("/{collection_id}/products", response_model=List[ProductResponse])
 @cache.ttl_cache(ttl=600.0)
-async def get_collection_products(collection_id: str):
+async def get_collection_products(collection_id: int):
     """Get products belonging to a collection (public endpoint)."""
     from app.repositories.product_repository import product_repository
 
@@ -73,7 +73,7 @@ async def get_collection_products(collection_id: str):
 
 
 @router.get("/{collection_id}", response_model=CollectionResponse)
-async def get_collection(collection_id: str, current_user: User = Depends(require_super_admin)):
+async def get_collection(collection_id: int, current_user: User = Depends(require_super_admin)):
     """Get single collection by ID."""
     collection = await collection_repository.findById(collection_id)
     if not collection:
@@ -132,7 +132,7 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
 
 @router.put("/{collection_id}", response_model=CollectionResponse)
 async def update_collection(
-    collection_id: str, data: CollectionUpdate, current_user: User = Depends(require_super_admin)
+    collection_id: int, data: CollectionUpdate, current_user: User = Depends(require_super_admin)
 ):
     internal_update = CollectionInternalUpdate()
     if 'name' in data.model_fields_set: internal_update.name = data.name
@@ -154,7 +154,7 @@ async def update_collection(
 
 
 @router.delete("/{collection_id}", response_model=MessageResponse)
-async def delete_collection(collection_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_collection(collection_id: int, current_user: User = Depends(require_super_admin)):
     ok = await collection_repository.delete(collection_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Collection not found")

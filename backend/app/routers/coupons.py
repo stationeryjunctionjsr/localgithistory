@@ -58,7 +58,7 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User
 
 
 @router.get("/{coupon_id}", response_model=CouponResponse)
-async def get_coupon(coupon_id: str, current_user: User = Depends(require_super_admin)):
+async def get_coupon(coupon_id: int, current_user: User = Depends(require_super_admin)):
     coupon = await coupon_repository.findById(coupon_id)
     if not coupon:
         raise HTTPException(status_code=404, detail="Coupon not found")
@@ -91,7 +91,7 @@ async def create_coupon(
 
 @router.put("/{coupon_id}", response_model=CouponResponse)
 async def update_coupon(
-    coupon_id: str,
+    coupon_id: int,
     coupon_data: CouponUpdate,
     resolution: Optional[str] = Query(None),
     force: bool = Query(False),
@@ -116,7 +116,7 @@ async def update_coupon(
 
 
 @router.delete("/{coupon_id}", response_model=MessageResponse)
-async def delete_coupon(coupon_id: str, current_user: User = Depends(require_super_admin)):
+async def delete_coupon(coupon_id: int, current_user: User = Depends(require_super_admin)):
     result = await coupon_repository.delete(coupon_id)
     if not result:
         raise HTTPException(status_code=404, detail="Coupon not found")
