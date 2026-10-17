@@ -22,7 +22,7 @@ class CustomerSegmentFilters(CamelBaseModel):
     city: Optional[str] = None
 
 class CustomerSegmentInternalCreate(BaseModel):
-    id: str = ""
+    id: Optional[int] = None
     name: str
     type: str
     isActive: bool = True
@@ -43,7 +43,7 @@ class CustomerSegmentInternalUpdate(BaseModel):
     lastRefreshedAt: Optional[str] = None
 
 class CustomerSegmentResponse(BaseModel):
-    id: str = ""
+    id: Optional[int] = None
     name: str
     type: str
     userIds: List[str] = []

@@ -174,7 +174,7 @@ class TrendingCacheResult(CamelBaseModel):
 
 
 class BundleRecommendationItem(CamelBaseModel):
-    id: str
+    id: int
     name: str
     description: Optional[str] = None
     category: Optional[str] = None
