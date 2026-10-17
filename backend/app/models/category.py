@@ -5,7 +5,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class Category(CamelBaseModel):
-    id: str 
+    id: int 
     name: str
     description: Optional[str] = None
     is_active: bool = Field(default=True)

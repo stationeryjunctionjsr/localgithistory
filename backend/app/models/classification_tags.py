@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class ClassificationTags(BaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = Field(default=None, alias='name')
     is_active: bool = Field(default=None, alias='isActive')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')

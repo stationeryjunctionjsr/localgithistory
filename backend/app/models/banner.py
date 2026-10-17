@@ -6,7 +6,7 @@ from app.models.schemas import VisibilityRuleSnippet
 
 from app.models.base import CamelBaseModel
 class Banner(CamelBaseModel):
-    id: str = Field(default=None)
+    id: Optional[int] = Field(default=None)
     title: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     image_url: Optional[str] = Field(default=None)
