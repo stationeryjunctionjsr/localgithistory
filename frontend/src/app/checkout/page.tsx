@@ -108,6 +108,7 @@ export default function CheckoutPage() {
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cod' | 'credit'>('upi');
   const [upiPaymentConfirmed, setUpiPaymentConfirmed] = useState(false);
+  const [upiAppLaunched, setUpiAppLaunched] = useState(false); // true once user taps any UPI app button
   const [upiTxnRef, setUpiTxnRef] = useState('');
   const [upiAppUsed, setUpiAppUsed] = useState('');
   // On mobile the QR code can't be scanned on the same device — default to app deep-links.
@@ -503,9 +504,22 @@ export default function CheckoutPage() {
   }, [grandTotal, upiTxnRef]);
 
   const handleLaunchUpiApp = (scheme: string, appName: string) => {
-    ensureUpiRef();
+    const ref = ensureUpiRef();
     setUpiAppUsed(appName);
-    const deepLink = `${scheme}?pa=stationeryjunction@icici&pn=Stationery%20Junction&am=${grandTotal.toFixed(2)}&cu=INR&tr=${ensureUpiRef()}&tn=Order%20${ensureUpiRef()}`;
+    setUpiAppLaunched(true);
+
+    // When user returns to this tab/window after paying in the UPI app,
+    // auto-mark the payment as confirmed. visibilitychange fires when the
+    // browser tab regains focus (e.g. user switches back from PhonePe).
+    const onReturn = () => {
+      if (document.visibilityState === 'visible') {
+        setUpiPaymentConfirmed(true);
+        document.removeEventListener('visibilitychange', onReturn);
+      }
+    };
+    document.addEventListener('visibilitychange', onReturn);
+
+    const deepLink = `${scheme}?pa=stationeryjunction@icici&pn=Stationery%20Junction&am=${grandTotal.toFixed(2)}&cu=INR&tr=${ref}&tn=Order%20${ref}`;
     window.location.href = deepLink;
   };
 
@@ -1351,33 +1365,47 @@ export default function CheckoutPage() {
 
                       <div className={ck.confirmCard}>
                         <div>
-                          <div style={{ fontWeight: 700, color: '#065f46', fontSize: 14 }}>
-                            {upiPaymentConfirmed ? '✓ Payment Confirmed' : 'Completed your payment in the UPI app?'}
-                          </div>
-                          <div style={{ fontSize: 12, color: '#047857', marginTop: 2 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: upiPaymentConfirmed ? '#065f46' : upiAppLaunched ? '#1e40af' : '#334155' }}>
                             {upiPaymentConfirmed
-                              ? `Ready to place order with reference ${ensureUpiRef()}`
-                              : 'Tap below to mark payment done. No screenshot required!'}
+                              ? '✓ Payment Confirmed'
+                              : upiAppLaunched
+                              ? '⏳ Waiting for you to return…'
+                              : 'Open a UPI app above to pay'}
+                          </div>
+                          <div style={{ fontSize: 12, marginTop: 2, color: upiPaymentConfirmed ? '#047857' : upiAppLaunched ? '#3b82f6' : '#64748b' }}>
+                            {upiPaymentConfirmed
+                              ? `Ref: ${ensureUpiRef()} · Ready to place order`
+                              : upiAppLaunched
+                              ? 'We\'ll confirm automatically when you come back'
+                              : 'Or tap "I Have Paid" below if you already paid via QR'}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setUpiPaymentConfirmed(!upiPaymentConfirmed)}
-                          style={{
-                            background: upiPaymentConfirmed ? '#10b981' : '#047857',
-                            color: '#fff',
-                            padding: '8px 18px',
-                            borderRadius: 8,
-                            fontWeight: 700,
-                            fontSize: 13,
-                            border: 'none',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {upiPaymentConfirmed ? '✓ Confirmed' : '✓ I Have Paid'}
-                        </button>
+                        {/* Manual fallback — always visible so QR payers can also confirm */}
+                        {!upiPaymentConfirmed && (
+                          <button
+                            type="button"
+                            onClick={() => setUpiPaymentConfirmed(true)}
+                            style={{
+                              background: '#047857',
+                              color: '#fff',
+                              padding: '8px 18px',
+                              borderRadius: 8,
+                              fontWeight: 700,
+                              fontSize: 13,
+                              border: 'none',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                            }}
+                          >
+                            ✓ I Have Paid
+                          </button>
+                        )}
+                        {upiPaymentConfirmed && (
+                          <span style={{ fontSize: 22 }}>✅</span>
+                        )}
                       </div>
+
                     </div>
                   )}
 
