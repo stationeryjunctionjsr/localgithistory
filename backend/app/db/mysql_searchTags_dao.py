@@ -1,4 +1,5 @@
-from typing import Optional, List, Union
+from typing import Optional, List
+from app.models.base import CamelBaseModel
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -235,7 +236,7 @@ class MySQLSearchTagsDAO:
             rows_excludedProductIds,
         )
 
-    async def _replace_children(self, session, row_id: int, data: Union[SearchTagInternalCreate, SearchTagInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
 
         if "categories" in data.model_fields_set:
             await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": row_id})

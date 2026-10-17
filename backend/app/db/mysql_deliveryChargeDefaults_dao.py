@@ -1,4 +1,5 @@
-from typing import Optional, List, Union
+from typing import Optional, List
+from app.models.base import CamelBaseModel
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -236,7 +237,7 @@ class MySQLDeliveryChargeDefaultsDAO:
         res_tiers = await session.execute(q_tiers, {"pid": parent_id})
         return [_parse_tier_row(r) for r in res_tiers.fetchall()]
 
-    async def _replace_children(self, session, row_id: int, data: Union[DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
         fields = data.model_fields_set
         if "tiers" in fields and data.tiers is not None:
             await session.execute(

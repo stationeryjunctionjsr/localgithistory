@@ -18,7 +18,7 @@ class MySQLSchemesDAO:
         from app.config.settings import settings
         return self.table_name
         
-    async def findById(self, id: int) -> Optional['SchemeInternal']:
+    async def findById(self, id: int) -> Optional[SchemeInternal]:
         async_session = get_async_session_factory()
         if not async_session or not id:
             return None
@@ -254,7 +254,7 @@ class MySQLSchemesDAO:
             roles_rows.extend(res.fetchall())
         return roles_rows
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
 
         if data.applicable_roles is not None:
             await session.execute(text(f"DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": row_id})

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union, Dict
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel, computed_field
 from app.models.base import CamelBaseModel
@@ -527,9 +527,14 @@ class ProductUpdate(CamelBaseModel):
 
 
 
+class ItemDiscount(CamelBaseModel):
+    item_index: int
+    discount: float
+
+
 class BxGyEvaluationResponse(CamelBaseModel):
     discount: float = 0.0
-    item_discounts: Optional[Dict[int, float]] = None
+    item_discounts: Optional[List[ItemDiscount]] = None
     bxgy_item_indices: Optional[List[int]] = None
 
 
@@ -549,7 +554,7 @@ class CouponValidationResponse(CamelBaseModel):
     discount: float = 0.0
     message: Optional[str] = None
     eligible_item_indices: Optional[List[int]] = None
-    item_discounts: Optional[Dict[int, float]] = None
+    item_discounts: Optional[List[ItemDiscount]] = None
     bxgy_item_indices: Optional[List[int]] = None
 
 class CouponValidateCart(CamelBaseModel):
@@ -846,7 +851,7 @@ class DeliveryChargeTier(CamelBaseModel):
     max_order_value: Optional[float] = None
     charge: Optional[float] = None
     min_amount: Optional[float] = None
-    max_amount: Optional[Union[float, str]] = None
+    max_amount: Optional[float] = None
 
 
 class DeliveryChargeBase(CamelBaseModel):
@@ -901,7 +906,7 @@ class DeliveryChargeResponse(DeliveryChargeBase):
 
 # Default Delivery Charge Schema
 class DeliveryTier(CamelBaseModel):
-    max_amount: Union[float, str]  # Can be a number or "Infinity"
+    max_amount: float  # Can be a number or float('inf') (Pydantic coerces "Infinity")
     charge: float
 
 
@@ -1290,7 +1295,7 @@ class SkinnyProductResponse(CamelBaseModel):
 
 
 class PaginatedProductResponse(CamelBaseModel):
-    products: List[Union[ProductResponse, SkinnyProductResponse]]
+    products: List[ProductResponse]
     total_count: int
     brands: Optional[List[str]] = None
     categories: Optional[List[str]] = None
@@ -1701,7 +1706,7 @@ class OrderAddress(CamelBaseModel):
 
 
 
-class CouponCreateInternal(CouponBase):
+class CouponCreateInternal(CouponCreate):
     resolution: Optional[str] = None
     force: bool = False
     display_id: Optional[str] = None
@@ -1952,6 +1957,26 @@ class SellerDeliveryOption(CamelBaseModel):
     delivery_slot_date: Optional[str] = None
     delivery_slot_config_id: Optional[str] = None
     is_urgent_delivery: Optional[bool] = False
+
+
+class OrderCreateRequest(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    shipping_address: Address
+    billing_address: Optional[Address] = None
+    payment_method: str = "cod"  # 'cod', 'upi', or 'credit'
+    upi_payment_screenshot: Optional[str] = None
+    notes: Optional[str] = None
+    coupon_code: Optional[str] = None
+    referral_code: Optional[str] = None
+    discount: Optional[float] = 0.0
+    printed_bill: Optional[bool] = False
+    items: Optional[List[OrderItemCreate]] = None
+    is_urgent_delivery: Optional[bool] = False
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    seller_delivery_options: Optional[List[SellerDeliveryOption]] = None
+    fulfillment_type: Optional[str] = "hyperlocal"
 
 
 class PushSubscriptionKeys(BaseModel):

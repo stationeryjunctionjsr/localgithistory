@@ -1,14 +1,20 @@
 import asyncio
+import os
 import pymysql
 
+
 def main():
-    # URL is mysql+pymysql://stationeryjunction.jsr%40gmail.com:Jaimatadi$1607@127.0.0.1:13306/sjqadb
+    host = os.environ.get("DB_HOST", "127.0.0.1")
+    port = int(os.environ.get("DB_PORT", "13306"))
+    user = os.environ.get("DB_USER", "")
+    password = os.environ.get("DB_PASSWORD", "")
+    database = os.environ.get("DB_NAME", "sjqadb")
     conn = pymysql.connect(
-        host='127.0.0.1',
-        port=13306,
-        user='stationeryjunction.jsr@gmail.com',
-        password='Jaimatadi$1607',
-        database='sjqadb',
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
         cursorclass=pymysql.cursors.DictCursor
     )
     with conn.cursor() as cur:
@@ -17,10 +23,11 @@ def main():
             print("Added zone_id column")
         except Exception as e:
             print(e)
-            
+
         cur.execute("DESCRIBE sj_delivery_slots")
         print([r["Field"] for r in cur.fetchall()])
     conn.commit()
+
 
 if __name__ == "__main__":
     main()

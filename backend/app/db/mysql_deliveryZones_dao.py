@@ -1,4 +1,5 @@
-from typing import Optional, List, Union, Tuple
+from typing import Optional, List, Tuple
+from app.models.base import CamelBaseModel
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -286,7 +287,7 @@ class MySQLDeliveryZonesDAO:
 
         return pincodes, tiers
 
-    async def _replace_children(self, session, row_id: int, data: Union[DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
         fields = data.model_fields_set
         if "pincodes" in fields and data.pincodes is not None:
             await session.execute(text("DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})

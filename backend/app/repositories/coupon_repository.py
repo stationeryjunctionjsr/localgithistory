@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Set
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import (
@@ -21,6 +21,7 @@ from app.models.schemas import (
     CouponValidationDetail,
     CouponValidationResponse,
     ItemSnippet,
+    ItemDiscount,
 )
 from app.utils.logger import logger
 
@@ -130,7 +131,7 @@ class CouponRepository:
         bx_candidates = [e for e in elements if e["is_bx"]]
         bx_candidates.sort(key=lambda x: x["price"], reverse=True)
         if len(bx_candidates) < x_required:
-            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={})
+            return BxGyEvaluationResponse(discount=0.0, item_discounts=[])
 
         bx_allocated = bx_candidates[:x_required]
         bx_ids = {id(e) for e in bx_allocated}
@@ -141,7 +142,7 @@ class CouponRepository:
         gy_ids = {id(e) for e in gy_allocated}
 
         if not gy_allocated:
-            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={})
+            return BxGyEvaluationResponse(discount=0.0, item_discounts=[])
 
         applicable_auto = await self.get_applicable_automatic_product_discounts(user_role, user_id)
         best_auto_per_product = {}
@@ -211,7 +212,15 @@ class CouponRepository:
                     item_discounts[e["idx"]] = (item_discounts[e["idx"]] if e["idx"] in item_discounts else 0.0) + d
                     total_discount += d
 
-        return BxGyEvaluationResponse(discount=total_discount, itemDiscounts=item_discounts, bxgyItemIndices=bxgy_item_indices)
+        item_discount_models = [
+            ItemDiscount(item_index=idx, discount=round(d, 2))
+            for idx, d in item_discounts.items()
+        ]
+        return BxGyEvaluationResponse(
+            discount=total_discount,
+            item_discounts=item_discount_models,
+            bxgy_item_indices=bxgy_item_indices,
+        )
 
     async def findAll(
         self,
@@ -392,7 +401,7 @@ class CouponRepository:
 
         return matched_any
 
-    async def create(self, coupon_data: Union[CouponCreate, CouponInternalCreate]) -> CouponInternal:
+    async def create(self, coupon_data: CouponCreate) -> CouponInternal:
         method = (coupon_data.method if coupon_data.method is not None else "discount_code")
         code = coupon_data.code or ""
         if method == "discount_code" and code:
@@ -489,7 +498,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def update(self, id: str, update_data: Union[CouponUpdate, CouponInternalUpdate]) -> Optional[CouponInternal]:
+    async def update(self, id: str, update_data: CouponUpdate) -> Optional[CouponInternal]:
         from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
         from app.models.schemas import Coupon, CouponValidationResponse, BxGyEvaluationResponseUpdate
         

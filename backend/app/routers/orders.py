@@ -41,6 +41,7 @@ from app.models.schemas import (
     UserInternalUpdate,
     PopulatedOrderResponse,
     PopulatedOrderItemResponse,
+    OrderCreateRequest,
 )
 from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
 from app.models.payment import Payment, PaymentEntry
@@ -83,28 +84,8 @@ router = APIRouter()
 
 
 
-# Helper schemas for order creation
-class OrderCreateRequest(CamelBaseModel):
-    shipping_address: Address
-    billing_address: Optional[Address] = None
-    payment_method: str = "cod"  # 'cod', 'upi', or 'credit'
-    upi_payment_screenshot: Optional[str] = None
-    notes: Optional[str] = None
-    coupon_code: Optional[str] = None  # Coupon code to apply
-    referral_code: Optional[str] = None  # Referral code to apply
-    discount: Optional[float] = 0
-    printed_bill: Optional[bool] = False
-    # [{productId, quantity}] - optional, if not provided uses user's cart
-    items: Optional[List[OrderItemCreate]] = None
-    is_urgent_delivery: Optional[bool] = False
-    delivery_slot_id: Optional[str] = None  # slot.id within a slot config
-    # _id of the DeliverySlotConfig doc
-    delivery_slot_config_id: Optional[str] = None
-    delivery_slot_date: Optional[str] = None  # ISO date string e.g. "2026-07-15"
-    # Per-seller delivery options for split-cart orders
-    # [{sellerId, isUrgentDelivery, deliverySlotId, deliverySlotConfigId, deliverySlotDate}]
-    seller_delivery_options: Optional[List[SellerDeliveryOption]] = None
-    fulfillment_type: Optional[str] = "hyperlocal"  # 'hyperlocal' or 'courier'
+
+# Helper schemas for order creation (canonical definition imported from app.models.schemas)
 
 
 

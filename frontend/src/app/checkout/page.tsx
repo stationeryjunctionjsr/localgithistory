@@ -674,7 +674,29 @@ export default function CheckoutPage() {
         deliverySlotDate: activeMode === 'pan_india' ? null : (selectedDeliveryType === 'urgent' ? null : (selectedSlot ? selectedSlotDate : null)),
       };
 
-      await api.post('/orders', payload);
+      const idempotencyKey =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `chk-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+      const res = await api.post('/orders', payload, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      const createdOrder = res.data;
+
+      // Track purchase conversion event for GA4 / GTM
+      trackEcommerceEvent('purchase', {
+        transaction_id: createdOrder?.orderNumber || createdOrder?.id || Date.now().toString(),
+        value: grandTotal,
+        currency: 'INR',
+        items: (cart?.items || []).map((item: any) => ({
+          item_id: item.product?.id || item.product_id,
+          item_name: item.product?.name || item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+      });
+
       toast.success('Order placed successfully!');
       if (fetchCart) await fetchCart();
       router.push('/customer/orders');

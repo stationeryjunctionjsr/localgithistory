@@ -1,4 +1,5 @@
-from typing import Optional, List, Union
+from typing import Optional, List
+from app.models.base import CamelBaseModel
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -302,7 +303,7 @@ class MySQLSupportTicketsDAO:
 
         return rows_attachments, rows_responses
 
-    async def _replace_children(self, session, row_id: int, data: Union[SupportTicketInternalCreate, SupportTicketInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
 
         if data.attachments is not None:
             await session.execute(text(f"DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": row_id})

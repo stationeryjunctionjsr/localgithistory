@@ -25,12 +25,12 @@ class ProductRepository:
         self._collections_cache = None
         self._collections_cache_time = None
         self._collections_lock = asyncio.Lock()  # DESIGN-3: prevents stampede on cache rebuild
-        self._cat_gst_map: Optional[dict[str, float]] = None
+        self._cat_gst_map = None
         self._cat_gst_map_exp: float = 0.0
         # Lock prevents thundering herd: only one coroutine rebuilds the
         # lightweight search catalog at a time; all others wait then serve from cache.
         self._light_catalog_lock = asyncio.Lock()
-        self._light_catalog_cache: dict = {}
+        self._light_catalog_cache = {}
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         if not date_str:
@@ -817,8 +817,8 @@ class ProductRepository:
 
         # Build collection -> productIds mapping and product -> collection names (used for search scoring)
         collections = await self._get_collections()
-        collection_product_map: dict[Any, List[Any]] = {}
-        product_collection_names: dict[int, List[str]] = {}
+        collection_product_map = {}
+        product_collection_names = {}
         for col in collections:
             col_id = col.id
             col_name = col.name
@@ -1140,7 +1140,7 @@ class ProductRepository:
 
     def calculateTotalPrice(
         self,
-        product: 'ProductInternal',
+        product: ProductInternal,
         role: str,
         quantity: int,
         selected_attributes: Optional[dict] = None,

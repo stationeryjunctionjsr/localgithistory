@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from dotenv import load_dotenv
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from app.models.tracking import Tracking
 from app.utils.logger import logger
 
 # Find .env in the backend directory
@@ -19,7 +20,7 @@ class ReportService:
     def __init__(self):
         pass
 
-    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List['TrackingEvent']:
+    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List[Tracking]:
         """Read tracking events from the MySQL tracking table with a safety limit."""
         try:
             from app.db.storage_factory import get_storage

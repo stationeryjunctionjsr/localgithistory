@@ -304,7 +304,7 @@ class TrackingRepository:
         )
 
     async def trackCartAbandonment(
-        self, user_id: Optional[str], cart_items: List['CartItemInternal'], cart_value: Optional[float], session_id: Optional[str] = None,
+        self, user_id: Optional[str], cart_items: List[CartItemInternal], cart_value: Optional[float], session_id: Optional[str] = None,
         source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
         ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
         device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None

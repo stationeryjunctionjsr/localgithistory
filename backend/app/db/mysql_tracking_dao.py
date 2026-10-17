@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 import logging
 """
 MySQL DAO for sj_tracking. Fully relational with child tables.
@@ -133,7 +133,7 @@ class MySQLTrackingDAO:
 
         return items_rows
 
-    async def _replace_children(self, session, tid: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, tid: int, data: CamelBaseModel):
         await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
 
         cart_items = []

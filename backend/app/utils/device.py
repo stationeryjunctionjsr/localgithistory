@@ -1,16 +1,9 @@
 from typing import Optional
-from pydantic import BaseModel
+from app.models.daos import DeviceSnippet
 from fastapi import Request
 
-class DeviceContext(BaseModel):
-    userAgent: Optional[str] = None
-    os: Optional[str] = None
-    osVersion: Optional[str] = None
-    deviceType: str
-    appVersion: Optional[str] = None
-    deviceModel: Optional[str] = None
-    locale: Optional[str] = None
-    ip: Optional[str] = None
+class DeviceContext(DeviceSnippet):
+    deviceType: Optional[str] = "web"
 
 def parse_device(request: Request, default_type: str = "web") -> DeviceContext:
     headers = request.headers

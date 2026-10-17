@@ -17,7 +17,7 @@ from app.models.analytics_schemas import (
 from app.models.user import User
 from app.models.schemas import MessageResponse, AnalyticsEventCreate, AnalyticsEventPayload
 from datetime import datetime, timezone
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 
@@ -55,8 +55,9 @@ def _resolve_seller_id(current_user: User, requested_seller_id: Optional[int] = 
 
 
 
-from pydantic import BaseModel, Field, ConfigDict, RootModel, AliasChoices
-from typing import List, Optional, Union
+from pydantic import BaseModel, Field, ConfigDict, RootModel
+from typing import List, Optional
+from app.models.base import CamelBaseModel
 
 class RecordEventResponse(BaseModel):
     status: str
@@ -89,17 +90,15 @@ class TopCustomerResponse(BaseModel):
     orderCount: int
     revenue: float
 
-class MostSearchedResponse(BaseModel):
+class MostSearchedResponse(CamelBaseModel):
     term: str
-    searchCount: int = Field(default=0, validation_alias=AliasChoices("searchCount", "count"))
-    resultsCount: Union[int, float] = Field(default=0, validation_alias=AliasChoices("resultsCount", "avgProductsFound"))
+    count: int = 0
+    avg_products_found: float = Field(default=0.0, alias="avgProductsFound")
 
-class MostViewedResponse(BaseModel):
-    productId: str
-    productName: str
-    viewCount: int = Field(default=0, validation_alias=AliasChoices("viewCount", "count"))
-
-from app.models.base import CamelBaseModel
+class MostViewedResponse(CamelBaseModel):
+    product_id: Optional[str] = None
+    product_name: str
+    count: int = 0
 
 class DashboardDataResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')

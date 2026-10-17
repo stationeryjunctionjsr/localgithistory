@@ -424,13 +424,13 @@ class RefreshRequest(BaseModel):
 
 @router.post("/refresh", response_model=AuthResponse)
 async def refresh_tokens(payload: RefreshRequest, request: Request, response: Response):
-    token_str = payload.refresh_token or get_refresh_token_from_request(request)
+    token_str = payload.refreshToken or get_refresh_token_from_request(request)
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
     data = verify_refresh_token(token_str)
     claims = RefreshTokenClaims.model_validate(data)
     user_id = claims.userId
-    session_id = claims.session_id
+    session_id = claims.sessionId
     refresh_id = claims.refreshId
 
     session = await session_repository.find_by_id(session_id)

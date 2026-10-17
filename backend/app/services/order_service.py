@@ -29,6 +29,7 @@ from app.models.schemas import (
     VariantAttributes,
     CouponResponse,
     NotificationMetadata,
+    OrderCreateRequest,
 )
 from app.repositories.cart_repository import cart_repository
 from app.repositories.category_repository import category_repository
@@ -412,10 +413,10 @@ async def _compute_fulfillment_status(sub_order_ids: list) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 async def create_order_service(
-    order_data: "OrderCreateRequest",
+    order_data: OrderCreateRequest,
     current_user: User,
     idempotency_key: Optional[str],
-    background_tasks: "BackgroundTasks",
+    background_tasks: BackgroundTasks,
 ) -> Optional[PopulatedOrderResponse]:
     """Full order-creation business logic extracted from the router layer."""
     order_zone_id = None
@@ -767,15 +768,16 @@ async def create_order_service(
     # --- Phase 1: Apply Coupon Discount ---
     c_type_of_disc = coupon_info["typeOfDiscount"] if coupon_info is not None else None
     is_shipping_discount = coupon_info is not None and c_type_of_disc == "shipping_discount"
+    item_discounts_map = {d.item_index: d.discount for d in item_discounts} if item_discounts else {}
 
     for idx, (product, item_total_before_coupon, quantity, sell_as_case, item) in enumerate(item_totals):
         # Apply discount: exact mapping if available, else proportional
         if is_shipping_discount:
             item_coupon_discount = 0.0
-        elif item_discounts is not None and idx in item_discounts:
-            item_coupon_discount = item_discounts[idx]
+        elif idx in item_discounts_map:
+            item_coupon_discount = item_discounts_map[idx]
             # Prevent double application if any logic loops
-            item_discounts[idx] = 0.0
+            item_discounts_map[idx] = 0.0
         elif (
             coupon_discount > 0
             and eligible_subtotal_for_discount

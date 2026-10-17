@@ -7,7 +7,7 @@ from app.models.daos import OrderFilter
 from app.models.order import Order
 from app.repositories.order_repository import order_repository
 from app.repositories.push_notification_repository import push_notification_repository
-from app.models.user import UserFilter
+from app.models.user import User, UserFilter
 from app.repositories.user_repository import user_repository
 from app.models.schemas import PushNotificationPayload
 from app.utils.logger import logger
@@ -36,7 +36,7 @@ class PushNotificationService:
         self.vapid_email = os.getenv("VAPID_EMAIL", "mailto:your-email@example.com")
         self.expo_push_url = "https://exp.host/--/api/v2/push/send"
 
-    def _send_expo_push(self, expo_tokens: list, notification: 'PushNotification') -> int:
+    def _send_expo_push(self, expo_tokens: list[str], notification: PushNotificationPayload) -> int:
         """Send push notifications to Expo mobile devices in batches of 100."""
         if not expo_tokens or not HTTP_AVAILABLE:
             return 0
@@ -267,9 +267,9 @@ class PushNotificationService:
     async def is_user_targeted(
         self,
         user_id: int,
-        notification: 'PushNotification',
-        user: Optional['User'] = None,
-        user_orders: Optional[List['Order']] = None,
+        notification: PushNotificationPayload,
+        user: Optional[User] = None,
+        user_orders: Optional[List[Order]] = None,
         reference_date: Optional[datetime] = None,
     ) -> bool:
         """Check if a specific user satisfies the targeting criteria of a notification."""

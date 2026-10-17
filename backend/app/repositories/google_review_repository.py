@@ -1,4 +1,5 @@
 from app.models.daos_flat import Google_reviewsInternal, Google_reviewsInternalCreate, Google_reviewsInternalUpdate
+from typing import Optional
 import os
 import re
 from datetime import datetime, timezone

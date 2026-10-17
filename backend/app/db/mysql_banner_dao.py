@@ -3,10 +3,11 @@ MySQL DAO for sj_banners. Implements FileStorage-like interface for 'banners'.
 Fully relational with child tables for user_segments and visibility_rules.
 """
 
+from app.models.base import CamelBaseModel
 from app.models.schemas import BannerResponse, VisibilityRuleSnippet
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate, BannerChildrenData
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 from app.models.banner import Banner
 
 from sqlalchemy import text
@@ -308,7 +309,7 @@ class MySQLBannerDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def _replace_children(self, session, bid: int, data: Union[BannerInternalCreate, BannerInternalUpdate, BannerChildrenData]):
+    async def _replace_children(self, session, bid: int, data: CamelBaseModel):
         await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
         await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
         

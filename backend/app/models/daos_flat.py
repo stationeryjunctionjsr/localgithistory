@@ -1,7 +1,7 @@
 from app.models.base import CamelBaseModel
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
-from typing import Any, Optional, Dict, List, Union
+from typing import Any, Optional, List
 from datetime import datetime, timezone
 from app.models.schemas import TicketResponseItemInternal, SocialMedia
 from app.models.daos import CustomerSegmentFilters

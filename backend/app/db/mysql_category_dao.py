@@ -2,7 +2,8 @@
 MySQL DAO for sj_categories. Fully relational with child tables for images, sub_categories, and category_tags.
 """
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
+from app.models.base import CamelBaseModel
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -77,7 +78,7 @@ class MySQLCategoryDAO:
 
         return img_rows, sub_rows, tag_rows
 
-    async def _replace_children(self, session, cid: int, data: Union[CategoryInternalCreate, CategoryInternalUpdate, CategoryChildrenData]):
+    async def _replace_children(self, session, cid: int, data: CamelBaseModel):
         await session.execute(text("DELETE FROM sj_category_images WHERE category_id = :cid"), {"cid": cid})
         await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": cid})
         await session.execute(text("DELETE FROM sj_category_category_tags WHERE category_id = :cid"), {"cid": cid})

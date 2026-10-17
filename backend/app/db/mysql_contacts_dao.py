@@ -1,4 +1,5 @@
-from typing import Optional, List, Union, Tuple, Any
+from typing import Optional, List, Tuple, Any
+from app.models.base import CamelBaseModel
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -239,7 +240,7 @@ class MySQLContactsDAO:
 
         return res_addresses.fetchall(), res_phones.fetchall()
 
-    async def _replace_children(self, session, row_id: int, data: Union[ContactInternalCreate, ContactInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
         fields = data.model_fields_set
         if "addresses" in fields and data.addresses is not None:
             await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": row_id})

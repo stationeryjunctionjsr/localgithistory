@@ -3,10 +3,10 @@ services:
     image: mysql:8.0
     container_name: mysql-qa
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
       MYSQL_DATABASE: sjqadb
-      MYSQL_USER: "stationeryjunction.jsr@gmail.com"
-      MYSQL_PASSWORD: "Jaimatadi$$1607"
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
     ports:
       - "13306:3306"
     volumes:

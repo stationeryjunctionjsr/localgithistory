@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Union
+from typing import Optional, List
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate, BannerFilter
 from app.models.schemas import BannerResponse, BannerCreate, BannerUpdate
 from app.db.storage_factory import get_storage

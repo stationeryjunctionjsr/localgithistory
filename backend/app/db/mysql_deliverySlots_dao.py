@@ -1,4 +1,5 @@
-from typing import Optional, List, Union
+from typing import Optional, List
+from app.models.base import CamelBaseModel
 from datetime import datetime, timezone
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
@@ -221,7 +222,7 @@ class MySQLDeliverySlotsDAO:
         res_slots = await session.execute(q_slots, {"pid": parent_id})
         return [_parse_slot_row(r) for r in res_slots.fetchall()]
 
-    async def _replace_children(self, session, row_id: int, data: Union[DeliverySlotConfigInternalCreate, DeliverySlotConfigInternalUpdate]):
+    async def _replace_children(self, session, row_id: int, data: CamelBaseModel):
         fields = data.model_fields_set
         if "slots" in fields and data.slots is not None:
             await session.execute(text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"), {"id": row_id})

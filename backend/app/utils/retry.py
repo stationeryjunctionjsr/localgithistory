@@ -44,7 +44,7 @@ def with_retry(
     def decorator(func: F) -> F:
         if inspect.iscoroutinefunction(func):
             @functools.wraps(func)
-            async def async_wrapper(*args: 'P.args', **kwargs: 'P.kwargs') -> 'T':
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 delay = initial_delay
                 last_exc: Exception = RuntimeError("No attempts made")
                 for attempt in range(1, max_attempts + 1):
@@ -75,7 +75,7 @@ def with_retry(
             return async_wrapper  # type: ignore[return-value]
         else:
             @functools.wraps(func)
-            def sync_wrapper(*args: 'P.args', **kwargs: 'P.kwargs') -> 'T':
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
                 delay = initial_delay
                 last_exc: Exception = RuntimeError("No attempts made")
                 for attempt in range(1, max_attempts + 1):

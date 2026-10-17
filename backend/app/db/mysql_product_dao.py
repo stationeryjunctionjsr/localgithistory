@@ -428,7 +428,7 @@ class MySQLProductDAO:
             return []
         return await self.findAll(ProductFilter(allowed_ids=ids))
 
-    async def _replace_children(self, session, pid: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, pid: int, data: CamelBaseModel):
         fields_set = data.model_fields_set
 
         # Images

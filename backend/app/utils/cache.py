@@ -44,7 +44,7 @@ T = TypeVar("T")
 class _CacheEntry:
     __slots__ = ("value", "expires_at")
 
-    def __init__(self, value: 'T', ttl: float):
+    def __init__(self, value: T, ttl: float):
         self.value = value
         self.expires_at = time.monotonic() + ttl
 

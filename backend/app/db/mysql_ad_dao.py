@@ -122,7 +122,7 @@ class MySQLAdDAO:
             ).fetchone()
         return self._map_to_schema(row) if row else None
 
-    async def create(self, data: Union[Ad, AdCreate]) -> Ad:
+    async def create(self, data: AdCreate) -> Ad:
         async_session = get_async_session_factory()
         if not async_session:
             raise RuntimeError("Database not available")
