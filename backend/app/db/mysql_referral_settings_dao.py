@@ -31,7 +31,7 @@ class MySQLReferralSettingsDAO:
 
     def _map_to_schema(self, retail_row, business_row) -> ReferralSettings:
         return ReferralSettings(
-            id="1",
+            id=1,
             retail=_row_to_segment(retail_row) if retail_row else ReferralSegment(segment="retail", discount_type="percentage", discount_value=0.0, is_active=False),
             business=_row_to_segment(business_row) if business_row else ReferralSegment(segment="business", discount_type="percentage", discount_value=0.0, is_active=False),
         )
@@ -40,7 +40,7 @@ class MySQLReferralSettingsDAO:
         settings_data = await self._get_settings()
         return [settings_data] if settings_data else []
 
-    async def findById(self, id: str) -> Optional[ReferralSettings]:
+    async def findById(self, id: int) -> Optional[ReferralSettings]:
         return await self._get_settings()
 
     async def findOne(self) -> Optional[ReferralSettings]:
@@ -101,7 +101,7 @@ class MySQLReferralSettingsDAO:
             await session.commit()
         return await self._get_settings()
 
-    async def update(self, id: str, update_data: ReferralSettings) -> Optional[ReferralSettings]:
+    async def update(self, id: int, update_data: ReferralSettings) -> Optional[ReferralSettings]:
         async_session = get_async_session_factory()
         if not async_session:
             return None
@@ -149,7 +149,7 @@ class MySQLReferralSettingsDAO:
             await session.commit()
         return await self._get_settings()
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         async_session = get_async_session_factory()
         if not async_session:
             return False

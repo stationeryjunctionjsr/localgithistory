@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta, timezone
+from cachetools import TTLCache
 from typing import Optional
 
 import bcrypt
@@ -38,10 +39,10 @@ INACTIVITY_DAYS = 30  # session revoked after this many days without any request
 # deployments this eliminates >99% of sj_sessions UPDATE traffic.
 SESSION_TOUCH_DEBOUNCE_SECONDS = 300.0  # 5 minutes
 
-# Plain dict: session_id -> monotonic timestamp of last dispatched touch.
-# O(1) lookup and update. asyncio is single-threaded (cooperative multitasking),
-# so the read-modify-write below is atomic — no lock needed.
-_touch_cache: dict[int, float] = {}
+# TTLCache: session_id → monotonic timestamp of last dispatched touch.
+# Bounded to 50k entries; entries auto-expire after SESSION_TOUCH_DEBOUNCE_SECONDS
+# so no manual cleanup scan is required. asyncio is single-threaded, so access is atomic.
+_touch_cache: TTLCache = TTLCache(maxsize=50_000, ttl=SESSION_TOUCH_DEBOUNCE_SECONDS)
 
 _background_tasks: set[asyncio.Task] = set()
 
@@ -57,19 +58,10 @@ async def _async_touch_session(s_id: int) -> None:
 def _trigger_session_touch(s_id: int) -> None:
     """Fire a non-blocking session touch at most once per 5 minutes per session."""
     now = time.monotonic()
-    last = _touch_cache.get(s_id)
-    if last is not None and (now - last) < SESSION_TOUCH_DEBOUNCE_SECONDS:
-        return  # still within debounce window; skip write
+    if s_id in _touch_cache:
+        return  # TTLCache entry still live → still within debounce window; skip write
 
-    _touch_cache[s_id] = now
-
-    # Periodic O(n) cleanup — runs only when the dict grows unusually large,
-    # evicting entries whose window has expired.
-    if len(_touch_cache) > 10_000:
-        cutoff = now - SESSION_TOUCH_DEBOUNCE_SECONDS
-        stale = [k for k, v in _touch_cache.items() if v < cutoff]
-        for k in stale:
-            _touch_cache.pop(k, None)
+    _touch_cache[s_id] = now  # TTLCache auto-evicts after ttl seconds
 
     task = asyncio.create_task(_async_touch_session(s_id))
     _background_tasks.add(task)

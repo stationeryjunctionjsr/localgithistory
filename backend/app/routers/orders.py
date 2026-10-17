@@ -26,7 +26,8 @@ from app.repositories.category_repository import category_repository
 from app.repositories.cart_repository import cart_repository
 from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Header, status
-from typing import List, Optional
+from typing import List, Optional, Literal
+
 from datetime import datetime, timezone
 import logging
 import uuid
@@ -90,8 +91,26 @@ router = APIRouter()
 
 
 class OrderStatusUpdate(BaseModel):
-    status: str
+    status: Literal[
+        "pending", "confirmed", "processing", "dispatched",
+        "out_for_delivery", "delivered", "cancelled", "returned", "failed",
+    ]
     note: Optional[str] = None
+
+
+# State machine: maps current status → set of allowed next statuses.
+# Transitions not listed here are forbidden (returns 422).
+_ORDER_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "pending":          {"confirmed", "cancelled", "failed"},
+    "confirmed":        {"processing", "cancelled", "failed"},
+    "processing":       {"dispatched", "cancelled", "failed"},
+    "dispatched":       {"out_for_delivery", "cancelled", "returned"},
+    "out_for_delivery": {"delivered", "returned"},
+    "delivered":        {"returned"},          # only returns allowed after delivery
+    "cancelled":        set(),                  # terminal
+    "returned":         set(),                  # terminal
+    "failed":           set(),                  # terminal
+}
 
 
 class AssignValetRequest(BaseModel):
@@ -431,6 +450,19 @@ async def update_order_status(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    # ── State machine: validate transition is allowed ──────────────────────────
+    # super_admin can force any transition (e.g. to correct bad data).
+    if current_user.role != "super_admin" and order.status is not None:
+        allowed = _ORDER_STATUS_TRANSITIONS.get(order.status, set())
+        if status_data.status not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Cannot transition order from '{order.status}' to '{status_data.status}'. "
+                    f"Allowed next statuses: {sorted(allowed) or 'none (terminal state)'}."
+                ),
+            )
+
     update_data = {"status": status_data.status}
 
     # Valet can only mark orders as delivered (any payment method)
@@ -438,6 +470,7 @@ async def update_order_status(
         if status_data.status != "delivered":
             raise HTTPException(
                 status_code=403, detail="Valet can only mark orders as delivered")
+
         if order.assigned_valet != current_user.id:
             raise HTTPException(
                 status_code=403, detail="Order not assigned to you")

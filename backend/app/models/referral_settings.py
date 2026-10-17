@@ -11,6 +11,6 @@ class ReferralSegment(CamelBaseModel):
     is_active: bool = Field(default=False)
 
 class ReferralSettings(CamelBaseModel):
-    id: str = Field(default="1")
+    id: int = Field(default=1)
     retail: Optional[ReferralSegment] = None
     business: Optional[ReferralSegment] = None

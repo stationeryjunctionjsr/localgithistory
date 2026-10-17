@@ -86,17 +86,27 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
     has_overdue_bills = False
     bills_info = []
 
+    # ── Batch-load orders to avoid N+1 (one DB query instead of one per bill) ─
+    bill_order_ids = [str(b.order_id) for b, _ in unpaid_credit_bills if b.order_id is not None]
+    orders_by_id: dict = {}
+    if bill_order_ids:
+        try:
+            orders_list = await order_repository.findByIds(bill_order_ids)
+            orders_by_id = {str(o.id): o for o in orders_list if o.id is not None}
+        except Exception as e:
+            logging.warning("payments: batch order fetch failed; falling back to orderId for order numbers: %s", e, exc_info=e)
+
     for bill, effective_due in unpaid_credit_bills:
         total_dues += effective_due
 
         # Retrieve order details to get orderNumber or fallback to orderId
         order_number = bill.order_id
         try:
-            order = await order_repository.findById(bill.order_id)
+            order = orders_by_id.get(str(bill.order_id)) if bill.order_id is not None else None
             if order:
                 order_number = (order.order_number if order.order_number is not None else bill.order_id)
         except Exception as e:
-            logging.warning("payments: could not fetch order %r to resolve order_number for credit bill; will use order_id as fallback: %s", bill.order_id, e, exc_info=e)
+            logging.warning("payments: could not resolve order_number for credit bill; will use order_id as fallback: %s", e, exc_info=e)
 
         # Parse orderDate as naive UTC datetime
         order_date_raw = bill.order_date or bill.created_at

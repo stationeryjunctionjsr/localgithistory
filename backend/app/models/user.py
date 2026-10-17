@@ -1,8 +1,12 @@
 from app.models.schemas import AddressSnippet as Address, CartItem, OrderItem, VisibilityRule
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.base import CamelBaseModel
+
+# Valid roles — keep in sync with sj_users.role column
+UserRole = Literal["customer", "seller", "valet", "super_admin", "wholesaler", "seller_admin"]
+
 
 class UserFilter(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -26,7 +30,7 @@ class User(CamelBaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[UserRole] = None
     phone: Optional[str] = ""
     company_name: Optional[str] = None
     gst_number: Optional[str] = None

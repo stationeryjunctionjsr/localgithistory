@@ -22,7 +22,7 @@ async def get_all_coach_marks():
 
 @router.get("/{id}", response_model=CoachMarkResponse)
 @cache.ttl_cache(ttl=3600.0)
-async def get_coach_mark(id: str):
+async def get_coach_mark(id: int):
     mark = await coach_mark_repository.findById(id)
     if not mark:
         raise HTTPException(status_code=404, detail="Coach mark not found")
@@ -37,7 +37,7 @@ async def create_coach_mark(mark: CoachMarkCreate, current_user: User = Depends(
 
 
 @router.put("/{id}", response_model=CoachMarkResponse)
-async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user: User = Depends(require_super_admin)):
+async def update_coach_mark(id: int, mark_update: CoachMarkUpdate, current_user: User = Depends(require_super_admin)):
     mark = await coach_mark_repository.findById(id)
     if not mark:
         raise HTTPException(status_code=404, detail="Coach mark not found")
@@ -46,6 +46,6 @@ async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user:
 
 
 @router.delete("/{id}", response_model=MessageResponse)
-async def delete_coach_mark(id: str, current_user: User = Depends(require_super_admin)):
+async def delete_coach_mark(id: int, current_user: User = Depends(require_super_admin)):
     await coach_mark_repository.delete(id)
     return {"message": "Coach mark deleted"}

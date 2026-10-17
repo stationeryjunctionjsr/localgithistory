@@ -1,8 +1,21 @@
 from app.models.schemas import ItemSnippet as OrderItem, Address, ValetDeclineHistoryEntry
 from datetime import datetime, timezone
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from app.models.base import CamelBaseModel
+
+# Valid order status values (mirrors sj_orders status column)
+OrderStatus = Literal[
+    "pending", "confirmed", "processing", "dispatched",
+    "out_for_delivery", "delivered", "cancelled", "returned", "failed",
+]
+# Valid payment status values
+PaymentStatusLiteral = Literal["pending", "paid", "partial", "failed", "refunded"]
+# Valid payment methods
+PaymentMethodLiteral = Literal["cod", "upi", "credit", "online", "prepaid"]
+# Valid order types
+OrderTypeLiteral = Literal["retail", "wholesale", "hyperlocal"]
+
 
 class OrderAddress(CamelBaseModel):
     name: Optional[str] = None
@@ -24,17 +37,17 @@ class Order(CamelBaseModel):
     id: Optional[int] = None
     order_number: Optional[str] = None
     user: Optional[int] = Field(None, alias='user_id')
-    status: Optional[str] = None
+    status: Optional[OrderStatus] = None
     total: Optional[float] = None
     subtotal: Optional[float] = None
     tax: Optional[float] = None
     shipping: Optional[float] = None
     discount: Optional[float] = None
-    order_type: Optional[str] = None
+    order_type: Optional[OrderTypeLiteral] = None
     channel: Optional[str] = "desktop_web"
-    payment_status: Optional[str] = None
+    payment_status: Optional[PaymentStatusLiteral] = None
     seller_id: Optional[int] = None
-    payment_method: Optional[str] = None
+    payment_method: Optional[PaymentMethodLiteral] = None
     upi_payment_screenshot: Optional[str] = None
     ship_name: Optional[str] = None
     ship_phone: Optional[str] = None

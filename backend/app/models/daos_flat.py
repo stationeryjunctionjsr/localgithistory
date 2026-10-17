@@ -66,7 +66,7 @@ class SchemeInternalUpdate(FlatCamelBaseModel):
     applicable_roles: Optional[List[str]] = None
 
 class ContactInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     email: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -234,7 +234,7 @@ class SearchTagInternalUpdate(FlatCamelBaseModel):
     excluded_product_ids: Optional[List[int]] = None
 
 class CoachMarkInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None

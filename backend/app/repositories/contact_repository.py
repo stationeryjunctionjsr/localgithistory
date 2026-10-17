@@ -10,7 +10,7 @@ class ContactRepository:
     async def findAll(self, is_active: Optional[bool] = None) -> List[ContactInternal]:
         return await self.storage.findAll(is_active=is_active)
 
-    async def findById(self, id: str) -> Optional[ContactInternal]:
+    async def findById(self, id: int) -> Optional[ContactInternal]:
         return await self.storage.findById(id)
 
     async def create(self, contact_data: ContactInternalCreate) -> ContactInternal:
@@ -33,7 +33,7 @@ class ContactRepository:
 
         return await self.storage.create(contact_data)
 
-    async def update(self, id: str, update_data: ContactInternalUpdate) -> Optional[ContactInternal]:
+    async def update(self, id: int, update_data: ContactInternalUpdate) -> Optional[ContactInternal]:
         # If email is explicitly None, set to empty string
         if update_data.email is None:
             # We preserve None meaning "don't update" in update_data, but here it seems they wanted to clear it
@@ -43,7 +43,7 @@ class ContactRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 
