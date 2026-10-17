@@ -2,7 +2,7 @@ import logging
 from app.models.user import User
 from app.models.category import Category
 from app.models.schemas import MessageResponse, MultipleImageUploadResponse
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -15,6 +15,19 @@ from app.utils.logger import logger
 
 router = APIRouter()
 category_repository = CategoryRepository()
+
+
+class AvailableCategoriesResponse(CamelBaseModel):
+    """Response schema for GET /available — zone/scope-scoped category/brand/collection lists.
+
+    Replaces the incorrect List[Category] response_model that raised a 500
+    ResponseValidationError because the endpoint returns a structured dict, not a
+    flat list of Category objects.
+    """
+    category_names: List[str] = []
+    sub_categories: Dict[str, List[str]] = {}
+    brand_names: List[str] = []
+    collection_names: List[str] = []
 
 
 class CategoryBase(CamelBaseModel):
@@ -46,84 +59,99 @@ class CategoryUpdate(CamelBaseModel):
 
 
 @cache.ttl_cache(ttl=300.0)
-async def _get_available_categories_cached(zone_id: Optional[str], effective_role: str):
+async def _get_available_categories_cached(
+    effective_role: str,
+    fulfillment_type: str,   # "hyperlocal" | "pan_india"
+    zone_id: Optional[int],  # int zone ID for hyperlocal, None for pan-india / unzoned
+) -> AvailableCategoriesResponse:
+    """Zone/scope-scoped category + brand + collection lists for the navigation menu.
+
+    Seller resolution matches the product-listing persona rules exactly:
+      wholesaler   → Super Admin (SA) seller set
+      hyperlocal   → sellers declared for zone_id
+      pan_india    → Super Admin (SA) seller set  (includes no-pincode guests)
+    """
+    from app.repositories.zone_seller_cache import (
+        get_super_admin_seller_id,
+        get_seller_ids_for_zone_id,
+    )
+
+    _empty = AvailableCategoriesResponse()
+
     if effective_role == "wholesaler":
-        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        seller_id_set: set = {sa_id} if sa_id else set()
+    elif fulfillment_type == "hyperlocal" and zone_id is not None:
+        seller_id_set = await get_seller_ids_for_zone_id(zone_id) or set()
+    else:
+        # pan_india (pincode not in any zone) or no pincode → SA catalog
         sa_id = await get_super_admin_seller_id()
         seller_id_set = {sa_id} if sa_id else set()
-    else:
-        if not zone_id:
-            return None  # No zone → fail open (show nothing)
-        from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
-        seller_id_set = await get_seller_ids_for_zone_id(zone_id)
-        if seller_id_set is None:
-            return None  # Zone not found → fail open
-
-    result = {
-        "categoryNames": set(),
-        "subCategories": {},
-        "brandNames": set(),
-        "collectionNames": set(),
-    }
 
     if not seller_id_set:
-        # Zone found, but no sellers → empty result
-        return {"categoryNames": [], "subCategories": {}, "brandNames": [], "collectionNames": []}
+        # Zone exists but no sellers declared — return empty (not a 500)
+        return _empty
 
     from app.repositories.product_repository import product_repository
-    # We pass 'customer' to get the standard retail light catalog cache
     products = await product_repository._get_lightweight_search_catalog("customer", None)
 
+    cat_names: set = set()
+    sub_cats: dict = {}
+    brand_names: set = set()
+    collection_names: set = set()
+
     for p in products:
-        # lightweight catalog items are dicts; access keys directly
         p_seller_ids = p["catalogSellerIds"] if "catalogSellerIds" in p else []
-        if any(sid in seller_id_set for sid in p_seller_ids):
-            cat = p["category"] if "category" in p else None
-            if cat:
-                result["categoryNames"].add(cat)
-                if cat not in result["subCategories"]:
-                    result["subCategories"][cat] = set()
-                sub = p["subCategory"] if "subCategory" in p else None
-                if sub:
-                    result["subCategories"][cat].add(sub)
-            brand = p["brand"] if "brand" in p else None
-            if brand:
-                result["brandNames"].add(brand)
-            collections = p["resolvedCollectionNames"] if "resolvedCollectionNames" in p else []
-            for col in (collections or []):
-                result["collectionNames"].add(col)
+        if not any(sid in seller_id_set for sid in p_seller_ids):
+            continue
+        cat = p.get("category")
+        if cat:
+            cat_names.add(cat)
+            if cat not in sub_cats:
+                sub_cats[cat] = set()
+            sub = p.get("subCategory")
+            if sub:
+                sub_cats[cat].add(sub)
+        brand = p.get("brand")
+        if brand:
+            brand_names.add(brand)
+        for col in (p.get("resolvedCollectionNames") or []):
+            collection_names.add(col)
 
-    return {
-        "categoryNames": list(result["categoryNames"]),
-        "subCategories": {k: list(v) for k, v in result["subCategories"].items()},
-        "brandNames": list(result["brandNames"]),
-        "collectionNames": list(result["collectionNames"]),
-    }
+    return AvailableCategoriesResponse(
+        category_names=sorted(cat_names),
+        sub_categories={k: sorted(v) for k, v in sub_cats.items()},
+        brand_names=sorted(brand_names),
+        collection_names=sorted(collection_names),
+    )
 
 
-@router.get("/available", response_model=List[Category])
+@router.get("/available", response_model=AvailableCategoriesResponse)
 async def get_available_categories(
-    pincode: Optional[str] = None, 
+    pincode: Optional[str] = None,
     role: Optional[str] = "customer",
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    """
-    Returns category names and subcategories available in the customer's zone.
-    For retail: requires pincode; resolves to zone_id for zone-scoped filtering.
-    For wholesale: no zone filter; uses super admin products.
-    Returns null if no zone can be resolved (fail-open).
+    """Return category/brand/collection names scoped to the customer's zone or scope.
+
+    Persona rules (mirrors product-listing visibility exactly):
+      No pincode            → SA catalog  [add-to-cart disabled by FE]
+      Hyperlocal pincode    → zone sellers' categories
+      Pan-India pincode     → SA catalog
+      Wholesaler            → SA catalog (B2B tier)
     """
     effective_role = role or "customer"
     if current_user and current_user.role:
         effective_role = current_user.role
 
-    zone_id: Optional[str] = None
-    if effective_role != "wholesaler" and pincode:
-        from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
-        zone_id_result, _ = await get_zone_id_and_seller_ids_for_pincode(pincode)
-        zone_id = zone_id_result
+    if effective_role == "wholesaler":
+        return await _get_available_categories_cached("wholesaler", "pan_india", None)
 
-    return await _get_available_categories_cached(zone_id, effective_role)
+    # Retail / guest — resolve pincode → fulfillment_type + zone_id via the same
+    # helper used by products and recommendations, so all three endpoints stay in sync.
+    from app.repositories.zone_seller_cache import get_retail_seller_set
+    _, fulfillment_type, zone_id = await get_retail_seller_set(pincode, subtract_unavailable=False)
+    return await _get_available_categories_cached(effective_role, fulfillment_type, zone_id)
 
 
 

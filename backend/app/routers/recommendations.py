@@ -75,8 +75,8 @@ async def get_recommendations(
         # Rules:
         #   Wholesaler         → Super Admin products only
         #   Retail hyperlocal  → sellers in the pincode's zone
-        #   Retail pan-india   → Super Admin products only  (pincode given but no zone)
-        #   Guest / no pincode → no filter (show all)
+        #   Retail pan-india   → Super Admin products only  (pincode given but not in any zone)
+        #   Guest / no pincode → Super Admin products only  (SA catalog as default; FE gates add-to-cart)
         from app.repositories.zone_seller_cache import (
             get_retail_seller_set,
             get_super_admin_seller_id,
@@ -219,7 +219,12 @@ async def get_favourites_page(
         ranked_products = await product_storage.findAll(ProductFilter(allowed_ids=needed_ids, is_active=True))
     else:
         ranked_products = []
-    products_by_id = {p.id: p for p in ranked_products if p.id}
+    # Dual-key by both int and str: ranked_ids contains SQL CAST string IDs while p.id is int
+    products_by_id: dict = {}
+    for p in ranked_products:
+        if p.id:
+            products_by_id[p.id] = p
+            products_by_id[str(p.id)] = p
     ordered_products = [products_by_id[pid] for pid, _ in ranked_ids if pid in products_by_id]
 
     # Collect filter option lists from the full ranked set (before product-level filters)

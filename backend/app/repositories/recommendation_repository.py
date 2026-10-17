@@ -249,15 +249,20 @@ class RecommendationRepository:
         return await self.order_storage.get_user_purchased_product_ids(user_id, cutoff)
 
     async def _get_user_cart_product_ids(self, user_id: str) -> set:
-        """Products currently in the user's cart."""
+        """Products currently in the user's cart.
+
+        IDs are normalized to str so they can be union-ed with purchased_product_ids
+        (which come from SQL as strings) and safely compared against recommendation
+        algorithm outputs (also strings from SQL CAST).
+        """
         cart = await self.cart_storage.findOne(user=user_id)
         if not cart:
             return set()
-        out = set()
+        out: set = set()
         for item in (cart.items if cart.items is not None else []):
             pid = item.product or item.product_id
             if pid:
-                out.add(pid)
+                out.add(str(pid))  # normalize int → str so exclude checks work correctly
         return out
 
     async def _get_retail_bestsellers_or_trending(
@@ -822,9 +827,17 @@ class RecommendationRepository:
         limit_explore = limits.explore
         limit_new = limits.user_favorites  # new_arrivals mapped to user_favorites limit
         
-        # Fetch all active products once and reuse
+        # Fetch all active products once and reuse throughout this request.
+        # Dual-key by both int (native p.id type) and str (SQL CAST returns strings).
+        # Recommendation algorithms (get_new_arrival_ids, get_trending_by_conversion, etc.)
+        # return string IDs; p.id is a native int after the migration. Without dual-keying,
+        # 'pid in product_map' silently fails for all catalog products across every persona.
         all_products = await self.product_storage.findAll({"isActive": True})
-        product_map = {p.id: p for p in all_products if p.id}
+        product_map: dict = {}
+        for p in all_products:
+            if p.id:
+                product_map[p.id] = p
+                product_map[str(p.id)] = p
 
         # ── Category-tag filter ──────────────────────────────────────────────
         # Resolve which category names belong to the requested tag (one DB query).
@@ -862,7 +875,8 @@ class RecommendationRepository:
             bundle_items = []
 
         for b in bundle_items:
-            product_map[b.id] = b
+            product_map[b.id] = b           # int key
+            product_map[str(b.id)] = b      # str key (consistent with catalog products)
 
         bundle_ids = {b.id for b in bundle_items}
 
