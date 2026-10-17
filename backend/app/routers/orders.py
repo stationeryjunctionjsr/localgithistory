@@ -1682,13 +1682,15 @@ async def get_order(order_id: str, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Order not found")
 
     # Check access
+    # super_admin → unrestricted (admin panel needs full order visibility)
     if current_user.role in ["customer", "wholesaler"]:
         if order.user != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
     elif current_user.role == "valet":
         if order.assigned_valet != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-    elif current_user.role == "seller":
+    elif current_user.role in ["seller", "seller_admin"]:
+        # Sellers and seller admins can only see orders that contain their sub-order
         is_seller = any(str(sub.seller_id) == str(current_user.id)
                         for sub in (order.sub_orders or []))
         if not is_seller:
