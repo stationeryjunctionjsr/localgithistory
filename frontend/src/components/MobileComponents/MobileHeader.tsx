@@ -9,6 +9,7 @@ import api from '@/utils/api';
 import Link from 'next/link';
 import { logger } from '@/utils/logger';
 import AccessibilityPanel from '../AccessibilityPanel';
+import ModeSwitchToggle from '../ModeSwitchToggle';
 
 interface CategoryTag {
   _id?: string;
@@ -41,7 +42,7 @@ export default function MobileHeader() {
   const pathname = usePathname() || '';
   const { user } = useAuth();
   const { theme } = useTheme();
-  const { pincode, city, openPincodeModal } = usePincode();
+  const { pincode, city, openPincodeModal, availableModes } = usePincode();
 
   // Track which category tag is currently active from the URL (for scoped search)
   const [activeCategoryTag, setActiveCategoryTag] = useState<string | null>(null);
@@ -359,14 +360,22 @@ export default function MobileHeader() {
                 </svg>
               </button>
 
-              {/* Center: Logo - match app green on mobile */}
+              {/* Center: Location selector */}
               <button
-                onClick={() => router.push(getHomePath())}
-                className="font-serif text-base font-bold tracking-tight transition-opacity active:opacity-70 md:text-lg"
-                style={{ color: theme.primary }}
-                suppressHydrationWarning={true}
+                onClick={() => openPincodeModal(false)}
+                className="flex items-center gap-1 transition-opacity active:opacity-70"
+                type="button"
               >
-                Stationery Junction
+                <svg className="h-4 w-4 shrink-0" style={{ color: theme.primary }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="max-w-[200px] truncate text-sm font-semibold text-gray-700">
+                  {pincode ? `${city || ''}, ${pincode}`.replace(/^, /, '') : 'Select Location'}
+                </span>
+                <svg className="h-3 w-3 shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </>
           )}
@@ -436,6 +445,7 @@ export default function MobileHeader() {
         </div>
 
         {/* Hyperlocal Delivery Location Pill Bar */}
+        {false && (
         <div className="flex items-center justify-between border-t border-gray-100/80 bg-emerald-50/50 px-4 py-1.5 text-xs text-emerald-900">
           <button
             onClick={() => openPincodeModal(false)}
@@ -455,6 +465,7 @@ export default function MobileHeader() {
             </svg>
           </button>
         </div>
+        )}
 
         {/* Search Bar - Expandable with scope chip and suggestions */}
         {showSearch && (
@@ -722,7 +733,7 @@ export default function MobileHeader() {
               style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
             >
               <span className="font-serif text-xl font-bold" style={{ color: theme.primary }}>
-                Browse
+                Stationery Junction
               </span>
               <button
                 onClick={() => setIsMenuOpen(false)}
@@ -745,6 +756,13 @@ export default function MobileHeader() {
                 </svg>
               </button>
             </div>
+
+            {/* Mode Switch - shown when both modes available */}
+            {availableModes.length === 2 && (
+              <div className="flex items-center justify-center border-b border-gray-100 px-5 py-3">
+                <ModeSwitchToggle />
+              </div>
+            )}
 
             {/* Menu Content - Category tags (match app) */}
             <div className="flex-1 overflow-y-auto">

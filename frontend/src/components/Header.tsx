@@ -19,7 +19,6 @@ import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import CustomerNotificationsModal from './CustomerNotificationsModal';
 import AccessibilityModal from './AccessibilityModal';
 import { logger } from '@/utils/logger';
-import ModeSwitchToggle from './ModeSwitchToggle';
 
 interface CategoryTag {
   id: string;
@@ -66,7 +65,15 @@ export default function Header() {
   const wishlistItems = useWishlistStore((s) => s.items);
   const cart          = useCartStore((s) => s.cart);
   const openCart      = useCartStore((s) => s.openCart);
-  const { pincode, city, openPincodeModal, availableModes } = usePincode();
+  const {
+    pincode,
+    city,
+    openPincodeModal,
+    availableModes,
+    activeMode,
+    setActiveMode,
+    checkAndSetPincode,
+  } = usePincode();
   const router = useRouter();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const pathname = usePathname();
@@ -95,6 +102,10 @@ export default function Header() {
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [pincodeInput, setPincodeInput] = useState('');
+  const [pincodeError, setPincodeError] = useState<string | null>(null);
+  const [isApplyingPincode, setIsApplyingPincode] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
 
@@ -114,6 +125,7 @@ export default function Header() {
   const profileRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
+  const locationRef = useRef<HTMLDivElement>(null);
 
   const [availableCategories, setAvailableCategories] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
 
@@ -217,6 +229,9 @@ export default function Header() {
       }
       if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
         setShowMoreTags(false);
+      }
+      if (locationRef.current && !locationRef.current.contains(event.target as Node)) {
+        setShowLocationDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -341,6 +356,31 @@ export default function Header() {
     }
   };
 
+  const handleApplyPincode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPincodeError(null);
+    const clean = pincodeInput.replace(/\D/g, '').slice(0, 6);
+    if (clean.length !== 6) {
+      setPincodeError('Enter a valid 6-digit PIN code');
+      return;
+    }
+    setIsApplyingPincode(true);
+    try {
+      const role = (user as any)?.role || 'customer';
+      const result = await checkAndSetPincode(clean, role);
+      if (result.success && result.isServiceable) {
+        setShowLocationDropdown(false);
+        setPincodeInput('');
+      } else {
+        setPincodeError(result.message || `Pincode ${clean} is not serviceable yet`);
+      }
+    } catch {
+      setPincodeError('Failed to verify pincode');
+    } finally {
+      setIsApplyingPincode(false);
+    }
+  };
+
   const getBasePath = () => {
     if (!user) return '/';
     switch (user.role) {
@@ -403,33 +443,7 @@ export default function Header() {
             >
               <span style={{ color: theme.primary }}>Stationery Junction</span>
             </Link>
-
-            {/* Delivery Location Selector */}
-            <button
-              onClick={() => openPincodeModal(false)}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-700/20 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-900 transition-colors text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
-              title="Change delivery location"
-              type="button"
-            >
-              <svg className="h-3.5 w-3.5 text-emerald-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="max-w-[140px] truncate">
-                {pincode ? `Deliver to ${pincode}${city ? ` (${city})` : ''}` : 'Select Pincode'}
-              </span>
-              <svg className="h-3 w-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
           </div>
-
-          {/* Mode Switch - only visible when pincode supports both hyperlocal and pan-india */}
-          {availableModes.length === 2 && (
-            <div className="hidden lg:flex items-center shrink-0">
-              <ModeSwitchToggle />
-            </div>
-          )}
 
           {/* Navigation - Category Tags from Super Admin */}
           <nav className={styles.nav} ref={navRef} aria-label="Main navigation">
@@ -890,6 +904,140 @@ export default function Header() {
             </form>
           </div>
           <div className={styles.actions}>
+            {/* Delivery Location - Myntra style */}
+            <div
+              className={styles.actionItem}
+              ref={locationRef}
+              onMouseEnter={() => setShowLocationDropdown(true)}
+              onMouseLeave={() => setShowLocationDropdown(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setShowLocationDropdown((prev) => !prev)}
+                aria-label={pincode ? `Delivery location: ${pincode}` : 'Select delivery location'}
+                aria-expanded={showLocationDropdown}
+                aria-haspopup="true"
+              >
+                <div className="relative flex items-center justify-center">
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    className="w-5 h-5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  {availableModes.includes('hyperlocal') && (
+                    <span
+                      className="absolute -top-1 -right-2 text-[10px] leading-none text-emerald-600 font-bold"
+                      title="Hyperlocal delivery available"
+                    >
+                      ⚡
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] font-bold tracking-tight text-neutral-800 mt-1 block text-center">
+                  {pincode ? pincode : 'Location'}
+                </span>
+              </button>
+
+              {showLocationDropdown && (
+                <div
+                  className="absolute right-0 top-full z-[1001] mt-2 w-72 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150"
+                  role="dialog"
+                  aria-label="Choose delivery location"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="pb-2 border-b border-gray-100">
+                    <h4 className="text-sm font-bold text-gray-900">Choose delivery location</h4>
+                    <p className="mt-0.5 text-[11px] text-gray-500 truncate">
+                      {pincode ? (
+                        <>
+                          Delivering to: <span className="font-semibold text-gray-800">{city ? `${city}, ` : ''}{pincode}</span>
+                        </>
+                      ) : (
+                        'Enter PIN for delivery options in your area'
+                      )}
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleApplyPincode} className="mt-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={pincodeInput}
+                        onChange={(e) => {
+                          setPincodeInput(e.target.value.replace(/\D/g, '').slice(0, 6));
+                          setPincodeError(null);
+                        }}
+                        placeholder={pincode || "Enter 6-digit PIN"}
+                        className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1a4d33] focus:border-transparent transition-all"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isApplyingPincode || pincodeInput.length !== 6}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shrink-0"
+                        style={{ backgroundColor: theme.primary }}
+                      >
+                        {isApplyingPincode ? '...' : 'Apply'}
+                      </button>
+                    </div>
+                    {pincodeError && (
+                      <p className="mt-1 text-[11px] font-medium text-rose-500">{pincodeError}</p>
+                    )}
+                  </form>
+
+                  {/* Mode Switcher inside location popup */}
+                  {availableModes.length === 2 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                        Delivery Mode
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveMode('hyperlocal')}
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-xs font-semibold transition-all ${
+                            activeMode === 'hyperlocal'
+                              ? 'bg-[#1a4d33] text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span>⚡</span>
+                          <span>60 min</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveMode('pan_india')}
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-full text-xs font-semibold transition-all ${
+                            activeMode === 'pan_india'
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span>🌐</span>
+                          <span>All India</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Profile */}
             <div className={styles.actionItem} ref={profileRef}>
               <button
