@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 class CustomerSegmentResponse(BaseModel):
-    id: str
+    id: int
     name: str
     type: str
     userIds: List[str]

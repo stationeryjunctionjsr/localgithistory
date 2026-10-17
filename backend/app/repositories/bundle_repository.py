@@ -54,7 +54,7 @@ class BundleRepository:
         all_bundles = await self.findAll()
         return [b for b in all_bundles if (b.is_active if b.is_active is not None else True)]
 
-    async def get_bundles_containing_product(self, product_id: str) -> List[BundleResponse]:
+    async def get_bundles_containing_product(self, product_id: int) -> List[BundleResponse]:
         """Return all active bundles that include a given product_id."""
         all_bundles = await self.get_active_bundles()
         result = []

@@ -67,7 +67,7 @@ async def _get_settings() -> CommissionSettings:
 
 
 class CommissionTier(BaseModel):
-    id: Optional[str] = Field(default=None)
+    id: Optional[int] = Field(default=None)
     minOrderValue: float = Field(default=0.0, ge=0, alias="min_order_value")
     maxOrderValue: Optional[float] = Field(default=None, ge=0, alias="max_order_value")  # None = unlimited
     commissionPct: float = Field(default=0.0, ge=0, le=100, alias="commission_pct")
@@ -81,7 +81,7 @@ class TiersResponse(BaseModel):
     defaultCommissionPct: float
 
 class SellerCommissionInfo(BaseModel):
-    id: str
+    id: int
     name: str
     email: str
     phone: Optional[str] = None
@@ -91,7 +91,7 @@ class SellerCommissionInfo(BaseModel):
 
 
 class SellerOverrideResponse(BaseModel):
-    id: str
+    id: int
     commissionOverridePct: Optional[float] = None
     message: str
 

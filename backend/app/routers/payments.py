@@ -193,7 +193,7 @@ class VerifyEntryRequest(BaseModel):
 
 
 class PaymentEntryResponse(BaseModel):
-    id: str
+    id: int
     orderId: str
     amount: float
     method: str

@@ -83,7 +83,7 @@ class LocationDeliveryCharge(CamelBaseModel):
 
 class CouponDetailModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     code: Optional[str] = None
     discountType: Optional[str] = Field(None, alias="discount_type")
     discountValue: Optional[float] = Field(0.0, alias="discount_value")

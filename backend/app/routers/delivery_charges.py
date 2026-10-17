@@ -37,7 +37,7 @@ class LocationChargeResponse(CamelBaseModel):
 
 class ServiceableSeller(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: str
+    id: int
     name: str
     company_name: str
     city: Optional[str] = None

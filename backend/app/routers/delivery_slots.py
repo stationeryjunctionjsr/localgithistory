@@ -22,7 +22,7 @@ DEFAULT_ZONE_ID = "default"
 
 class SlotBase(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     start_time: str = ""
     end_time: str = ""
     capacity: Optional[int] = None  # max bookings allowed; None = unlimited
@@ -38,7 +38,7 @@ class SlotBase(CamelBaseModel):
 
 class DeliverySlotConfigModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     segment: Optional[str] = None
     date: Optional[str] = None
     zone_id: Optional[str] = None
@@ -49,7 +49,7 @@ class DeliverySlotConfigModel(BaseModel):
 
 class DeliverySlotConfigResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = None
+    id: Optional[int] = None
     segment: str
     date: str
     zone_id: str

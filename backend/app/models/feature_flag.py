@@ -15,7 +15,7 @@ class FeatureFlag(CamelBaseModel):
 
 
 class FeatureFlagCreate(CamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     flag_id: Optional[str] = None
     name: str
     description: Optional[str] = ""

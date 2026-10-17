@@ -277,7 +277,7 @@ async def list_active_bundles():
 
 @router.get("/product/{product_id}", response_model=List[BundleResponse])
 @cache.ttl_cache(ttl=300.0)
-async def list_bundles_for_product(product_id: str):
+async def list_bundles_for_product(product_id: int):
     """List all active bundles containing a specific product, sorted by salesCount descending."""
     try:
         bundles = await bundle_repository.get_bundles_containing_product(product_id)
