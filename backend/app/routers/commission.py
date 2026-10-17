@@ -218,11 +218,11 @@ async def stamp_commission_on_delivery(sub_order: SubOrder) -> CommissionStamp:
 # ---------------------------------------------------------------------------
 
 
-async def maybe_realize_commission(sub_order: SubOrder) -> dict:
+async def maybe_realize_commission(sub_order: SubOrder) -> SubOrder:
     """
     If a sub-order has commissionStatus='unrealized' and the return window has
     elapsed, promote it to 'realized' and persist the change.
-    Returns the (potentially updated) sub-order dict.
+    Returns the (potentially updated) SubOrder model.
     """
     if sub_order.commission_status != "unrealized":
         return sub_order

@@ -1,12 +1,14 @@
 from app.models.user import User
-from typing import List
+from typing import List, Optional
 from app.models.schemas import MessageResponse
 import asyncio
+import json
 import os
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
+
+from app.models.base import CamelBaseModel
 
 from app.repositories.content_repository import about_repository, faq_repository, privacy_repository
 from app.utils.auth import require_super_admin
@@ -67,24 +69,26 @@ class FAQSectionResponse(BaseModel):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
-class AboutUsResponse(BaseModel):
-    id: int
-    title: str
-    content: str
-    imageUrls: List[str]
-    isActive: bool
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+class AboutUsResponse(CamelBaseModel):
+    brand_name: str = "Stationery Junction"
+    tagline: str = "Premium Stationery at Wholesale Prices"
+    mission: str = ""
+    offerings: List[str] = Field(default_factory=list)
+    contact_email: str = "support@stationeryjunction.com"
+    contact_website: str = "https://www.stationeryjunction.com"
+    sections: List[ContentSection] = Field(default_factory=list)
 
-class PrivacyPolicyResponse(BaseModel):
-    id: int
-    title: str
-    content: str
-    version: str
-    isActive: bool
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    publishedAt: Optional[str] = None
+
+class PrivacyPolicyResponse(CamelBaseModel):
+    id: Optional[int] = None
+    version: str = "1.0"
+    last_updated: Optional[str] = None
+    sections: List[ContentSection] = Field(default_factory=list)
+
+
+class PrivacyHistoryResponse(CamelBaseModel):
+    version: str = "1.0"
+    version_history: List[str] = Field(default_factory=list)
 
 class PrivacyPolicyUpdate(BaseModel):
     lastUpdated: Optional[str] = None
@@ -129,6 +133,38 @@ async def delete_faq_section(section_id: int, user: User = Depends(require_super
     return await faq_repository.delete_section(section_id)
 
 
+def _build_about_response(record) -> AboutUsResponse:
+    if not record or not record.content:
+        return AboutUsResponse()
+    try:
+        parsed = json.loads(record.content)
+        if isinstance(parsed, dict):
+            return AboutUsResponse.model_validate(parsed)
+    except Exception as e:
+        logger.warning("Failed to parse AboutUs content JSON: %s", e)
+    return AboutUsResponse()
+
+
+def _build_privacy_response(record) -> PrivacyPolicyResponse:
+    if not record:
+        return PrivacyPolicyResponse()
+    sections: List[ContentSection] = []
+    if record.content:
+        try:
+            parsed = json.loads(record.content)
+            if isinstance(parsed, list):
+                sections = [ContentSection.model_validate(s) for s in parsed]
+        except Exception as e:
+            logger.warning("Failed to parse PrivacyPolicy content JSON: %s", e)
+    last_updated = str(record.effective_date) if record.effective_date else None
+    return PrivacyPolicyResponse(
+        id=record.id,
+        version=record.version or "1.0",
+        last_updated=last_updated,
+        sections=sections,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # About Us Endpoints
 # ═══════════════════════════════════════════════════════════════════════
@@ -138,18 +174,19 @@ async def delete_faq_section(section_id: int, user: User = Depends(require_super
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_about():
     content = await about_repository.get()
-    return content or {}
+    return _build_about_response(content)
 
 
 @router.get("/about", response_model=AboutUsResponse)
 async def get_about(user: User = Depends(require_super_admin)):
     content = await about_repository.get()
-    return content or {}
+    return _build_about_response(content)
 
 
 @router.put("/about", response_model=AboutUsResponse)
 async def update_about(data: AboutUsUpdate, user: User = Depends(require_super_admin)):
-    return await about_repository.upsert(data)
+    result = await about_repository.upsert(data)
+    return _build_about_response(result)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -161,13 +198,13 @@ async def update_about(data: AboutUsUpdate, user: User = Depends(require_super_a
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_privacy():
     policy = await privacy_repository.get()
-    return policy or {}
+    return _build_privacy_response(policy)
 
 
 @router.get("/privacy", response_model=PrivacyPolicyResponse)
 async def get_privacy(user: User = Depends(require_super_admin)):
     policy = await privacy_repository.get()
-    return policy or {}
+    return _build_privacy_response(policy)
 
 
 @router.put("/privacy", response_model=PrivacyPolicyResponse)
@@ -175,23 +212,22 @@ async def update_privacy(data: PrivacyPolicyUpdate, user: User = Depends(require
     result = await privacy_repository.upsert(data)
 
     # Fire-and-forget background task to email all users
-    last_updated = data.lastUpdated or result.last_updated
-    version = result.version or "1"
-    asyncio.create_task(_notify_all_users_of_privacy_update(last_updated, str(version)))
+    last_updated = data.lastUpdated or (str(result.effective_date) if result.effective_date else "")
+    version = result.version or "1.0"
+    asyncio.create_task(_notify_all_users_of_privacy_update(last_updated, version))
 
-    return result
+    return _build_privacy_response(result)
 
 
-@router.get("/privacy/history", response_model=List[PrivacyPolicyResponse])
+@router.get("/privacy/history", response_model=PrivacyHistoryResponse)
 async def get_privacy_version_history(user: User = Depends(require_super_admin)):
     """Return the full version history of the Privacy Policy."""
     policy = await privacy_repository.get()
     if not policy:
-        return {"version": 0, "versionHistory": []}
-    return {
-        "version": (policy.version if policy.version is not None else 1),
-        "versionHistory": (policy.version_history or []),
-    }
+        return PrivacyHistoryResponse(version="1.0", version_history=[])
+    version_val = policy.version or "1.0"
+    history: List[str] = []
+    return PrivacyHistoryResponse(version=version_val, version_history=history)
 
 
 async def _notify_all_users_of_privacy_update(last_updated: str, version: str) -> None:
@@ -209,7 +245,7 @@ async def _notify_all_users_of_privacy_update(last_updated: str, version: str) -
         recipients = [u for u in all_users if u.email]
 
         logger.info(
-            "Privacy policy v%d updated — notifying %d user(s) via email",
+            "Privacy policy v%s updated — notifying %d user(s) via email",
             version,
             len(recipients),
         )

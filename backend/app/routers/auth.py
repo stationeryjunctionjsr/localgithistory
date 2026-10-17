@@ -410,13 +410,13 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     return auth_data
 
 
-class RefreshTokenClaims(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    userId: str
-    sessionId: int
-    refreshId: str
-    type: Optional[str] = None
-    exp: Optional[int] = None
+# class RefreshTokenClaims(BaseModel):
+#     model_config = ConfigDict(extra="forbid")
+#     userId: str
+#     sessionId: int
+#     refreshId: str
+#     type: Optional[str] = None
+#     exp: Optional[int] = None
 
 
 class RefreshRequest(BaseModel):
@@ -428,8 +428,7 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
     token_str = payload.refreshToken or get_refresh_token_from_request(request)
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
-    data = verify_refresh_token(token_str)
-    claims = RefreshTokenClaims.model_validate(data)
+    claims = verify_refresh_token(token_str)
     user_id = claims.userId
     session_id = claims.sessionId
     refresh_id = claims.refreshId

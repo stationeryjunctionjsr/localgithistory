@@ -138,7 +138,7 @@ class RefreshTokenPayload(BaseModel):
     refreshId: str
 
 
-def verify_refresh_token(token: str) -> dict:
+def verify_refresh_token(token: str) -> RefreshTokenPayload:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token",
@@ -150,7 +150,7 @@ def verify_refresh_token(token: str) -> dict:
         payload = RefreshTokenPayload.model_validate(raw)
         if payload.type != "refresh":
             raise credentials_exception
-        return raw
+        return payload
     except (JWTError, ValidationError):
         raise credentials_exception
 

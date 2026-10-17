@@ -99,14 +99,14 @@ async def check_return_eligibility(order_id: int, current_user: User = Depends(g
         raise HTTPException(status_code=403, detail="Access denied")
 
     if current_user.role not in ["customer", "super_admin"]:
-        return {"eligibleItems": [], "reason": "Only retail customers can return items"}
+        return ReturnEligibilityResponse(eligible_items=[], reason="Only retail customers can return items")
 
     # Must be delivered
     if order.status != "delivered":
-        return {"eligibleItems": [], "reason": "Order is not delivered yet"}
+        return ReturnEligibilityResponse(eligible_items=[], reason="Order is not delivered yet")
 
     if not order.delivered_at:
-        return ReturnEligibilityResponse(eligibleItems=[], reason="Delivery date not found")
+        return ReturnEligibilityResponse(eligible_items=[], reason="Delivery date not found")
         
     delivered_at = order.delivered_at
     from datetime import timezone
@@ -117,7 +117,7 @@ async def check_return_eligibility(order_id: int, current_user: User = Depends(g
     return_days = settings.return_days if settings.return_days is not None else 7
 
     if datetime.now(timezone.utc) > delivered_at + timedelta(days=return_days):
-        return {"eligibleItems": [], "reason": f"Return window of {return_days} days has expired"}
+        return ReturnEligibilityResponse(eligible_items=[], reason=f"Return window of {return_days} days has expired")
 
     # Check for existing pending/approved returns for this order to avoid duplicates on same items
     existing_returns = await return_request_repository.findByOrderId(order_id)

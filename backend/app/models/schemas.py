@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel, computed_field
 from app.models.base import CamelBaseModel
@@ -1567,7 +1567,8 @@ class PaginatedUsersResponse(CamelBaseModel):
 class PreferencesResponse(CamelBaseModel):
     preferred_language: str
 
-class DutyStatusResponse(BaseModel):
+class DutyStatusResponse(CamelBaseModel):
+    is_on_duty: Optional[bool] = None
     message: str
 
 class MessageResponse(BaseModel):

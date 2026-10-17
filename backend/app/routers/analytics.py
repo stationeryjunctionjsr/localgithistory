@@ -11,7 +11,9 @@ from app.models.analytics_schemas import (
     DiscountsAuditResponse, ProductsPctSoldResponse, BundlePerformanceReportResponse,
     SalesByChannelDetailedResponse, AllReportsSummaryResponse,
     SalesOverTimeResponse, SalesBreakdownResponse, AverageOrderValueResponse,
-    SalesByChannelResponse, SalesByProductResponse
+    SalesByChannelResponse, SalesByProductResponse,
+    DashboardStats, TopProductResponse, TopCustomerResponse,
+    MostSearchedResponse, MostViewedResponse, DashboardDataResponse
 )
 
 from app.models.user import User
@@ -69,46 +71,7 @@ class KPIMetricsResponse(BaseModel):
     orders_fulfilled: int
     orders: int
 
-class DashboardStats(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    totalProducts: int
-    totalWholesalers: int
-    totalCustomers: int
-    totalValets: int
-    totalOrders: int
-    totalRevenue: float
 
-class TopProductResponse(BaseModel):
-    productId: str
-    productName: str
-    quantity: int
-    revenue: float
-
-class TopCustomerResponse(BaseModel):
-    userId: str
-    name: str
-    orderCount: int
-    revenue: float
-
-class MostSearchedResponse(CamelBaseModel):
-    term: str
-    count: int = 0
-    avg_products_found: float = Field(default=0.0, alias="avgProductsFound")
-
-class MostViewedResponse(CamelBaseModel):
-    product_id: Optional[str] = None
-    product_name: str
-    count: int = 0
-
-class DashboardDataResponse(CamelBaseModel):
-    model_config = ConfigDict(extra='forbid')
-    stats: DashboardStats
-    top_products: List[TopProductResponse] = Field(default_factory=list)
-    top_wholesalers: List[TopCustomerResponse] = Field(default_factory=list)
-    top_customers: List[TopCustomerResponse] = Field(default_factory=list)
-    most_searched: List[MostSearchedResponse] = Field(default_factory=list)
-    most_viewed: List[MostViewedResponse] = Field(default_factory=list)
-    last_updated_at_ist: Optional[str] = None
 
 
 class FunnelStage(BaseModel):
@@ -322,7 +285,7 @@ async def get_dashboard_data(
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
-@router.get("/reports/bundle-performance", response_model=List[UserOrderStatsResponse])
+@router.get("/reports/bundle-performance", response_model=List[BundlePerformanceReportResponse])
 async def get_bundle_performance(current_user: User = Depends(require_roles("super_admin"))):
     """
     Get detailed bundle performance reports.

@@ -270,7 +270,7 @@ async def unified_request_middleware(request: Request, call_next):
 
     # Maintenance gate
     if is_maintenance_active() and not is_maintenance_allowlisted(request.url.path):
-        return JSONResponse(status_code=503, content=maintenance_blocked_payload())
+        return JSONResponse(status_code=503, content=maintenance_blocked_payload().model_dump())
 
     # Correlation ID
     req_id = (request.headers["X-Request-Id"] if "X-Request-Id" in request.headers else None) or str(uuid.uuid4())

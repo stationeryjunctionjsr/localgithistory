@@ -385,11 +385,11 @@ async def get_search_suggestions(
 
     # We can also return popular categories/brands if needed
     # For now, let's just return the terms
-    return {
-        "popularTerms": [item.term for item in most_searched],
-        "popularCategories": ["Office Supplies", "Notebooks", "Luxury Pens", "Art Materials"],
-        "popularBrands": ["Parker", "Moleskine", "Faber-Castell", "Camel"],
-    }
+    return SearchSuggestionsResponse(
+        popularTerms=[item.term for item in most_searched],
+        popularCategories=["Office Supplies", "Notebooks", "Luxury Pens", "Art Materials"],
+        popularBrands=["Parker", "Moleskine", "Faber-Castell", "Camel"],
+    )
 
 
 @router.get("/most-searched", response_model=List[MostSearchedResponse])

@@ -3,8 +3,9 @@ import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app.models.base import CamelBaseModel
 from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES, PaginatedUsersResponse, PreferencesResponse, DutyStatusResponse, MessageResponse
 
 from app.repositories.user_repository import user_repository
@@ -37,22 +38,22 @@ async def get_users(
         # Remove passwords
         users_without_passwords = users
 
-        return {
-            "users": users_without_passwords,
-            "totalCount": total,
-            "page": page,
-            "limit": limit
-        }
+        return PaginatedUsersResponse(
+            users=users_without_passwords,
+            total_count=total,
+            page=page,
+            limit=limit,
+        )
         
     # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
     users = await user_repository.findAll(query, limit=1000)
     users_without_passwords = users
-    return {
-        "users": users_without_passwords,
-        "totalCount": len(users_without_passwords),
-        "page": 1,
-        "limit": len(users_without_passwords) or 1
-    }
+    return PaginatedUsersResponse(
+        users=users_without_passwords,
+        total_count=len(users_without_passwords),
+        page=1,
+        limit=len(users_without_passwords) or 1,
+    )
 
 
 @router.get("/pending-approvals", response_model=List[UserResponse])
@@ -97,7 +98,7 @@ async def update_my_preferences(
         )
     user_id = current_user.id
     await user_repository.update(user_id, UserUpdate(preferredLanguage=data.preferredLanguage))
-    return {"preferredLanguage": data.preferredLanguage}
+    return PreferencesResponse(preferred_language=data.preferredLanguage)
 
 
 
@@ -137,7 +138,7 @@ async def update_duty_status(
         raise HTTPException(status_code=403, detail="Only valets can update duty status")
     
     await user_repository.update(user_id, UserUpdate(isOnDuty=data.is_on_duty))
-    return {"isOnDuty": data.is_on_duty, "message": f"You are now {'on duty' if data.is_on_duty else 'off duty'}"}
+    return DutyStatusResponse(is_on_duty=data.is_on_duty, message=f"You are now {'on duty' if data.is_on_duty else 'off duty'}")
 
 
 @router.get("/valets/available", response_model=List[UserResponse])
@@ -289,11 +290,27 @@ async def update_user_role(
     return updated_user
 
 
+class AvailableZoneItem(CamelBaseModel):
+    id: str
+    name: str = ""
+    pincodes: List[str] = Field(default_factory=list)
+    default_capacity: int = 10
+    urgent_delivery_available: bool = False
+    customer_type: str = "retail"
+
+
+class SellerDeliverySettingsResponse(CamelBaseModel):
+    seller_id: str
+    seller_name: str = ""
+    serviceable_zone_ids: List[str] = Field(default_factory=list)
+    available_zones: List[AvailableZoneItem] = Field(default_factory=list)
+
+
 class SellerZoneSettingsUpdate(BaseModel):
     serviceableZoneIds: List[str]
 
 
-@router.get("/seller-delivery-settings", response_model=UserResponse)
+@router.get("/seller-delivery-settings", response_model=SellerDeliverySettingsResponse)
 async def get_seller_delivery_settings(
     current_user: User = Depends(require_super_admin_or_seller),
 ):
@@ -313,21 +330,23 @@ async def get_seller_delivery_settings(
         z_capacity = z.default_capacity if z.default_capacity is not None else 10
         z_urgent = z.urgent_delivery_available if z.urgent_delivery_available is not None else False
         z_customer_type = z.customer_type or "retail"
-        available_zones.append({
-            "id": z_id,
-            "name": z_name,
-            "pincodes": z_pincodes,
-            "defaultCapacity": z_capacity,
-            "urgentDeliveryAvailable": bool(z_urgent),
-            "customerType": z_customer_type,
-        })
+        available_zones.append(
+            AvailableZoneItem(
+                id=z_id,
+                name=z_name,
+                pincodes=z_pincodes,
+                default_capacity=z_capacity,
+                urgent_delivery_available=bool(z_urgent),
+                customer_type=z_customer_type,
+            )
+        )
 
-    return {
-        "sellerId": str((current_user.id or "")),
-        "sellerName": current_user.company_name or (current_user.name or ""),
-        "serviceableZoneIds": current_zone_ids,
-        "availableZones": available_zones,
-    }
+    return SellerDeliverySettingsResponse(
+        seller_id=str(current_user.id or ""),
+        seller_name=current_user.company_name or (current_user.name or ""),
+        serviceable_zone_ids=current_zone_ids,
+        available_zones=available_zones,
+    )
 
 
 @router.put("/seller-delivery-settings", response_model=UserResponse)

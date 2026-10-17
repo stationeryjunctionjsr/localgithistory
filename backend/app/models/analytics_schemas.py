@@ -4,6 +4,53 @@ from datetime import datetime
 from app.models.base import CamelBaseModel
 
 
+class DashboardStats(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    totalProducts: int
+    totalWholesalers: int
+    totalCustomers: int
+    totalValets: int
+    totalOrders: int
+    totalRevenue: float
+
+
+class TopProductResponse(BaseModel):
+    productId: str
+    productName: str
+    quantity: int
+    revenue: float
+
+
+class TopCustomerResponse(BaseModel):
+    userId: str
+    name: str
+    orderCount: int
+    revenue: float
+
+
+class MostSearchedResponse(CamelBaseModel):
+    term: str
+    count: int = 0
+    avg_products_found: float = Field(default=0.0, alias="avgProductsFound")
+
+
+class MostViewedResponse(CamelBaseModel):
+    product_id: Optional[str] = None
+    product_name: str
+    count: int = 0
+
+
+class DashboardDataResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    stats: DashboardStats
+    top_products: List[TopProductResponse] = Field(default_factory=list)
+    top_wholesalers: List[TopCustomerResponse] = Field(default_factory=list)
+    top_customers: List[TopCustomerResponse] = Field(default_factory=list)
+    most_searched: List[MostSearchedResponse] = Field(default_factory=list)
+    most_viewed: List[MostViewedResponse] = Field(default_factory=list)
+    last_updated_at_ist: Optional[str] = None
+
+
 class UserOrderStatsResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     userId: int

@@ -18,6 +18,7 @@ from app.models.schemas import MessageResponse
 from app.models.user import User
 from app.repositories.category_head_repository import category_head_repository
 from app.repositories.category_tag_repository import category_tag_repository
+from app.routers.category_tags import CategoryTagResponse
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
 from app.utils.logger import logger
@@ -79,7 +80,7 @@ async def get_category_head(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{head_id}/tags", response_model=List[Dict[str, Any]])
+@router.get("/{head_id}/tags", response_model=List[CategoryTagResponse])
 async def get_category_tags_for_head(head_id: str):
     """Get all category tags under this category head"""
     try:
@@ -93,18 +94,29 @@ async def get_category_tags_for_head(head_id: str):
         if head.id is not None:
             tags = await category_tag_repository.findByCategoryHead(head.id)
             return [
-                {
-                    "id": str(t.id),
-                    "name": t.name,
-                    "description": t.description,
-                    "isActive": bool(t.is_active),
-                    "categoryHeadId": t.category_head_id,
-                    "categoryHeadName": head.name,
-                    "categoryCount": t.category_count or 0,
-                }
+                CategoryTagResponse(
+                    id=t.id,
+                    name=t.name,
+                    description=t.description,
+                    is_active=bool(t.is_active),
+                    category_head_id=t.category_head_id,
+                    category_head_name=head.name,
+                    category_count=t.category_count or 0,
+                )
                 for t in tags
             ]
-        return head.category_tags or []
+        return [
+            CategoryTagResponse(
+                id=t.id,
+                name=t.name,
+                description=t.description,
+                is_active=bool(t.is_active),
+                category_head_id=head.id,
+                category_head_name=head.name,
+                category_count=0,
+            )
+            for t in (head.category_tags or [])
+        ]
     except HTTPException:
         raise
     except Exception as e:

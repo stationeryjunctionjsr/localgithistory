@@ -17,6 +17,7 @@ from app.models.schemas import MessageResponse
 from app.models.user import User
 from app.repositories.division_repository import division_repository
 from app.repositories.category_tag_repository import category_tag_repository
+from app.routers.category_tags import CategoryTagResponse
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
 from app.utils.logger import logger
@@ -78,7 +79,7 @@ async def get_division(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{division_id}/tags", response_model=List[Dict[str, Any]])
+@router.get("/{division_id}/tags", response_model=List[CategoryTagResponse])
 async def get_category_tags_for_division(division_id: int):
     """Get all category tags under this division"""
     try:
@@ -90,20 +91,33 @@ async def get_category_tags_for_division(division_id: int):
         if did is not None:
             tags = await category_tag_repository.findByDivision(did)
             return [
-                {
-                    "id": str(t.id),
-                    "name": t.name,
-                    "description": t.description,
-                    "isActive": bool(t.is_active),
-                    "divisionId": t.division_id or did,
-                    "divisionName": division.name,
-                    "categoryHeadId": t.division_id or did,
-                    "categoryHeadName": division.name,
-                    "categoryCount": t.category_count or 0,
-                }
+                CategoryTagResponse(
+                    id=t.id,
+                    name=t.name,
+                    description=t.description,
+                    is_active=bool(t.is_active),
+                    division_id=t.division_id or did,
+                    division_name=division.name,
+                    category_head_id=t.division_id or did,
+                    category_head_name=division.name,
+                    category_count=t.category_count or 0,
+                )
                 for t in tags
             ]
-        return division.category_tags or []
+        return [
+            CategoryTagResponse(
+                id=t.id,
+                name=t.name,
+                description=t.description,
+                is_active=bool(t.is_active),
+                division_id=did,
+                division_name=division.name,
+                category_head_id=did,
+                category_head_name=division.name,
+                category_count=0,
+            )
+            for t in (division.category_tags or [])
+        ]
     except HTTPException:
         raise
     except Exception as e:

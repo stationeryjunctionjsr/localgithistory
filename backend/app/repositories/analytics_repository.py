@@ -13,9 +13,13 @@ from app.utils.cache import cache
 
 from app.db.storage_factory import get_storage
 
+from pydantic import Field
 from app.models.base import CamelBaseModel
-from pydantic import Field, BaseModel
+from app.db.mysql_order_dao import OrderKpiStats
 from app.models.analytics_schemas import (
+    DashboardDataResponse,
+    DashboardStats,
+    AllReportsSummaryResponse,
     RFMSegmentsResponse,
     CustomerFrequencyResponse,
     InventoryRunwayResponse,
@@ -184,7 +188,7 @@ class AnalyticsRepository:
         return filtered
 
     @cache.ttl_cache(ttl=300)
-    async def get_kpi_metrics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict:
+    async def get_kpi_metrics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> OrderKpiStats:
         """Get KPI metrics: Gross sales, Returning customer rate, Orders fulfilled, Orders"""
         order_filter = self._build_order_filter(start_date=start_date, end_date=end_date)
         return await self.order_storage.get_kpi_stats(order_filter)
@@ -386,7 +390,7 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_all_reports_summary(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> Dict:
+    ) -> AllReportsSummaryResponse:
         """Get counts for all report types to display in dropdown labels"""
         from app.repositories.tracking_repository import tracking_repository
 
@@ -417,34 +421,34 @@ class AnalyticsRepository:
         inventory_val = await self.get_inventory_value_by_category()
         most_abandoned = await tracking_repository.getMostAbandonedProducts(100, start_date, end_date)
 
-        return {
-            "searched_products": len(searched),
-            "viewed_products": len(viewed),
-            "drop_off_points": len(drop_offs),
-            "cart_abandonments": len(abandonments),
-            "returning_users": len(returning),
-            "items_by_user_type": len(user_type_items),
-            "highest_selling_products": len(top_products),
-            "top_business_customers": len(top_business),
-            "top_retail_customers": len(top_retail),
-            "user_engagement": len(engagement.user_metrics),
-            "returns": len(returns),
-            "payment_methods": len(payment_methods),
-            "revenue_by_category": len(revenue_by_cat),
-            "inventory_alerts": len(inventory),
-            "fulfillment_time": len(fulfillment),
-            "coupon_usage": len(coupon_usage),
-            "sales_by_location": len(sales_by_loc),
-            "new_vs_returning": len(new_vs_ret),
-            "items_bought_together": len(items_bought),
-            "zero_result_searches": len(zero_searches),
-            "sales_by_device": len(sales_device),
-            "products_sell_through": len(sell_through),
-            "aov_over_time": len(aov_time),
-            "top_returned_products": len(top_returned),
-            "inventory_value": len(inventory_val),
-            "most_abandoned_products": len(most_abandoned),
-        }
+        return AllReportsSummaryResponse(
+            searched_products=len(searched),
+            viewed_products=len(viewed),
+            drop_off_points=len(drop_offs),
+            cart_abandonments=len(abandonments),
+            returning_users=len(returning),
+            items_by_user_type=len(user_type_items),
+            highest_selling_products=len(top_products),
+            top_business_customers=len(top_business),
+            top_retail_customers=len(top_retail),
+            user_engagement=len(engagement.user_metrics),
+            returns=len(returns),
+            payment_methods=len(payment_methods),
+            revenue_by_category=len(revenue_by_cat),
+            inventory_alerts=len(inventory),
+            fulfillment_time=len(fulfillment),
+            coupon_usage=len(coupon_usage),
+            sales_by_location=len(sales_by_loc),
+            new_vs_returning=len(new_vs_ret),
+            items_bought_together=len(items_bought),
+            zero_result_searches=len(zero_searches),
+            sales_by_device=len(sales_device),
+            products_sell_through=len(sell_through),
+            aov_over_time=len(aov_time),
+            top_returned_products=len(top_returned),
+            inventory_value=len(inventory_val),
+            most_abandoned_products=len(most_abandoned),
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # NEW REPORT METHODS
@@ -609,7 +613,7 @@ class AnalyticsRepository:
 
     async def get_dashboard_data(
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> Dict:
+    ) -> DashboardDataResponse:
         """Aggregated dashboard stats for the admin panel.
         Live orders, users, and product metrics are pushed to SQL.
         Reporting and analytics sections use scheduled 6-hour cache.
@@ -652,7 +656,6 @@ class AnalyticsRepository:
             most_viewed = await tracking_repository.getMostViewed(10, start_date, end_date)
             last_updated_at_ist = _get_current_ist_timestamp()
 
-        from app.routers.analytics import DashboardDataResponse, DashboardStats
         return DashboardDataResponse(
             stats=DashboardStats(
                 totalProducts=total_products,
@@ -671,12 +674,12 @@ class AnalyticsRepository:
         )
 
     @cache.ttl_cache(ttl=300)
-    async def get_bundle_performance_report(self) -> Dict:
+    async def get_bundle_performance_report(self) -> List[BundlePerformanceReportResponse]:
         """
         Generate a performance report for all bundles.
         Returns total copies sold, order count, total revenue, and monthly trends per bundle.
         """
-        return {"report": await self.order_storage.get_bundle_performance_report_stats()}
+        return await self.order_storage.get_bundle_performance_report_stats()
 
     # ─────────────────────────────────────────────────────────────────────────
     # ADDITIONAL REPORTS

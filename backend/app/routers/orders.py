@@ -293,12 +293,12 @@ async def update_order_tracking(
 
     # Sellers can only update their own sub-orders' parent orders
     if is_seller_admin(current_user):
-        seller_id = str(current_user.id)
+        seller_id = current_user.id
         sub_order_ids = order.sub_order_ids or []
         seller_has_sub = False
         for so_id in sub_order_ids:
             so = await sub_order_repository.findById(so_id)
-            if so and str((so.seller_id or "")) == seller_id:
+            if so and so.seller_id == seller_id:
                 seller_has_sub = True
                 break
         if not seller_has_sub:
@@ -432,7 +432,7 @@ async def get_order_status_timeline(
 
     # Authorisation: customers can only see own orders
     if current_user.role not in ("super_admin", "seller_admin", "valet"):
-        if str(order.user) != str(current_user.id):
+        if order.user != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorised")
 
     timeline = await get_order_timeline(order.id)
@@ -820,7 +820,7 @@ async def dispatch_order(
 
     # Sellers can only dispatch orders that belong to them
     if is_seller_admin(current_user):
-        if str((order.seller_id or "")) != str(current_user.id):
+        if order.seller_id != current_user.id:
             raise HTTPException(
                 status_code=403, detail="You can only dispatch your own orders")
 
@@ -1070,7 +1070,7 @@ async def valet_response(
 
     # Valets can only respond to orders assigned to them
     if current_user.role == "valet":
-        if str((order.pending_valet_id or "")) != str(current_user.id):
+        if order.pending_valet_id != current_user.id:
             raise HTTPException(
                 status_code=403, detail="This order is not assigned to you")
 
@@ -1287,7 +1287,7 @@ async def confirm_sub_order_pickup(
 
     # Only the assigned valet (or super admin) may confirm pickups
     if current_user.role == "valet":
-        if str((order.assigned_valet or "")) != str(current_user.id):
+        if order.assigned_valet != current_user.id:
             raise HTTPException(
                 status_code=403, detail="This order is not assigned to you")
 
@@ -1567,7 +1567,7 @@ async def get_seller_order(
     sub_order = await sub_order_repository.findById(sub_order_id)
     if not sub_order:
         raise HTTPException(status_code=404, detail="Sub-order not found")
-    if str(sub_order.seller_id) != str(current_user.id):
+    if sub_order.seller_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied.")
     return sub_order
 
@@ -1586,7 +1586,7 @@ async def update_seller_order_status(
     sub_order = await sub_order_repository.findById(sub_order_id)
     if not sub_order:
         raise HTTPException(status_code=404, detail="Sub-order not found")
-    if str(sub_order.seller_id) != str(current_user.id):
+    if sub_order.seller_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied.")
 
     allowed_statuses = ["pending", "confirmed", "processing",
@@ -1691,7 +1691,7 @@ async def get_order(order_id: int, current_user: User = Depends(get_current_user
             raise HTTPException(status_code=403, detail="Access denied")
     elif current_user.role in ["seller", "seller_admin"]:
         # Sellers and seller admins can only see orders that contain their sub-order
-        is_seller = any(str(sub.seller_id) == str(current_user.id)
+        is_seller = any(sub.seller_id == current_user.id
                         for sub in (order.sub_orders or []))
         if not is_seller:
             raise HTTPException(status_code=403, detail="Access denied")

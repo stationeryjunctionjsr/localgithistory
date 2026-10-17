@@ -24,18 +24,18 @@ async def get_upi_details(current_user: User = Depends(get_current_user)):
     # Find super admin user
     super_admin = await user_repository.findSuperAdmin()
     if super_admin and super_admin.upi_id and super_admin.qr_code_url:
-        return {
-            "upiId": super_admin.upi_id,
-            "qrCodeUrl": super_admin.qr_code_url,
-            "instructions": "Scan the QR code or use the UPI ID to make payment. Upload the payment screenshot before placing the order.",
-        }
+        return UPIDetailsResponse(
+            upi_id=super_admin.upi_id,
+            qr_code_url=super_admin.qr_code_url,
+            instructions="Scan the QR code or use the UPI ID to make payment. Upload the payment screenshot before placing the order.",
+        )
 
     # Fallback to config if not set in profile
-    return {
-        "upiId": upi.UPI_ID,
-        "qrCodeUrl": upi.UPI_QR_CODE_URL,
-        "instructions": "Scan the QR code or use the UPI ID to make payment. Upload the payment screenshot before placing the order.",
-    }
+    return UPIDetailsResponse(
+        upi_id=upi.UPI_ID,
+        qr_code_url=upi.UPI_QR_CODE_URL,
+        instructions="Scan the QR code or use the UPI ID to make payment. Upload the payment screenshot before placing the order.",
+    )
 
 
 @router.put("/details", response_model=UPIDetailsResponse)
@@ -52,7 +52,11 @@ async def update_upi_details(upi_data: UPIUpdateRequest, current_user: User = De
     # Update UPI details
     await user_repository.update(super_admin.id, UserUpdate(upiId=upi_data.upi_id, qrCodeUrl=upi_data.qr_code_url))
 
-    return {"message": "UPI details updated successfully", "upiId": upi_data.upi_id, "qrCodeUrl": upi_data.qr_code_url}
+    return UPIDetailsResponse(
+        message="UPI details updated successfully",
+        upi_id=upi_data.upi_id,
+        qr_code_url=upi_data.qr_code_url,
+    )
 
 
 @router.post("/upload-qr", status_code=status.HTTP_200_OK, response_model=UploadQRResponse)

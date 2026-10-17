@@ -58,8 +58,8 @@ async def warm_critical_caches():
                 async with factory() as session:
                     await session.execute(text("SELECT 1"))
             
-            _pool_size = int(os.getenv("DB_POOL_SIZE", 5))
-            _max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
+            _pool_size = int(os.getenv("DB_POOL_SIZE", 25))
+            _max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 20))
             _total_slots = _pool_size + _max_overflow
             await asyncio.gather(*[warm_conn() for _ in range(_total_slots)])
             logger.info("DB connection pool pre-warmed (%d slots)", _total_slots)

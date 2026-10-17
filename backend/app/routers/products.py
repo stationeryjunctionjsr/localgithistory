@@ -869,7 +869,7 @@ async def _get_products_cached(
     myProducts: bool,
     pincode: Optional[str],
     fulfillment_mode: Optional[str] = None,
-) -> dict:
+) -> PaginatedProductResponse:
     """Cached inner function — receives only primitive args so cache keys are stable.
 
     BUG-2 fix: the route handler resolves current_user → primitive fields first.
@@ -963,16 +963,16 @@ async def _get_products_cached(
     else:
         f = ProductFacets()
 
-    return {
-        "products": products_with_pricing,
-        "totalCount": total_count,
-        "brands": f.brands,
-        "categories": f.categories,
-        "subCategories": f.sub_categories,
-        "collections": f.collections,
-        "usedFuzzy": used_fuzzy,
-        "suggestedQuery": suggested_query,
-    }
+    return PaginatedProductResponse(
+        products=products_with_pricing,
+        total_count=total_count,
+        brands=f.brands,
+        categories=f.categories,
+        sub_categories=f.sub_categories,
+        collections=f.collections,
+        used_fuzzy=used_fuzzy,
+        suggested_query=suggested_query,
+    )
 
 
 @router.get("", response_model=PaginatedProductResponse)

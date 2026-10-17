@@ -310,7 +310,7 @@ def test_section_2a_models_extra_forbid():
     from app.models.daos_flat import ProductNotificationsInternal
     from app.models.division import DivisionCategoryTag, DivisionInternal, DivisionInternalCreate, DivisionInternalUpdate
     from app.models.schemas import AddressSnippet, TrackBeaconRequest, TrackNotifyPincodeRequest
-    from app.routers.auth import RefreshTokenClaims
+    # from app.routers.auth import RefreshTokenClaims
     from app.routers.tracking import BaseTrackingRequest
 
     models = [
@@ -323,7 +323,7 @@ def test_section_2a_models_extra_forbid():
         AddressSnippet,
         TrackBeaconRequest,
         TrackNotifyPincodeRequest,
-        RefreshTokenClaims,
+        # RefreshTokenClaims,
         BaseTrackingRequest,
     ]
     for m in models:

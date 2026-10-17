@@ -41,25 +41,25 @@ async def check_referral_eligibility(current_user: User = Depends(get_current_us
         # 1. Must be retail customer (customer role)
         role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
         if role != "customer":
-            return {"eligible": False, "message": "Referral discount is only available for retail customers"}
+            return ReferralEligibilityResponse(eligible=False, message="Referral discount is only available for retail customers")
 
         # 2. Must be first order (0 orders)
         user_id = current_user.id
         order_count = await order_repository.countByUser(user_id)
         if order_count > 0:
-            return {"eligible": False, "message": "Referral discount is only available on your first order"}
+            return ReferralEligibilityResponse(eligible=False, message="Referral discount is only available on your first order")
 
         # 3. Referral scheme must be active globally for retail
         settings = await referral_repository.get_settings()
         retail_settings = (settings.retail or {})
         if not (retail_settings.is_active if retail_settings.is_active is not None else False) or (retail_settings.discount_value if retail_settings.discount_value is not None else 0) <= 0:
-            return {"eligible": False, "message": "Referral program is not active at the moment"}
+            return ReferralEligibilityResponse(eligible=False, message="Referral program is not active at the moment")
 
-        return {
-            "eligible": True,
-            "discountType": retail_settings.discount_type,
-            "discountValue": retail_settings.discount_value,
-        }
+        return ReferralEligibilityResponse(
+            eligible=True,
+            discount_type=retail_settings.discount_type,
+            discount_value=retail_settings.discount_value,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -75,8 +75,8 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: Use
 
     # Check eligibility first
     eligibility = await check_referral_eligibility(current_user)
-    if not eligibility["eligible"]:
-        raise HTTPException(status_code=400, detail=eligibility["message"])
+    if not eligibility.eligible:
+        raise HTTPException(status_code=400, detail=eligibility.message or "Not eligible for referral")
 
     # Find referrer in user repository
     from app.repositories.user_repository import user_repository
@@ -95,22 +95,21 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: Use
     retail_settings = (settings.retail or {})
 
     referrer_name = referrer.name or "Another user"
-    
 
-    return {
-        "valid": True,
-        "discountType": retail_settings.discount_type,
-        "discountValue": retail_settings.discount_value,
-        "referrerName": referrer_name,
-    }
+    return ReferralVerifyResponse(
+        valid=True,
+        discount_type=retail_settings.discount_type,
+        discount_value=retail_settings.discount_value,
+        referrer_name=referrer_name,
+    )
 
 
 @router.get("/scheme", response_model=ReferralPublicSchemeResponse)
 async def get_public_scheme(current_user: User = Depends(get_current_user)):
     settings = await referral_repository.get_settings()
     retail_settings = (settings.retail or {})
-    return {
-        "isActive": (retail_settings.is_active if retail_settings.is_active is not None else False),
-        "discountType": (retail_settings.discount_type if retail_settings.discount_type is not None else "percentage"),
-        "discountValue": (retail_settings.discount_value if retail_settings.discount_value is not None else 0.0),
-    }
+    return ReferralPublicSchemeResponse(
+        is_active=(retail_settings.is_active if retail_settings.is_active is not None else False),
+        discount_type=(retail_settings.discount_type if retail_settings.discount_type is not None else "percentage"),
+        discount_value=(retail_settings.discount_value if retail_settings.discount_value is not None else 0.0),
+    )
