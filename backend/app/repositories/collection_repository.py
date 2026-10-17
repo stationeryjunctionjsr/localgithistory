@@ -77,16 +77,16 @@ class CollectionRepository:
 
         return collections
 
-    async def findById(self, id: str) -> Optional[CollectionInternal]:
+    async def findById(self, id: int) -> Optional[CollectionInternal]:
         return await self.storage.findById(id)
 
     async def create(self, collection_data: CollectionInternalCreate) -> CollectionInternal:
         return await self.storage.create(collection_data)
 
-    async def update(self, id: str, update_data: CollectionInternalUpdate) -> Optional[CollectionInternal]:
+    async def update(self, id: int, update_data: CollectionInternalUpdate) -> Optional[CollectionInternal]:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: int) -> bool:
         return await self.storage.delete(id)
 
 

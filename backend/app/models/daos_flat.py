@@ -159,7 +159,7 @@ class DeviceSubscriptionInternalUpdate(FlatCamelBaseModel):
     keys: Optional[List[DeviceKeyInternal]] = None
 
 class CollectionInternal(FlatCamelBaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
