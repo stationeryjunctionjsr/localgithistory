@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class PromoStrips(BaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     text: Optional[str] = Field(default=None, alias='text')
     is_active: bool = Field(default=None, alias='isActive')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')

@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic import BaseModel
 
 class ProductReviews(BaseModel):
-    id: Optional[str] = None
+    id: Optional[int] = None
     product_id: Optional[str] = Field(default=None, alias='productId')
     user_id: Optional[str] = Field(default=None, alias='userId')
     rating: Optional[str] = Field(default=None, alias='rating')
