@@ -1356,11 +1356,9 @@ async def create_order_service(
         subtotal + shipping_net_to_charge + delivery_gst
     )  # subtotal already has coupon and referral discount applied, just add shipping and delivery_gst
 
-    # For UPI, require payment screenshot
-    if order_data.payment_method == "upi":
-        if not order_data.upi_payment_screenshot:
-            raise HTTPException(
-                status_code=400, detail="UPI payment screenshot is required")
+    # For UPI, screenshot is optional (honor-system flow — UI says "No screenshot required").
+    # If the client sends a base64 screenshot it is uploaded to OCI below and stored on the
+    # payment record. Absence of a screenshot does NOT block order creation.
 
     # Check credit limit for credit payment method
     if order_data.payment_method == "credit":

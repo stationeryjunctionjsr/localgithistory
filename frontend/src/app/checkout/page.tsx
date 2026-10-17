@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { toast } from 'react-toastify';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -1505,9 +1506,11 @@ export default function CheckoutPage() {
             <div className={ck.itemList}>
               {cart?.items?.map((item: any) => (
                 <div key={item._id || item.id} className={ck.itemRow}>
-                  <img
-                    src={getImageUrl(item.product?.image || item.product?.images?.[0]) || ''}
+                  <Image
+                    src={getImageUrl(item.product?.image || item.product?.images?.[0]) || '/placeholder.png'}
                     alt={item.product?.name || 'Item'}
+                    width={50}
+                    height={50}
                     className={ck.itemImg}
                   />
                   <div className={ck.itemInfo}>
