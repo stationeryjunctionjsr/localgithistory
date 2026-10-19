@@ -84,6 +84,12 @@ export default function CustomerClient({
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [availableCatalog, setAvailableCatalog] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
 
+  // ── Set B (Multi-Category / Super Category) state ──
+  // TODO: Replace this hardcoded flag with zone-level `isMultiCategoryEnabled` from backend
+  const isSetB = true;
+  const [divisions, setDivisions] = useState<{ id?: number; name: string; displayOrder?: number; imageUrl?: string; categoryTagNames?: string[] }[]>([]);
+  const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
+
   useEffect(() => {
     if (!pincode) {
       setAvailableCatalog(null);
@@ -96,6 +102,21 @@ export default function CustomerClient({
         setAvailableCatalog(null);
       });
   }, [pincode]);
+
+  // Fetch divisions for Set B super category pills
+  useEffect(() => {
+    if (!isSetB) return;
+    api.get('/divisions/active')
+      .then(res => {
+        const activeDivisions = (res.data || [])
+          .filter((d: any) => d.name)
+          .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        setDivisions(activeDivisions);
+      })
+      .catch(err => {
+        logger.error('Failed to fetch divisions', err);
+      });
+  }, []);
 
   const [googleRating, setGoogleRating] = useState(
     initialStats?.googleRating || { rating: 5.0, reviewCount: '421' }
@@ -135,12 +156,27 @@ export default function CustomerClient({
     return map;
   }, [categories]);
 
+  /** Set B: division name → set of all category names across all tags in that division */
+  const divisionToCategoryNames = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    divisions.forEach((div) => {
+      const catNames = new Set<string>();
+      (div.categoryTagNames || []).forEach((tagName) => {
+        const tagCats = tagToCategoryNames.get(tagName);
+        if (tagCats) tagCats.forEach(c => catNames.add(c));
+      });
+      map.set(div.name, catNames);
+    });
+    return map;
+  }, [divisions, tagToCategoryNames]);
+
   /** Filter pill options — active category tags (e.g. "Stationery", "Toys", "Food") */
   const recoCategoryOptions = useMemo(() => {
     return categoryTags
       .filter((t: any) => t.isActive !== false && t.name)
       .map((t: any) => t.name as string);
   }, [categoryTags]);
+
 
   /** Distinct subcategories within the products of the selected category tag */
   const recoSubCategoryOptions = useMemo(() => {
@@ -155,8 +191,17 @@ export default function CustomerClient({
     return Array.from(subs).sort();
   }, [selectedRecoCategory, tagToCategoryNames, newArrivals, customerFavourites, trendingNow, explore]);
 
-  /** All products whose category belongs to the selected tag — used for StatsCounter & brand filtering */
+  /** All products whose category belongs to the selected tag/division — used for StatsCounter & brand filtering */
   const filteredStatsProducts = useMemo(() => {
+    // Set B: division-based filtering
+    if (selectedDivision) {
+      const catNames = divisionToCategoryNames.get(selectedDivision);
+      if (!catNames || catNames.size === 0) return products;
+      return products.filter((p: any) => {
+        const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+        return catNames.has(cat);
+      });
+    }
     if (!selectedRecoCategory) return products;
     const catNames = tagToCategoryNames.get(selectedRecoCategory);
     if (!catNames || catNames.size === 0) return products;
@@ -164,21 +209,30 @@ export default function CustomerClient({
       const cat = typeof p.category === 'object' ? p.category?.name : p.category;
       return catNames.has(cat);
     });
-  }, [selectedRecoCategory, tagToCategoryNames, products]);
+  }, [selectedDivision, selectedRecoCategory, divisionToCategoryNames, tagToCategoryNames, products]);
 
   /** Distinct brand count within the filtered product set */
   const filteredStatsBrandCount = useMemo(() => {
-    if (!selectedRecoCategory) return brands.length;
+    if (!selectedRecoCategory && !selectedDivision) return brands.length;
     const brandNames = new Set<string>();
     filteredStatsProducts.forEach((p: any) => {
       const b = typeof p.brand === 'object' ? p.brand?.name : p.brand;
       if (b) brandNames.add(b);
     });
     return brandNames.size || brands.length;
-  }, [selectedRecoCategory, filteredStatsProducts, brands]);
+  }, [selectedRecoCategory, selectedDivision, filteredStatsProducts, brands]);
 
-  /** Filter recommendation items by the active category tag (and optional subcategory) */
+  /** Filter recommendation items by the active category tag/division (and optional subcategory) */
   const applyRecoFilter = (items: any[]) => {
+    // Set B: division-based filtering
+    if (selectedDivision) {
+      const catNames = divisionToCategoryNames.get(selectedDivision);
+      if (!catNames || catNames.size === 0) return items;
+      return items.filter((p: any) => {
+        const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+        return catNames.has(cat);
+      });
+    }
     if (!selectedRecoCategory) return items;
     const catNames = tagToCategoryNames.get(selectedRecoCategory);
     if (!catNames || catNames.size === 0) return items;
@@ -484,15 +538,22 @@ export default function CustomerClient({
     let cats = availableCatalog
       ? categories.filter((c) => availableCatalog.categoryNames.includes(c.name))
       : categories;
+    // Set B: division-based filtering
+    if (selectedDivision) {
+      const catNames = divisionToCategoryNames.get(selectedDivision);
+      if (catNames && catNames.size > 0) {
+        cats = cats.filter((c: any) => catNames.has(c.name));
+      }
+    }
     // When a category tag filter is active, only show categories belonging to that tag
-    if (selectedRecoCategory) {
+    else if (selectedRecoCategory) {
       const catNames = tagToCategoryNames.get(selectedRecoCategory);
       if (catNames && catNames.size > 0) {
         cats = cats.filter((c: any) => catNames.has(c.name));
       }
     }
     return cats;
-  }, [availableCatalog, categories, selectedRecoCategory, tagToCategoryNames]);
+  }, [availableCatalog, categories, selectedDivision, divisionToCategoryNames, selectedRecoCategory, tagToCategoryNames]);
 
   const visibleCollections = availableCatalog ? collections.filter(c => availableCatalog.collectionNames.includes(c.name)) : collections;
 
@@ -500,8 +561,8 @@ export default function CustomerClient({
     let brs = availableCatalog
       ? brands.filter((b: any) => availableCatalog.brandNames.includes(b.name || b))
       : brands;
-    // When a category tag filter is active, only show brands that have products in that tag
-    if (selectedRecoCategory) {
+    // When a category tag or division filter is active, only show brands that have products in that scope
+    if (selectedRecoCategory || selectedDivision) {
       const brandNamesInTag = new Set(
         filteredStatsProducts
           .map((p: any) => (typeof p.brand === 'object' ? p.brand?.name : p.brand))
@@ -526,6 +587,45 @@ export default function CustomerClient({
           {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
             <>
               <HeroCarousel banners={banners} />
+
+              {/* ── Set B: Super Category (Division) Pills ── horizontally scrollable on mobile */}
+              {isSetB && divisions.length > 1 && (
+                <div className="px-4 pb-2 pt-4 md:px-8 xl:px-12">
+                  <div className="flex gap-2 overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedDivision(null);
+                        setSelectedRecoCategory(null);
+                        setSelectedRecoSubCategory(null);
+                      }}
+                      className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                        !selectedDivision
+                          ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {divisions.map((div) => (
+                      <button
+                        key={div.id || div.name}
+                        onClick={() => {
+                          setSelectedDivision(div.name === selectedDivision ? null : div.name);
+                          setSelectedRecoCategory(null);
+                          setSelectedRecoSubCategory(null);
+                        }}
+                        className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition-all ${
+                          selectedDivision === div.name
+                            ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                        }`}
+                      >
+                        {div.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ── Category / Subcategory Filter Pills ── */}
               {recoCategoryOptions.length > 1 && (

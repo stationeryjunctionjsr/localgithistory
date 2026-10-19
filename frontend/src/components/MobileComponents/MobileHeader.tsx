@@ -29,6 +29,26 @@ interface Brand {
   name?: string;
 }
 
+interface DivisionCategoryTag {
+  id: number;
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+interface Division {
+  id?: number;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+  categoryTagIds?: number[];
+  categoryTags?: DivisionCategoryTag[];
+  categoryTagNames?: string[];
+  categoryCount?: number;
+}
+
 /** Reads search params safely inside a Suspense boundary. */
 function SearchParamsReader({ onRead }: { onRead: (tag: string | null) => void }) {
   const searchParams = useSearchParams();
@@ -98,6 +118,13 @@ export default function MobileHeader() {
   const [liveAutocomplete, setLiveAutocomplete] = useState<{ products: { productId: string; name: string }[]; brands: string[]; categories: string[] }>({ products: [], brands: [], categories: [] });
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
 
+  // ── Set B (Multi-Category / Super Category) state ──
+  // TODO: Replace this hardcoded flag with zone-level `isMultiCategoryEnabled` from backend
+  const isSetB = true;
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [expandedDivision, setExpandedDivision] = useState<string | null>(null);
+  const [loadingDivisions, setLoadingDivisions] = useState(false);
+
   // Fetch available categories for current zone when pincode changes
   useEffect(() => {
     if (!pincode) {
@@ -116,10 +143,15 @@ export default function MobileHeader() {
       });
   }, [pincode]);
 
-  // Load menu tags when opened
+  // Load menu data when opened — divisions for Set B, category tags for Set A
   useEffect(() => {
-    if (isMenuOpen && categoryTags.length === 0) {
-      loadMenuData();
+    if (isMenuOpen) {
+      if (isSetB && divisions.length === 0) {
+        loadDivisionsData();
+      }
+      if (!isSetB && categoryTags.length === 0) {
+        loadMenuData();
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen]);
@@ -141,6 +173,28 @@ export default function MobileHeader() {
     };
     fetchCartCount();
   }, [user]);
+
+  /** Load divisions (Super Categories) with their nested category tags */
+  const loadDivisionsData = async () => {
+    setLoadingDivisions(true);
+    try {
+      const divisionsRes = await api.get('/divisions/active');
+      const activeDivisions: Division[] = (divisionsRes.data || [])
+        .filter((d: any) => d.name)
+        .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      setDivisions(activeDivisions);
+
+      // Also load category tags so we can use them in the hierarchy
+      if (categoryTags.length === 0) {
+        const tagsRes = await api.get('/category-tags/active');
+        setCategoryTags((tagsRes.data || []).filter((t: any) => t.name));
+      }
+    } catch (e) {
+      logger.error('Failed to load divisions data', e);
+    } finally {
+      setLoadingDivisions(false);
+    }
+  };
 
   const loadMenuData = async () => {
     setLoading(true);
@@ -194,6 +248,28 @@ export default function MobileHeader() {
       setExpandedTag(tagName);
       fetchTagDetailData(tagName);
     }
+  };
+
+  /** Set B: Toggle a division (super category) accordion in the hamburger drawer */
+  const toggleDivision = (divisionName: string) => {
+    if (expandedDivision === divisionName) {
+      setExpandedDivision(null);
+    } else {
+      setExpandedDivision(divisionName);
+      // Pre-fetch category data for all tags in this division
+      const division = divisions.find(d => d.name === divisionName);
+      if (division) {
+        const tagNames = division.categoryTagNames || division.categoryTags?.map(t => t.name).filter(Boolean) || [];
+        tagNames.forEach(tagName => {
+          if (tagName) fetchTagDetailData(tagName);
+        });
+      }
+    }
+  };
+
+  /** Set B: Get the category tag names that belong to a given division */
+  const getTagNamesForDivision = (division: Division): string[] => {
+    return division.categoryTagNames || division.categoryTags?.map(t => t.name).filter(Boolean) as string[] || [];
   };
 
   const getHomePath = () => {
@@ -764,94 +840,223 @@ export default function MobileHeader() {
               </div>
             )}
 
-            {/* Menu Content - Category tags (match app) */}
+            {/* Menu Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="px-5 py-4">
-                {loading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"></div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {categoryTags.map((tag) => (
-                      <div key={tag._id} className="border-b border-gray-100 last:border-b-0">
-                        <div className="flex w-full items-center justify-between rounded-lg transition-colors active:bg-gray-50">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              router.push(`${getUserBasePath()}?categoryTag=${encodeURIComponent(tag.name!)}`);
-                            }}
-                            className="flex-1 py-3 text-left transition-colors active:opacity-70"
-                          >
-                            <span
-                              className="text-lg font-bold transition-colors"
-                              style={{ color: theme.primary }}
-                            >
-                              {tag.name}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleTag(tag.name!);
-                            }}
-                            className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors active:bg-gray-100"
-                            aria-label={`Toggle ${tag.name} categories`}
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className={`transition-transform duration-200 ${expandedTag === tag.name ? 'rotate-180' : ''}`}
-                            >
-                              <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                          </button>
-                        </div>
-
-                        {expandedTag === tag.name && (
-                          <div
-                            className="space-y-2 pb-2 pl-3"
-                            style={{ animation: 'fadeIn 0.2s ease-out' }}
-                          >
-                            {getCategoriesForTag(tag.name || '').map((cat) => (
-                              <div key={cat._id}>
-                                <button
-                                  onClick={() => navigateToCategory(cat)}
-                                  className="w-full py-3 text-left text-sm font-bold transition-colors"
+                {isSetB ? (
+                  /* ── Set B: Three-level hierarchy — Division > Category Tag > Category ── */
+                  loadingDivisions ? (
+                    <div className="flex justify-center py-8">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {divisions.map((division) => {
+                        const divisionTagNames = getTagNamesForDivision(division);
+                        return (
+                          <div key={division.id || division.name} className="border-b border-gray-100 last:border-b-0">
+                            {/* Level 1: Division (Super Category) */}
+                            <div className="flex w-full items-center justify-between rounded-lg transition-colors active:bg-gray-50">
+                              <button
+                                type="button"
+                                onClick={() => toggleDivision(division.name)}
+                                className="flex-1 py-3 text-left transition-colors active:opacity-70"
+                              >
+                                <span
+                                  className="text-lg font-bold transition-colors"
                                   style={{ color: theme.primary }}
                                 >
-                                  {cat.name}
-                                </button>
-                                {cat.subCategories && cat.subCategories.length > 0 && (
-                                  <div className="ml-1 space-y-1 border-l-2 border-gray-100 pl-3">
-                                    {cat.subCategories.map((sub: string) => (
+                                  {division.name}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleDivision(division.name);
+                                }}
+                                className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors active:bg-gray-100"
+                                aria-label={`Toggle ${division.name} categories`}
+                              >
+                                <svg
+                                  width="18"
+                                  height="18"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  className={`transition-transform duration-200 ${expandedDivision === division.name ? 'rotate-180' : ''}`}
+                                >
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Level 2: Category Tags within this Division */}
+                            {expandedDivision === division.name && (
+                              <div
+                                className="space-y-1 pb-2 pl-4"
+                                style={{ animation: 'fadeIn 0.2s ease-out' }}
+                              >
+                                {divisionTagNames.map((tagName) => (
+                                  <div key={tagName} className="border-b border-gray-50 last:border-b-0">
+                                    <div className="flex w-full items-center justify-between">
                                       <button
-                                        key={sub}
-                                        onClick={() => navigateToCategory(cat, sub)}
-                                        className="w-full py-2 text-left text-xs text-gray-500 transition-colors active:opacity-80"
+                                        type="button"
+                                        onClick={() => {
+                                          setIsMenuOpen(false);
+                                          router.push(`${getUserBasePath()}?categoryTag=${encodeURIComponent(tagName)}`);
+                                        }}
+                                        className="flex-1 py-2.5 text-left transition-colors active:opacity-70"
                                       >
-                                        {sub}
+                                        <span className="text-sm font-semibold text-gray-700">
+                                          {tagName}
+                                        </span>
                                       </button>
-                                    ))}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleTag(tagName);
+                                        }}
+                                        className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors active:bg-gray-100"
+                                        aria-label={`Toggle ${tagName} categories`}
+                                      >
+                                        <svg
+                                          width="14"
+                                          height="14"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                          className={`transition-transform duration-200 ${expandedTag === tagName ? 'rotate-180' : ''}`}
+                                        >
+                                          <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                      </button>
+                                    </div>
+
+                                    {/* Level 3: Categories within this Tag (no subcategories in Set B) */}
+                                    {expandedTag === tagName && (
+                                      <div
+                                        className="space-y-0.5 pb-2 pl-3"
+                                        style={{ animation: 'fadeIn 0.15s ease-out' }}
+                                      >
+                                        {getCategoriesForTag(tagName).map((cat) => (
+                                          <button
+                                            key={cat._id}
+                                            onClick={() => navigateToCategory(cat)}
+                                            className="w-full py-2 text-left text-xs text-gray-500 transition-colors active:opacity-80"
+                                          >
+                                            {cat.name}
+                                          </button>
+                                        ))}
+                                        {getCategoriesForTag(tagName).length === 0 &&
+                                          !tagData[tagName] && (
+                                            <div className="py-2 text-xs text-gray-400">Loading...</div>
+                                          )}
+                                      </div>
+                                    )}
                                   </div>
+                                ))}
+                                {divisionTagNames.length === 0 && (
+                                  <div className="py-2 text-xs text-gray-400">No categories</div>
                                 )}
                               </div>
-                            ))}
-                            {getCategoriesForTag(tag.name || '').length === 0 &&
-                              !tagData[tag.name!] && (
-                                <div className="py-2 text-xs text-gray-400">Loading...</div>
-                              )}
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  /* ── Set A: Flat category tag accordion ── */
+                  loading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {categoryTags.map((tag) => (
+                        <div key={tag._id} className="border-b border-gray-100 last:border-b-0">
+                          <div className="flex w-full items-center justify-between rounded-lg transition-colors active:bg-gray-50">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsMenuOpen(false);
+                                router.push(`${getUserBasePath()}?categoryTag=${encodeURIComponent(tag.name!)}`);
+                              }}
+                              className="flex-1 py-3 text-left transition-colors active:opacity-70"
+                            >
+                              <span
+                                className="text-lg font-bold transition-colors"
+                                style={{ color: theme.primary }}
+                              >
+                                {tag.name}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTag(tag.name!);
+                              }}
+                              className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-colors active:bg-gray-100"
+                              aria-label={`Toggle ${tag.name} categories`}
+                            >
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className={`transition-transform duration-200 ${expandedTag === tag.name ? 'rotate-180' : ''}`}
+                              >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </button>
+                          </div>
+
+                          {expandedTag === tag.name && (
+                            <div
+                              className="space-y-2 pb-2 pl-3"
+                              style={{ animation: 'fadeIn 0.2s ease-out' }}
+                            >
+                              {getCategoriesForTag(tag.name || '').map((cat) => (
+                                <div key={cat._id}>
+                                  <button
+                                    onClick={() => navigateToCategory(cat)}
+                                    className="w-full py-3 text-left text-sm font-bold transition-colors"
+                                    style={{ color: theme.primary }}
+                                  >
+                                    {cat.name}
+                                  </button>
+                                  {cat.subCategories && cat.subCategories.length > 0 && (
+                                    <div className="ml-1 space-y-1 border-l-2 border-gray-100 pl-3">
+                                      {cat.subCategories.map((sub: string) => (
+                                        <button
+                                          key={sub}
+                                          onClick={() => navigateToCategory(cat, sub)}
+                                          className="w-full py-2 text-left text-xs text-gray-500 transition-colors active:opacity-80"
+                                        >
+                                          {sub}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {getCategoriesForTag(tag.name || '').length === 0 &&
+                                !tagData[tag.name!] && (
+                                  <div className="py-2 text-xs text-gray-400">Loading...</div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             </div>
