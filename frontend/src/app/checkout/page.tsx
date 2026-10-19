@@ -1375,7 +1375,7 @@ export default function CheckoutPage() {
                               ? '✓ Payment Confirmed'
                               : upiAppLaunched
                               ? `Paid in ${upiAppUsed || 'the UPI app'}? Tap to confirm`
-                              : 'Once you've paid, tap to confirm'}
+                              : "Once you've paid, tap to confirm"}
                           </div>
                           <div style={{ fontSize: 12, marginTop: 2, color: upiPaymentConfirmed ? '#047857' : '#64748b' }}>
                             {upiPaymentConfirmed
