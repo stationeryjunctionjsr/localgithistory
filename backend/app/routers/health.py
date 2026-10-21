@@ -20,17 +20,6 @@ class LivenessResponse(BaseModel):
     timestamp: float
 
 
-class LivenessResponse(BaseModel):
-    status: str
-    uptime_seconds: float
-    timestamp: float
-
-
-class LivenessResponse(BaseModel):
-    status: str
-    uptime_seconds: float
-    timestamp: float
-
 class HealthResponse(BaseModel):
     status: str
     uptime_seconds: float
@@ -78,6 +67,6 @@ async def check_health():
     )
 
     if db_status == "unreachable":
-        return JSONResponse(status_code=503, content=payload)
+        return JSONResponse(status_code=503, content=payload.model_dump())
 
     return payload

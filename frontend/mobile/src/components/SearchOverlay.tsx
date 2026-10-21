@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -10,7 +10,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
@@ -34,6 +36,97 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
   initialQuery = '',
 }) => {
   const [query, setQuery] = useState(initialQuery);
+  const [scanningImage, setScanningImage] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  const handleVoiceSearch = () => {
+    inputRef.current?.focus();
+    Alert.alert(
+      'Voice Search',
+      'Speak what you want to search by tapping the microphone icon on your keyboard!',
+      [{ text: 'Start Typing / Speaking' }]
+    );
+  };
+
+  const handleImageSearch = () => {
+    Alert.alert(
+      'Visual Search / Lens',
+      'Scan a stationery product, book cover, or handwritten list to search',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => processImagePick(true),
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: () => processImagePick(false),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const processImagePick = async (isCamera: boolean) => {
+    try {
+      let result: ImagePicker.ImagePickerResult;
+
+      if (isCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Camera permission is required to scan products.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Photo library permission is required to upload images.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.7,
+        });
+      }
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      setScanningImage(true);
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: 'scan.jpg',
+        type: 'image/jpeg',
+      } as any);
+
+      const res = await api.post('/visual-search/scan', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const extractedQuery = res.data?.searchQuery;
+      if (extractedQuery) {
+        setQuery(extractedQuery);
+        handleSearchSubmit(extractedQuery);
+      } else {
+        Alert.alert('Scan Result', 'Could not detect any product text. Please try another angle.');
+      }
+    } catch (err) {
+      if (__DEV__) console.error('Image scan error:', err);
+      Alert.alert('Scan Error', 'Failed to scan image. Please try again.');
+    } finally {
+      setScanningImage(false);
+    }
+  };
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
@@ -142,8 +235,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
           <View style={styles.searchBar}>
             <Ionicons name="search-outline" size={20} color={colors.textMuted} />
             <TextInput
+              ref={inputRef}
               style={styles.input}
-              placeholder="Search products, brands..."
+              placeholder={scanningImage ? "Scanning image..." : "Search products, brands..."}
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
@@ -152,10 +246,33 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
               onSubmitEditing={() => handleSearchSubmit(query)}
             />
             {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+              <TouchableOpacity onPress={() => setQuery('')} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             )}
+
+            {/* Visual Search / Camera Button */}
+            <TouchableOpacity
+              onPress={handleImageSearch}
+              disabled={scanningImage}
+              style={{ padding: 4, marginLeft: 2 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {scanningImage ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="camera-outline" size={22} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+
+            {/* Voice Search Button */}
+            <TouchableOpacity
+              onPress={handleVoiceSearch}
+              style={{ padding: 4, marginLeft: 4 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="mic-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
           </View>
         </View>
 

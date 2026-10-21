@@ -125,8 +125,8 @@ def test_product_internal_create_forbids_extra_fields():
 
 
 def test_cart_item_internal_strict_fields():
-    item = CartItemInternal(id="item-123", product=456, quantity=2)
-    assert item.id == "item-123"
+    item = CartItemInternal(id=123, product=456, quantity=2)
+    assert item.id == 123
     assert item.product == 456
     assert item.quantity == 2
     assert not hasattr(item, "id_")
@@ -169,8 +169,8 @@ def test_return_request_models_purged():
 
 
 def test_customer_segment_and_notification_purged():
-    seg = CustomerSegmentInternalCreate(id="seg-1", name="VIP", type="manual", userIds=["u1"])
-    assert seg.id == "seg-1"
+    seg = CustomerSegmentInternalCreate(id=1, name="VIP", type="manual", userIds=["u1"])
+    assert seg.id == 1
 
     notif_create = NotificationInternalCreate(
         id=1, user_id=1, type="order", title="Shipped", message="Your order shipped"
@@ -185,8 +185,8 @@ def test_customer_segment_and_notification_purged():
 
 def test_order_filter_model():
     # Test by field names
-    f1 = OrderFilter(id="10", user_id="usr-5", status="pending")
-    assert f1.id == "10"
+    f1 = OrderFilter(id=10, user_id="usr-5", status="pending")
+    assert f1.id == 10
     assert f1.user_id == "usr-5"
     assert f1.status == "pending"
 
@@ -683,7 +683,7 @@ async def test_analytics_batch_6_methods_model_integrity():
         total=250.0,
         status="delivered",
         seller_id=10,
-        payment_method="card",
+        payment_method="online",
         created_at="2026-03-15T10:00:00",
         updated_at="2026-03-15T14:00:00",
         items=[
@@ -717,7 +717,7 @@ async def test_analytics_batch_6_methods_model_integrity():
         order_id=101,
         user_id=5,
         status="approved",
-        payment_method="card",
+        payment_method="online",
         created_at=datetime(2026, 3, 16, 12, 0, 0),
         items=[
             ReturnItemSchema(
@@ -1785,7 +1785,7 @@ def test_no_jugaad_user_engagement_and_funnel_types():
     # 2. Verify no hasattr in analytics_repository
     repo_src = inspect.getsource(repo_mod.AnalyticsRepository.get_all_reports_summary)
     assert 'hasattr(engagement, "user_metrics")' not in repo_src
-    assert '"user_engagement": len(engagement.user_metrics)' in repo_src
+    assert 'user_engagement=len(engagement.user_metrics)' in repo_src
 
     # 3. Verify no Union[int, str] in analytics_repository or mysql_session_dao
     import app.db.mysql_session_dao as session_dao_mod

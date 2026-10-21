@@ -92,8 +92,11 @@ async def _get_available_categories_cached(
         # Zone exists but no sellers declared — return empty (not a 500)
         return _empty
 
+    allowed_seller_ids = {int(s) for s in seller_id_set if str(s).isdigit()}
+
     from app.repositories.product_repository import product_repository
-    products = await product_repository._get_lightweight_search_catalog("customer", None)
+    from app.models.product import ProductFilter
+    products = await product_repository.findAll(ProductFilter(is_active=True))
 
     cat_names: set = set()
     sub_cats: dict = {}
@@ -101,21 +104,21 @@ async def _get_available_categories_cached(
     collection_names: set = set()
 
     for p in products:
-        p_seller_ids = p["catalogSellerIds"] if "catalogSellerIds" in p else []
-        if not any(sid in seller_id_set for sid in p_seller_ids):
+        p_seller_ids = p.catalog_seller_ids or []
+        if not any(sid in allowed_seller_ids for sid in p_seller_ids):
             continue
-        cat = p.get("category")
+        cat = p.category
         if cat:
             cat_names.add(cat)
             if cat not in sub_cats:
                 sub_cats[cat] = set()
-            sub = p.get("subCategory")
+            sub = p.sub_category
             if sub:
                 sub_cats[cat].add(sub)
-        brand = p.get("brand")
+        brand = p.brand
         if brand:
             brand_names.add(brand)
-        for col in (p.get("resolvedCollectionNames") or []):
+        for col in (p.resolved_collection_names or []):
             collection_names.add(col)
 
     return AvailableCategoriesResponse(

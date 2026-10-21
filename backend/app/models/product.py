@@ -1,7 +1,7 @@
 from __future__ import annotations
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Self
 from pydantic import Field
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
@@ -44,6 +44,7 @@ class Product(CamelBaseModel):
     search_tags: Optional[List[str]] = None
     resolved_collection_names: Optional[List[str]] = None
     previously_bought: Optional[bool] = None
+    catalog_seller_ids: Optional[List[int]] = None
     
     # Discount fields added dynamically by populate_product_discounts
     original_price: Optional[float] = None
@@ -62,6 +63,16 @@ class Product(CamelBaseModel):
             if s.seller_id == seller_id:
                 return True
         return False
+
+    @model_validator(mode="after")
+    def _populate_catalog_seller_ids(self) -> Self:
+        if self.catalog_seller_ids is None:
+            self.catalog_seller_ids = [
+                s.seller_id
+                for s in (self.sellers or [])
+                if s.is_active and (s.request_status or "approved") == "approved" and s.seller_id is not None
+            ]
+        return self
 
 
 class ApplicableDiscountSnippet(CamelBaseModel):

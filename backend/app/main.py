@@ -463,6 +463,7 @@ from app.routers import (
     upi,
     users,
     version,
+    visual_search,
     wishlist,
 )
 
@@ -522,6 +523,7 @@ from app.routers import content_pages
 
 app.include_router(content_pages.router, prefix="/api/content", tags=["content-pages"])
 app.include_router(bundles.router, prefix="/api/bundles", tags=["bundles"])
+app.include_router(visual_search.router, prefix="/api/visual-search", tags=["visual-search"])
 
 from app.routers import commission, valet_payout, valet_availability, availability_requests, seller_payouts
 

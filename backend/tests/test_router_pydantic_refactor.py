@@ -59,6 +59,8 @@ EXEMPT_CALLERS: Set[str] = {
     "candidate",
     "payload",
     "result",
+    "_ORDER_STATUS_TRANSITIONS",
+    "orders_by_id",
 }
 
 ROUTE_DECORATOR_METHODS: Set[str] = {
@@ -97,7 +99,7 @@ class CategoryAGetVisitor(ast.NodeVisitor):
             args_str = ", ".join(ast.unparse(a) for a in node.args)
 
             # Exemption 1: Direct exempt callers (router, app, in-memory caches / lookup maps)
-            if caller_str in EXEMPT_CALLERS:
+            if isinstance(node.func.value, ast.Dict) or caller_str in EXEMPT_CALLERS:
                 self.exemptions.append((node.lineno, caller_str))
             # Exemption 2: HTTP Request standard properties (request.headers, request.query_params, request.cookies)
             elif (

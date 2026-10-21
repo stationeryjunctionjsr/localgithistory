@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     allowed_origins: str = ""
 
     # ── Database ──────────────────────────────────────────────────────────────
-    database_url: str = ""  # Oracle connection string; empty = use JSON file storage
-    mongodb_uri: str = ""
+    database_url: str = ""  # MySQL SQLAlchemy async connection string (mysql+aiomysql://...)
+
 
     # ── OCI Object Storage ────────────────────────────────────────────────────
     oci_bucket_name: str = ""

@@ -108,6 +108,10 @@ export default function Header() {
   const [isApplyingPincode, setIsApplyingPincode] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [isScanningImage, setIsScanningImage] = useState(false);
+  const headerFileInputRef = useRef<HTMLInputElement | null>(null);
+  const headerRecognitionRef = useRef<any>(null);
 
   useEffect(() => {
     (window as any).openAuthModal = (mode: 'login' | 'register') => {
@@ -338,6 +342,82 @@ export default function Header() {
 
 
   const [isSearching, setIsSearching] = useState(false);
+
+  const toggleHeaderVoiceSearch = () => {
+    if (isVoiceListening) {
+      if (headerRecognitionRef.current) {
+        headerRecognitionRef.current.stop();
+      }
+      setIsVoiceListening(false);
+      return;
+    }
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsVoiceListening(true);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setSearchQuery(transcript);
+          const scopedTag = activeCategoryTag;
+          const searchUrl = scopedTag
+            ? `${getBasePath()}?searchTerm=${encodeURIComponent(transcript.trim())}&categoryTag=${encodeURIComponent(scopedTag)}`
+            : `${getBasePath()}?searchTerm=${encodeURIComponent(transcript.trim())}`;
+          router.push(searchUrl);
+          setShowSuggestions(false);
+        }
+      };
+      recognition.onerror = () => setIsVoiceListening(false);
+      recognition.onend = () => setIsVoiceListening(false);
+
+      headerRecognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setIsVoiceListening(false);
+    }
+  };
+
+  const handleHeaderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsScanningImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await api.post('/visual-search/scan', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const data = res.data;
+      if (data?.searchQuery) {
+        setSearchQuery(data.searchQuery);
+        const scopedTag = activeCategoryTag;
+        const searchUrl = scopedTag
+          ? `${getBasePath()}?searchTerm=${encodeURIComponent(data.searchQuery.trim())}&categoryTag=${encodeURIComponent(scopedTag)}`
+          : `${getBasePath()}?searchTerm=${encodeURIComponent(data.searchQuery.trim())}`;
+        router.push(searchUrl);
+        setShowSuggestions(false);
+      }
+    } catch (err) {
+      logger.error('Header visual search failed', err);
+    } finally {
+      setIsScanningImage(false);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -693,6 +773,54 @@ export default function Header() {
                 }}
                 onBlur={handleSearchBlur}
                 onChange={(e) => setSearchQuery(e.target.value)}
+              />
+
+              <div className="flex items-center gap-1 pr-2">
+                {/* Visual Search / Camera Button */}
+                <button
+                  type="button"
+                  onClick={() => headerFileInputRef.current?.click()}
+                  disabled={isScanningImage}
+                  title="Search with image (Visual Search / OCR)"
+                  className="cursor-pointer rounded p-1 text-gray-400 hover:text-gray-700 transition-colors"
+                  aria-label="Scan image to search"
+                >
+                  {isScanningImage ? (
+                    <svg className="h-4 w-4 animate-spin text-red-600" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 100 20v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <circle cx="12" cy="13" r="4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Voice Search / Mic Button */}
+                <button
+                  type="button"
+                  onClick={toggleHeaderVoiceSearch}
+                  title={isVoiceListening ? 'Stop listening' : 'Voice Search (Speech to Text)'}
+                  className={`cursor-pointer rounded-full p-1 transition-colors ${
+                    isVoiceListening ? 'bg-red-600 text-white animate-pulse' : 'text-gray-400 hover:text-gray-700'
+                  }`}
+                  aria-label="Voice Search"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isVoiceListening ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </button>
+              </div>
+
+              <input
+                type="file"
+                ref={headerFileInputRef}
+                onChange={handleHeaderImageUpload}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
               />
 
               {showSuggestions && (
