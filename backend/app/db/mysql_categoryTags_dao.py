@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
+from app.utils.logger import logger
 from app.models.category import Category
 from app.models.daos_flat import (
     CategoryTagInternal,
@@ -97,8 +98,8 @@ class MySQLCategoryTagsDAO:
                         d_params,
                     )
                     div_rows = res_heads.fetchall()
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logger.warning("mysql_categoryTags_dao: division/category-head lookup failed: %s", _exc)
 
         # 2. Count categories under each tag name
         tag_names = list({r.name for r in rows if r.name})
@@ -240,15 +241,15 @@ class MySQLCategoryTagsDAO:
                         text("INSERT IGNORE INTO sj_division_category_tags (division_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
                         {"did": target_did, "tid": new_id, "now": now},
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logger.warning("mysql_categoryTags_dao: INSERT IGNORE division_category_tags failed: %s", _exc)
                 try:
                     await session.execute(
                         text("INSERT IGNORE INTO sj_category_head_category_tags (category_head_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
                         {"did": target_did, "tid": new_id, "now": now},
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logger.warning("mysql_categoryTags_dao: INSERT IGNORE category_head_category_tags failed: %s", _exc)
                 await session.commit()
 
         return await self.findById(new_id)
@@ -305,15 +306,15 @@ class MySQLCategoryTagsDAO:
                             text("INSERT INTO sj_division_category_tags (division_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
                             {"did": target_did, "tid": tag_id, "now": now},
                         )
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        logger.warning("mysql_categoryTags_dao: INSERT division_category_tags (update) failed: %s", _exc)
                     try:
                         await session.execute(
                             text("INSERT INTO sj_category_head_category_tags (category_head_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
                             {"did": target_did, "tid": tag_id, "now": now},
                         )
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        logger.warning("mysql_categoryTags_dao: INSERT category_head_category_tags (update) failed: %s", _exc)
 
             await session.commit()
             if result.rowcount == 0 and not has_div_update:

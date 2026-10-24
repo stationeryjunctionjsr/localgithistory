@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
+from app.utils.logger import logger
 from app.models.division import (
     DivisionCategoryTag,
     DivisionInternal,
@@ -127,8 +128,8 @@ class MySQLDivisionDAO:
             """)
             try:
                 count_rows = (await session.execute(q_cat_counts, tag_params)).fetchall()
-            except Exception:
-                pass
+            except Exception as _exc:
+                logger.warning("mysql_division_dao: failed to fetch category counts: %s", _exc)
 
         return junc_rows, direct_rows, count_rows
 

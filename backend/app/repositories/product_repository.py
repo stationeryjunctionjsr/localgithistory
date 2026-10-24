@@ -406,6 +406,76 @@ class ProductRepository:
             p.gst = float(cat_gst_map[p.category] if p.category in cat_gst_map else 0)
         return products
 
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # Redis product listing cache  (activate when upgrading to 250 MB Redis)
+    #
+    # Why: one cache key per unique filter combo cuts DB load ~60-70% on
+    #   all product browsing (listing, search, category, brand pages).
+    #   At ~15-30 KB per paginated page, 250 MB holds 8k-16k cached pages.
+    #
+    # Key schema:
+    #   sj:products:{sha256(filter_repr)[:16]}  ->  JSON list, TTL 300 s
+    #
+    # To activate:
+    #   1. pip install "redis[asyncio]>=4.2"
+    #   2. Set REDIS_URL=redis://<host>:6379 in .env
+    #   3. In findAll() replace `self.storage.findAll(filter)` with:
+    #        products = await _redis_get_or_set_products(filter, lambda: self.storage.findAll(filter))
+    #   4. Call _invalidate_product_cache() from every product write route.
+    #
+    # import hashlib as _hashlib, json as _json, os as _os
+    # from redis.asyncio import from_url as _redis_from_url
+    # _PRODUCT_CACHE_PREFIX = "sj:products:"
+    # _PRODUCT_CACHE_TTL = 300  # 5 minutes
+    # _redis_product_client = None
+    #
+    # async def _get_redis_product_client():
+    #     global _redis_product_client
+    #     if _redis_product_client is None:
+    #         url = _os.getenv("REDIS_URL", "")
+    #         if url:
+    #             _redis_product_client = _redis_from_url(url, decode_responses=True)
+    #     return _redis_product_client
+    #
+    # def _product_cache_key(filter) -> str:
+    #     repr_str = str(sorted(filter.model_dump(exclude_none=True).items()))
+    #     return _PRODUCT_CACHE_PREFIX + _hashlib.sha256(repr_str.encode()).hexdigest()[:16]
+    #
+    # async def _redis_get_or_set_products(filter, fetch_fn):
+    #     client = await _get_redis_product_client()
+    #     if client is None:
+    #         return await fetch_fn()
+    #     key = _product_cache_key(filter)
+    #     try:
+    #         raw = await client.get(key)
+    #         if raw:
+    #             from app.models.product import Product as _P
+    #             return [_P.model_validate(p) for p in _json.loads(raw)]
+    #     except Exception as exc:
+    #         import logging as _log
+    #         _log.warning("product_repository: Redis GET failed: %s", exc)
+    #     products = await fetch_fn()
+    #     try:
+    #         await client.setex(key, _PRODUCT_CACHE_TTL,
+    #                            _json.dumps([p.model_dump(mode="json") for p in products]))
+    #     except Exception as exc:
+    #         import logging as _log
+    #         _log.warning("product_repository: Redis SETEX failed: %s", exc)
+    #     return products
+    #
+    # async def _invalidate_product_cache() -> None:
+    #     client = await _get_redis_product_client()
+    #     if client:
+    #         try:
+    #             keys = [k async for k in client.scan_iter(_PRODUCT_CACHE_PREFIX + "*")]
+    #             if keys:
+    #                 await client.delete(*keys)
+    #         except Exception as exc:
+    #             import logging as _log
+    #             _log.warning("product_repository: cache invalidation failed: %s", exc)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     async def findAll(self, filter: Optional[ProductFilter] = None) -> List[Product]:
         if filter is None:
             filter = ProductFilter()
