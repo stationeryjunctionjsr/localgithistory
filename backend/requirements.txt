@@ -89,7 +89,7 @@ msgpack==1.2.1
 multidict==6.9.1
 multitasking==0.0.13
 narwhals==2.26.0
-networkx==3.6.1
+networkx==3.7
 numpy==2.5.3
 oauthlib==4.0.0
 oci==2.167.0
