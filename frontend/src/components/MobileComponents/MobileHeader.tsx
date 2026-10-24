@@ -112,6 +112,8 @@ export default function MobileHeader() {
   // State for search suggestions panel on mobile
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
+  const [popularCategories, setPopularCategories] = useState<string[]>([]);
+  const [popularBrands, setPopularBrands] = useState<string[]>([]);
   const [recentProducts, setRecentProducts] = useState<{ productId: string; productName: string; displayImage?: string; price?: number }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -304,6 +306,8 @@ export default function MobileHeader() {
       ]);
       setRecentSearches(recentRes.data || []);
       setPopularTerms(suggestionsRes.data?.popularTerms || []);
+      setPopularCategories(suggestionsRes.data?.popularCategories || []);
+      setPopularBrands(suggestionsRes.data?.popularBrands || []);
       setRecentProducts(recentProductsRes.data || []);
     } catch (e) { logger.warn("Silent catch block:", e); /* fail silently */ } finally {
       setLoadingSuggestions(false);
@@ -775,6 +779,50 @@ export default function MobileHeader() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                               </svg>
                               {term}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {popularCategories.length > 0 && !searchQuery && (
+                      <div className="border-t border-gray-50 p-3">
+                        <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Popular Categories</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {popularCategories.map((cat) => (
+                            <button
+                              key={cat}
+                              onMouseDown={() => {
+                                setShowSearch(false);
+                                router.push(`/categories/${encodeURIComponent(cat)}`);
+                              }}
+                              className="flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs text-gray-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                            >
+                              <svg className="h-3 w-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                              </svg>
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {popularBrands.length > 0 && !searchQuery && (
+                      <div className="border-t border-gray-50 p-3">
+                        <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Popular Brands</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {popularBrands.map((brand) => (
+                            <button
+                              key={brand}
+                              onMouseDown={() => {
+                                setShowSearch(false);
+                                router.push(`/brands/${encodeURIComponent(brand)}`);
+                              }}
+                              className="flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+                            >
+                              <svg className="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                              </svg>
+                              {brand}
                             </button>
                           ))}
                         </div>

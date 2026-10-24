@@ -12,6 +12,8 @@ from pydantic import Field, ConfigDict
 from app.repositories.tracking_repository import tracking_repository
 from app.utils.auth import get_optional_user, get_optional_user_lightweight, require_super_admin
 from app.utils.limiter import limiter
+from app.utils.logger import logger
+import asyncio
 
 router = APIRouter()
 
@@ -375,20 +377,108 @@ async def clear_recent_searches(
     return {"ok": True}
 
 
+async def _get_popular_categories(limit: int = 5) -> List[str]:
+    """Dynamically fetch top popular categories based on sales/orders, active catalog frequency, or category storage."""
+    categories: List[str] = []
+    # 1. Try to fetch top categories from order analytics / revenue
+    try:
+        from app.repositories.analytics_repository import analytics_repository
+        rev_cats = await analytics_repository.get_revenue_by_category(limit=limit)
+        for rc in rev_cats:
+            cat_name = getattr(rc, "category", None) or (rc.get("category") if isinstance(rc, dict) else None)
+            if cat_name and cat_name != "Uncategorized" and cat_name not in categories:
+                categories.append(cat_name)
+    except Exception as e:
+        logger.debug("Could not get popular categories from analytics: %s", e)
+
+    # 2. Supplement from active catalog products if more needed
+    if len(categories) < limit:
+        try:
+            from app.repositories.product_repository import product_repository
+            from collections import Counter
+            catalog = await product_repository._get_lightweight_search_catalog("customer", None)
+            cat_counts = Counter(p["category"] for p in catalog if p.get("category") and p["category"] != "Uncategorized")
+            for cat, _ in cat_counts.most_common():
+                if cat not in categories:
+                    categories.append(cat)
+                if len(categories) >= limit:
+                    break
+        except Exception as e:
+            logger.debug("Could not get popular categories from catalog: %s", e)
+
+    # 3. Fallback to active categories repository
+    if len(categories) < limit:
+        try:
+            from app.repositories.category_repository import category_repository
+            all_cats = await category_repository.findAll()
+            for c in all_cats:
+                c_name = getattr(c, "name", None) or (c.get("name") if isinstance(c, dict) else None)
+                is_act = getattr(c, "is_active", True)
+                if c_name and is_act and c_name not in categories:
+                    categories.append(c_name)
+                if len(categories) >= limit:
+                    break
+        except Exception as e:
+            logger.debug("Could not get popular categories from category repository: %s", e)
+
+    return categories[:limit]
+
+
+async def _get_popular_brands(limit: int = 5) -> List[str]:
+    """Dynamically fetch top popular brands based on active catalog frequency or brand storage."""
+    brands: List[str] = []
+    # 1. From active catalog products by frequency/popularity
+    try:
+        from app.repositories.product_repository import product_repository
+        from collections import Counter
+        catalog = await product_repository._get_lightweight_search_catalog("customer", None)
+        brand_counts = Counter(p["brand"] for p in catalog if p.get("brand"))
+        for brand, _ in brand_counts.most_common():
+            if brand and brand not in brands:
+                brands.append(brand)
+            if len(brands) >= limit:
+                break
+    except Exception as e:
+        logger.debug("Could not get popular brands from catalog: %s", e)
+
+    # 2. Fallback to active brands repository
+    if len(brands) < limit:
+        try:
+            from app.repositories.brand_repository import brand_repository
+            active_brands = await brand_repository.findActive()
+            for b in active_brands:
+                b_name = getattr(b, "name", None) or (b.get("name") if isinstance(b, dict) else None)
+                if b_name and b_name not in brands:
+                    brands.append(b_name)
+                if len(brands) >= limit:
+                    break
+        except Exception as e:
+            logger.debug("Could not get popular brands from brand repository: %s", e)
+
+    return brands[:limit]
+
+
 @router.get("/suggestions", response_model=SearchSuggestionsResponse)
 async def get_search_suggestions(
     limit: int = Query(5, ge=1, le=20), current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
-    # Popular terms
+    # Popular terms from tracked searches
     most_searched = await tracking_repository.getMostSearched(limit)
 
-    # We can also return popular categories/brands if needed
-    # For now, let's just return the terms
+    # Dynamically resolve popular categories and brands from analytics/catalog
+    pop_categories, pop_brands = await asyncio.gather(
+        _get_popular_categories(limit),
+        _get_popular_brands(limit),
+    )
+
     return SearchSuggestionsResponse(
         popularTerms=[item.term for item in most_searched],
-        popularCategories=["Office Supplies", "Notebooks", "Luxury Pens", "Art Materials"],
-        popularBrands=["Parker", "Moleskine", "Faber-Castell", "Camel"],
+        # HARDCODED ITEMS (commented out):
+        # popularCategories=["Office Supplies", "Notebooks", "Luxury Pens", "Art Materials"],
+        # popularBrands=["Parker", "Moleskine", "Faber-Castell", "Camel"],
+        popularCategories=pop_categories,
+        popularBrands=pop_brands,
     )
 
 
