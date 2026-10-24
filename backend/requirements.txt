@@ -116,7 +116,7 @@ prometheus-fastapi-instrumentator==6.1.0
 prometheus_client==0.25.0
 propcache==0.4.1
 proto-plus==1.27.0
-protobuf==6.33.5
+protobuf==7.36.2
 psutil==5.9.8
 py-vapid==1.9.2
 pyarrow==25.0.1
