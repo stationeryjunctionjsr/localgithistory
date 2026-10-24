@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -249,13 +249,22 @@ export default function Header() {
     setLoadingSuggestions(true);
     try {
       const sessionId = localStorage.getItem('sessionId');
+      const currentRole = user?.effectiveRole || user?.role;
+      const suggestionParams: Record<string, string | number> = { limit: 8 };
+      if (currentRole) suggestionParams.role = currentRole;
       const [recentRes, suggestionsRes, recentProductsRes] = await Promise.all([
         api.get('/tracking/recent', { params: { sessionId, limit: 5 } }),
-        api.get('/tracking/suggestions', { params: { limit: 8 } }),
+        api.get('/tracking/suggestions', { params: suggestionParams }),
         api.get('/tracking/recent-products', { params: { sessionId, limit: 4 } }),
       ]);
-      setRecentSearches(recentRes.data || []);
-      setPopularTerms(suggestionsRes.data?.popularTerms || []);
+      const recentSearchesData: string[] = recentRes.data || [];
+      const allPopularTerms: string[] = suggestionsRes.data?.popularTerms || [];
+      // Deduplicate: hide popular terms already in the user's recent searches
+      // (backend already deduped terms that match a category/brand name)
+      const recentLower = new Set(recentSearchesData.map((t: string) => t.toLowerCase()));
+      const dedupedTerms = allPopularTerms.filter((t: string) => !recentLower.has(t.toLowerCase()));
+      setRecentSearches(recentSearchesData);
+      setPopularTerms(dedupedTerms);
       setPopularCategories(suggestionsRes.data?.popularCategories || []);
       setPopularBrands(suggestionsRes.data?.popularBrands || []);
       setRecentProducts(recentProductsRes.data || []);

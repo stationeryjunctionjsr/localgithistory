@@ -379,10 +379,14 @@ async def clear_recent_searches(
 
 
 @cache.ttl_cache(ttl=300)
-async def _get_popular_categories(limit: int = 5) -> List[str]:
-    """Dynamically fetch top popular categories based on sales/orders, active catalog frequency, or category storage.
-    Cached for 300 s (5 min) — stampede protection built into InMemoryTTLCache via _inflight Future."""
+async def _get_popular_categories(limit: int = 5, role: str = "customer") -> List[str]:
+    """Dynamically fetch top popular categories scoped to the user's role.
+    - wholesaler: uses the wholesaler catalog (super-admin products only)
+    - customer/guest: uses the customer catalog (all active products)
+    Cached for 300 s (5 min) per (limit, role) pair — stampede protection via _inflight Future."""
+    effective_role = "wholesaler" if role == "wholesaler" else "customer"
     categories: List[str] = []
+
     # 1. Try to fetch top categories from order analytics / revenue
     try:
         from app.repositories.analytics_repository import analytics_repository
@@ -394,12 +398,12 @@ async def _get_popular_categories(limit: int = 5) -> List[str]:
     except Exception as e:
         logger.debug("Could not get popular categories from analytics: %s", e)
 
-    # 2. Supplement from active catalog products if more needed
+    # 2. Supplement from role-scoped catalog products if more needed
     if len(categories) < limit:
         try:
             from app.repositories.product_repository import product_repository
             from collections import Counter
-            catalog = await product_repository._get_lightweight_search_catalog("customer", None)
+            catalog = await product_repository._get_lightweight_search_catalog(effective_role, None)
             cat_counts = Counter(p["category"] for p in catalog if p.get("category") and p["category"] != "Uncategorized")
             for cat, _ in cat_counts.most_common():
                 if cat not in categories:
@@ -428,15 +432,19 @@ async def _get_popular_categories(limit: int = 5) -> List[str]:
 
 
 @cache.ttl_cache(ttl=300)
-async def _get_popular_brands(limit: int = 5) -> List[str]:
-    """Dynamically fetch top popular brands based on active catalog frequency or brand storage.
-    Cached for 300 s (5 min) — stampede protection built into InMemoryTTLCache via _inflight Future."""
+async def _get_popular_brands(limit: int = 5, role: str = "customer") -> List[str]:
+    """Dynamically fetch top popular brands scoped to the user's role.
+    - wholesaler: frequency-ranked across wholesaler catalog (super-admin products only)
+    - customer/guest: frequency-ranked across all active products
+    Cached for 300 s (5 min) per (limit, role) pair — stampede protection via _inflight Future."""
+    effective_role = "wholesaler" if role == "wholesaler" else "customer"
     brands: List[str] = []
-    # 1. From active catalog products by frequency/popularity
+
+    # 1. From role-scoped catalog products by frequency/popularity
     try:
         from app.repositories.product_repository import product_repository
         from collections import Counter
-        catalog = await product_repository._get_lightweight_search_catalog("customer", None)
+        catalog = await product_repository._get_lightweight_search_catalog(effective_role, None)
         brand_counts = Counter(p["brand"] for p in catalog if p.get("brand"))
         for brand, _ in brand_counts.most_common():
             if brand and brand not in brands:
@@ -465,20 +473,38 @@ async def _get_popular_brands(limit: int = 5) -> List[str]:
 
 @router.get("/suggestions", response_model=SearchSuggestionsResponse)
 async def get_search_suggestions(
-    limit: int = Query(5, ge=1, le=20), current_user: Optional[User] = Depends(get_optional_user),
+    limit: int = Query(5, ge=1, le=20),
+    role: str = Query("customer"),
+    current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
+    # Authenticated user's role always takes precedence over the query param.
+    # Guest/unauthenticated users pass role="customer" (default) or the frontend
+    # may send role="wholesaler" for a wholesaler session — we trust the JWT-verified
+    # current_user when present and fall back to the query param only for guests.
+    if current_user:
+        effective_role = "wholesaler" if current_user.role == "wholesaler" else "customer"
+    else:
+        effective_role = "wholesaler" if role == "wholesaler" else "customer"
+
     # Popular terms from tracked searches
     most_searched = await tracking_repository.getMostSearched(limit)
+    popular_terms: List[str] = [item.term for item in most_searched]
 
-    # Dynamically resolve popular categories and brands from analytics/catalog
+    # Dynamically resolve popular categories and brands (role-scoped, cached per role)
     pop_categories, pop_brands = await asyncio.gather(
-        _get_popular_categories(limit),
-        _get_popular_brands(limit),
+        _get_popular_categories(limit, effective_role),
+        _get_popular_brands(limit, effective_role),
     )
 
+    # Deduplicate: remove popular search terms that already appear as a
+    # category or brand pill — showing "Parker" in both "Popular Now" AND
+    # "Popular Brands" would be redundant. Case-insensitive comparison.
+    cat_brand_lower = {name.lower() for name in pop_categories + pop_brands}
+    popular_terms = [t for t in popular_terms if t.lower() not in cat_brand_lower]
+
     return SearchSuggestionsResponse(
-        popularTerms=[item.term for item in most_searched],
+        popularTerms=popular_terms,
         # HARDCODED ITEMS (commented out):
         # popularCategories=["Office Supplies", "Notebooks", "Luxury Pens", "Art Materials"],
         # popularBrands=["Parker", "Moleskine", "Faber-Castell", "Camel"],
