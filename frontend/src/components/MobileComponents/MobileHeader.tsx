@@ -742,7 +742,7 @@ export default function MobileHeader() {
                         )}
                       </div>
                     )}
-                    {recentSearches.length > 0 && (
+                    {recentSearches.length > 0 && !searchQuery && (
                       <div className="border-b border-gray-50 p-3">
                         <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recent Searches</h4>
                         <div className="flex flex-wrap gap-1.5">
@@ -762,7 +762,7 @@ export default function MobileHeader() {
                         </div>
                       </div>
                     )}
-                    {popularTerms.length > 0 && (
+                    {popularTerms.length > 0 && !searchQuery && (
                       <div className="p-3">
                         <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Popular Now</h4>
                         <div className="space-y-1">

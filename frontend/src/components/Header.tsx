@@ -983,7 +983,7 @@ export default function Header() {
                           )}
                         </div>
                       )}
-                      {recentSearches.length > 0 && (
+                      {recentSearches.length > 0 && !searchQuery && (
                         <div className="border-b border-gray-50 p-4">
                           <h4 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                             Recent Searches
@@ -1001,7 +1001,7 @@ export default function Header() {
                           </div>
                         </div>
                       )}
-                      {popularTerms.length > 0 && (
+                      {popularTerms.length > 0 && !searchQuery && (
                         <div className="p-4">
                           <h4 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                             Popular Now
