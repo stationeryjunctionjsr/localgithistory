@@ -1,0 +1,9 @@
+# Dev-only dependencies — do NOT install in production containers
+# Install with: pip install -r requirements-dev.txt
+#
+# Usage:
+#   pip-audit -r requirements.txt              # scan production deps for CVEs
+#   pip-audit -r requirements.txt --fix        # auto-upgrade vulnerable packages
+#   pip-audit -r requirements.txt -o audit.json --format json  # JSON report for CI
+
+pip-audit==2.9.0

@@ -475,6 +475,13 @@ from app.routers import (
     wishlist,
 )
 
+# Internal Prometheus metrics endpoint — only accessible from localhost or PROMETHEUS_SCRAPER_IP
+try:
+    from app.utils.metrics import router as metrics_router
+    app.include_router(metrics_router)
+except Exception as _me:
+    logger.warning("metrics router not loaded: %s", _me)
+
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(products.router, prefix="/api/products", tags=["products"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])

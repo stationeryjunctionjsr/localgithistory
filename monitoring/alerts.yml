@@ -1,0 +1,143 @@
+# Prometheus Alert Rules — Stationery Junction
+#
+# How to use:
+#   1. Add this file to your Prometheus config:
+#        rule_files:
+#          - /etc/prometheus/alerts.yml
+#   2. Set up an Alertmanager with your PagerDuty / OpsGenie / Slack webhook.
+#   3. Reload Prometheus: curl -X POST http://localhost:9090/-/reload
+#
+# Scrape target (backend):
+#   - job_name: sj_backend
+#     static_configs:
+#       - targets: ['backend:8000']   # internal network only
+#     metrics_path: /internal/metrics
+#
+# Required env var on backend: PROMETHEUS_SCRAPER_IP=<prometheus-server-ip>
+
+groups:
+
+  # ── Error Rate ─────────────────────────────────────────────────────────────
+  - name: sj_error_rate
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{status=~"5.."}[5m])
+            /
+            rate(http_requests_total[5m])
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate (> 1%)"
+          description: "{{ $value | humanizePercentage }} of requests are returning 5xx. Check Sentry for stack traces."
+
+      - alert: OrderCreationFailures
+        expr: rate(sj_orders_failed_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Order creation failures spiking"
+          description: "{{ $value | humanize }} order failures/sec in the last 5 minutes. Reason: {{ $labels.reason }}"
+
+  # ── Latency ────────────────────────────────────────────────────────────────
+  - name: sj_latency
+    rules:
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 2.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 API latency > 2s"
+          description: "p99 latency is {{ $value | humanizeDuration }}. Check for slow DB queries (look for req_id in MySQL slow log)."
+
+  # ── Database Connection Pool ───────────────────────────────────────────────
+  - name: sj_db_pool
+    rules:
+      - alert: DBPoolNearSaturation
+        expr: |
+          sqlalchemy_pool_checked_out
+          /
+          (sqlalchemy_pool_size + sqlalchemy_pool_overflow)
+          > 0.80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB connection pool > 80% used"
+          description: "{{ $value | humanizePercentage }} of the pool is in use. Risk of timeouts under continued load. Consider increasing DB_POOL_SIZE or adding a read replica."
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  - name: sj_redis
+    rules:
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory > 80%"
+          description: "Redis is using {{ $value | humanizePercentage }} of its max memory. Eviction may begin. Upgrade to 250 MB plan."
+
+  # ── Business Metrics ───────────────────────────────────────────────────────
+  - name: sj_business
+    rules:
+      - alert: NoOrdersInLastHour
+        expr: increase(sj_orders_created_total[1h]) == 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No orders created in the last hour"
+          description: "Zero orders in 60 minutes. Check if checkout is broken or if this is expected (e.g. overnight)."
+
+      - alert: HighPaymentFailureRate
+        expr: |
+          (
+            rate(sj_payment_failures_total[15m])
+            /
+            (rate(sj_orders_created_total[15m]) + 0.001)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment failure rate > 10%"
+          description: "{{ $value | humanizePercentage }} of orders are seeing payment failures. Method: {{ $labels.method }}. Check payment gateway."
+
+      - alert: UPIConfirmationsDropped
+        expr: increase(sj_upi_confirmations_total[30m]) == 0
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "No UPI confirmations in 30 minutes"
+          description: "No users have pressed 'I Have Paid' in 30 minutes. May indicate UPI deep link is broken on current OS/app version."
+
+  # ── Security ───────────────────────────────────────────────────────────────
+  - name: sj_security
+    rules:
+      - alert: LoginBruteForceSpike
+        expr: rate(sj_login_lockouts_total[5m]) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Login brute-force lockouts spiking"
+          description: "{{ $value | humanize }} lockouts/sec — possible credential stuffing attack in progress. Check auth logs."
+
+      - alert: OTPRateLimitSpike
+        expr: rate(sj_otp_requests_total{status="rate_limited"}[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OTP rate-limit hits spiking"
+          description: "{{ $value | humanize }} rate-limited OTP requests/sec. May indicate SMS flood attack."

@@ -15,6 +15,11 @@ from app.repositories.payment_repository import payment_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import require_roles, require_super_admin
 from app.utils.logger import logger
+try:
+    from app.utils.metrics import PAYMENT_FAILURES, UPI_CONFIRMATIONS
+    _metrics_available = True
+except Exception:
+    _metrics_available = False
 
 class BillInfoResponse(BaseModel):
     orderId: str
@@ -283,6 +288,11 @@ async def verify_payment_entry(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error("verify_payment_entry failed: %s", str(e), exc_info=True)
+        if _metrics_available:
+            try:
+                PAYMENT_FAILURES.labels(method="unknown").inc()
+            except Exception:
+                pass
         raise HTTPException(status_code=500, detail="Server error")
 
 

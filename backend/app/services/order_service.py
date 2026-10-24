@@ -42,6 +42,13 @@ from app.repositories.user_repository import user_repository
 from app.services.email_service import email_service
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
+try:
+    from app.utils.metrics import (
+        ORDERS_CREATED, ORDERS_FAILED, ORDER_GMV, COUPON_REDEMPTIONS,
+    )
+    _metrics_available = True
+except Exception:
+    _metrics_available = False
 
 # ---------------------------------------------------------------------------
 # Helper models
@@ -2068,6 +2075,11 @@ async def create_order_service(
         except Exception:
             pass
 
+        if _metrics_available:
+            try:
+                ORDERS_FAILED.labels(reason="sub_order_allocation").inc()
+            except Exception:
+                pass
         raise HTTPException(
             status_code=500,
             detail="Order could not be completed due to multi-seller sub-order allocation failure. Please try again.",
@@ -2085,5 +2097,18 @@ async def create_order_service(
     except Exception as _tl_err:
         logger.warning("order_timeline: initial log failed: %s", _tl_err)
 
+    # ── Business metrics ─────────────────────────────────────────────────────
+    if _metrics_available:
+        try:
+            _pm = order_data.payment_method or "unknown"
+            _gmv = float(populated_order.total or 0)
+            ORDERS_CREATED.labels(payment_method=_pm).inc()
+            ORDER_GMV.labels(payment_method=_pm).inc(_gmv)
+            if coupon_info:
+                _ctype = (coupon_info.get("typeOfDiscount") or "unknown")
+                COUPON_REDEMPTIONS.labels(coupon_type=_ctype).inc()
+        except Exception as _m_err:
+            logger.debug("metrics: order counter failed: %s", _m_err)
+    # ─────────────────────────────────────────────────────────────────────────
     return populated_order
 

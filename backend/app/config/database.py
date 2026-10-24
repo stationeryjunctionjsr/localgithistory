@@ -61,6 +61,28 @@ def _register_pre_ping(engine) -> None:
             )
 
 
+def _register_correlation_id(engine) -> None:
+    """Prepend a /* req_id=<X-Request-Id> */ comment to every SQL statement.
+
+    This means every query that appears in the MySQL slow-query log will
+    carry the originating HTTP request-ID, so you can grep slow_query.log
+    for a request-ID from your application logs and find the exact queries
+    it executed.
+
+    The comment is injected via SQLAlchemy's sync before_cursor_execute
+    event, which fires at the DBAPI level before the driver sends bytes.
+    Overhead is a single string concatenation per query — negligible.
+    """
+    from app.utils.logger import request_id_var  # local import to avoid circular
+
+    @event.listens_for(engine.sync_engine, "before_cursor_execute", retval=True)
+    def _inject_req_id(conn, cursor, statement, parameters, context, executemany):
+        req_id = request_id_var.get("-")
+        if req_id and req_id != "-":
+            statement = f"/* req_id={req_id} */ {statement}"
+        return statement, parameters
+
+
 def get_async_engine():
     global _async_engine
     if _async_engine is not None:
@@ -108,6 +130,7 @@ def get_async_engine():
             connect_args=connect_args,
         )
         _register_pre_ping(_async_engine)
+        _register_correlation_id(_async_engine)
     return _async_engine
 
 
