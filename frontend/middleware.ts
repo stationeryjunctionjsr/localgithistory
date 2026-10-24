@@ -47,6 +47,7 @@ export function middleware(request: NextRequest) {
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,
+    `frame-ancestors 'self'`,
   ].join('; ');
 
   // Forward nonce to the app as a request header.
@@ -59,6 +60,7 @@ export function middleware(request: NextRequest) {
   });
 
   response.headers.set('Content-Security-Policy', cspDirectives);
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set(
     'Permissions-Policy',

@@ -16,6 +16,7 @@ services:
       - ENVIRONMENT=uat
       # Set to "true" during scheduled upgrades
       - MAINTENANCE_MODE=false
+      - SENTRY_DSN=${SENTRY_DSN:-}
       # WORKERS, DB_POOL_SIZE, DB_MAX_OVERFLOW come from env_file: ./backend/.env.uat above
     # Use run.py so Uvicorn backlog, workers, and pre-flight tasks apply consistently
     command: python run.py

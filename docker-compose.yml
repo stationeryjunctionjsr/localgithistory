@@ -1,4 +1,4 @@
-﻿services:
+services:
   backend:
     build:
       context: ./backend
@@ -20,6 +20,7 @@
       - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
       - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-2}
       - MYSQL_DATABASE_URL=${MYSQL_DATABASE_URL}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     # Run via run.py to execute pre-flight tasks (IP whitelist) and use WORKERS env var
     command: python run.py
     # Raise the OS TCP accept-queue to match Uvicorn's backlog=2048 setting.
