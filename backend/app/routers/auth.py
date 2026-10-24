@@ -1,9 +1,10 @@
-from app.models.schemas import UserUpdate
+﻿from app.models.schemas import UserUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse, Msg91WebhookPayload
 import os
+import time
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Dict, Optional, Tuple
 from uuid import uuid4
 
 from fastapi import APIRouter, Response, Depends, Header, HTTPException, Request, status
@@ -38,6 +39,99 @@ from app.utils.otp import (
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Per-identifier login brute-force protection (in-memory, per-worker).
+#
+# Tracks failed login attempts per phone/email.  After MAX_LOGIN_FAILURES
+# attempts within LOGIN_LOCKOUT_WINDOW_S seconds the account identifier
+# is locked out and returns 429.
+#
+# Single-VM limitation: each uvicorn worker has its own counter, so an
+# attacker can get up to 4 x MAX_LOGIN_FAILURES attempts before any
+# single worker locks them out.  To enforce a shared counter across all
+# workers, activate Redis (set REDIS_URL) and replace _login_failures
+# with a Redis INCR/EXPIRE counter (see commented Redis block below).
+#
+# ━━━ Redis upgrade (activate when REDIS_URL is set) ━━━━━━━━━━━━━━━━━━
+# import os as _os
+# _REDIS_LOGIN_PREFIX = "sj:login:fail:"
+# _redis_login_client = None
+#
+# async def _get_redis_login_client():
+#     global _redis_login_client
+#     if _redis_login_client is None:
+#         redis_url = _os.getenv("REDIS_URL", "")
+#         if redis_url:
+#             from redis.asyncio import from_url as _redis_from_url
+#             _redis_login_client = _redis_from_url(redis_url, decode_responses=True)
+#     return _redis_login_client
+#
+# async def _check_login_lockout_redis(identifier: str) -> None:
+#     client = await _get_redis_login_client()
+#     if not client:
+#         return  # fall through to in-memory check
+#     key = f"{_REDIS_LOGIN_PREFIX}{identifier}"
+#     count = await client.get(key)
+#     if count and int(count) >= MAX_LOGIN_FAILURES:
+#         raise HTTPException(
+#             status_code=429,
+#             detail="Too many failed login attempts. Try again in 15 minutes.",
+#         )
+#
+# async def _record_login_failure_redis(identifier: str) -> None:
+#     client = await _get_redis_login_client()
+#     if not client:
+#         return
+#     key = f"{_REDIS_LOGIN_PREFIX}{identifier}"
+#     pipe = client.pipeline()
+#     pipe.incr(key)
+#     pipe.expire(key, LOGIN_LOCKOUT_WINDOW_S)
+#     await pipe.execute()
+#
+# async def _clear_login_failures_redis(identifier: str) -> None:
+#     client = await _get_redis_login_client()
+#     if client:
+#         await client.delete(f"{_REDIS_LOGIN_PREFIX}{identifier}")
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MAX_LOGIN_FAILURES: int = 10
+LOGIN_LOCKOUT_WINDOW_S: int = 15 * 60  # 15 minutes
+
+# Dict[identifier, (failure_count, window_start_timestamp)]
+_login_failures: Dict[str, Tuple[int, float]] = {}
+
+
+def _check_login_lockout(identifier: str) -> None:
+    """Raise HTTP 429 if the identifier has exceeded the failure threshold."""
+    entry = _login_failures.get(identifier)
+    if entry is None:
+        return
+    count, window_start = entry
+    if time.monotonic() - window_start > LOGIN_LOCKOUT_WINDOW_S:
+        # Window expired — reset silently
+        del _login_failures[identifier]
+        return
+    if count >= MAX_LOGIN_FAILURES:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts. Try again in 15 minutes.",
+        )
+
+
+def _record_login_failure(identifier: str) -> None:
+    """Increment the failure counter for the identifier."""
+    entry = _login_failures.get(identifier)
+    now = time.monotonic()
+    if entry is None or (now - entry[1] > LOGIN_LOCKOUT_WINDOW_S):
+        _login_failures[identifier] = (1, now)
+    else:
+        _login_failures[identifier] = (entry[0] + 1, entry[1])
+
+
+def _clear_login_failures(identifier: str) -> None:
+    """Reset the failure counter after a successful login."""
+    _login_failures.pop(identifier, None)
 
 
 async def get_current_user(
@@ -356,20 +450,26 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required")
 
     user = None
+    identifier: str = ""
     if login_data.email:
-        normalized_email = login_data.email.strip().lower()
-        user = await user_repository.findByEmail(normalized_email)
+        identifier = login_data.email.strip().lower()
+        user = await user_repository.findByEmail(identifier)
     elif login_data.phone:
-        normalized_phone = normalize_phone(login_data.phone)
-        user = await user_repository.findByPhone(normalized_phone)
+        identifier = normalize_phone(login_data.phone)
+        user = await user_repository.findByPhone(identifier)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Either email or phone must be provided")
 
+    # Per-identifier brute-force check (fires before any DB/password work)
+    _check_login_lockout(identifier)
+
     if not user:
+        _record_login_failure(identifier)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     password_match = user_repository.compare_password(user, login_data.password.strip())
     if not password_match:
+        _record_login_failure(identifier)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not (user.is_active if user.is_active is not None else True):
@@ -383,6 +483,9 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
                 detail="Your account is pending approval by Super Admin. Please wait for approval.",
                 headers={"X-Approval-Status": (user.approval_status if user.approval_status is not None else "pending")},
             )
+
+    # Successful authentication — clear any accumulated failure count
+    _clear_login_failures(identifier)
 
     device = parse_device(request, default_type="web")
     refresh_id = str(uuid4())

@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 import time
 import uuid
@@ -223,7 +223,15 @@ async def lifespan(app: FastAPI):
 
 
 
-app = FastAPI(title="Stationery Junction API", version="1.0.0", lifespan=lifespan)
+# Disable API docs in production — they expose your full API surface to scanners
+app = FastAPI(
+    title="Stationery Junction API",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 
 # Setup Rate Limiting
 from slowapi.middleware import SlowAPIMiddleware

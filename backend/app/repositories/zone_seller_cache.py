@@ -60,6 +60,162 @@ _all_zones_lock: Optional[Any] = None  # asyncio.Lock created lazily
 # Maps pincode (str) → zone object. Same TTL as _all_zones_cache.
 # Eliminates the `for zone in zones: if pincode in zone.pincodes` O(n) linear scan.
 _pincode_to_zone: Dict[str, Any] = {}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Redis-backed zone/pincode cache  (Slot 4 of the 30 MB Redis cache plan)
+#
+# Benefits over the current module-level Python dicts:
+#   • One shared copy across all uvicorn workers (currently: 4 separate copies).
+#   • Survives worker restart — no cold DB reload on crash/deploy.
+#   • Instant cross-worker invalidation via Redis pub/sub (pairs with cache.py
+#     invalidation listener — Slot 3 of the Redis plan).
+#   • Estimated size: ~2–4 MB for a typical India hyperlocal deployment
+#     (5,000 pincodes × ~400 bytes each).
+#
+# Key schema:
+#   sj:zone:all           -> JSON list of all active zone objects, TTL = ZONE_CACHE_TTL_S
+#   sj:zone:sellers:{id}  -> JSON list of seller_id strings, TTL = ZONE_CACHE_TTL_S
+#
+# To activate:
+#   1. pip install "redis[asyncio]>=4.2"
+#   2. Set REDIS_URL=redis://<host>:6379 in .env
+#   3. Replace _fetch_all_zones() with _fetch_all_zones_redis() below.
+#   4. Replace _get_sellers_for_zone() with _get_sellers_for_zone_redis() below.
+#   5. Replace invalidate_zone_cache() with invalidate_zone_cache_redis() below.
+#
+# import json as _json
+# from redis.asyncio import from_url as _redis_from_url
+#
+# _ZONE_ALL_KEY = 'sj:zone:all'
+# _ZONE_SELLERS_PREFIX = 'sj:zone:sellers:'
+# _redis_zone_client = None
+#
+#
+# async def _get_redis_zone_client():
+#     global _redis_zone_client
+#     if _redis_zone_client is None:
+#         import os as _os
+#         redis_url = _os.getenv('REDIS_URL', '')
+#         if redis_url:
+#             _redis_zone_client = _redis_from_url(redis_url, decode_responses=True)
+#     return _redis_zone_client
+#
+#
+# async def _fetch_all_zones_redis() -> list:
+#     global _all_zones_cache, _all_zones_expiry, _all_zones_lock, _pincode_to_zone
+#     import asyncio
+#
+#     # Fast path: in-process cache still warm
+#     if _all_zones_cache is not None and time.monotonic() < _all_zones_expiry:
+#         return _all_zones_cache
+#
+#     client = await _get_redis_zone_client()
+#     if client:
+#         try:
+#             raw = await client.get(_ZONE_ALL_KEY)
+#             if raw:
+#                 from app.models.daos_flat import DeliveryZoneInternal
+#                 zones = [DeliveryZoneInternal.model_validate(z) for z in _json.loads(raw)]
+#                 new_index = {}
+#                 for zone in zones:
+#                     for pincode in (zone.pincodes or []):
+#                         if pincode:
+#                             new_index[str(pincode)] = zone
+#                 _pincode_to_zone = new_index
+#                 _all_zones_cache = zones
+#                 _all_zones_expiry = time.monotonic() + ZONE_CACHE_TTL_S
+#                 return zones
+#         except Exception as exc:
+#             logger.warning('zone_seller_cache: Redis read failed, falling back to DB: %s', exc)
+#
+#     # DB fallback (also warms Redis for other workers)
+#     if _all_zones_lock is None:
+#         _all_zones_lock = asyncio.Lock()
+#     async with _all_zones_lock:
+#         if _all_zones_cache is not None and time.monotonic() < _all_zones_expiry:
+#             return _all_zones_cache
+#         storage = get_storage('deliveryZones')
+#         zones = await storage.findAll(is_active=True)
+#         new_index = {}
+#         for zone in zones:
+#             for pincode in (zone.pincodes or []):
+#                 if pincode:
+#                     new_index[str(pincode)] = zone
+#         _pincode_to_zone = new_index
+#         _all_zones_cache = zones
+#         _all_zones_expiry = time.monotonic() + ZONE_CACHE_TTL_S
+#         if client:
+#             try:
+#                 serialisable = [z.model_dump(mode='json') for z in zones]
+#                 await client.setex(_ZONE_ALL_KEY, ZONE_CACHE_TTL_S, _json.dumps(serialisable))
+#             except Exception as exc:
+#                 logger.warning('zone_seller_cache: failed to write zones to Redis: %s', exc)
+#         return _all_zones_cache
+#
+#
+# async def _get_sellers_for_zone_redis(zone_id: int) -> frozenset:
+#     cached = _zone_seller_cache.get(zone_id)
+#     if cached and _is_fresh(cached[1]):
+#         return cached[0]
+#     client = await _get_redis_zone_client()
+#     if client:
+#         try:
+#             key = f'{_ZONE_SELLERS_PREFIX}{zone_id}'
+#             raw = await client.get(key)
+#             if raw:
+#                 seller_ids = frozenset(_json.loads(raw))
+#                 _zone_seller_cache[zone_id] = (seller_ids, time.monotonic() + ZONE_CACHE_TTL_S)
+#                 return seller_ids
+#         except Exception as exc:
+#             logger.warning('zone_seller_cache: Redis read for sellers failed: %s', exc)
+#     # DB fallback
+#     try:
+#         from app.config.database import get_async_session_factory
+#         from sqlalchemy import text
+#         factory = get_async_session_factory()
+#         async with factory() as session:
+#             res = await session.execute(
+#                 text('SELECT user_id FROM sj_seller_zones WHERE zone_id = :zid'),
+#                 {'zid': zone_id},
+#             )
+#             rows = res.fetchall()
+#         seller_ids = frozenset(str(r.user_id) for r in rows)
+#         _zone_seller_cache[zone_id] = (seller_ids, time.monotonic() + ZONE_CACHE_TTL_S)
+#         if client:
+#             try:
+#                 key = f'{_ZONE_SELLERS_PREFIX}{zone_id}'
+#                 await client.setex(key, ZONE_CACHE_TTL_S, _json.dumps(list(seller_ids)))
+#             except Exception as exc:
+#                 logger.warning('zone_seller_cache: failed to write zone sellers to Redis: %s', exc)
+#         return seller_ids
+#     except Exception as exc:
+#         logger.error('zone_seller_cache: failed to fetch sellers for zone %s: %s', zone_id, exc, exc_info=True)
+#         return frozenset()
+#
+#
+# async def invalidate_zone_cache_redis(zone_id: Optional[int] = None) -> None:
+#     global _all_zones_cache, _all_zones_expiry, _pincode_to_zone
+#     _all_zones_cache = None
+#     _all_zones_expiry = 0.0
+#     _pincode_to_zone = {}
+#     if zone_id is not None:
+#         _zone_seller_cache.pop(zone_id, None)
+#     else:
+#         _zone_seller_cache.clear()
+#     client = await _get_redis_zone_client()
+#     if client:
+#         try:
+#             keys_to_delete = [_ZONE_ALL_KEY]
+#             if zone_id is not None:
+#                 keys_to_delete.append(f'{_ZONE_SELLERS_PREFIX}{zone_id}')
+#             else:
+#                 async for key in client.scan_iter(f'{_ZONE_SELLERS_PREFIX}*'):
+#                     keys_to_delete.append(key)
+#             if keys_to_delete:
+#                 await client.delete(*keys_to_delete)
+#         except Exception as exc:
+#             logger.warning('zone_seller_cache: failed to invalidate Redis keys: %s', exc)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 async def get_super_admin_seller_id() -> Optional[str]:

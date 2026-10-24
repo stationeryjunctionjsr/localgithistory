@@ -16,6 +16,124 @@ OTP_VALID_SECONDS = 15 * 60
 RESEND_COOLDOWN_SECONDS = 30
 MAX_SENDS_PER_HOUR = 50
 SEND_WINDOW_SECONDS = 60 * 60
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Redis-backed OTP storage  (Slot 2 of the 30 MB Redis cache plan)
+#
+# Benefits over the current MySQL OTP DAO:
+#   • Native key TTL — Redis auto-deletes expired OTPs; no cleanup job needed.
+#   • OTP lookup is a single Redis GET (<1 ms) vs a SQL SELECT with index scan.
+#   • Send-rate counter is a Redis INCR+EXPIRE — atomic, no extra DB table.
+#   • One shared store across all uvicorn workers (unlike in-memory otp_store).
+#   • Estimated size: ~200 bytes x 1,000 concurrent OTP sessions ≈ 200 KB.
+#
+# Key schema:
+#   sj:otp:{phone}:{device_key}   -> JSON {otp, attempts, created_at, last_sent_at}
+#                                    TTL = OTP_VALID_SECONDS (15 min)
+#   sj:otp:sends:{phone}          -> integer send count, TTL = SEND_WINDOW_SECONDS (1 hr)
+#
+# To activate:
+#   1. pip install "redis[asyncio]>=4.2"  (same lib used by the rate limiter)
+#   2. Set REDIS_URL=redis://<host>:6379 in .env
+#   3. In request_otp_async() below, swap `_db_request_otp` -> `_redis_request_otp`
+#   4. In verify_otp_async() below, swap `_db_verify_otp`    -> `_redis_verify_otp`
+#
+# import json as _json
+# from redis.asyncio import from_url as _redis_from_url
+#
+# _OTP_PREFIX = 'sj:otp:'
+# _OTP_SENDS_PREFIX = 'sj:otp:sends:'
+# _redis_otp_client = None
+#
+#
+# async def _get_redis_otp_client():
+#     global _redis_otp_client
+#     if _redis_otp_client is None:
+#         redis_url = os.getenv('REDIS_URL', '')
+#         if redis_url:
+#             _redis_otp_client = _redis_from_url(redis_url, decode_responses=True)
+#     return _redis_otp_client
+#
+#
+# async def _redis_request_otp(user_key: str, device_key: str) -> Tuple[bool, 'JsonPayload']:
+#     client = await _get_redis_otp_client()
+#     if client is None:
+#         return await _db_request_otp(user_key, device_key)
+#
+#     sends_key = f'{_OTP_SENDS_PREFIX}{user_key}'
+#     otp_key = f'{_OTP_PREFIX}{user_key}:{device_key}'
+#
+#     # Check hourly send rate limit
+#     send_count_raw = await client.get(sends_key)
+#     send_count = int(send_count_raw) if send_count_raw else 0
+#     if send_count >= MAX_SENDS_PER_HOUR:
+#         return False, {'message': 'Maximum attempts reached. Retry after 1 hour.', 'retry_after_seconds': 3600}
+#
+#     # Check for existing active OTP (enforce resend cooldown)
+#     existing_raw = await client.get(otp_key)
+#     now = time.time()
+#     if existing_raw:
+#         existing = _json.loads(existing_raw)
+#         last_sent = existing.get('last_sent_at', 0)
+#         since_last = now - last_sent
+#         if since_last < RESEND_COOLDOWN_SECONDS:
+#             resend_in = int(max(1, RESEND_COOLDOWN_SECONDS - since_last))
+#             return True, {'resend_available_in_seconds': resend_in, 'sent': False}
+#         # Resend the same OTP code (don't generate a new one mid-session)
+#         otp_code = existing['otp']
+#         existing['last_sent_at'] = now
+#         ttl = await client.ttl(otp_key)
+#         await client.setex(otp_key, max(ttl, 1), _json.dumps(existing))
+#     else:
+#         # No active OTP — generate a fresh one
+#         otp_code = generate_otp()
+#         payload = {'otp': otp_code, 'attempts': 0, 'created_at': now, 'last_sent_at': now}
+#         await client.setex(otp_key, OTP_VALID_SECONDS, _json.dumps(payload))
+#
+#     # Increment send counter with hourly TTL (atomic INCR + conditional EXPIRE)
+#     pipe = client.pipeline()
+#     pipe.incr(sends_key)
+#     pipe.expire(sends_key, SEND_WINDOW_SECONDS)
+#     await pipe.execute()
+#
+#     # Dispatch SMS
+#     sent_ok = send_otp_via_sms(user_key, otp_code)
+#     if not sent_ok:
+#         return False, {'message': 'Failed to send SMS. Please check provider configuration.'}
+#
+#     result: Dict[str, Any] = {'message': 'OTP sent'}
+#     if os.getenv('ENVIRONMENT') == 'development':
+#         result['otp'] = otp_code  # expose OTP in dev for easy testing
+#     return True, result
+#
+#
+# async def _redis_verify_otp(user_key: str, device_key: str, otp_input: str) -> Tuple[bool, 'JsonPayload']:
+#     client = await _get_redis_otp_client()
+#     if client is None:
+#         return await _db_verify_otp(user_key, device_key, otp_input)
+#
+#     otp_key = f'{_OTP_PREFIX}{user_key}:{device_key}'
+#     existing_raw = await client.get(otp_key)
+#
+#     if not existing_raw:
+#         return False, {'message': 'OTP expired or not found. Please request a new one.'}
+#
+#     existing = _json.loads(existing_raw)
+#     attempts = existing.get('attempts', 0)
+#     if attempts >= 5:
+#         await client.delete(otp_key)
+#         return False, {'message': 'Too many incorrect attempts. Please request a new OTP.'}
+#
+#     if existing['otp'] != str(otp_input).strip():
+#         existing['attempts'] = attempts + 1
+#         ttl = await client.ttl(otp_key)
+#         await client.setex(otp_key, max(ttl, 1), _json.dumps(existing))
+#         return False, {'message': 'Invalid OTP'}
+#
+#     # OTP matched — delete immediately (single-use guarantee)
+#     await client.delete(otp_key)
+#     return True, {'message': 'OTP verified successfully'}
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # In-memory fallback (used when Oracle is not configured)
 otp_store: Dict[str, 'JsonPayload'] = {}
