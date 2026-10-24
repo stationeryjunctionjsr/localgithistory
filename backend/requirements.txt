@@ -197,7 +197,7 @@ urllib3==2.8.0
 uvicorn==0.52.4
 watchdog==6.0.0
 watchfiles==1.1.1
-websocket-client==1.9.0
+websocket-client==1.9.2
 websockets==16.0
 Werkzeug==3.1.9
 wheel==0.48.0
