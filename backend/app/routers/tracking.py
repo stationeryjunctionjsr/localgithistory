@@ -13,6 +13,7 @@ from app.repositories.tracking_repository import tracking_repository
 from app.utils.auth import get_optional_user, get_optional_user_lightweight, require_super_admin
 from app.utils.limiter import limiter
 from app.utils.logger import logger
+from app.utils.cache import cache
 import asyncio
 
 router = APIRouter()
@@ -377,8 +378,10 @@ async def clear_recent_searches(
     return {"ok": True}
 
 
+@cache.ttl_cache(ttl=300)
 async def _get_popular_categories(limit: int = 5) -> List[str]:
-    """Dynamically fetch top popular categories based on sales/orders, active catalog frequency, or category storage."""
+    """Dynamically fetch top popular categories based on sales/orders, active catalog frequency, or category storage.
+    Cached for 300 s (5 min) — stampede protection built into InMemoryTTLCache via _inflight Future."""
     categories: List[str] = []
     # 1. Try to fetch top categories from order analytics / revenue
     try:
@@ -424,8 +427,10 @@ async def _get_popular_categories(limit: int = 5) -> List[str]:
     return categories[:limit]
 
 
+@cache.ttl_cache(ttl=300)
 async def _get_popular_brands(limit: int = 5) -> List[str]:
-    """Dynamically fetch top popular brands based on active catalog frequency or brand storage."""
+    """Dynamically fetch top popular brands based on active catalog frequency or brand storage.
+    Cached for 300 s (5 min) — stampede protection built into InMemoryTTLCache via _inflight Future."""
     brands: List[str] = []
     # 1. From active catalog products by frequency/popularity
     try:
