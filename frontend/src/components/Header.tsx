@@ -13,6 +13,7 @@ import AuthModal from './AuthModal';
 import GeneralFeedbackModal from './GeneralFeedbackModal';
 import api from '@/utils/api';
 import Link from 'next/link';
+import Image from 'next/image';
 import styles from './Header.module.css';
 import { trackBackendFilterClick } from '@/utils/analytics';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
@@ -862,9 +863,11 @@ export default function Header() {
                               >
                                 <div className="h-14 w-14 overflow-hidden rounded-lg bg-gray-100">
                                   {product.displayImage ? (
-                                    <img
+                                    <Image
                                       src={getImageUrlWithFallback(product.displayImage)}
                                       alt={product.productName}
+                                      width={56}
+                                      height={56}
                                       className="h-full w-full object-contain"
                                     />
                                   ) : (
@@ -968,7 +971,7 @@ export default function Header() {
                                         className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50"
                                       >
                                         <div className="h-8 w-8 shrink-0 overflow-hidden rounded bg-gray-100">
-                                          {product.displayImage && <img src={getImageUrlWithFallback(product.displayImage)} alt={product.productName} className="h-full w-full object-contain" />}
+                                          {product.displayImage && <Image src={getImageUrlWithFallback(product.displayImage)} alt={product.productName} width={32} height={32} className="h-full w-full object-contain" />}
                                         </div>
                                         <span className="text-sm text-gray-700 group-hover:text-gray-900">{product.productName}</span>
                                       </button>
